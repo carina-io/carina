@@ -17,8 +17,8 @@ limitations under the License.
 package controllers
 
 import (
-	"carina/pkg/device"
 	"carina/pkg/device/lvmd"
+	"carina/pkg/device/types"
 	"carina/utils"
 	"context"
 	"google.golang.org/grpc/codes"
@@ -136,7 +136,7 @@ func (r *LogicVolumeReconciler) SetupWithManager(mgr ctrl.Manager) error {
 func (r *LogicVolumeReconciler) removeLVIfExists(ctx context.Context, log logr.Logger, lv *carinav1.LogicVolume) error {
 	// Finalizer's process ( RemoveLV then removeString ) is not atomic,
 	// so checking existence of LV to ensure its idempotence
-	respList, err := r.vgService.GetLVList(ctx, device.GetLVListRequest{DeviceClassName: lv.Spec.DeviceClassName})
+	respList, err := r.vgService.GetLVList(ctx, types.GetLVListRequest{DeviceClassName: lv.Spec.DeviceClassName})
 	if err != nil {
 		log.Error(err, "failed to list LV")
 		return err
@@ -146,7 +146,7 @@ func (r *LogicVolumeReconciler) removeLVIfExists(ctx context.Context, log logr.L
 		if v.Name != string(lv.UID) {
 			continue
 		}
-		err := r.lvService.RemoveLV(ctx, device.RemoveLVRequest{Name: string(lv.UID), DeviceClassName: lv.Spec.DeviceClassName})
+		err := r.lvService.RemoveLV(ctx, types.RemoveLVRequest{Name: string(lv.UID), DeviceClassName: lv.Spec.DeviceClassName})
 		if err != nil {
 			log.Error(err, "failed to remove LV", "name", lv.Name, "uid", lv.UID)
 			return err
@@ -159,7 +159,7 @@ func (r *LogicVolumeReconciler) removeLVIfExists(ctx context.Context, log logr.L
 }
 
 func (r *LogicVolumeReconciler) volumeExists(ctx context.Context, log logr.Logger, lv *carinav1.LogicVolume) (bool, error) {
-	respList, err := r.vgService.GetLVList(ctx, device.GetLVListRequest{DeviceClassName: lv.Spec.DeviceClassName})
+	respList, err := r.vgService.GetLVList(ctx, types.GetLVListRequest{DeviceClassName: lv.Spec.DeviceClassName})
 	if err != nil {
 		log.Error(err, "failed to get list of LV")
 		return false, err
@@ -199,7 +199,7 @@ func (r *LogicVolumeReconciler) createLV(ctx context.Context, log logr.Logger, l
 			return nil
 		}
 
-		resp, err := r.lvService.CreateLV(ctx, device.CreateLVRequest{
+		resp, err := r.lvService.CreateLV(ctx, types.CreateLVRequest{
 			Name:            string(lv.UID),
 			SizeGB:          uint64(reqBytes >> 30),
 			Tags:            nil,
@@ -253,7 +253,7 @@ func (r *LogicVolumeReconciler) expandLV(ctx context.Context, log logr.Logger, l
 	reqBytes := lv.Spec.Size.Value()
 
 	err := func() error {
-		err := r.lvService.ResizeLV(ctx, device.ResizeLVRequest{Name: string(lv.UID), SizeGB: uint64(reqBytes >> 30), DeviceClassName: lv.Spec.DeviceClassName})
+		err := r.lvService.ResizeLV(ctx, types.ResizeLVRequest{Name: string(lv.UID), SizeGB: uint64(reqBytes >> 30), DeviceClassName: lv.Spec.DeviceClassName})
 		if err != nil {
 			code, message := extractFromError(err)
 			log.Error(err, message)

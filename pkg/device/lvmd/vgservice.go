@@ -3,6 +3,7 @@ package lvmd
 import (
 	"carina/pkg/device"
 	"carina/pkg/device/command"
+	"carina/pkg/device/types"
 	"context"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -12,11 +13,11 @@ import (
 // Service to retrieve information of the volume group
 type VGService interface {
 	// Get the list of logical volumes in the volume group
-	GetLVList(ctx context.Context, request device.GetLVListRequest) (*device.GetLVListResponse, error)
+	GetLVList(ctx context.Context, request types.GetLVListRequest) (*types.GetLVListResponse, error)
 	// Get the free space of the volume group in bytes
-	GetFreeBytes(ctx context.Context, request device.GetFreeBytesRequest) (*device.GetFreeBytesResponse, error)
+	GetFreeBytes(ctx context.Context, request types.GetFreeBytesRequest) (*types.GetFreeBytesResponse, error)
 	// Stream the volume group metrics
-	Watch() (*device.WatchResponse, error)
+	Watch() (*types.WatchResponse, error)
 }
 
 // NewVGService creates a VGServiceServer
@@ -37,7 +38,7 @@ type VGServiceImplement struct {
 	watchers       map[int]chan struct{}
 }
 
-func (s *VGServiceImplement) GetLVList(ctx context.Context, request device.GetLVListRequest) (*device.GetLVListResponse, error) {
+func (s *VGServiceImplement) GetLVList(ctx context.Context, request types.GetLVListRequest) (*types.GetLVListResponse, error) {
 	dc, err := s.dcManager.DeviceClass(request.DeviceClassName)
 	if err != nil {
 		return nil, status.Errorf(codes.NotFound, "%s: %s", err.Error(), request.DeviceClassName)
@@ -54,9 +55,9 @@ func (s *VGServiceImplement) GetLVList(ctx context.Context, request device.GetLV
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 
-	vols := make([]*device.LogicalVolume, len(lvs))
+	vols := make([]*types.LogicalVolume, len(lvs))
 	for i, lv := range lvs {
-		vols[i] = &device.LogicalVolume{
+		vols[i] = &types.LogicalVolume{
 			Name:     lv.Name(),
 			SizeGB:   (lv.Size() + (1 << 30) - 1) >> 30,
 			DevMajor: lv.MajorNumber(),
@@ -64,10 +65,10 @@ func (s *VGServiceImplement) GetLVList(ctx context.Context, request device.GetLV
 			Tags:     lv.Tags(),
 		}
 	}
-	return &device.GetLVListResponse{Volumes: vols}, nil
+	return &types.GetLVListResponse{Volumes: vols}, nil
 }
 
-func (s *VGServiceImplement) GetFreeBytes(ctx context.Context, request device.GetFreeBytesRequest) (*device.GetFreeBytesResponse, error) {
+func (s *VGServiceImplement) GetFreeBytes(ctx context.Context, request types.GetFreeBytesRequest) (*types.GetFreeBytesResponse, error) {
 	dc, err := s.dcManager.DeviceClass(request.DeviceClassName)
 	if err != nil {
 		return nil, status.Errorf(codes.NotFound, "%s: %s", err.Error(), request.DeviceClassName)
@@ -91,7 +92,7 @@ func (s *VGServiceImplement) GetFreeBytes(ctx context.Context, request device.Ge
 		vgFree -= spare
 	}
 
-	return &device.GetFreeBytesResponse{
+	return &types.GetFreeBytesResponse{
 		FreeBytes: vgFree,
 	}, nil
 }
@@ -155,7 +156,7 @@ func (s *VGServiceImplement) notifyWatchers() {
 	}
 }
 
-func (s *VGServiceImplement) Watch() (*device.WatchResponse, error) {
+func (s *VGServiceImplement) Watch() (*types.WatchResponse, error) {
 	ch := make(chan struct{}, 1)
 	num := s.addWatcher(ch)
 	defer s.removeWatcher(num)

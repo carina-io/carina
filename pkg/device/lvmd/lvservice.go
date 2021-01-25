@@ -3,6 +3,7 @@ package lvmd
 import (
 	"carina/pkg/device"
 	"carina/pkg/device/command"
+	"carina/pkg/device/types"
 	"context"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -11,11 +12,11 @@ import (
 // Service to manage logical volumes of the volume group.
 type LVService interface {
 	// Create a logical volume
-	CreateLV(ctx context.Context, request device.CreateLVRequest) (*device.CreateLVResponse, error)
+	CreateLV(ctx context.Context, request types.CreateLVRequest) (*types.CreateLVResponse, error)
 	// Remove a logical volume
-	RemoveLV(ctx context.Context, request device.RemoveLVRequest) error
+	RemoveLV(ctx context.Context, request types.RemoveLVRequest) error
 	// Resize a logical volume
-	ResizeLV(ctx context.Context, request device.ResizeLVRequest) error
+	ResizeLV(ctx context.Context, request types.ResizeLVRequest) error
 }
 
 func NewLVService(mapper *device.DeviceClassManager, notifyFunc func()) LVService {
@@ -30,7 +31,7 @@ type LVServiceImplement struct {
 	notifyFunc func()
 }
 
-func (s *LVServiceImplement) CreateLV(ctx context.Context, request device.CreateLVRequest) (*device.CreateLVResponse, error) {
+func (s *LVServiceImplement) CreateLV(ctx context.Context, request types.CreateLVRequest) (*types.CreateLVResponse, error) {
 	dc, err := s.mapper.DeviceClass(request.DeviceClassName)
 	if err != nil {
 		return nil, status.Errorf(codes.NotFound, "%s: %s", err.Error(), request.DeviceClassName)
@@ -77,8 +78,8 @@ func (s *LVServiceImplement) CreateLV(ctx context.Context, request device.Create
 	//	"size": requested,
 	//})
 
-	return &device.CreateLVResponse{
-		Volume: &device.LogicalVolume{
+	return &types.CreateLVResponse{
+		Volume: &types.LogicalVolume{
 			Name:     lv.Name(),
 			SizeGB:   lv.Size() >> 30,
 			DevMajor: lv.MajorNumber(),
@@ -87,7 +88,7 @@ func (s *LVServiceImplement) CreateLV(ctx context.Context, request device.Create
 	}, nil
 }
 
-func (s *LVServiceImplement) RemoveLV(ctx context.Context, request device.RemoveLVRequest) error {
+func (s *LVServiceImplement) RemoveLV(ctx context.Context, request types.RemoveLVRequest) error {
 	dc, err := s.mapper.DeviceClass(request.DeviceClassName)
 	if err != nil {
 		return status.Errorf(codes.NotFound, "%s: %s", err.Error(), request.DeviceClassName)
@@ -128,7 +129,7 @@ func (s *LVServiceImplement) RemoveLV(ctx context.Context, request device.Remove
 	return nil
 }
 
-func (s *LVServiceImplement) ResizeLV(ctx context.Context, request device.ResizeLVRequest) error {
+func (s *LVServiceImplement) ResizeLV(ctx context.Context, request types.ResizeLVRequest) error {
 	dc, err := s.mapper.DeviceClass(request.DeviceClassName)
 	if err != nil {
 		return status.Errorf(codes.NotFound, "%s: %s", err.Error(), request.DeviceClassName)
