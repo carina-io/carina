@@ -1,4 +1,4 @@
-package device
+package types
 
 // Represents a logical volume
 type LogicalVolume struct {
