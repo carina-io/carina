@@ -1,0 +1,24 @@
+# permissions for end users to edit logicvolumes.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: logicvolume-editor-role
+rules:
+- apiGroups:
+  - carina.storage.io
+  resources:
+  - logicvolumes
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - carina.storage.io
+  resources:
+  - logicvolumes/status
+  verbs:
+  - get
