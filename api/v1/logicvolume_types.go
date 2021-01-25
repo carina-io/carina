@@ -17,6 +17,8 @@ limitations under the License.
 package v1
 
 import (
+	"google.golang.org/grpc/codes"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -27,18 +29,25 @@ import (
 type LogicVolumeSpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
-
-	// Foo is an example field of LogicVolume. Edit LogicVolume_types.go to remove/update
-	Foo string `json:"foo,omitempty"`
+	Name            string            `json:"name"`
+	NodeName        string            `json:"nodeName"`
+	Size            resource.Quantity `json:"size"`
+	DeviceClassName string            `json:"deviceClassName,omitempty"`
 }
 
 // LogicVolumeStatus defines the observed state of LogicVolume
 type LogicVolumeStatus struct {
 	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
+	VolumeID    string             `json:"volumeID,omitempty"`
+	Code        codes.Code         `json:"code,omitempty"`
+	Message     string             `json:"message,omitempty"`
+	CurrentSize *resource.Quantity `json:"currentSize,omitempty"`
 }
 
 // +kubebuilder:object:root=true
+// +kubebuilder:resource:scope=Cluster
+// +kubebuilder:subresource:status
 
 // LogicVolume is the Schema for the logicvolumes API
 type LogicVolume struct {
@@ -47,6 +56,17 @@ type LogicVolume struct {
 
 	Spec   LogicVolumeSpec   `json:"spec,omitempty"`
 	Status LogicVolumeStatus `json:"status,omitempty"`
+}
+
+// IsCompatibleWith returns true if the LogicalVolume is compatible.
+func (lv *LogicVolume) IsCompatibleWith(lv2 *LogicVolume) bool {
+	if lv.Spec.Name != lv2.Spec.Name {
+		return false
+	}
+	if lv.Spec.Size.Cmp(lv2.Spec.Size) != 0 {
+		return false
+	}
+	return true
 }
 
 // +kubebuilder:object:root=true
