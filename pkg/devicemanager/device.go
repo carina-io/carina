@@ -1,6 +1,7 @@
 package deviceManager
 
 import (
+	"carina/pkg/devicemanager/types"
 	"carina/utils/exec"
 	"carina/utils/log"
 	"encoding/json"
@@ -10,28 +11,6 @@ import (
 	"path"
 	"strconv"
 	"strings"
-)
-
-const (
-	// DiskType is a disk type
-	DiskType = "disk"
-	// SSDType is an sdd type
-	SSDType = "ssd"
-	// PartType is a partition type
-	PartType = "part"
-	// CryptType is an encrypted type
-	CryptType = "crypt"
-	// LVMType is an LVM type
-	LVMType = "lvm"
-	// MultiPath is for multipath devices
-	MultiPath = "mpath"
-	// LinearType is a linear type
-	LinearType = "linear"
-	sgdiskCmd  = "sgdisk"
-	// CephLVPrefix is the prefix of a LV owned by ceph-volume
-	CephLVPrefix = "ceph--"
-	// DeviceMapperPrefix is the prefix of a LV from the device mapper interface
-	DeviceMapperPrefix = "dm-"
 )
 
 // CephVolumeInventory represents the output of the ceph-volume inventory command
@@ -46,60 +25,6 @@ type CephVolumeInventory struct {
 // CephVolumeLVMList represents the output of the ceph-volume lvm list command
 type CephVolumeLVMList map[string][]map[string]interface{}
 
-// Partition represents a partition metadata
-type Partition struct {
-	Name       string
-	Size       uint64
-	Label      string
-	Filesystem string
-}
-
-// LocalDisk contains information about an unformatted block device
-type LocalDisk struct {
-	// Name is the device name
-	Name string `json:"name"`
-	// Parent is the device parent's name
-	Parent string `json:"parent"`
-	// HasChildren is whether the device has a children device
-	HasChildren bool `json:"hasChildren"`
-	// DevLinks is the persistent device path on the host
-	DevLinks string `json:"devLinks"`
-	// Size is the device capacity in byte
-	Size uint64 `json:"size"`
-	// UUID is used by /dev/disk/by-uuid
-	UUID string `json:"uuid"`
-	// Serial is the disk serial used by /dev/disk/by-id
-	Serial string `json:"serial"`
-	// Type is disk type
-	Type string `json:"type"`
-	// Rotational is the boolean whether the device is rotational: true for hdd, false for ssd and nvme
-	Rotational bool `json:"rotational"`
-	// ReadOnly is the boolean whether the device is readonly
-	Readonly bool `json:"readOnly"`
-	// Partitions is a partition slice
-	Partitions []Partition
-	// Filesystem is the filesystem currently on the device
-	Filesystem string `json:"filesystem"`
-	// Vendor is the device vendor
-	Vendor string `json:"vendor"`
-	// Model is the device model
-	Model string `json:"model"`
-	// WWN is the world wide name of the device
-	WWN string `json:"wwn"`
-	// WWNVendorExtension is the WWN_VENDOR_EXTENSION from udev info
-	WWNVendorExtension string `json:"wwnVendorExtension"`
-	// Empty checks whether the device is completely empty
-	Empty bool `json:"empty"`
-	// Information provided by Ceph Volume Inventory
-	CephVolumeData string `json:"cephVolumeData,omitempty"`
-	// RealPath is the device pathname behind the PVC, behind /mnt/<pvc>/name
-	RealPath string `json:"real-path,omitempty"`
-	// KernelName is the kernel name of the device
-	KernelName string `json:"kernel-name,omitempty"`
-	// Whether this device should be encrypted
-	Encrypted bool `json:"encrypted,omitempty"`
-}
-
 // ListDevices list all devices available on a machine
 func ListDevices(executor exec.Executor) ([]string, error) {
 	devices, err := executor.ExecuteCommandWithOutput("lsblk", "--all", "--noheadings", "--list", "--output", "KNAME")
@@ -111,7 +36,7 @@ func ListDevices(executor exec.Executor) ([]string, error) {
 }
 
 // GetDevicePartitions gets partitions on a given device
-func GetDevicePartitions(device string, executor exec.Executor) (partitions []Partition, unusedSpace uint64, err error) {
+func GetDevicePartitions(device string, executor exec.Executor) (partitions []types.Partition, unusedSpace uint64, err error) {
 
 	var devicePath string
 	splitDevicePath := strings.Split(device, "/")
@@ -140,9 +65,9 @@ func GetDevicePartitions(device string, executor exec.Executor) (partitions []Pa
 			if err != nil {
 				return nil, 0, fmt.Errorf("failed to get device %s size. %+v", device, err)
 			}
-		} else if props["PKNAME"] == device && props["TYPE"] == PartType {
+		} else if props["PKNAME"] == device && props["TYPE"] == types.PartType {
 			// found a partition
-			p := Partition{Name: name}
+			p := types.Partition{Name: name}
 			p.Size, err = strconv.ParseUint(props["SIZE"], 10, 64)
 			if err != nil {
 				return nil, 0, fmt.Errorf("failed to get partition %s size. %+v", name, err)
@@ -164,8 +89,8 @@ func GetDevicePartitions(device string, executor exec.Executor) (partitions []Pa
 			}
 
 			partitions = append(partitions, p)
-		} else if strings.HasPrefix(name, CephLVPrefix) && props["TYPE"] == LVMType {
-			p := Partition{Name: name}
+		} else if strings.HasPrefix(name, types.CephLVPrefix) && props["TYPE"] == types.LVMType {
+			p := types.Partition{Name: name}
 			partitions = append(partitions, p)
 		}
 	}
@@ -221,7 +146,7 @@ func IsLV(devicePath string, executor exec.Executor) (bool, error) {
 	if !ok {
 		return false, fmt.Errorf("TYPE property is not found for %q", devicePath)
 	}
-	return diskType == LVMType, nil
+	return diskType == types.LVMType, nil
 }
 
 // GetUdevInfo gets udev information
@@ -250,7 +175,7 @@ func GetDeviceFilesystems(device string, executor exec.Executor) (string, error)
 
 // GetDiskUUID look up the UUID for a disk.
 func GetDiskUUID(device string, executor exec.Executor) (string, error) {
-	if _, err := osexec.LookPath(sgdiskCmd); err != nil {
+	if _, err := osexec.LookPath(types.SgdiskCmd); err != nil {
 		log.Warnf("sgdisk not found. skipping disk UUID.")
 		return "sgdiskNotFound", nil
 	}
@@ -260,7 +185,7 @@ func GetDiskUUID(device string, executor exec.Executor) (string, error) {
 		device = fmt.Sprintf("/dev/%s", device)
 	}
 
-	output, err := executor.ExecuteCommandWithOutput(sgdiskCmd, "--print", device)
+	output, err := executor.ExecuteCommandWithOutput(types.SgdiskCmd, "--print", device)
 	if err != nil {
 		return "", err
 	}
