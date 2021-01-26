@@ -1,4 +1,4 @@
-package device
+package deviceManager
 
 import (
 	"carina/utils"

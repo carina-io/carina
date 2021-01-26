@@ -19,7 +19,7 @@ type LVService interface {
 	ResizeLV(ctx context.Context, request types.ResizeLVRequest) error
 }
 
-func NewLVService(mapper *device.DeviceClassManager, notifyFunc func()) LVService {
+func NewLVService(mapper *deviceManager.DeviceClassManager, notifyFunc func()) LVService {
 	return &LVServiceImplement{
 		mapper:     mapper,
 		notifyFunc: notifyFunc,
@@ -27,7 +27,7 @@ func NewLVService(mapper *device.DeviceClassManager, notifyFunc func()) LVServic
 }
 
 type LVServiceImplement struct {
-	mapper     *device.DeviceClassManager
+	mapper     *deviceManager.DeviceClassManager
 	notifyFunc func()
 }
 

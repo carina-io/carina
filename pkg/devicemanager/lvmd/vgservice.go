@@ -21,7 +21,7 @@ type VGService interface {
 }
 
 // NewVGService creates a VGServiceServer
-func NewVGService(manager *device.DeviceClassManager) VGService {
+func NewVGService(manager *deviceManager.DeviceClassManager) VGService {
 
 	return &VGServiceImplement{
 		dcManager: manager,
@@ -31,7 +31,7 @@ func NewVGService(manager *device.DeviceClassManager) VGService {
 }
 
 type VGServiceImplement struct {
-	dcManager *device.DeviceClassManager
+	dcManager *deviceManager.DeviceClassManager
 
 	mu             sync.Mutex
 	watcherCounter int
