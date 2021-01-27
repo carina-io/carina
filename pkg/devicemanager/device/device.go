@@ -1,4 +1,4 @@
-package deviceManager
+package device
 
 import (
 	"carina/pkg/devicemanager/types"
@@ -12,6 +12,32 @@ import (
 	"strconv"
 	"strings"
 )
+
+type Device interface {
+	// ListDevices list all devices available on a machine
+	ListDevices(executor exec.Executor) ([]string, error)
+	// GetDevicePartitions gets partitions on a given device
+	GetDevicePartitions(device string, executor exec.Executor) (partitions []types.Partition, unusedSpace uint64, err error)
+	// GetDeviceProperties gets device properties
+	GetDeviceProperties(device string, executor exec.Executor) (map[string]string, error)
+	// GetDevicePropertiesFromPath gets a device property from a path
+	GetDevicePropertiesFromPath(devicePath string, executor exec.Executor) (map[string]string, error)
+	// IsLV returns if a device is owned by LVM, is a logical volume
+	IsLV(devicePath string, executor exec.Executor) (bool, error)
+	// GetUdevInfo gets udev information
+	GetUdevInfo(device string, executor exec.Executor) (map[string]string, error)
+	// GetDeviceFilesystems get the file systems available
+	GetDeviceFilesystems(device string, executor exec.Executor) (string, error)
+	// GetDiskUUID look up the UUID for a disk.
+	GetDiskUUID(device string, executor exec.Executor) (string, error)
+	// CheckIfDeviceAvailable checks if a device is available for consumption. The caller
+	// needs to decide based on the return values whether it is available.
+	CheckIfDeviceAvailable(executor exec.Executor, devicePath string, pvcBacked bool) (bool, string, error)
+	// GetLVName returns the LV name of the device in the form of "VG/LV".
+	GetLVName(executor exec.Executor, devicePath string) (string, error)
+	// ListDevicesChild list all child available on a device
+	ListDevicesChild(executor exec.Executor, device string) ([]string, error)
+}
 
 // CephVolumeInventory represents the output of the ceph-volume inventory command
 type CephVolumeInventory struct {

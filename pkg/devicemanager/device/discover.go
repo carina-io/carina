@@ -1,7 +1,8 @@
-package deviceManager
+package device
 
 import (
 	"bufio"
+	"carina/pkg/devicemanager/types"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -30,9 +31,9 @@ var (
 	AppName = "rook-discover"
 	// NodeAttr is the attribute of that node
 	NodeAttr = "rook.io/node"
-	// LocalDiskCMData is the data name of the config map storing devices
+	// types.LocalDiskCMData is the data name of the config map storing devices
 	LocalDiskCMData = "devices"
-	// LocalDiskCMName is name of the config map storing devices
+	// types.LocalDiskCMName is name of the config map storing devices
 	LocalDiskCMName = "local-device-%s"
 	nodeName        string
 	namespace       string
@@ -60,7 +61,7 @@ func Run(context *Context, probeInterval time.Duration, useCV bool) error {
 	log.Debugf("use ceph-volume inventory is %t", useCV)
 	nodeName = os.Getenv(k8sutil.NodeNameEnvVar)
 	namespace = os.Getenv(k8sutil.PodNamespaceEnvVar)
-	cmName = k8sutil.TruncateNodeName(LocalDiskCMName, nodeName)
+	cmName = k8sutil.TruncateNodeName(types.LocalDiskCMName, nodeName)
 	useCVInventory = useCV
 	sigc := make(chan os.Signal, 1)
 	signal.Notify(sigc, syscall.SIGTERM)
@@ -210,11 +211,11 @@ func udevBlockMonitor(c chan string, period time.Duration) {
 	}
 }
 
-func ignoreDevice(dev LocalDisk) bool {
+func ignoreDevice(dev types.LocalDisk) bool {
 	return strings.Contains(strings.ToUpper(dev.DevLinks), "USB")
 }
 
-func checkMatchingDevice(checkDev LocalDisk, devices []LocalDisk) *LocalDisk {
+func checkMatchingDevice(checkDev types.LocalDisk, devices []types.LocalDisk) *types.LocalDisk {
 	for i, dev := range devices {
 		if ignoreDevice(dev) {
 			continue
@@ -244,7 +245,7 @@ func checkMatchingDevice(checkDev LocalDisk, devices []LocalDisk) *LocalDisk {
 // of devices that would warrant changes to their consumption by storage
 // daemons. for example, if a device appears to have been wiped vs a device
 // appears to now be in use.
-func checkDeviceListsEqual(oldDevs, newDevs []LocalDisk) bool {
+func checkDeviceListsEqual(oldDevs, newDevs []types.LocalDisk) bool {
 	for _, oldDev := range oldDevs {
 		if ignoreDevice(oldDev) {
 			continue
@@ -284,8 +285,8 @@ func checkDeviceListsEqual(oldDevs, newDevs []LocalDisk) bool {
 
 // DeviceListsEqual checks whether 2 lists are equal or not
 func DeviceListsEqual(old, new string) (bool, error) {
-	var oldDevs []LocalDisk
-	var newDevs []LocalDisk
+	var oldDevs []types.LocalDisk
+	var newDevs []types.LocalDisk
 
 	err := json.Unmarshal([]byte(old), &oldDevs)
 	if err != nil {
@@ -319,7 +320,7 @@ func updateDeviceCM(clusterdContext *Context) error {
 		cm, err = clusterdContext.Clientset.CoreV1().ConfigMaps(namespace).Get(ctx, cmName, metav1.GetOptions{})
 	}
 	if err == nil {
-		lastDevice = cm.Data[LocalDiskCMData]
+		lastDevice = cm.Data[types.LocalDiskCMData]
 		log.Debugf("last devices %s", lastDevice)
 	} else {
 		if !kerrors.IsNotFound(err) {
@@ -328,7 +329,7 @@ func updateDeviceCM(clusterdContext *Context) error {
 		}
 
 		data := make(map[string]string, 1)
-		data[LocalDiskCMData] = deviceStr
+		data[types.LocalDiskCMData] = deviceStr
 
 		// the map doesn't exist yet, create it now
 		cm = &v1.ConfigMap{
@@ -364,7 +365,7 @@ func updateDeviceCM(clusterdContext *Context) error {
 	}
 	if !devicesEqual {
 		data := make(map[string]string, 1)
-		data[LocalDiskCMData] = deviceStr
+		data[types.LocalDiskCMData] = deviceStr
 		cm.Data = data
 		cm, err = clusterdContext.Clientset.CoreV1().ConfigMaps(namespace).Update(ctx, cm, metav1.UpdateOptions{})
 		if err != nil {
@@ -375,7 +376,7 @@ func updateDeviceCM(clusterdContext *Context) error {
 	return nil
 }
 
-func logDevices(devices []*LocalDisk) {
+func logDevices(devices []*types.LocalDisk) {
 	var devicesList []string
 	for _, device := range devices {
 		log.Debugf("localdevice %q: %+v", device.Name, device)
@@ -384,8 +385,8 @@ func logDevices(devices []*LocalDisk) {
 	log.Infof("localdevices: %q", strings.Join(devicesList, ", "))
 }
 
-func probeDevices(context *Context) ([]LocalDisk, error) {
-	devices := make([]LocalDisk, 0)
+func probeDevices(context *Context) ([]types.LocalDisk, error) {
+	devices := make([]types.LocalDisk, 0)
 	localDevices, err := DiscoverDevices(context.Executor)
 	if err != nil {
 		return devices, fmt.Errorf("failed initial hardware discovery. %+v", err)

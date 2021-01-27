@@ -3,9 +3,10 @@ package deviceManager
 import (
 	"carina/pkg/devicemanager/types"
 	"carina/utils/exec"
+	"carina/utils/mutx"
 )
 
-type Context struct {
+type DiskManager struct {
 
 	// The implementation of executing a console command
 	Executor exec.Executor
@@ -14,6 +15,8 @@ type Context struct {
 
 	// The local devices detected on the node
 	Devices []*types.LocalDisk
+
+	Mutex *mutx.GlobalLocks
 }
 
 func run() {

@@ -1,4 +1,4 @@
-package deviceManager
+package device
 
 import (
 	"carina/utils/exec"
@@ -8,6 +8,7 @@ import (
 	"path"
 	"regexp"
 	"strconv"
+	"carina/pkg/devicemanager/types"
 )
 
 var (
@@ -15,7 +16,7 @@ var (
 )
 
 func supportedDeviceType(device string) bool {
-	return device == DiskType ||
+	return device == types.DiskType ||
 		device == SSDType ||
 		device == CryptType ||
 		device == LVMType ||
@@ -69,7 +70,7 @@ func DiscoverDevices(executor exec.Executor) ([]*LocalDisk, error) {
 		// We only test if the type is 'disk', this is a property reported by lsblk
 		// and means it's a parent block device
 		if disk.Type == DiskType {
-			deviceChild, err := ListDevicesChild(executor, d)
+			deviceChild, err := disk.ListDevicesChild(executor, d)
 			if err != nil {
 				log.Warnf("failed to detect child devices for device %q, assuming they are none. %v", d, err)
 			}
@@ -149,7 +150,7 @@ func PopulateDeviceInfo(d string, executor exec.Executor) (*LocalDisk, error) {
 
 // PopulateDeviceUdevInfo fills the udev info into the block device information
 func PopulateDeviceUdevInfo(d string, executor exec.Executor, disk *LocalDisk) (*LocalDisk, error) {
-	udevInfo, err := GetUdevInfo(d, executor)
+	udevInfo, err := disk.GetUdevInfo(d, executor)
 	if err != nil {
 		return disk, err
 	}

@@ -1,10 +1,5 @@
 package types
 
-import (
-	"carina/utils/exec"
-)
-
-
 
 type LocalDisk struct {
 	// Name is the device name
