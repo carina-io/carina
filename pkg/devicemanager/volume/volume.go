@@ -48,7 +48,7 @@ func (v *LocalVolumeImplement) DeleteVolume(lvName, vgName string) error {
 	return nil
 }
 
-func (v *LocalVolumeImplement) ExtendVolume(lvName, vgName string, size, ratio uint64) error {
+func (v *LocalVolumeImplement) ResizeVolume(lvName, vgName string, size, ratio uint64) error {
 
 	name := LVVolume + lvName
 	_, err := v.lv.LVDisplay(name, vgName)

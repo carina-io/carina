@@ -68,7 +68,7 @@ func verifyConfig(c *Config) {
 		c.DiskScanInterval = "60"
 	}
 
-	if utils.StringContains([]string{SchedulerBinpack, SchedulerSpradout}, strings.ToLower(c.SchedulerStrategy)) {
+	if utils.IsContainsString([]string{SchedulerBinpack, SchedulerSpradout}, strings.ToLower(c.SchedulerStrategy)) {
 		c.SchedulerStrategy = strings.ToLower(c.SchedulerStrategy)
 	} else {
 		c.SchedulerStrategy = SchedulerBinpack

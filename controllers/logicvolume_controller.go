@@ -17,12 +17,10 @@ limitations under the License.
 package controllers
 
 import (
-	"carina/pkg/device/lvmd"
-	"carina/pkg/device/types"
+	"carina/pkg/devicemanager/volume"
 	"carina/utils"
 	"context"
 	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 
@@ -38,11 +36,10 @@ import (
 // LogicVolumeReconciler reconciles a LogicVolume object
 type LogicVolumeReconciler struct {
 	client.Client
-	Log       logr.Logger
-	Scheme    *runtime.Scheme
-	nodeName  string
-	vgService lvmd.VGService
-	lvService lvmd.LVService
+	Log      logr.Logger
+	Scheme   *runtime.Scheme
+	nodeName string
+	volume   volume.LocalVolume
 }
 
 // +kubebuilder:rbac:groups=carina.storage.io,resources=logicvolumes,verbs=get;list;watch;create;update;patch;delete
@@ -77,7 +74,7 @@ func (r *LogicVolumeReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error)
 	}
 
 	if lv.ObjectMeta.DeletionTimestamp == nil {
-		if !containsString(lv.Finalizers, utils.LogicVolumeFinalizer) {
+		if !utils.IsContainsString(lv.Finalizers, utils.LogicVolumeFinalizer) {
 			lv2 := lv.DeepCopy()
 			lv2.Finalizers = append(lv2.Finalizers, utils.LogicVolumeFinalizer)
 			patch := client.MergeFrom(lv)
@@ -103,7 +100,7 @@ func (r *LogicVolumeReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error)
 	}
 
 	// finalization
-	if !containsString(lv.Finalizers, utils.LogicVolumeFinalizer) {
+	if !utils.IsContainsString(lv.Finalizers, utils.LogicVolumeFinalizer) {
 		// Our finalizer has finished, so the reconciler can do nothing.
 		return ctrl.Result{}, nil
 	}
@@ -115,7 +112,7 @@ func (r *LogicVolumeReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error)
 	}
 
 	lv2 := lv.DeepCopy()
-	lv2.Finalizers = removeString(lv2.Finalizers, utils.LogicVolumeFinalizer)
+	lv2.Finalizers = utils.SliceRemoveString(lv2.Finalizers, utils.LogicVolumeFinalizer)
 	patch := client.MergeFrom(lv)
 	if err := r.Patch(ctx, lv2, patch); err != nil {
 		log.Error(err, "failed to remove finalizer", "name", lv.Name)
@@ -136,42 +133,12 @@ func (r *LogicVolumeReconciler) SetupWithManager(mgr ctrl.Manager) error {
 func (r *LogicVolumeReconciler) removeLVIfExists(ctx context.Context, log logr.Logger, lv *carinav1.LogicVolume) error {
 	// Finalizer's process ( RemoveLV then removeString ) is not atomic,
 	// so checking existence of LV to ensure its idempotence
-	respList, err := r.vgService.GetLVList(ctx, types.GetLVListRequest{DeviceClassName: lv.Spec.DeviceClassName})
+	err := r.volume.DeleteVolume(lv.Spec.Name, lv.Spec.DeviceGroup)
 	if err != nil {
-		log.Error(err, "failed to list LV")
-		return err
-	}
-
-	for _, v := range respList.Volumes {
-		if v.Name != string(lv.UID) {
-			continue
-		}
-		err := r.lvService.RemoveLV(ctx, types.RemoveLVRequest{Name: string(lv.UID), DeviceClassName: lv.Spec.DeviceClassName})
-		if err != nil {
-			log.Error(err, "failed to remove LV", "name", lv.Name, "uid", lv.UID)
-			return err
-		}
-		log.Info("removed LV", "name", lv.Name, "uid", lv.UID)
-		return nil
+		log.Error(err, "failed to remove LV", "name", lv.Name, "uid", lv.Spec.DeviceGroup)
 	}
 	log.Info("LV already removed", "name", lv.Name, "uid", lv.UID)
 	return nil
-}
-
-func (r *LogicVolumeReconciler) volumeExists(ctx context.Context, log logr.Logger, lv *carinav1.LogicVolume) (bool, error) {
-	respList, err := r.vgService.GetLVList(ctx, types.GetLVListRequest{DeviceClassName: lv.Spec.DeviceClassName})
-	if err != nil {
-		log.Error(err, "failed to get list of LV")
-		return false, err
-	}
-
-	for _, v := range respList.Volumes {
-		if v.Name != string(lv.UID) {
-			continue
-		}
-		return true, nil
-	}
-	return false, nil
 }
 
 func (r *LogicVolumeReconciler) createLV(ctx context.Context, log logr.Logger, lv *carinav1.LogicVolume) error {
@@ -183,42 +150,17 @@ func (r *LogicVolumeReconciler) createLV(ctx context.Context, log logr.Logger, l
 
 	reqBytes := lv.Spec.Size.Value()
 
-	err := func() error {
-		// In case the controller crashed just after LVM LV creation, LV may already exist.
-		found, err := r.volumeExists(ctx, log, lv)
-		if err != nil {
-			lv.Status.Code = codes.Internal
-			lv.Status.Message = "failed to check volume existence"
-			return err
-		}
-		if found {
-			log.Info("set volumeID to existing LogicalVolume", "name", lv.Name, "uid", lv.UID, "status.volumeID", lv.Status.VolumeID)
-			lv.Status.VolumeID = string(lv.UID)
-			lv.Status.Code = codes.OK
-			lv.Status.Message = ""
-			return nil
-		}
+	err := r.volume.CreateVolume(lv.Name, lv.Spec.DeviceGroup, uint64(reqBytes), 1)
 
-		resp, err := r.lvService.CreateLV(ctx, types.CreateLVRequest{
-			Name:            string(lv.UID),
-			SizeGB:          uint64(reqBytes >> 30),
-			Tags:            nil,
-			DeviceClassName: lv.Spec.DeviceClassName,
-		})
-		if err != nil {
-			code, message := extractFromError(err)
-			log.Error(err, message)
-			lv.Status.Code = code
-			lv.Status.Message = message
-			return err
-		}
-
-		lv.Status.VolumeID = resp.Volume.Name
+	if err != nil {
+		lv.Status.Code = codes.Internal
+		lv.Status.Message = err.Error()
+	} else {
+		lv.Status.VolumeID = string(lv.UID)
 		lv.Status.CurrentSize = resource.NewQuantity(reqBytes, resource.BinarySI)
 		lv.Status.Code = codes.OK
 		lv.Status.Message = ""
-		return nil
-	}()
+	}
 
 	if err != nil {
 		if err2 := r.Status().Update(ctx, lv); err2 != nil {
@@ -252,21 +194,15 @@ func (r *LogicVolumeReconciler) expandLV(ctx context.Context, log logr.Logger, l
 	origBytes := (*lv.Status.CurrentSize).Value()
 	reqBytes := lv.Spec.Size.Value()
 
-	err := func() error {
-		err := r.lvService.ResizeLV(ctx, types.ResizeLVRequest{Name: string(lv.UID), SizeGB: uint64(reqBytes >> 30), DeviceClassName: lv.Spec.DeviceClassName})
-		if err != nil {
-			code, message := extractFromError(err)
-			log.Error(err, message)
-			lv.Status.Code = code
-			lv.Status.Message = message
-			return err
-		}
-
+	err := r.volume.ResizeVolume(lv.Name, lv.Spec.DeviceGroup, uint64(reqBytes), 1)
+	if err != nil {
+		lv.Status.Code = codes.Internal
+		lv.Status.Message = err.Error()
+	} else {
 		lv.Status.CurrentSize = resource.NewQuantity(reqBytes, resource.BinarySI)
 		lv.Status.Code = codes.OK
 		lv.Status.Message = ""
-		return nil
-	}()
+	}
 
 	if err != nil {
 		if err2 := r.Status().Update(ctx, lv); err2 != nil {
@@ -315,31 +251,4 @@ func (f logicVolumeFilter) Update(e event.UpdateEvent) bool {
 
 func (f logicVolumeFilter) Generic(e event.GenericEvent) bool {
 	return f.filter(e.Object.(*carinav1.LogicVolume))
-}
-
-func containsString(slice []string, s string) bool {
-	for _, item := range slice {
-		if item == s {
-			return true
-		}
-	}
-	return false
-}
-
-func removeString(slice []string, s string) (result []string) {
-	for _, item := range slice {
-		if item == s {
-			continue
-		}
-		result = append(result, item)
-	}
-	return
-}
-
-func extractFromError(err error) (codes.Code, string) {
-	s, ok := status.FromError(err)
-	if !ok {
-		return codes.Internal, err.Error()
-	}
-	return s.Code(), s.Message()
 }

@@ -29,10 +29,10 @@ import (
 type LogicVolumeSpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
-	Name            string            `json:"name"`
-	NodeName        string            `json:"nodeName"`
-	Size            resource.Quantity `json:"size"`
-	DeviceClassName string            `json:"deviceClassName,omitempty"`
+	Name        string            `json:"name"`
+	NodeName    string            `json:"nodeName"`
+	Size        resource.Quantity `json:"size"`
+	DeviceGroup string            `json:"device_group"`
 }
 
 // LogicVolumeStatus defines the observed state of LogicVolume
