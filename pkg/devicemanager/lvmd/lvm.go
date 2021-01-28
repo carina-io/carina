@@ -257,11 +257,24 @@ func (lv2 *lvm2Implement) LVDisplay(lv, vg string) (string, error) {
 	return lv2.Executor.ExecuteCommandWithOutput("lvdisplay", fmt.Sprintf("%s/%s", vg, lv))
 }
 
+/*
+# lvs -o lv_name,lv_path,lv_size,lv_kernel_major,lv_kernel_minor,origin,origin_size,pool_lv,thin_count,lv_tags --noheadings --separator=, --units=b --nosuffix --unbuffered --nameprefixes  LVM2_LV_NAME='t1',LVM2_LV_PATH='/dev/v1/t1',LVM2_LV_SIZE='1073741824',LVM2_LV_KERNEL_MAJOR='252',LVM2_LV_KERNEL_MINOR='0',LVM2_ORIGIN='',LVM2_ORIGIN_SIZE='',LVM2_POOL_LV='',LVM2_THIN_COUNT='',LVM2_LV_TAGS='t1'
+  LVM2_LV_NAME='t5',LVM2_LV_PATH='',LVM2_LV_SIZE='6979321856',LVM2_LV_KERNEL_MAJOR='252',LVM2_LV_KERNEL_MINOR='3',LVM2_ORIGIN='',LVM2_ORIGIN_SIZE='',LVM2_POOL_LV='',LVM2_THIN_COUNT='1',LVM2_LV_TAGS=''
+  LVM2_LV_NAME='m2',LVM2_LV_PATH='/dev/v1/m2',LVM2_LV_SIZE='2147483648',LVM2_LV_KERNEL_MAJOR='252',LVM2_LV_KERNEL_MINOR='5',LVM2_ORIGIN='',LVM2_ORIGIN_SIZE='',LVM2_POOL_LV='t5',LVM2_THIN_COUNT='',LVM2_LV_TAGS=''
+
+*/
+func (lv2 *lvm2Implement) LVS() (string, error) {
+	fields := []string{"-o", "lv_name,vg_name,lv_path,lv_size,data_percent,lv_attr,lv_kernel_major,lv_kernel_minor,origin,origin_size,pool_lv,thin_count,lv_tags,lv_active"}
+	args := []string{"--noheadings", "--separator=,", "--units=b", "--nosuffix", "--unbuffered", "--nameprefixes"}
+
+	return lv2.Executor.ExecuteCommandWithOutput("lvs", append(fields, args...)...)
+}
+
 // lvcreate -s v1/m2 -n snaph-m1 -ay -Ky
-func (lv2 *lvm2Implement) CreateSnapshot(snap, lv, vg string) (string, error) {
+func (lv2 *lvm2Implement) CreateSnapshot(snap, lv, vg string) error {
 	// Pool容量时lv卷的三倍，则能创建两个快照
 	// TODO: 需要检查pool>lvm卷,若是相等则不支持创建快照操作
-	return lv2.Executor.ExecuteCommandWithOutput("lvcreate", "-s", fmt.Sprintf("%s/%s", vg, lv), "-n", snap, "-ay", "-Ky")
+	return lv2.Executor.ExecuteCommand("lvcreate", "-s", fmt.Sprintf("%s/%s", vg, lv), "-n", snap, "-ay", "-Ky")
 }
 
 //

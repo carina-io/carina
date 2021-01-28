@@ -1,6 +1,6 @@
 package lvmd
 
-type lvm2 interface {
+type Lvm2 interface {
 	// 检查pv是否存在
 	PVCheck(dev string) error
 	PVCreate(dev string) error
@@ -33,9 +33,11 @@ type lvm2 interface {
 	LVRemove(lv, vg string) error
 	LVResize(lv, vg string, size uint64) error
 	LVDisplay(lv, vg string) (string, error)
+	// 这个方法会频繁调用
+	LVS() (string, error)
 
 	// 快照占用Pool空间，要有足够对池空间才能创建快照，不然会导致数据损坏
-	CreateSnapshot(snap, lv, vg string) (string, error)
+	CreateSnapshot(snap, lv, vg string) error
 	DeleteSnapshot(snap, vg string) error
 	// 恢复快照会导致此快照消失
 	RestoreSnapshot(snap, vg string) error

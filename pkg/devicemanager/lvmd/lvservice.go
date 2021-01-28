@@ -43,17 +43,10 @@ func (s *LVServiceImplement) CreateLV(ctx context.Context, request types.CreateL
 	requested := request.SizeGB << 30
 	free, err := vg.Free()
 	if err != nil {
-		//log.Error("failed to free VG", map[string]interface{}{
-		//	log.FnError: err,
-		//})
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 
 	if free < requested {
-		//log.Error("no enough space left on VG", map[string]interface{}{
-		//	"free":      free,
-		//	"requested": requested,
-		//})
 		return nil, status.Errorf(codes.ResourceExhausted, "no enough space left on VG: free=%d, requested=%d", free, requested)
 	}
 
@@ -64,19 +57,10 @@ func (s *LVServiceImplement) CreateLV(ctx context.Context, request types.CreateL
 
 	lv, err := vg.CreateVolume(request.Name, requested, request.Tags, stripe, dc.StripeSize)
 	if err != nil {
-		//log.Error("failed to create volume", map[string]interface{}{
-		//	"name":      request.GetName(),
-		//	"requested": requested,
-		//	"tags":      request.GetTags(),
-		//})
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 	//s.notify()
 
-	//log.Info("created a new LV", map[string]interface{}{
-	//	"name": request.GetName(),
-	//	"size": requested,
-	//})
 
 	return &types.CreateLVResponse{
 		Volume: &types.LogicalVolume{

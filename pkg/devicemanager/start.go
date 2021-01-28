@@ -6,17 +6,17 @@ import (
 	"carina/utils/mutx"
 )
 
-type DiskManager struct {
+type DeviceManager struct {
 
 	// The implementation of executing a console command
 	Executor exec.Executor
-	// The root configuration directory used by services
-	ConfigDir string
-
 	// The local devices detected on the node
 	Devices []*types.LocalDisk
-
+	// 所有操作本地卷均需获取锁
 	Mutex *mutx.GlobalLocks
+
+	// LVM 操作
+
 }
 
 func run() {
