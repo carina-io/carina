@@ -2,10 +2,12 @@ package volume
 
 import (
 	"carina/pkg/devicemanager/lvmd"
+	"carina/utils/mutx"
 )
 
 type LocalVolumeImplement struct {
-	lv lvmd.Lvm2
+	lv    lvmd.Lvm2
+	Mutex *mutx.GlobalLocks
 }
 
 func (v *LocalVolumeImplement) CreateVolume(lvName, vgName string, size, ratio uint64) error {
