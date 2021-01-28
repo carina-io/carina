@@ -1,59 +1,26 @@
 package device
 
 import (
-	"carina/pkg/devicemanager/types"
 	"carina/utils/exec"
 	"carina/utils/log"
-	"encoding/json"
 	"fmt"
-	"github.com/google/uuid"
-	osexec "os/exec"
-	"path"
-	"strconv"
 	"strings"
 )
 
-type Device interface {
+type LocalDevice interface {
 	// ListDevices list all devices available on a machine
-	ListDevices(executor exec.Executor) ([]string, error)
-	// GetDevicePartitions gets partitions on a given device
-	GetDevicePartitions(device string, executor exec.Executor) (partitions []types.Partition, unusedSpace uint64, err error)
-	// GetDeviceProperties gets device properties
-	GetDeviceProperties(device string, executor exec.Executor) (map[string]string, error)
-	// GetDevicePropertiesFromPath gets a device property from a path
-	GetDevicePropertiesFromPath(devicePath string, executor exec.Executor) (map[string]string, error)
-	// IsLV returns if a device is owned by LVM, is a logical volume
-	IsLV(devicePath string, executor exec.Executor) (bool, error)
-	// GetUdevInfo gets udev information
-	GetUdevInfo(device string, executor exec.Executor) (map[string]string, error)
-	// GetDeviceFilesystems get the file systems available
-	GetDeviceFilesystems(device string, executor exec.Executor) (string, error)
-	// GetDiskUUID look up the UUID for a disk.
-	GetDiskUUID(device string, executor exec.Executor) (string, error)
-	// CheckIfDeviceAvailable checks if a device is available for consumption. The caller
-	// needs to decide based on the return values whether it is available.
-	CheckIfDeviceAvailable(executor exec.Executor, devicePath string, pvcBacked bool) (bool, string, error)
-	// GetLVName returns the LV name of the device in the form of "VG/LV".
-	GetLVName(executor exec.Executor, devicePath string) (string, error)
-	// ListDevicesChild list all child available on a device
-	ListDevicesChild(executor exec.Executor, device string) ([]string, error)
+	ListDevices() ([]string, error)
+
+	ListDevicesDetail() ([]*LocalDevice, error)
+	GetDiskUsed(device string) (uint64, error)
 }
 
-// CephVolumeInventory represents the output of the ceph-volume inventory command
-type CephVolumeInventory struct {
-	Path            string          `json:"path"`
-	Available       bool            `json:"available"`
-	RejectedReasons json.RawMessage `json:"rejected_reasons"`
-	SysAPI          json.RawMessage `json:"sys_api"`
-	LVS             json.RawMessage `json:"lvs"`
+type LocalDeviceImplement struct {
+	Executor exec.Executor
 }
 
-// CephVolumeLVMList represents the output of the ceph-volume lvm list command
-type CephVolumeLVMList map[string][]map[string]interface{}
-
-// ListDevices list all devices available on a machine
-func ListDevices(executor exec.Executor) ([]string, error) {
-	devices, err := executor.ExecuteCommandWithOutput("lsblk", "--all", "--noheadings", "--list", "--output", "KNAME")
+func (ld *LocalDeviceImplement) ListDevices() ([]string, error) {
+	devices, err := ld.Executor.ExecuteCommandWithOutput("lsblk", "--all", "--noheadings", "--list", "--output", "KNAME")
 	if err != nil {
 		return nil, fmt.Errorf("failed to list all devices: %+v", err)
 	}
@@ -61,224 +28,62 @@ func ListDevices(executor exec.Executor) ([]string, error) {
 	return strings.Split(devices, "\n"), nil
 }
 
-// GetDevicePartitions gets partitions on a given device
-func GetDevicePartitions(device string, executor exec.Executor) (partitions []types.Partition, unusedSpace uint64, err error) {
-
-	var devicePath string
-	splitDevicePath := strings.Split(device, "/")
-	if len(splitDevicePath) == 1 {
-		devicePath = fmt.Sprintf("/dev/%s", device) //device path for OSD on devices.
-	} else {
-		devicePath = device //use the exact device path (like /mnt/<pvc-name>) in case of PVC block device
-	}
-
-	output, err := executor.ExecuteCommandWithOutput("lsblk", devicePath,
-		"--bytes", "--pairs", "--output", "NAME,SIZE,TYPE,PKNAME")
-	log.Infof("Output: %+v", output)
-	if err != nil {
-		return nil, 0, fmt.Errorf("failed to get device %s partitions. %+v", device, err)
-	}
-	partInfo := strings.Split(output, "\n")
-	var deviceSize uint64
-	var totalPartitionSize uint64
-	for _, info := range partInfo {
-		props := parseKeyValuePairString(info)
-		name := props["NAME"]
-		if name == device {
-			// found the main device
-			log.Info("Device found - ", name)
-			deviceSize, err = strconv.ParseUint(props["SIZE"], 10, 64)
-			if err != nil {
-				return nil, 0, fmt.Errorf("failed to get device %s size. %+v", device, err)
-			}
-		} else if props["PKNAME"] == device && props["TYPE"] == types.PartType {
-			// found a partition
-			p := types.Partition{Name: name}
-			p.Size, err = strconv.ParseUint(props["SIZE"], 10, 64)
-			if err != nil {
-				return nil, 0, fmt.Errorf("failed to get partition %s size. %+v", name, err)
-			}
-			totalPartitionSize += p.Size
-
-			info, err := GetUdevInfo(name, executor)
-			if err != nil {
-				return nil, 0, err
-			}
-			if v, ok := info["PARTNAME"]; ok {
-				p.Label = v
-			}
-			if v, ok := info["ID_PART_ENTRY_NAME"]; ok {
-				p.Label = v
-			}
-			if v, ok := info["ID_FS_TYPE"]; ok {
-				p.Filesystem = v
-			}
-
-			partitions = append(partitions, p)
-		} else if strings.HasPrefix(name, types.CephLVPrefix) && props["TYPE"] == types.LVMType {
-			p := types.Partition{Name: name}
-			partitions = append(partitions, p)
-		}
-	}
-
-	if deviceSize > 0 {
-		unusedSpace = deviceSize - totalPartitionSize
-	}
-	return partitions, unusedSpace, nil
+/*
+# lsblk -all --bytes --json --output NAME,FSTYPE,MOUNTPOINT,SIZE,STATE,TYPE,ROTA,RO
+{
+   "blockdevices": [
+      {"name": "sda", "fstype": null, "mountpoint": null, "size": "85899345920", "state": "running", "type": "disk", "rota": "1", "ro": "0"},
+      {"name": "sda1", "fstype": "ext4", "mountpoint": "/", "size": "81604378624", "state": null, "type": "part", "rota": "1", "ro": "0"},
+      {"name": "sda2", "fstype": null, "mountpoint": null, "size": "1024", "state": null, "type": "part", "rota": "1", "ro": "0"},
+      {"name": "sda5", "fstype": "swap", "mountpoint": "[SWAP]", "size": "4291821568", "state": null, "type": "part", "rota": "1", "ro": "0"},
+      {"name": "sdb", "fstype": null, "mountpoint": null, "size": "87926702080", "state": "running", "type": "disk", "rota": "1", "ro": "0"},
+      {"name": "sr0", "fstype": "iso9660", "mountpoint": "/media/ubuntu/VBox_GAs_6.1.16", "size": "60987392", "state": "running", "type": "rom", "rota": "1", "ro": "0"},
+      {"name": "loop0", "fstype": "squashfs", "mountpoint": "/snap/core/10583", "size": "102637568", "state": null, "type": "loop", "rota": "1", "ro": "1"},
+      {"name": "loop1", "fstype": "squashfs", "mountpoint": "/snap/core/9289", "size": "101724160", "state": null, "type": "loop", "rota": "1", "ro": "1"},
+      {"name": "loop2", "fstype": "LVM2_member", "mountpoint": null, "size": "16106127360", "state": null, "type": "loop", "rota": "1", "ro": "0"},
+      {"name": "loop3", "fstype": "LVM2_member", "mountpoint": null, "size": "16106127360", "state": null, "type": "loop", "rota": "1", "ro": "0"},
+      {"name": "v1-t1", "fstype": null, "mountpoint": null, "size": "1073741824", "state": "running", "type": "lvm", "rota": "1", "ro": "0"},
+      {"name": "v1-t5_tmeta", "fstype": null, "mountpoint": null, "size": "4194304", "state": "running", "type": "lvm", "rota": "1", "ro": "0"},
+      {"name": "v1-t5-tpool", "fstype": null, "mountpoint": null, "size": "6979321856", "state": "running", "type": "lvm", "rota": "1", "ro": "0"},
+      {"name": "v1-t5", "fstype": null, "mountpoint": null, "size": "6979321856", "state": "running", "type": "lvm", "rota": "1", "ro": "0"},
+      {"name": "v1-m2", "fstype": "ext4", "mountpoint": null, "size": "2147483648", "state": "running", "type": "lvm", "rota": "1", "ro": "0"},
+      {"name": "v1-t5_tdata", "fstype": null, "mountpoint": null, "size": "6979321856", "state": "running", "type": "lvm", "rota": "1", "ro": "0"},
+      {"name": "v1-t5-tpool", "fstype": null, "mountpoint": null, "size": "6979321856", "state": "running", "type": "lvm", "rota": "1", "ro": "0"},
+      {"name": "v1-t5", "fstype": null, "mountpoint": null, "size": "6979321856", "state": "running", "type": "lvm", "rota": "1", "ro": "0"},
+      {"name": "v1-m2", "fstype": "ext4", "mountpoint": null, "size": "2147483648", "state": "running", "type": "lvm", "rota": "1", "ro": "0"},
+      {"name": "loop4", "fstype": null, "mountpoint": null, "size": "16106127360", "state": null, "type": "loop", "rota": "1", "ro": "0"},
+      {"name": "loop5", "fstype": null, "mountpoint": null, "size": null, "state": null, "type": "loop", "rota": "1", "ro": "0"},
+      {"name": "loop6", "fstype": null, "mountpoint": null, "size": null, "state": null, "type": "loop", "rota": "1", "ro": "0"},
+      {"name": "loop7", "fstype": null, "mountpoint": null, "size": null, "state": null, "type": "loop", "rota": "1", "ro": "0"}
+   ]
 }
-
-// GetDeviceProperties gets device properties
-func GetDeviceProperties(device string, executor exec.Executor) (map[string]string, error) {
-	// As we are mounting the block mode PVs on /mnt we use the entire path,
-	// e.g., if the device path is /mnt/example-pvc then its taken completely
-	// else if its just vdb then the following is used
-	devicePath := strings.Split(device, "/")
-	if len(devicePath) == 1 {
-		device = fmt.Sprintf("/dev/%s", device)
-	}
-	return GetDevicePropertiesFromPath(device, executor)
-}
-
-// GetDevicePropertiesFromPath gets a device property from a path
-func GetDevicePropertiesFromPath(devicePath string, executor exec.Executor) (map[string]string, error) {
-	output, err := executor.ExecuteCommandWithOutput("lsblk", devicePath,
-		"--bytes", "--nodeps", "--pairs", "--paths", "--output", "SIZE,ROTA,RO,TYPE,PKNAME,NAME,KNAME")
+*/
+func (ld *LocalDeviceImplement) ListDevicesDetail() ([]*LocalDevice, error) {
+	args := []string{"-all", "-noheadings", "--bytes", "--json", "--output", "NAME,FSTYPE,MOUNTPOINT,SIZE,STATE,TYPE,ROTA,RO"}
+	devices, err := ld.Executor.ExecuteCommandWithOutput("lsblk", args...)
 	if err != nil {
-		// The "not a block device" error also returns code 32 so the ExitStatus() check hides this error
-		if strings.Contains(output, "not a block device") {
-			return nil, err
-		}
-
-		// try to get more information about the command error
-		if code, ok := exec.ExitStatus(err); ok && code == 32 {
-			// certain device types (such as loop) return exit status 32 when probed further,
-			// ignore and continue without logging
-			return map[string]string{}, nil
-		}
-
+		log.Error("exec lsblk failed" + err.Error())
 		return nil, err
 	}
+	// TODO: 实现解析方法
+	parseKeyValuePairString(devices)
 
-	return parseKeyValuePairString(output), nil
+	return nil, nil
 }
 
-// IsLV returns if a device is owned by LVM, is a logical volume
-func IsLV(devicePath string, executor exec.Executor) (bool, error) {
-	devProps, err := GetDevicePropertiesFromPath(devicePath, executor)
+/*
+# df /dev/sda
+文件系统         1K-块  已用    可用 已用% 挂载点
+udev           8193452     0 8193452    0% /dev
+*/
+func (ld *LocalDeviceImplement) GetDiskUsed(device string) (uint64, error) {
+	use, err := ld.Executor.ExecuteCommandWithOutput("df", device)
 	if err != nil {
-		return false, fmt.Errorf("failed to get device properties for %q: %+v", devicePath, err)
+		log.Error("exec df failed" + err.Error())
 	}
-	diskType, ok := devProps["TYPE"]
-	if !ok {
-		return false, fmt.Errorf("TYPE property is not found for %q", devicePath)
-	}
-	return diskType == types.LVMType, nil
-}
-
-// GetUdevInfo gets udev information
-func GetUdevInfo(device string, executor exec.Executor) (map[string]string, error) {
-	output, err := executor.ExecuteCommandWithOutput("udevadm", "info", "--query=property", fmt.Sprintf("/dev/%s", device))
-	if err != nil {
-		return nil, err
-	}
-
-	return parseUdevInfo(output), nil
-}
-
-// GetDeviceFilesystems get the file systems available
-func GetDeviceFilesystems(device string, executor exec.Executor) (string, error) {
-	devicePath := strings.Split(device, "/")
-	if len(devicePath) == 1 {
-		device = fmt.Sprintf("/dev/%s", device)
-	}
-	output, err := executor.ExecuteCommandWithOutput("udevadm", "info", "--query=property", device)
-	if err != nil {
-		return "", err
-	}
-
-	return parseFS(output), nil
-}
-
-// GetDiskUUID look up the UUID for a disk.
-func GetDiskUUID(device string, executor exec.Executor) (string, error) {
-	if _, err := osexec.LookPath(types.SgdiskCmd); err != nil {
-		log.Warnf("sgdisk not found. skipping disk UUID.")
-		return "sgdiskNotFound", nil
-	}
-
-	devicePath := strings.Split(device, "/")
-	if len(devicePath) == 1 {
-		device = fmt.Sprintf("/dev/%s", device)
-	}
-
-	output, err := executor.ExecuteCommandWithOutput(types.SgdiskCmd, "--print", device)
-	if err != nil {
-		return "", err
-	}
-
-	return parseUUID(device, output)
-}
-
-// CheckIfDeviceAvailable checks if a device is available for consumption. The caller
-// needs to decide based on the return values whether it is available.
-func CheckIfDeviceAvailable(executor exec.Executor, devicePath string, pvcBacked bool) (bool, string, error) {
-	checker := isDeviceAvailable
-
-	isLV, err := IsLV(devicePath, executor)
-	if err != nil {
-		return false, "", fmt.Errorf("failed to determine if the device was LV. %v", err)
-	}
-	if isLV {
-		if !pvcBacked {
-			return false, "LV is not supported for non-PVC backed device", nil
-		}
-		checker = isLVAvailable
-	}
-
-	isAvailable, rejectedReason, err := checker(executor, devicePath)
-	if err != nil {
-		return false, "", fmt.Errorf("failed to determine if the device was available. %v", err)
-	}
-
-	return isAvailable, rejectedReason, nil
-}
-
-// GetLVName returns the LV name of the device in the form of "VG/LV".
-func GetLVName(executor exec.Executor, devicePath string) (string, error) {
-	devInfo, err := executor.ExecuteCommandWithOutput("dmsetup", "info", "-c", "--noheadings", "-o", "name", devicePath)
-	if err != nil {
-		return "", fmt.Errorf("failed to execute dmsetup info for %q. %v", devicePath, err)
-	}
-	out, err := executor.ExecuteCommandWithOutput("dmsetup", "splitname", "--noheadings", devInfo)
-	if err != nil {
-		return "", fmt.Errorf("failed to execute dmsetup splitname for %q. %v", devInfo, err)
-	}
-	split := strings.Split(out, ":")
-	if len(split) < 2 {
-		return "", fmt.Errorf("dmsetup splitname returned unexpected result for %q. output: %q", devInfo, out)
-	}
-	return fmt.Sprintf("%s/%s", split[0], split[1]), nil
-}
-
-// finds the disk uuid in the output of sgdisk
-func parseUUID(device, output string) (string, error) {
-
-	// find the line with the uuid
-	lines := strings.Split(output, "\n")
-	for _, line := range lines {
-		if strings.Contains(line, "Disk identifier (GUID)") {
-			words := strings.Split(line, " ")
-			for _, word := range words {
-				// we expect most words in the line not to be a uuid, but will return the first one that is
-				result, err := uuid.Parse(word)
-				if err == nil {
-					return result.String(), nil
-				}
-			}
-		}
-	}
-
-	return "", fmt.Errorf("uuid not found for device %s. output=%s", device, output)
+	// TODO: 实现解析方法
+	parseKeyValuePairString(use)
+	return 0, nil
 }
 
 // converts a raw key value pair string into a map of key value pairs
@@ -301,99 +106,4 @@ func parseKeyValuePairString(propsRaw string) map[string]string {
 	}
 
 	return propMap
-}
-
-// find fs from udevadm info
-func parseFS(output string) string {
-	m := parseUdevInfo(output)
-	if v, ok := m["ID_FS_TYPE"]; ok {
-		return v
-	}
-	return ""
-}
-
-func parseUdevInfo(output string) map[string]string {
-	lines := strings.Split(output, "\n")
-	result := make(map[string]string, len(lines))
-	for _, v := range lines {
-		pairs := strings.Split(v, "=")
-		if len(pairs) > 1 {
-			result[pairs[0]] = pairs[1]
-		}
-	}
-	return result
-}
-
-func isDeviceAvailable(executor exec.Executor, devicePath string) (bool, string, error) {
-	CVInventory, err := inventoryDevice(executor, devicePath)
-	if err != nil {
-		return false, "", fmt.Errorf("failed to determine if the device %q is available. %v", devicePath, err)
-	}
-
-	if CVInventory.Available {
-		return true, "", nil
-	}
-
-	return false, string(CVInventory.RejectedReasons), nil
-}
-
-func inventoryDevice(executor exec.Executor, devicePath string) (CephVolumeInventory, error) {
-	var CVInventory CephVolumeInventory
-
-	args := []string{"inventory", "--format", "json", devicePath}
-	inventory, err := executor.ExecuteCommandWithOutput("ceph-volume", args...)
-	if err != nil {
-		return CVInventory, fmt.Errorf("failed to execute ceph-volume inventory on disk %q. %v", devicePath, err)
-	}
-
-	bInventory := []byte(inventory)
-	err = json.Unmarshal(bInventory, &CVInventory)
-	if err != nil {
-		return CVInventory, fmt.Errorf("error unmarshalling json data coming from ceph-volume inventory %q. %v", devicePath, err)
-	}
-
-	return CVInventory, nil
-}
-
-func isLVAvailable(executor exec.Executor, devicePath string) (bool, string, error) {
-	lv, err := GetLVName(executor, devicePath)
-	if err != nil {
-		return false, "", fmt.Errorf("failed to get the LV name for the device %q. %v", devicePath, err)
-	}
-
-	cvLVMList, err := lvmList(executor, lv)
-	if err != nil {
-		return false, "", fmt.Errorf("failed to determine if the device %q is available. %v", devicePath, err)
-	}
-
-	if len(cvLVMList) == 0 {
-		return true, "", nil
-	}
-	return false, "Used by Ceph", nil
-}
-
-func lvmList(executor exec.Executor, lv string) (CephVolumeLVMList, error) {
-	args := []string{"lvm", "list", "--format", "json", lv}
-	output, err := executor.ExecuteCommandWithOutput("ceph-volume", args...)
-	if err != nil {
-		return nil, fmt.Errorf("failed to execute ceph-volume lvm list on LV %q. %v", lv, err)
-	}
-
-	var cvLVMList CephVolumeLVMList
-	err = json.Unmarshal([]byte(output), &cvLVMList)
-	if err != nil {
-		return nil, fmt.Errorf("error unmarshalling json data coming from ceph-volume lvm list %q. %v", lv, err)
-	}
-
-	return cvLVMList, nil
-}
-
-// ListDevicesChild list all child available on a device
-func ListDevicesChild(executor exec.Executor, device string) ([]string, error) {
-	childListRaw, err := executor.ExecuteCommandWithOutput("lsblk", "--noheadings", "--pairs", path.Join("/dev", device))
-	if err != nil {
-		return []string{}, fmt.Errorf("failed to list child devices of %q. %v", device, err)
-	}
-
-	return strings.Split(childListRaw, "\n"), nil
 }
