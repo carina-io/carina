@@ -1,9 +1,8 @@
-package cmd
+package run
 
 import (
 	carinav1 "carina/api/v1"
 	"carina/controllers"
-	"carina/pkg/configruation"
 	deviceManager "carina/pkg/devicemanager"
 	"carina/utils/log"
 	"errors"
