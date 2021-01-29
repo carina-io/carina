@@ -20,5 +20,11 @@ func SliceRemoveString(slice []string, s string) (result []string) {
 }
 
 func SliceSubSlice(src []string, dst []string) []string {
-
+	result := []string{}
+	for _, item := range src {
+		if !IsContainsString(dst, item) {
+			result = append(result, item)
+		}
+	}
+	return result
 }

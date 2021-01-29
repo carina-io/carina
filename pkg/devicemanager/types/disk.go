@@ -3,6 +3,19 @@ package types
 const (
 	VGSSD = "vg-ssd"
 	VGHDD = "vg-hdd"
+
+	// DiskType is a disk type
+	DiskType = "disk"
+	// SSDType is an sdd type
+	SSDType = "ssd"
+	// PartType is a partition type
+	PartType = "part"
+	// CryptType is an encrypted type
+	CryptType = "crypt"
+	// LVMType is an LVM type
+	LVMType = "lvm"
+	// MultiPath is for multipath devices
+	MultiPath = "mpath"
 )
 
 type LocalDisk struct {

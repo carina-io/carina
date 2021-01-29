@@ -1,5 +1,0 @@
-package device
-
-func GetBlockDevice()  {
-	
-}

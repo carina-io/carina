@@ -32,9 +32,6 @@ const PVCFinalizer = "carina.storage.io/pvc"
 // DefaultCSISocket is the default path of the CSI socket file.
 const DefaultCSISocket = "/run/carina/csi-carina.sock"
 
-// DefaultLVMdSocket is the default path of the lvmd socket file.
-const DefaultLVMdSocket = "/run/carina/lvmd.sock"
-
 // EphemeralVolumeSizeKey is the key used to obtain ephemeral inline volume size
 // from the volume context
 const EphemeralVolumeSizeKey = "carina.storage.io/size"

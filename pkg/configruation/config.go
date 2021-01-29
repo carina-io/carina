@@ -3,32 +3,19 @@ package configruation
 import (
 	"carina/utils"
 	"carina/utils/log"
+	"github.com/fsnotify/fsnotify"
 	"github.com/spf13/viper"
-	"strconv"
+	"os"
 	"strings"
 )
 
 // 配置文件路径
 const (
-	configPath        = "/etc/carina/config.json"
+	configPath        = "/etc/carina/"
 	SchedulerBinpack  = "binpack"
 	SchedulerSpradout = "spradout"
 	diskGroupType     = "type"
 )
-
-// 全局配置
-type Config struct {
-	// 支持正则表达式
-	// 定时扫描本地磁盘，凡是匹配的将被加入到相应vg卷组
-	// 对于此配置的修改需要非常慎重，如果更改匹配条件，可能会移除正在使用的磁盘
-	DiskSelector []string `json:"diskSelector"`
-	// 定时磁盘扫描时间间隔(秒),默认60s
-	DiskScanInterval string `json:"diskScanInterval"`
-	// 磁盘分组策略，目前只支持根据磁盘类型分组
-	DiskGroupPolicy string `json:"diskGroupPolicy"`
-	// pv调度策略binpac/spradout，默认为binpac
-	SchedulerStrategy string `json:"schedulerStrategy"`
-}
 
 // 提供给其他应用获取服务数据
 // 这个configMap理论上应该由Node Server更新，为了实现简单改为有Control Server更新，遍历所有Node信息更新configmap
@@ -38,45 +25,70 @@ type ConfigProvider struct {
 	Vg     []string `json:"vg"`
 }
 
-var GlobalConfig *Config
+var GlobalConfig2 *viper.Viper
 
-func LoadConfig() error {
+func init() {
+	log.Info("Loading global configuration ...")
+	GlobalConfig2 = initConfig()
+	go dynamicConfig()
 
-	config := viper.New()
-	config.AddConfigPath(configPath)
-	config.SetConfigName("config")
-	config.SetConfigType("json")
-	if err := config.ReadInConfig(); err != nil {
-		return err
-	}
-	var c Config
-	if err := config.Unmarshal(&c); err != nil {
-		return err
-	}
-	verifyConfig(&c)
-	GlobalConfig = &c
-	return nil
 }
 
-func verifyConfig(c *Config) {
-
-	di, err := strconv.Atoi(c.DiskScanInterval)
+func initConfig() *viper.Viper {
+	GlobalConfig := viper.New()
+	GlobalConfig.AddConfigPath(configPath)
+	GlobalConfig.SetConfigName("config")
+	GlobalConfig.SetConfigType("json")
+	err := GlobalConfig.ReadInConfig()
 	if err != nil {
-		c.DiskScanInterval = "300"
+		log.Error("Failed to get the configuration")
+		os.Exit(-1)
 	}
-	if di < 60 {
-		c.DiskScanInterval = "60"
-	}
+	return GlobalConfig
+}
 
-	if utils.IsContainsString([]string{SchedulerBinpack, SchedulerSpradout}, strings.ToLower(c.SchedulerStrategy)) {
-		c.SchedulerStrategy = strings.ToLower(c.SchedulerStrategy)
-	} else {
-		c.SchedulerStrategy = SchedulerBinpack
-	}
-	// 目前只支持一种
-	c.DiskGroupPolicy = diskGroupType
+func dynamicConfig() {
+	GlobalConfig2.WatchConfig()
+	GlobalConfig2.OnConfigChange(func(event fsnotify.Event) {
+		log.Info("Detect config change: %s", event.String())
+	})
+}
 
-	if len(c.DiskSelector) == 0 {
+// 支持正则表达式
+// 定时扫描本地磁盘，凡是匹配的将被加入到相应vg卷组
+// 对于此配置的修改需要非常慎重，如果更改匹配条件，可能会移除正在使用的磁盘
+func DiskSelector() []string {
+	diskSelector := GlobalConfig2.GetStringSlice("diskSelector")
+	if len(diskSelector) == 0 {
 		log.Warn("No device is initialized because there is no configuration")
 	}
+	return diskSelector
+}
+
+// 定时磁盘扫描时间间隔(秒),默认60s
+func DiskScanInterval() int64 {
+	diskScanInterval := GlobalConfig2.GetInt64("diskScanInterval")
+	if diskScanInterval < 300 {
+		diskScanInterval = 300
+	}
+	return diskScanInterval
+}
+
+// 磁盘分组策略，目前只支持根据磁盘类型分组
+func DiskGroupPolicy() string {
+	diskGroupPolicy := GlobalConfig2.GetString("diskGroupPolicy")
+	diskGroupPolicy = "type"
+	return diskGroupPolicy
+
+}
+
+// pv调度策略binpac/spradout，默认为binpac
+func SchedulerStrategy() string {
+	schedulerStrategy := GlobalConfig2.GetString("schedulerStrategy")
+	if utils.IsContainsString([]string{SchedulerBinpack, SchedulerSpradout}, strings.ToLower(schedulerStrategy)) {
+		schedulerStrategy = strings.ToLower(schedulerStrategy)
+	} else {
+		schedulerStrategy = SchedulerBinpack
+	}
+	return schedulerStrategy
 }

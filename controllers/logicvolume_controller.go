@@ -45,12 +45,13 @@ type LogicVolumeReconciler struct {
 // +kubebuilder:rbac:groups=carina.storage.io,resources=logicvolumes,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=carina.storage.io,resources=logicvolumes/status,verbs=get;update;patch
 
-func NewLogicVolumeReconciler(client client.Client, log logr.Logger, nodeName string) *LogicVolumeReconciler {
+func NewLogicVolumeReconciler(client client.Client, log logr.Logger, nodeName string, volume volume.LocalVolume) *LogicVolumeReconciler {
 	return &LogicVolumeReconciler{
 		Client:   client,
 		Log:      log,
 		Scheme:   nil,
 		nodeName: nodeName,
+		volume:   volume,
 	}
 }
 
@@ -180,8 +181,7 @@ func (r *LogicVolumeReconciler) createLV(ctx context.Context, log logr.Logger, l
 }
 
 func (r *LogicVolumeReconciler) expandLV(ctx context.Context, log logr.Logger, lv *carinav1.LogicVolume) error {
-	// lv.Status.CurrentSize is added in v0.4.0 and filled by topolvm-controller when resizing is triggered.
-	// The reconciliation loop of LogicalVolume may call expandLV before resizing is triggered.
+	// The reconciliation loop of LogicVolume may call expandLV before resizing is triggered.
 	// So, lv.Status.CurrentSize could be nil here.
 	if lv.Status.CurrentSize == nil {
 		return nil
