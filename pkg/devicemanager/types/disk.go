@@ -1,0 +1,27 @@
+package types
+
+const (
+	VGSSD = "vg-ssd"
+	VGHDD = "vg-hdd"
+)
+
+type LocalDisk struct {
+	// Name is the device name
+	Name string `json:"name"`
+	// mount point
+	MountPoint string `json:"mountPoint"`
+	// Size is the device capacity in byte
+	Size uint64 `json:"size"`
+	// status
+	State string `json:"state"`
+	// Type is disk type
+	Type string `json:"type"`
+	// 1 for hdd, 0 for ssd and nvme
+	Rotational string `json:"rotational"`
+	// ReadOnly is the boolean whether the device is readonly
+	Readonly bool `json:"readOnly"`
+	// Filesystem is the filesystem currently on the device
+	Filesystem string `json:"filesystem"`
+	// has used
+	Used uint64 `json:"used"`
+}

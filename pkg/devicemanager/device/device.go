@@ -1,6 +1,7 @@
 package device
 
 import (
+	"carina/pkg/devicemanager/types"
 	"carina/utils/exec"
 	"carina/utils/log"
 	"fmt"
@@ -11,7 +12,7 @@ type LocalDevice interface {
 	// ListDevices list all devices available on a machine
 	ListDevices() ([]string, error)
 
-	ListDevicesDetail() ([]*LocalDevice, error)
+	ListDevicesDetail() ([]*types.LocalDisk, error)
 	GetDiskUsed(device string) (uint64, error)
 }
 
@@ -58,7 +59,7 @@ func (ld *LocalDeviceImplement) ListDevices() ([]string, error) {
    ]
 }
 */
-func (ld *LocalDeviceImplement) ListDevicesDetail() ([]*LocalDevice, error) {
+func (ld *LocalDeviceImplement) ListDevicesDetail() ([]*types.LocalDisk, error) {
 	args := []string{"-all", "-noheadings", "--bytes", "--json", "--output", "NAME,FSTYPE,MOUNTPOINT,SIZE,STATE,TYPE,ROTA,RO"}
 	devices, err := ld.Executor.ExecuteCommandWithOutput("lsblk", args...)
 	if err != nil {

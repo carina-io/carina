@@ -62,7 +62,7 @@ func verifyConfig(c *Config) {
 
 	di, err := strconv.Atoi(c.DiskScanInterval)
 	if err != nil {
-		c.DiskScanInterval = "60"
+		c.DiskScanInterval = "300"
 	}
 	if di < 60 {
 		c.DiskScanInterval = "60"

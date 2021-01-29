@@ -18,3 +18,7 @@ func SliceRemoveString(slice []string, s string) (result []string) {
 	}
 	return
 }
+
+func SliceSubSlice(src []string, dst []string) []string {
+
+}
