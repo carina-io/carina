@@ -60,7 +60,7 @@ func init() {
 	//} else {
 	// encoder = zapcore.NewConsoleEncoder(encoderConfig)
 	//}
-	encoder := zapcore.NewJSONEncoder(encoderConfig)
+	encoder := zapcore.NewConsoleEncoder(encoderConfig)
 
 	level := zap.DebugLevel
 	core := zapcore.NewCore(
