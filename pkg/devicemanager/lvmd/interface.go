@@ -8,7 +8,7 @@ type Lvm2 interface {
 	PVCreate(dev string) error
 	PVRemove(dev string) error
 	// 列出pv列表
-	PVS() (string, error)
+	PVS() ([]types.PVInfo, error)
 	// 扫盲pv加入cache,在服务启动时执行
 	PVScan(dev string) error
 	PVDisplay(dev string) (string, error)
@@ -36,7 +36,7 @@ type Lvm2 interface {
 	LVResize(lv, vg string, size uint64) error
 	LVDisplay(lv, vg string) (string, error)
 	// 这个方法会频繁调用
-	LVS() (string, error)
+	LVS() ([]types.LvInfo, error)
 
 	// 快照占用Pool空间，要有足够对池空间才能创建快照，不然会导致数据损坏
 	CreateSnapshot(snap, lv, vg string) error

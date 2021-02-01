@@ -133,10 +133,36 @@ func (v *LocalVolumeImplement) CloneVolume(lvName, vgName, newLvName string) err
 }
 
 func (v *LocalVolumeImplement) GetCurrentVgStruct() ([]types.VgGroup, error) {
-	return v.Lv.VGS()
+
+	resp := []types.VgGroup{}
+	tmp := map[string]*types.VgGroup{}
+	vgs, err := v.Lv.VGS()
+	if err != nil {
+		return nil, err
+	}
+	for _, v := range vgs {
+		tmp[v.VGName] = &v
+	}
+
+	pvs, err := v.Lv.PVS()
+	if err != nil {
+		return nil, err
+	}
+	for _, v := range pvs {
+		if tmp[v.VGName] != nil {
+			tmp[v.VGName].PVS = append(tmp[v.VGName].PVS, &v)
+		}
+	}
+
+	for _, v := range tmp {
+		resp = append(resp, *v)
+	}
+
+	return resp, nil
 }
 
 func (v *LocalVolumeImplement) AddNewDiskToVg(disk, vgName string) error {
+	v.Lv.VGExtend()
 	return nil
 }
 func (v *LocalVolumeImplement) RemoveDiskInVg(disk, vgName string) error {

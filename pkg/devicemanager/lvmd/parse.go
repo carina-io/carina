@@ -1,0 +1,147 @@
+package lvmd
+
+import (
+	"carina/pkg/devicemanager/types"
+	"carina/utils/log"
+	"strconv"
+	"strings"
+)
+
+func parseVgs(vgsString string) []types.VgGroup {
+	// LVM2_VG_NAME='lvmvg',LVM2_PV_COUNT='1',LVM2_LV_COUNT='0',LVM2_SNAP_COUNT='0',LVM2_VG_ATTR='wz--n-',LVM2_VG_SIZE='16101933056',LVM2_VG_FREE='16101933056'
+	// LVM2_VG_NAME='v1',LVM2_PV_COUNT='2',LVM2_LV_COUNT='0',LVM2_SNAP_COUNT='0',LVM2_VG_ATTR='wz--n-',LVM2_VG_SIZE='32203866112',LVM2_VG_FREE='32203866112'
+	// LVM2_VG_NAME='v1',LVM2_PV_NAME='/dev/loop2',LVM2_PV_COUNT='1',LVM2_LV_COUNT='0',LVM2_SNAP_COUNT='0',LVM2_VG_ATTR='wz--n-',LVM2_VG_SIZE='16101933056',LVM2_VG_FREE='16101933056'
+	resp := []types.VgGroup{}
+
+	if vgsString == "" {
+		return resp
+	}
+
+	vgsString = strings.ReplaceAll(vgsString, "'", "")
+	vgsString = strings.ReplaceAll(vgsString, " ", "")
+
+	vgsList := strings.Split(vgsString, "\n")
+	for _, vgs := range vgsList {
+		tmp := types.VgGroup{}
+		vg := strings.Split(vgs, ",")
+		for _, v := range vg {
+			k := strings.Split(v, "=")
+
+			switch k[0] {
+			case "LVM2_VG_NAME":
+				tmp.VGName = k[1]
+			case "LVM2_PV_NAME":
+				tmp.PVName = k[1]
+			case "LVM2_PV_COUNT":
+				tmp.PVCount, _ = strconv.ParseUint(k[1], 10, 64)
+			case "LVM2_LV_COUNT":
+				tmp.LVCount, _ = strconv.ParseUint(k[1], 10, 64)
+			case "LVM2_SNAP_COUNT":
+				tmp.SnapCount, _ = strconv.ParseUint(k[1], 10, 64)
+			case "LVM2_VG_ATTR":
+				tmp.VGAttr = k[1]
+			case "LVM2_VG_SIZE":
+				tmp.VGSize, _ = strconv.ParseUint(k[1], 10, 64)
+			case "LVM2_VG_FREE":
+				tmp.VGFree, _ = strconv.ParseUint(k[1], 10, 64)
+			default:
+				log.Warnf("undefined filed %s-%s", k[0], k[1])
+			}
+		}
+		tmp.PVS = []*types.PVInfo{}
+		resp = append(resp, tmp)
+	}
+	return resp
+}
+
+func parseLvs(lvsString string) []types.LvInfo {
+	// LVM2_LV_NAME='t1',LVM2_LV_PATH='/dev/v1/t1',LVM2_LV_SIZE='1073741824',LVM2_LV_KERNEL_MAJOR='252',LVM2_LV_KERNEL_MINOR='0',LVM2_ORIGIN='',LVM2_ORIGIN_SIZE='',LVM2_POOL_LV='',LVM2_THIN_COUNT='',LVM2_LV_TAGS='t1'
+	// LVM2_LV_NAME='t5',LVM2_LV_PATH='',LVM2_LV_SIZE='6979321856',LVM2_LV_KERNEL_MAJOR='252',LVM2_LV_KERNEL_MINOR='3',LVM2_ORIGIN='',LVM2_ORIGIN_SIZE='',LVM2_POOL_LV='',LVM2_THIN_COUNT='1',LVM2_LV_TAGS=''
+	// LVM2_LV_NAME='m2',LVM2_LV_PATH='/dev/v1/m2',LVM2_LV_SIZE='2147483648',LVM2_LV_KERNEL_MAJOR='252',LVM2_LV_KERNEL_MINOR='5',LVM2_ORIGIN='',LVM2_ORIGIN_SIZE='',LVM2_POOL_LV='t5',LVM2_THIN_COUNT='',LVM2_LV_TAGS=''
+
+	resp := []types.LvInfo{}
+	if lvsString == "" {
+		return resp
+	}
+
+	lvsString = strings.ReplaceAll(lvsString, "'", "")
+	lvsString = strings.ReplaceAll(lvsString, " ", "")
+
+	lvsList := strings.Split(lvsString, "\n")
+	for _, lvs := range lvsList {
+		tmp := types.LvInfo{}
+		lv := strings.Split(lvs, ",")
+		for _, v := range lv {
+			k := strings.Split(v, "=")
+
+			switch k[0] {
+			case "LVM2_LV_NAME":
+				tmp.LVName = k[1]
+			case "LVM2_VG_NAME":
+				tmp.VGName = k[1]
+			case "LVM2_LV_PATH":
+				tmp.LVPath = k[1]
+			case "LVM2_LV_SIZE":
+				tmp.LVSize, _ = strconv.ParseUint(k[1], 10, 64)
+			case "LVM2_LV_KERNEL_MAJOR":
+				tmp.LVKernelMajor, _ = strconv.ParseUint(k[1], 10, 64)
+			case "LVM2_LV_KERNEL_MINOR":
+				tmp.LVKernelMinor, _ = strconv.ParseUint(k[1], 10, 64)
+			case "LVM2_ORIGIN":
+				tmp.Origin = k[1]
+			case "LVM2_ORIGIN_SIZE":
+				tmp.OriginSize, _ = strconv.ParseUint(k[1], 10, 64)
+			case "LVM2_POOL_LV":
+				tmp.PoolLV = k[1]
+			case "LVM2_THIN_COUNT":
+				tmp.ThinCount, _ = strconv.ParseUint(k[1], 10, 64)
+			case "LVM2_LV_TAGS":
+				tmp.LVTags = k[1]
+			default:
+				log.Warnf("undefined field %s-%s", k[0], k[1])
+			}
+		}
+		resp = append(resp, tmp)
+	}
+	return resp
+}
+
+func parsePvs(pvsString string) []types.PVInfo {
+	// LVM2_PV_NAME='/dev/loop2',LVM2_VG_NAME='lvmvg',LVM2_PV_FMT='lvm2',LVM2_PV_ATTR='a--',LVM2_PV_SIZE='16101933056',LVM2_PV_FREE='16101933056'
+	resp := []types.PVInfo{}
+
+	if pvsString == "" {
+		return resp
+	}
+
+	pvsString = strings.ReplaceAll(pvsString, "'", "")
+	pvsString = strings.ReplaceAll(pvsString, " ", "")
+
+	pvsList := strings.Split(pvsString, "\n")
+	for _, pvs := range pvsList {
+		tmp := types.PVInfo{}
+		pv := strings.Split(pvs, ",")
+		for _, v := range pv {
+			k := strings.Split(v, "=")
+
+			switch k[0] {
+			case "LVM2_PV_NAME":
+				tmp.PVName = k[1]
+			case "LVM2_VG_NAME":
+				tmp.VGName = k[1]
+			case "LVM2_PV_FMT":
+				tmp.PVFmt = k[1]
+			case "LVM2_PV_ATTR":
+				tmp.PVAttr = k[1]
+			case "LVM2_PV_SIZE":
+				tmp.PVSize, _ = strconv.ParseUint(k[1], 10, 64)
+			case "LVM2_PV_FREE":
+				tmp.PVFree, _ = strconv.ParseUint(k[1], 10, 64)
+			default:
+				log.Warnf("undefined field %s-%s", k[0], k[1])
+			}
+		}
+		resp = append(resp, tmp)
+	}
+	return resp
+}

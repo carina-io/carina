@@ -4,8 +4,12 @@ import (
 	"carina/pkg/devicemanager/types"
 	"carina/utils/exec"
 	"carina/utils/log"
+	"encoding/json"
 	"fmt"
+	"os"
+	"strconv"
 	"strings"
+	"syscall"
 )
 
 type LocalDevice interface {
@@ -66,10 +70,8 @@ func (ld *LocalDeviceImplement) ListDevicesDetail() ([]*types.LocalDisk, error) 
 		log.Error("exec lsblk failed" + err.Error())
 		return nil, err
 	}
-	// TODO: 实现解析方法
-	parseKeyValuePairString(devices)
 
-	return nil, nil
+	return parseDiskString(devices), nil
 }
 
 /*
@@ -78,33 +80,50 @@ func (ld *LocalDeviceImplement) ListDevicesDetail() ([]*types.LocalDisk, error) 
 udev           8193452     0 8193452    0% /dev
 */
 func (ld *LocalDeviceImplement) GetDiskUsed(device string) (uint64, error) {
-	use, err := ld.Executor.ExecuteCommandWithOutput("df", device)
+	_, err := os.Stat(device)
 	if err != nil {
-		log.Error("exec df failed" + err.Error())
+		return 1, err
 	}
-	// TODO: 实现解析方法
-	parseKeyValuePairString(use)
-	return 0, nil
+	var stat syscall.Statfs_t
+	syscall.Statfs(device, &stat)
+	return stat.Blocks - stat.Bavail, nil
 }
 
-// converts a raw key value pair string into a map of key value pairs
-// example raw string of `foo="0" bar="1" baz="biz"` is returned as:
-// map[string]string{"foo":"0", "bar":"1", "baz":"biz"}
-func parseKeyValuePairString(propsRaw string) map[string]string {
-	// first split the single raw string on spaces and initialize a map of
-	// a length equal to the number of pairs
-	props := strings.Split(propsRaw, " ")
-	propMap := make(map[string]string, len(props))
-
-	for _, kvpRaw := range props {
-		// split each individual key value pair on the equals sign
-		kvp := strings.Split(kvpRaw, "=")
-		if len(kvp) == 2 {
-			// first element is the final key, second element is the final value
-			// (don't forget to remove surrounding quotes from the value)
-			propMap[kvp[0]] = strings.Replace(kvp[1], `"`, "", -1)
-		}
+func parseDiskString(diskString string) []*types.LocalDisk {
+	resp := []*types.LocalDisk{}
+	type device struct {
+		Blockdevices []struct {
+			Name       string `json:"name"`
+			Fstype     string `json:"fstype"`
+			MountPoint string `json:"mountpoint"`
+			Size       string `json:"size"`
+			State      string `json:"state"`
+			Type       string `json:"type"`
+			Rota       string `json:"rota"`
+			RO         string `json:"ro"`
+		} `json:"blockdevices"`
 	}
+	disk := device{}
+	err := json.Unmarshal([]byte(diskString), disk)
+	if err != nil {
+		return resp
+	}
+	for _, ld := range disk.Blockdevices {
+		tmp := types.LocalDisk{
+			Name:       ld.Name,
+			MountPoint: ld.MountPoint,
+			State:      ld.State,
+			Type:       ld.Type,
+			Rotational: ld.Rota,
+			Filesystem: ld.Fstype,
+			Used:       0,
+		}
 
-	return propMap
+		tmp.Size, _ = strconv.ParseUint(ld.Size, 10, 64)
+		if ld.RO == "1" {
+			tmp.Readonly = true
+		}
+		resp = append(resp, &tmp)
+	}
+	return resp
 }

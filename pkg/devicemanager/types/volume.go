@@ -20,7 +20,7 @@ type PVInfo struct {
 	PVFmt  string `json:"pvFmt"`
 	PVAttr string `json:"pvAttr"`
 	PVSize uint64 `json:"pvSize"`
-	PVFree string `json:"pvFree"`
+	PVFree uint64 `json:"pvFree"`
 }
 
 // lv详细信息
@@ -31,6 +31,8 @@ type LvInfo struct {
 	LVSize        uint64 `json:"lvSize"`
 	LVKernelMajor uint64 `json:"lvKernelMajor"`
 	LVKernelMinor uint64 `json:"lvKernelMinor"`
+	Origin        string `json:"origin"`
+	OriginSize    uint64 `json:"originSize"`
 	PoolLV        string `json:"poolLv"`
 	ThinCount     uint64 `json:"thinCount"`
 	LVTags        string `json:"lvTags"`
