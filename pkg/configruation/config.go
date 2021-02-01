@@ -50,7 +50,7 @@ func initConfig() *viper.Viper {
 func dynamicConfig() {
 	GlobalConfig2.WatchConfig()
 	GlobalConfig2.OnConfigChange(func(event fsnotify.Event) {
-		log.Info("Detect config change: %s", event.String())
+		log.Infof("Detect config change: %s", event.String())
 	})
 }
 
