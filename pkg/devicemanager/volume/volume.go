@@ -132,8 +132,8 @@ func (v *LocalVolumeImplement) CloneVolume(lvName, vgName, newLvName string) err
 	return nil
 }
 
-func (v *LocalVolumeImplement) GetCurrentVgStruct() ([]*types.VgGroup, error) {
-	return nil, nil
+func (v *LocalVolumeImplement) GetCurrentVgStruct() ([]types.VgGroup, error) {
+	return v.Lv.VGS()
 }
 
 func (v *LocalVolumeImplement) AddNewDiskToVg(disk, vgName string) error {

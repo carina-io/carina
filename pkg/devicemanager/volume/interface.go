@@ -24,7 +24,7 @@ type LocalVolume interface {
 	CloneVolume(lvName, vgName, newLvName string) error
 
 	// 额外的方法
-	GetCurrentVgStruct() ([]*types.VgGroup, error)
+	GetCurrentVgStruct() ([]types.VgGroup, error)
 	AddNewDiskToVg(disk, vgName string) error
 	RemoveDiskInVg(disk, vgName string) error
 }

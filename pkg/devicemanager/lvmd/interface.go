@@ -1,5 +1,7 @@
 package lvmd
 
+import "carina/pkg/devicemanager/types"
+
 type Lvm2 interface {
 	// 检查pv是否存在
 	PVCheck(dev string) error
@@ -14,7 +16,7 @@ type Lvm2 interface {
 	VGCheck(vg string) error
 	VGCreate(vg string, tags, pvs []string) error
 	VGRemove(vg string) error
-	VGS() (string, error)
+	VGS() ([]types.VgGroup, error)
 	VGScan(vg string) error
 	// vg卷组增加新的pv
 	VGExtend(vg, pv string) error

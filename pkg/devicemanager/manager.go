@@ -197,14 +197,15 @@ func (dm *DeviceManager) LvmHealthCheck() {
 	log.Info("init health check")
 
 	ticker1 := time.NewTicker(60 * time.Second)
-	defer ticker1.Stop()
 	go func(t *time.Ticker) {
+		defer ticker1.Stop()
 		for {
 			select {
 			case <-t.C:
 				log.Info("exec lvm check: unrealized")
 			case <-dm.StopChan:
 				log.Info("stop lvm check")
+				return
 			}
 		}
 	}(ticker1)
@@ -214,8 +215,8 @@ func (dm *DeviceManager) DeviceCheckTask() {
 	log.Info("init device check")
 
 	ticker1 := time.NewTicker(60 * time.Second)
-	defer ticker1.Stop()
 	go func(t *time.Ticker) {
+		defer ticker1.Stop()
 		for {
 			select {
 			case <-t.C:

@@ -1,6 +1,7 @@
 package lvmd
 
 import (
+	"carina/pkg/devicemanager/types"
 	"carina/utils/exec"
 	"carina/utils/log"
 	"fmt"
@@ -101,11 +102,16 @@ func (lv2 *Lvm2Implement) VGRemove(vg string) error {
 // vgs --noheadings --separator=, --units=b --nosuffix --unbuffered --nameprefixes
 // LVM2_VG_NAME='lvmvg',LVM2_PV_COUNT='1',LVM2_LV_COUNT='0',LVM2_SNAP_COUNT='0',LVM2_VG_ATTR='wz--n-',LVM2_VG_SIZE='16101933056',LVM2_VG_FREE='16101933056'
 // LVM2_VG_NAME='v1',LVM2_PV_COUNT='2',LVM2_LV_COUNT='0',LVM2_SNAP_COUNT='0',LVM2_VG_ATTR='wz--n-',LVM2_VG_SIZE='32203866112',LVM2_VG_FREE='32203866112'
-func (lv2 *Lvm2Implement) VGS() (string, error) {
-
+func (lv2 *Lvm2Implement) VGS() ([]types.VgGroup, error) {
+	flieds := []string{"-o", "VG_NAME,PV_NAME,PV_COUNT,LV_COUNT,SNAP_COUNT,VG_ATTR,VG_SIZE,VG_FREE"}
 	args := []string{"--noheadings", "--separator=,", "--units=b", "--nosuffix", "--unbuffered", "--nameprefixes"}
 
-	return lv2.Executor.ExecuteCommandWithOutput("vgs", args...)
+	vgsInfo, err := lv2.Executor.ExecuteCommandWithOutput("vgs", append(flieds, args...)...)
+	if err != nil {
+		return nil, err
+	}
+
+	return parseVgs(vgsInfo), nil
 }
 
 // VGScan runs the `vgscan --cache <name>` command. It scans for the

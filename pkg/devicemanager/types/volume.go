@@ -3,7 +3,9 @@ package types
 // vg卷组信息及映射关系
 type VgGroup struct {
 	VGName    string    `json:"vgName"`
+	PVName    string    `json:"pvName"`
 	PVCount   uint64    `json:"pvCount"`
+	LVCount   uint64    `json:"lvCount"`
 	SnapCount uint64    `json:"snapCount"`
 	VGAttr    string    `json:"vgAttr"`
 	VGSize    uint64    `json:"vgSize"`
