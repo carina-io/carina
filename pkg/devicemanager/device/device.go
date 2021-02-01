@@ -16,7 +16,7 @@ type LocalDevice interface {
 	// ListDevices list all devices available on a machine
 	ListDevices() ([]string, error)
 
-	ListDevicesDetail() ([]*types.LocalDisk, error)
+	ListDevicesDetail(device string) ([]*types.LocalDisk, error)
 	GetDiskUsed(device string) (uint64, error)
 }
 
@@ -63,8 +63,11 @@ func (ld *LocalDeviceImplement) ListDevices() ([]string, error) {
    ]
 }
 */
-func (ld *LocalDeviceImplement) ListDevicesDetail() ([]*types.LocalDisk, error) {
+func (ld *LocalDeviceImplement) ListDevicesDetail(device string) ([]*types.LocalDisk, error) {
 	args := []string{"-all", "-noheadings", "--bytes", "--json", "--output", "NAME,FSTYPE,MOUNTPOINT,SIZE,STATE,TYPE,ROTA,RO"}
+	if device != "" {
+		args = append(args, device)
+	}
 	devices, err := ld.Executor.ExecuteCommandWithOutput("lsblk", args...)
 	if err != nil {
 		log.Error("exec lsblk failed" + err.Error())
@@ -104,13 +107,14 @@ func parseDiskString(diskString string) []*types.LocalDisk {
 		} `json:"blockdevices"`
 	}
 	disk := device{}
-	err := json.Unmarshal([]byte(diskString), disk)
+	err := json.Unmarshal([]byte(diskString), &disk)
 	if err != nil {
+		log.Errorf("disk serialize failed %s", err.Error())
 		return resp
 	}
 	for _, ld := range disk.Blockdevices {
 		tmp := types.LocalDisk{
-			Name:       ld.Name,
+			Name:       "/dev/" + ld.Name,
 			MountPoint: ld.MountPoint,
 			State:      ld.State,
 			Type:       ld.Type,

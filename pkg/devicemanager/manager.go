@@ -36,18 +36,9 @@ type DeviceManager struct {
 	nodeName string
 }
 
-func Run() {
-
-	// 第一步： 初始化结构
-	// 第二步： 从磁盘加载现有设备及lvm卷
-	// 第三步： 启动定时磁盘检查服务
-	// 第四步：
-
-}
-
 func NewDeviceManager(nodeName string, stopChan <-chan struct{}) *DeviceManager {
 	executor := &exec.CommandExecutor{}
-	mutex := &mutx.GlobalLocks{}
+	mutex := mutx.NewGlobalLocks()
 	dm := DeviceManager{
 		Executor:        executor,
 		ActuallyVgGroup: nil,
@@ -72,6 +63,24 @@ func (dm *DeviceManager) AddAndRemoveDevice() {
 		log.Error("find new device failed: " + err.Error())
 		return
 	}
+	newPv, err := dm.DiscoverPv()
+	if err != nil {
+		log.Error("find new pv failed: " + err.Error())
+		return
+	}
+
+	// 合并新增设备
+	for key, value := range newDisk {
+		if v, ok := newPv[key]; ok {
+			newDisk[key] = utils.SliceMergeSlice(value, v)
+		}
+	}
+	for key, value := range newPv {
+		if _, ok := newDisk[key]; !ok {
+			newDisk[key] = value
+		}
+	}
+
 	ActuallyVg, err := dm.VolumeManager.GetCurrentVgStruct()
 	if err != nil {
 		log.Error("get current vg struct failed: " + err.Error())
@@ -99,6 +108,7 @@ func (dm *DeviceManager) AddAndRemoveDevice() {
 			}
 		}
 	}
+	time.Sleep(5 * time.Second)
 	// 移出磁盘
 	ActuallyVg, err = dm.VolumeManager.GetCurrentVgStruct()
 	if err != nil {
@@ -127,10 +137,14 @@ func (dm *DeviceManager) AddAndRemoveDevice() {
 func (dm *DeviceManager) DiscoverDisk() (map[string][]string, error) {
 	blockClass := map[string][]string{}
 	// 列出所有本地磁盘
-	localDisk, err := dm.DiskManager.ListDevicesDetail()
+	localDisk, err := dm.DiskManager.ListDevicesDetail("")
 	if err != nil {
 		log.Error("get local disk failed: " + err.Error())
 		return blockClass, err
+	}
+	if len(localDisk) == 0 {
+		log.Info("cannot find new device")
+		return blockClass, nil
 	}
 	dsList := configruation.DiskSelector()
 	if len(dsList) == 0 {
@@ -146,8 +160,8 @@ func (dm *DeviceManager) DiscoverDisk() (map[string][]string, error) {
 
 	// 过滤出空对块设备
 	for _, d := range localDisk {
-		if d.Readonly || d.Size < 1>>31 || d.Filesystem == "" || d.MountPoint == "" || d.State != "running" {
-			log.Info("mismatched disk: " + d.Name)
+		if d.Readonly || d.Size < 10<<30 || d.Filesystem != "" || d.MountPoint != "" || d.State == "running" {
+			log.Infof("mismatched disk: %s filesystem:%s mountpoint:%s state:%s, readonly:%t, size:%d", d.Name, d.Filesystem, d.MountPoint, d.State, d.Readonly, d.Size)
 			continue
 		}
 
@@ -156,16 +170,16 @@ func (dm *DeviceManager) DiscoverDisk() (map[string][]string, error) {
 		for _, t := range []string{types.LVMType, types.PartType, types.CryptType, types.MultiPath, "rom"} {
 			if strings.Contains(d.Type, t) {
 				diskTypeCheck = false
-				continue
+				break
 			}
 		}
 		if !diskTypeCheck {
-			log.Info("mismatched disk: " + d.Name)
+			log.Infof("mismatched disk:%s, disktype:%s", d.Name, d.Type)
 			continue
 		}
 
 		if !diskSelector.MatchString(d.Name) {
-			log.Info("mismatched disk: " + d.Name)
+			log.Infof("mismatched disk:%s, regex:%s", d.Name, diskSelector.String())
 			continue
 		}
 
@@ -182,10 +196,10 @@ func (dm *DeviceManager) DiscoverDisk() (map[string][]string, error) {
 
 		if d.Rotational == "0" {
 			blockClass[types.VGSSD] = append(blockClass[types.VGSSD], d.Name)
-			log.Infof("find new ssd device %s", d.Name)
+			log.Infof("eligible ssd device %s", d.Name)
 		} else if d.Rotational == "1" {
-			blockClass[types.VGSSD] = append(blockClass[types.VGHDD], d.Name)
-			log.Infof("find new hdd device %s", d.Name)
+			blockClass[types.VGHDD] = append(blockClass[types.VGHDD], d.Name)
+			log.Infof("eligible hdd device %s", d.Name)
 		} else {
 			log.Infof("unsupported disk type name: %s, rota: %s", d.Name, d.Rotational)
 		}
@@ -193,8 +207,56 @@ func (dm *DeviceManager) DiscoverDisk() (map[string][]string, error) {
 	return blockClass, nil
 }
 
+// 支持发现Pv，由于某些异常情况，只创建成功了PV,并未创建成功VG
+func (dm *DeviceManager) DiscoverPv() (map[string][]string, error) {
+	resp := map[string][]string{}
+	pvList, err := dm.VolumeManager.GetCurrentPvStruct()
+	if err != nil {
+		log.Errorf("get pv failed %s", err.Error())
+		return nil, err
+	}
+	dsList := configruation.DiskSelector()
+	if len(dsList) == 0 {
+		log.Info("no set disk selector")
+		return resp, nil
+	}
+	diskSelector, err := regexp.Compile(strings.Join(dsList, "|"))
+	if err != nil {
+		log.Warnf("disk regex %s error %v ", strings.Join(dsList, "|"), err)
+		return resp, err
+	}
+	for _, pv := range pvList {
+		if pv.VGName != "" {
+			continue
+		}
+		if !diskSelector.MatchString(pv.PVName) {
+			log.Infof("mismatched disk:%s, regex:%s", pv.PVName, diskSelector.String())
+			continue
+		}
+		disk, err := dm.DiskManager.ListDevicesDetail(pv.PVName)
+		if err != nil {
+			log.Errorf("get device failed %s", err.Error())
+			continue
+		}
+		if len(disk) != 1 {
+			log.Error("get disk count not equal 1")
+			continue
+		}
+		if disk[0].Rotational == "0" {
+			resp[types.VGSSD] = append(resp[types.VGSSD], disk[0].Name)
+			log.Infof("eligible ssd pv %s", disk[0].Name)
+		} else if disk[0].Rotational == "1" {
+			resp[types.VGHDD] = append(resp[types.VGHDD], disk[0].Name)
+			log.Infof("eligible hdd pv %s", disk[0].Name)
+		} else {
+			log.Infof("unsupported disk type name: %s, rota: %s", disk[0].Name, disk[0].Rotational)
+		}
+	}
+	return resp, nil
+}
+
 func (dm *DeviceManager) LvmHealthCheck() {
-	log.Info("init health check")
+	log.Info("start lvm health check")
 
 	ticker1 := time.NewTicker(60 * time.Second)
 	go func(t *time.Ticker) {
@@ -212,7 +274,9 @@ func (dm *DeviceManager) LvmHealthCheck() {
 }
 
 func (dm *DeviceManager) DeviceCheckTask() {
-	log.Info("init device check")
+	log.Info("start device monitor")
+	// 服务启动先检查一次
+	dm.AddAndRemoveDevice()
 
 	ticker1 := time.NewTicker(60 * time.Second)
 	go func(t *time.Ticker) {
@@ -221,12 +285,13 @@ func (dm *DeviceManager) DeviceCheckTask() {
 			select {
 			case <-t.C:
 				time.Sleep(time.Duration(configruation.DiskScanInterval()-int64(60)) * time.Second)
-				log.Info("exec disk check task")
+				log.Info("exec device monitor task")
 				dm.AddAndRemoveDevice()
 			case <-dm.StopChan:
-				log.Info("stop disk check task")
+				log.Info("stop device monitor task")
 				return
 			}
 		}
 	}(ticker1)
+
 }

@@ -11,12 +11,13 @@ type Lvm2 interface {
 	PVS() ([]types.PVInfo, error)
 	// 扫盲pv加入cache,在服务启动时执行
 	PVScan(dev string) error
-	PVDisplay(dev string) (string, error)
+	PVDisplay(dev string) (*types.PVInfo, error)
 
 	VGCheck(vg string) error
 	VGCreate(vg string, tags, pvs []string) error
 	VGRemove(vg string) error
 	VGS() ([]types.VgGroup, error)
+	VGDisplay(vg string) (*types.VgGroup, error)
 	VGScan(vg string) error
 	// vg卷组增加新的pv
 	VGExtend(vg, pv string) error

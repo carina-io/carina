@@ -3,7 +3,7 @@ package lvmd
 import (
 	"carina/pkg/devicemanager/types"
 	"carina/utils/exec"
-	"carina/utils/log"
+	"errors"
 	"fmt"
 )
 
@@ -50,8 +50,17 @@ func (lv2 *Lvm2Implement) PVS() ([]types.PVInfo, error) {
   Allocated PE          0
   PV UUID               OiNoxD-Y1sw-FSzi-mqPN-07EW-C77P-TNdtc6
 */
-func (lv2 *Lvm2Implement) PVDisplay(dev string) (string, error) {
-	return lv2.Executor.ExecuteCommandWithOutput("pvdisplay", dev)
+func (lv2 *Lvm2Implement) PVDisplay(dev string) (*types.PVInfo, error) {
+	pvsInfo, err := lv2.PVS()
+	if err != nil {
+		return nil, err
+	}
+	for _, pv := range pvsInfo {
+		if pv.PVName == dev {
+			return &pv, nil
+		}
+	}
+	return nil, errors.New("disk not found")
 }
 
 // PVScan runs the `pvscan --cache <dev>` command. It scans for the
@@ -86,14 +95,6 @@ func (lv2 *Lvm2Implement) VGCreate(vg string, tags, pvs []string) error {
 		return err
 	}
 
-	if err := lv2.PVScan(""); err != nil {
-		log.Warnf(" error during pvscan: %v", err)
-	}
-
-	if err := lv2.VGScan(""); err != nil {
-		log.Warnf("error during vgscan: %v", err)
-	}
-
 	return nil
 }
 
@@ -117,6 +118,20 @@ func (lv2 *Lvm2Implement) VGS() ([]types.VgGroup, error) {
 	return parseVgs(vgsInfo), nil
 }
 
+func (lv2 *Lvm2Implement) VGDisplay(vg string) (*types.VgGroup, error) {
+	vgsInfo, err := lv2.VGS()
+	if err != nil {
+		return nil, err
+	}
+	for _, vgs := range vgsInfo {
+		if vgs.VGName == vg {
+			return &vgs, nil
+		}
+	}
+
+	return nil, errors.New("vg not found")
+}
+
 // VGScan runs the `vgscan --cache <name>` command. It scans for the
 // volume group and adds it to the LVM metadata cache if `lvmetad`
 // is running. If `name` is an empty string, it scans all volume groups.
@@ -129,28 +144,11 @@ func (lv2 *Lvm2Implement) VGScan(vg string) error {
 }
 
 func (lv2 *Lvm2Implement) VGExtend(vg, pv string) error {
-	if err := lv2.VGCheck(vg); err != nil {
-		return err
-	}
-	if err := lv2.PVCheck(pv); err != nil {
-		return err
-	}
-
-	// TODO: 检查pv是否已经加入到其他vg
 
 	err := lv2.Executor.ExecuteCommand("vgextend", vg, pv)
 	if err != nil {
 		return err
 	}
-
-	if err := lv2.PVScan(""); err != nil {
-		log.Warnf(" error during pvscan: %v", err)
-	}
-
-	if err := lv2.VGScan(""); err != nil {
-		log.Warnf("error during vgscan: %v", err)
-	}
-
 	return nil
 }
 
@@ -176,14 +174,6 @@ func (lv2 *Lvm2Implement) VGExtend(vg, pv string) error {
   /dev/loop4 v1    lvm2 a--  15.00g 15.00g
 */
 func (lv2 *Lvm2Implement) VGReduce(vg, pv string) error {
-	if err := lv2.VGCheck(vg); err != nil {
-		return err
-	}
-	if err := lv2.PVCheck(pv); err != nil {
-		return err
-	}
-
-	// TODO: 检查pv是否在该vg下
 
 	if err := lv2.Executor.ExecuteCommand("pvmove", pv); err != nil {
 		return err
@@ -196,14 +186,6 @@ func (lv2 *Lvm2Implement) VGReduce(vg, pv string) error {
 	err := lv2.PVRemove(pv)
 	if err != nil {
 		return err
-	}
-
-	if err := lv2.PVScan(""); err != nil {
-		log.Warnf(" error during pvscan: %v", err)
-	}
-
-	if err := lv2.VGScan(""); err != nil {
-		log.Warnf("error during vgscan: %v", err)
 	}
 
 	return nil

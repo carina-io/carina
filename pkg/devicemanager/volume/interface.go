@@ -25,6 +25,7 @@ type LocalVolume interface {
 
 	// 额外的方法
 	GetCurrentVgStruct() ([]types.VgGroup, error)
+	GetCurrentPvStruct() ([]types.PVInfo, error)
 	AddNewDiskToVg(disk, vgName string) error
 	RemoveDiskInVg(disk, vgName string) error
 }

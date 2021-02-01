@@ -65,7 +65,7 @@ func DiskSelector() []string {
 	return diskSelector
 }
 
-// 定时磁盘扫描时间间隔(秒),默认60s
+// 定时磁盘扫描时间间隔(秒),默认300s
 func DiskScanInterval() int64 {
 	diskScanInterval := GlobalConfig2.GetInt64("diskScanInterval")
 	if diskScanInterval < 300 {
