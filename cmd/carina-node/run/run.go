@@ -4,7 +4,6 @@ import (
 	carinav1 "carina/api/v1"
 	"carina/controllers"
 	deviceManager "carina/pkg/devicemanager"
-	"carina/utils/log"
 	"errors"
 	"github.com/spf13/viper"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -15,9 +14,8 @@ import (
 )
 
 var (
-	gitCommitID = "dev"
-	scheme      = runtime.NewScheme()
-	setupLog    = ctrl.Log.WithName("setup")
+	scheme   = runtime.NewScheme()
+	setupLog = ctrl.Log.WithName("setup")
 )
 
 func init() {
@@ -36,7 +34,6 @@ func subMain() error {
 	if len(nodeName) == 0 {
 		return errors.New("node name is not given")
 	}
-	printWelcome()
 
 	ctrl.SetLogger(zap.New(zap.UseDevMode(config.development)))
 
@@ -108,13 +105,4 @@ func subMain() error {
 	}
 
 	return nil
-}
-
-func printWelcome() {
-	if gitCommitID == "" {
-		gitCommitID = "dev"
-	}
-	log.Info("-------- Welcome to use Carina Node Server --------")
-	log.Infof("Git Commit ID : %s", gitCommitID)
-	log.Info("------------------------------------")
 }

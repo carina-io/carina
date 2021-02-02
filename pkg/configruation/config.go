@@ -25,11 +25,11 @@ type ConfigProvider struct {
 	Vg     []string `json:"vg"`
 }
 
-var GlobalConfig2 *viper.Viper
+var GlobalConfig *viper.Viper
 
 func init() {
 	log.Info("Loading global configuration ...")
-	GlobalConfig2 = initConfig()
+	GlobalConfig = initConfig()
 	go dynamicConfig()
 
 }
@@ -48,8 +48,8 @@ func initConfig() *viper.Viper {
 }
 
 func dynamicConfig() {
-	GlobalConfig2.WatchConfig()
-	GlobalConfig2.OnConfigChange(func(event fsnotify.Event) {
+	GlobalConfig.WatchConfig()
+	GlobalConfig.OnConfigChange(func(event fsnotify.Event) {
 		log.Infof("Detect config change: %s", event.String())
 	})
 }
@@ -58,7 +58,7 @@ func dynamicConfig() {
 // 定时扫描本地磁盘，凡是匹配的将被加入到相应vg卷组
 // 对于此配置的修改需要非常慎重，如果更改匹配条件，可能会移除正在使用的磁盘
 func DiskSelector() []string {
-	diskSelector := GlobalConfig2.GetStringSlice("diskSelector")
+	diskSelector := GlobalConfig.GetStringSlice("diskSelector")
 	if len(diskSelector) == 0 {
 		log.Warn("No device is initialized because there is no configuration")
 	}
@@ -67,7 +67,7 @@ func DiskSelector() []string {
 
 // 定时磁盘扫描时间间隔(秒),默认300s
 func DiskScanInterval() int64 {
-	diskScanInterval := GlobalConfig2.GetInt64("diskScanInterval")
+	diskScanInterval := GlobalConfig.GetInt64("diskScanInterval")
 	if diskScanInterval < 300 {
 		diskScanInterval = 300
 	}
@@ -76,7 +76,7 @@ func DiskScanInterval() int64 {
 
 // 磁盘分组策略，目前只支持根据磁盘类型分组
 func DiskGroupPolicy() string {
-	diskGroupPolicy := GlobalConfig2.GetString("diskGroupPolicy")
+	diskGroupPolicy := GlobalConfig.GetString("diskGroupPolicy")
 	diskGroupPolicy = "type"
 	return diskGroupPolicy
 
@@ -84,7 +84,7 @@ func DiskGroupPolicy() string {
 
 // pv调度策略binpac/spradout，默认为binpac
 func SchedulerStrategy() string {
-	schedulerStrategy := GlobalConfig2.GetString("schedulerStrategy")
+	schedulerStrategy := GlobalConfig.GetString("schedulerStrategy")
 	if utils.IsContainsString([]string{SchedulerBinpack, SchedulerSpradout}, strings.ToLower(schedulerStrategy)) {
 		schedulerStrategy = strings.ToLower(schedulerStrategy)
 	} else {

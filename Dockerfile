@@ -1,27 +1,33 @@
 # Build the manager binary
-FROM golang:1.13 as builder
+FROM golang:1.15-buster AS builder
 
-WORKDIR /workspace
-# Copy the Go Modules manifests
-COPY go.mod go.mod
-COPY go.sum go.sum
-# cache deps before building and copying source so that we don't need to re-download as much
-# and so that source changes don't invalidate our downloaded layer
-RUN go mod download
+ENV GO111MODULE=on CGO_ENABLED=0 GOOS=linux GOARCH=amd64 GOPROXY=https://goproxy.cn,direct
+ENV WORKSPACE=/workspace/carina
 
-# Copy the go source
-COPY main.go main.go
-COPY api/ api/
-COPY controllers/ controllers/
+WORKDIR $WORKSPACE
+ADD . .
 
 # Build
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 GO111MODULE=on go build -a -o manager main.go
+RUN echo Commit: `git log --pretty='%s%b%B' -n 1`
+RUN cd $WORKSPACE/cmd/carina-node && go build -ldflags="-X main.gitCommitID=`git rev-parse HEAD`" -gcflags '-N -l' -o /tmp/carina-node .
+RUN cd $WORKSPACE/cmd/http-server && go build -gcflags '-N -l' -o /tmp/http-server .
 
-# Use distroless as minimal base image to package the manager binary
-# Refer to https://github.com/GoogleContainerTools/distroless for more details
-FROM gcr.io/distroless/static:nonroot
-WORKDIR /
-COPY --from=builder /workspace/manager .
-USER nonroot:nonroot
+FROM ubuntu:20.04
+ENV DEBIAN_FRONTEND=noninteractive
+RUN apt-get update \
+    && apt-get -y install --no-install-recommends \
+        file \
+        xfsprogs \
+    && rm -rf /var/lib/apt/lists/*
 
-ENTRYPOINT ["/manager"]
+COPY --from=builder /tmp/carina-node /usr/bin/
+COPY --from=builder /tmp/http-server /usr/bin/
+
+RUN chmod +x /usr/bin/carina-node
+RUN chmod +x /usr/bin/http-server
+
+#Update time zone to Asia-Shanghai
+COPY --from=builder /workspace/carina/Shanghai /etc/localtime
+RUN echo 'Asia/Shanghai' > /etc/timezone
+
+CMD ["http-server"]
