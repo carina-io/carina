@@ -271,6 +271,7 @@ func (dm *DeviceManager) LvmHealthCheck() {
 
 func (dm *DeviceManager) DeviceCheckTask() {
 	log.Info("start device monitor")
+	dm.VolumeManager.RefreshLvmCache()
 	// 服务启动先检查一次
 	dm.AddAndRemoveDevice()
 

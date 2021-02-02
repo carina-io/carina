@@ -30,4 +30,5 @@ type LocalVolume interface {
 	RemoveDiskInVg(disk, vgName string) error
 
 	HealthCheck()
+	RefreshLvmCache()
 }

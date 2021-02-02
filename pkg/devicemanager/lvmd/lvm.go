@@ -5,6 +5,7 @@ import (
 	"carina/utils/exec"
 	"errors"
 	"fmt"
+	"strings"
 )
 
 type Lvm2Implement struct {
@@ -175,7 +176,9 @@ func (lv2 *Lvm2Implement) VGExtend(vg, pv string) error {
 */
 func (lv2 *Lvm2Implement) VGReduce(vg, pv string) error {
 
-	if err := lv2.Executor.ExecuteCommand("pvmove", pv); err != nil {
+	output, err := lv2.Executor.ExecuteCommandWithOutput("pvmove", pv)
+
+	if err != nil && !strings.Contains(output, "No data to move") {
 		return err
 	}
 
@@ -183,7 +186,7 @@ func (lv2 *Lvm2Implement) VGReduce(vg, pv string) error {
 		return err
 	}
 
-	err := lv2.PVRemove(pv)
+	err = lv2.PVRemove(pv)
 	if err != nil {
 		return err
 	}

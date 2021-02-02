@@ -20,8 +20,8 @@ type LocalVolumeImplement struct {
 
 func (v *LocalVolumeImplement) CreateVolume(lvName, vgName string, size, ratio uint64) error {
 	if !v.Mutex.TryAcquire(VOLUMEMUTEX) {
-		log.Info("get global mutex failed")
-		return errors.New("need retry")
+		log.Info("wait other task release mutex, please retry...")
+		return errors.New("get global mutex failed")
 	}
 	defer v.Mutex.Release(VOLUMEMUTEX)
 
@@ -40,7 +40,6 @@ func (v *LocalVolumeImplement) CreateVolume(lvName, vgName string, size, ratio u
 		return errors.New("don't have enough space")
 	}
 
-	// TODO: 检查一下该Volume是否已经存在, VG组检查
 	thinName := THIN + lvName
 	name := LVVolume + lvName
 	// 配置pool和volume倍数比例，为了创建快照做准备，快照需要volume同等的存储空间
@@ -71,8 +70,8 @@ func (v *LocalVolumeImplement) CreateVolume(lvName, vgName string, size, ratio u
 
 func (v *LocalVolumeImplement) DeleteVolume(lvName, vgName string) error {
 	if !v.Mutex.TryAcquire(VOLUMEMUTEX) {
-		log.Info("get global mutex failed")
-		return nil
+		log.Info("wait other task release mutex, please retry...")
+		return errors.New("get global mutex failed")
 	}
 	defer v.Mutex.Release(VOLUMEMUTEX)
 	// ToDO: 需要检查pool中是否有快照,存在快照无法删除Volume
@@ -97,8 +96,8 @@ func (v *LocalVolumeImplement) DeleteVolume(lvName, vgName string) error {
 
 func (v *LocalVolumeImplement) ResizeVolume(lvName, vgName string, size, ratio uint64) error {
 	if !v.Mutex.TryAcquire(VOLUMEMUTEX) {
-		log.Info("get global mutex failed")
-		return errors.New("need retry")
+		log.Info("wait other task release mutex, please retry...")
+		return errors.New("get global mutex failed")
 	}
 	defer v.Mutex.Release(VOLUMEMUTEX)
 
@@ -168,8 +167,8 @@ func (v *LocalVolumeImplement) VolumeList(lvName, vgName string) ([]types.LvInfo
 func (v *LocalVolumeImplement) CreateSnapshot(snapName, lvName, vgName string) error {
 
 	if !v.Mutex.TryAcquire(VOLUMEMUTEX) {
-		log.Info("get global mutex failed")
-		return nil
+		log.Info("wait other task release mutex, please retry...")
+		return errors.New("get global mutex failed")
 	}
 	defer v.Mutex.Release(VOLUMEMUTEX)
 
@@ -186,8 +185,8 @@ func (v *LocalVolumeImplement) CreateSnapshot(snapName, lvName, vgName string) e
 func (v *LocalVolumeImplement) DeleteSnapshot(snapName, vgName string) error {
 
 	if !v.Mutex.TryAcquire(VOLUMEMUTEX) {
-		log.Info("get global mutex failed")
-		return nil
+		log.Info("wait other task release mutex, please retry...")
+		return errors.New("get global mutex failed")
 	}
 	defer v.Mutex.Release(VOLUMEMUTEX)
 	if err := v.Lv.DeleteSnapshot(snapName, vgName); err != nil {
@@ -199,8 +198,8 @@ func (v *LocalVolumeImplement) DeleteSnapshot(snapName, vgName string) error {
 func (v *LocalVolumeImplement) RestoreSnapshot(snapName, vgName string) error {
 
 	if !v.Mutex.TryAcquire(VOLUMEMUTEX) {
-		log.Info("get global mutex failed")
-		return nil
+		log.Info("wait other task release mutex, please retry...")
+		return errors.New("get global mutex failed")
 	}
 	defer v.Mutex.Release(VOLUMEMUTEX)
 	// TODO： 需要检查是否已经umount
@@ -227,8 +226,8 @@ func (v *LocalVolumeImplement) SnapshotList(lvName, vgName string) ([]types.LvIn
 
 func (v *LocalVolumeImplement) CloneVolume(lvName, vgName, newLvName string) error {
 	if !v.Mutex.TryAcquire(VOLUMEMUTEX) {
-		log.Info("get global mutex failed")
-		return nil
+		log.Info("wait other task release mutex, please retry...")
+		return errors.New("get global mutex failed")
 	}
 	defer v.Mutex.Release(VOLUMEMUTEX)
 	// 获取pool lv，创建一个和一模一样对池子
@@ -297,8 +296,8 @@ func (v *LocalVolumeImplement) GetCurrentPvStruct() ([]types.PVInfo, error) {
 
 func (v *LocalVolumeImplement) AddNewDiskToVg(disk, vgName string) error {
 	if !v.Mutex.TryAcquire(VOLUMEMUTEX) {
-		log.Info("get global mutex failed")
-		return nil
+		log.Info("wait other task release mutex, please retry...")
+		return errors.New("get global mutex failed")
 	}
 	defer v.Mutex.Release(VOLUMEMUTEX)
 	// 确保PV存在
@@ -340,19 +339,19 @@ func (v *LocalVolumeImplement) AddNewDiskToVg(disk, vgName string) error {
 	}
 
 	// 刷新缓存
-	if err := v.Lv.PVScan(""); err != nil {
-		log.Warnf(" error during pvscan: %v", err)
-	}
-
-	if err := v.Lv.VGScan(""); err != nil {
-		log.Warnf("error during vgscan: %v", err)
-	}
+	//if err := v.Lv.PVScan(""); err != nil {
+	//	log.Warnf(" error during pvscan: %v", err)
+	//}
+	//
+	//if err := v.Lv.VGScan(""); err != nil {
+	//	log.Warnf("error during vgscan: %v", err)
+	//}
 	return nil
 }
 func (v *LocalVolumeImplement) RemoveDiskInVg(disk, vgName string) error {
 	if !v.Mutex.TryAcquire(VOLUMEMUTEX) {
-		log.Info("get global mutex failed")
-		return nil
+		log.Info("wait other task release mutex, please retry...")
+		return errors.New("get global mutex failed")
 	}
 	defer v.Mutex.Release(VOLUMEMUTEX)
 
@@ -379,7 +378,7 @@ func (v *LocalVolumeImplement) RemoveDiskInVg(disk, vgName string) error {
 			return nil
 		}
 	}
-	// 检查PV,决定新创建还是扩容
+	// 获取Vg信息
 	vgInfo, err := v.Lv.VGDisplay(vgName)
 	if err != nil {
 		log.Errorf("get vg %s detail failed %s", vgName, err.Error())
@@ -387,13 +386,13 @@ func (v *LocalVolumeImplement) RemoveDiskInVg(disk, vgName string) error {
 	}
 	if vgInfo == nil {
 		log.Errorf("vg %s not found", vgName)
-		return nil
+		return errors.New("not found")
 	} else {
 		// 当vg卷下只有一个pv时，需要检查是否还存在lv
 		if vgInfo.PVCount == 1 {
 			if vgInfo.LVCount > 0 || vgInfo.SnapCount > 0 {
 				log.Warnf("cannot remove the disk %s because there are still lv volumes", disk)
-				return nil
+				return errors.New("still lv volumes")
 			}
 			err = v.Lv.VGRemove(vgName)
 			if err != nil {
@@ -406,6 +405,12 @@ func (v *LocalVolumeImplement) RemoveDiskInVg(disk, vgName string) error {
 				return err
 			}
 		} else {
+			// 移除该Pv,剩余空间不足，则不允许移除
+			if vgInfo.VGSize-vgInfo.VGFree > pvInfo.PVSize {
+				log.Warnf("cannot remove the disk %s because there will not enough space", disk)
+				return errors.New("not enough space")
+			}
+
 			err = v.Lv.VGReduce(vgName, disk)
 			if err != nil {
 				log.Errorf("vgreduce failed %s %s", vgName, disk)
@@ -415,20 +420,20 @@ func (v *LocalVolumeImplement) RemoveDiskInVg(disk, vgName string) error {
 	}
 
 	// 刷新缓存
-	if err := v.Lv.PVScan(""); err != nil {
-		log.Warnf(" error during pvscan: %v", err)
-	}
-
-	if err := v.Lv.VGScan(""); err != nil {
-		log.Warnf("error during vgscan: %v", err)
-	}
+	//if err := v.Lv.PVScan(""); err != nil {
+	//	log.Warnf(" error during pvscan: %v", err)
+	//}
+	//
+	//if err := v.Lv.VGScan(""); err != nil {
+	//	log.Warnf("error during vgscan: %v", err)
+	//}
 
 	return nil
 }
 
 func (v *LocalVolumeImplement) HealthCheck() {
 	if !v.Mutex.TryAcquire(VOLUMEMUTEX) {
-		log.Info("get global mutex failed")
+		log.Info("wait other task release mutex, please retry...")
 		return
 	}
 	defer v.Mutex.Release(VOLUMEMUTEX)
@@ -443,6 +448,18 @@ func (v *LocalVolumeImplement) HealthCheck() {
 		if lv.LVActive != "active" {
 			log.Warnf("lv %s current status %s", lv.LVName, lv.LVActive)
 		}
+	}
+
+}
+
+func (v *LocalVolumeImplement) RefreshLvmCache() {
+	// 刷新缓存
+	if err := v.Lv.PVScan(""); err != nil {
+		log.Warnf(" error during pvscan: %v", err)
+	}
+
+	if err := v.Lv.VGScan(""); err != nil {
+		log.Warnf("error during vgscan: %v", err)
 	}
 
 }
