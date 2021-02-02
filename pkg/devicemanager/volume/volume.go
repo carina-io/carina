@@ -76,14 +76,14 @@ func (v *LocalVolumeImplement) DeleteVolume(lvName, vgName string) error {
 	}
 	defer v.Mutex.Release(VOLUMEMUTEX)
 
-	lvInfo, err := v.Lv.LVDisplay(lvName, vgName)
+	name := LVVolume + lvName
+	lvInfo, err := v.Lv.LVDisplay(name, vgName)
 	if err != nil {
+		log.Errorf("get lv failed %s/%s %s", vgName, lvName, err.Error())
 		return err
 	}
-	// TODO: 解析lvInfo 获取thin pool name
 	thinName := lvInfo.PoolLV
-
-	if err := v.Lv.LVRemove(lvName, vgName); err != nil {
+	if err := v.Lv.LVRemove(name, vgName); err != nil {
 		return err
 	}
 

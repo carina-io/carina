@@ -55,7 +55,7 @@ func DeleteVolume(c echo.Context) error {
 	vgName := c.FormValue("vg_name")
 	err := dm.VolumeManager.DeleteVolume(lvName, vgName)
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, err)
+		return c.JSON(http.StatusInternalServerError, err.Error())
 	}
 	return c.JSON(http.StatusOK, "")
 }
