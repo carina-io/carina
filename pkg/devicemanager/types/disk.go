@@ -1,8 +1,9 @@
 package types
 
 const (
-	VGSSD = "vg-ssd"
-	VGHDD = "vg-hdd"
+	KEYWORD = "carina-"
+	VGSSD   = "carina-vg-ssd"
+	VGHDD   = "carina-vg-hdd"
 
 	// DiskType is a disk type
 	DiskType = "disk"

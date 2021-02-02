@@ -75,6 +75,7 @@ func (v *LocalVolumeImplement) DeleteVolume(lvName, vgName string) error {
 		return nil
 	}
 	defer v.Mutex.Release(VOLUMEMUTEX)
+	// ToDO: 需要检查pool中是否有快照,存在快照无法删除Volume
 
 	name := LVVolume + lvName
 	lvInfo, err := v.Lv.LVDisplay(name, vgName)
@@ -86,8 +87,6 @@ func (v *LocalVolumeImplement) DeleteVolume(lvName, vgName string) error {
 	if err := v.Lv.LVRemove(name, vgName); err != nil {
 		return err
 	}
-
-	// ToDO: 需要检查pool中是否有快照
 
 	if err := v.Lv.DeleteThinPool(thinName, vgName); err != nil {
 		return err
@@ -158,12 +157,12 @@ func (v *LocalVolumeImplement) ResizeVolume(lvName, vgName string, size, ratio u
 	return nil
 }
 
-func (v *LocalVolumeImplement) VolumeList(lvName, vgName string) error {
-	return nil
-}
-
-func (v *LocalVolumeImplement) VolumeExist(lvName, vgName string) bool {
-	return false
+func (v *LocalVolumeImplement) VolumeList(lvName, vgName string) ([]types.LvInfo, error) {
+	name := ""
+	if lvName != "" && vgName != "" {
+		name = fmt.Sprintf("%s/%s", vgName, lvName)
+	}
+	return v.Lv.LVS(name)
 }
 
 func (v *LocalVolumeImplement) CreateSnapshot(snapName, lvName, vgName string) error {
@@ -173,6 +172,8 @@ func (v *LocalVolumeImplement) CreateSnapshot(snapName, lvName, vgName string) e
 		return nil
 	}
 	defer v.Mutex.Release(VOLUMEMUTEX)
+
+	// TODO: 检查pool容量是否剩余lv一倍，若是pool容量不足需要先扩容
 
 	name := SNAP + snapName
 	if err := v.Lv.CreateSnapshot(name, lvName, vgName); err != nil {
@@ -210,8 +211,18 @@ func (v *LocalVolumeImplement) RestoreSnapshot(snapName, vgName string) error {
 	return nil
 }
 
-func (v *LocalVolumeImplement) SnapshotList(lvName, vgName string) error {
-	return nil
+func (v *LocalVolumeImplement) SnapshotList(lvName, vgName string) ([]types.LvInfo, error) {
+	lvInfo, err := v.Lv.LVS("")
+	if err != nil {
+		return nil, err
+	}
+	result := []types.LvInfo{}
+	for _, lv := range lvInfo {
+		if strings.HasPrefix(lv.LVName, SNAP) && lv.PoolLV == THIN+lvName {
+			result = append(result, lv)
+		}
+	}
+	return result, nil
 }
 
 func (v *LocalVolumeImplement) CloneVolume(lvName, vgName, newLvName string) error {
@@ -248,28 +259,35 @@ func (v *LocalVolumeImplement) GetCurrentVgStruct() ([]types.VgGroup, error) {
 
 	resp := []types.VgGroup{}
 	tmp := map[string]*types.VgGroup{}
+
 	vgs, err := v.Lv.VGS()
 	if err != nil {
 		return nil, err
 	}
-	for _, v := range vgs {
-		tmp[v.VGName] = &v
+	for i, v := range vgs {
+		if !strings.HasPrefix(v.VGName, types.KEYWORD) {
+			continue
+		}
+		tmp[v.VGName] = &vgs[i]
 	}
 
+	// 过滤属于VG的PV
 	pvs, err := v.Lv.PVS()
 	if err != nil {
 		return nil, err
 	}
-	for _, v := range pvs {
+	for i, v := range pvs {
+		if v.VGName == "" {
+			continue
+		}
 		if tmp[v.VGName] != nil {
-			tmp[v.VGName].PVS = append(tmp[v.VGName].PVS, &v)
+			tmp[v.VGName].PVS = append(tmp[v.VGName].PVS, &pvs[i])
 		}
 	}
 
-	for _, v := range tmp {
-		resp = append(resp, *v)
+	for k, _ := range tmp {
+		resp = append(resp, *tmp[k])
 	}
-
 	return resp, nil
 }
 
@@ -341,7 +359,7 @@ func (v *LocalVolumeImplement) RemoveDiskInVg(disk, vgName string) error {
 	// 确保PV存在
 	pvInfo, err := v.Lv.PVDisplay(disk)
 	if err != nil {
-		log.Info("get pv detail failed %s", err.Error())
+		log.Infof("get pv %s detail failed %s", disk, err.Error())
 		return err
 	}
 	if pvInfo == nil {
@@ -349,7 +367,7 @@ func (v *LocalVolumeImplement) RemoveDiskInVg(disk, vgName string) error {
 		return nil
 	} else {
 		if pvInfo.VGName != vgName {
-			log.Errorf("pv %s have bind vg %s not %s ", pvInfo.PVName, pvInfo.VGName, vgName)
+			log.Errorf("pv %s have bind vg %s not %s", pvInfo.PVName, pvInfo.VGName, vgName)
 			return errors.New(fmt.Sprintf("pv %s have bind vg %s not %s ", pvInfo.PVName, pvInfo.VGName, vgName))
 		}
 		if pvInfo.VGName == "" {
@@ -364,7 +382,7 @@ func (v *LocalVolumeImplement) RemoveDiskInVg(disk, vgName string) error {
 	// 检查PV,决定新创建还是扩容
 	vgInfo, err := v.Lv.VGDisplay(vgName)
 	if err != nil {
-		log.Errorf("get vg detail failed %s", err.Error())
+		log.Errorf("get vg %s detail failed %s", vgName, err.Error())
 		return err
 	}
 	if vgInfo == nil {
@@ -406,4 +424,25 @@ func (v *LocalVolumeImplement) RemoveDiskInVg(disk, vgName string) error {
 	}
 
 	return nil
+}
+
+func (v *LocalVolumeImplement) HealthCheck() {
+	if !v.Mutex.TryAcquire(VOLUMEMUTEX) {
+		log.Info("get global mutex failed")
+		return
+	}
+	defer v.Mutex.Release(VOLUMEMUTEX)
+
+	lvInfo, err := v.Lv.LVS("")
+	if err != nil {
+		log.Errorf("get all lv info failed %s", err.Error())
+		return
+	}
+
+	for _, lv := range lvInfo {
+		if lv.LVActive != "active" {
+			log.Warnf("lv %s current status %s", lv.LVName, lv.LVActive)
+		}
+	}
+
 }

@@ -19,10 +19,6 @@ type DeviceManager struct {
 
 	// The implementation of executing a console command
 	Executor exec.Executor
-	// 当前真实vg关系
-	ActuallyVgGroup *types.VgGroup
-	// 期望对vg关系
-	DesiredVgGroup *types.VgGroup
 	// 所有操作本地卷均需获取锁
 	Mutex *mutx.GlobalLocks
 	// 磁盘操作
@@ -40,12 +36,10 @@ func NewDeviceManager(nodeName string, stopChan <-chan struct{}) *DeviceManager 
 	executor := &exec.CommandExecutor{}
 	mutex := mutx.NewGlobalLocks()
 	dm := DeviceManager{
-		Executor:        executor,
-		ActuallyVgGroup: nil,
-		DesiredVgGroup:  nil,
-		Mutex:           mutex,
-		DiskManager:     &device.LocalDeviceImplement{Executor: executor},
-		LvmManager:      &lvmd.Lvm2Implement{Executor: executor},
+		Executor:    executor,
+		Mutex:       mutex,
+		DiskManager: &device.LocalDeviceImplement{Executor: executor},
+		LvmManager:  &lvmd.Lvm2Implement{Executor: executor},
 		VolumeManager: &volume.LocalVolumeImplement{
 			Mutex: mutex,
 			Lv:    &lvmd.Lvm2Implement{Executor: executor},
@@ -86,7 +80,7 @@ func (dm *DeviceManager) AddAndRemoveDevice() {
 		log.Error("get current vg struct failed: " + err.Error())
 		return
 	}
-	// 需要新增的磁盘
+	// 需要新增的磁盘, 处理成容易比较的数据
 	needAddPv := newDisk
 	ActuallyVgMap := map[string][]string{}
 	for _, v := range ActuallyVg {
@@ -94,12 +88,12 @@ func (dm *DeviceManager) AddAndRemoveDevice() {
 			ActuallyVgMap[v.VGName] = append(ActuallyVgMap[v.VGName], pv.PVName)
 		}
 	}
-
 	for vgName, pvs := range newDisk {
 		if actuallyPv, ok := ActuallyVgMap[vgName]; ok {
 			needAddPv[vgName] = utils.SliceSubSlice(pvs, actuallyPv)
 		}
 	}
+
 	// 执行新增磁盘
 	for vg, pvs := range needAddPv {
 		for _, pv := range pvs {
@@ -110,6 +104,8 @@ func (dm *DeviceManager) AddAndRemoveDevice() {
 	}
 	time.Sleep(5 * time.Second)
 	// 移出磁盘
+	// 无法判断单独的PV属于carina管理范围，所以不支持将单独对pvremove
+	// 若是发生vgreduce成功，但是pvremove失败的情况，并不影响carina工作，也不影响磁盘再次使用
 	ActuallyVg, err = dm.VolumeManager.GetCurrentVgStruct()
 	if err != nil {
 		log.Error("get current vg struct failed: " + err.Error())
@@ -230,7 +226,7 @@ func (dm *DeviceManager) DiscoverPv() (map[string][]string, error) {
 			continue
 		}
 		if !diskSelector.MatchString(pv.PVName) {
-			log.Infof("mismatched disk:%s, regex:%s", pv.PVName, diskSelector.String())
+			log.Infof("mismatched pv:%s, regex:%s", pv.PVName, diskSelector.String())
 			continue
 		}
 		disk, err := dm.DiskManager.ListDevicesDetail(pv.PVName)
@@ -256,7 +252,6 @@ func (dm *DeviceManager) DiscoverPv() (map[string][]string, error) {
 }
 
 func (dm *DeviceManager) LvmHealthCheck() {
-	log.Info("start lvm health check")
 
 	ticker1 := time.NewTicker(60 * time.Second)
 	go func(t *time.Ticker) {
@@ -264,7 +259,8 @@ func (dm *DeviceManager) LvmHealthCheck() {
 		for {
 			select {
 			case <-t.C:
-				log.Info("exec lvm check: unrealized")
+				log.Info("run lvm check")
+				dm.VolumeManager.HealthCheck()
 			case <-dm.StopChan:
 				log.Info("stop lvm check")
 				return

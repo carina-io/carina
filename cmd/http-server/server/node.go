@@ -63,11 +63,11 @@ func DeleteVolume(c echo.Context) error {
 func GetVolume(c echo.Context) error {
 	lvName := c.QueryParam("lv_name")
 	vgName := c.QueryParam("vg_name")
-	err := dm.VolumeManager.VolumeList(lvName, vgName)
+	lvInfo, err := dm.VolumeManager.VolumeList(lvName, vgName)
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, err)
+		return c.JSON(http.StatusInternalServerError, err.Error())
 	}
-	return c.JSON(http.StatusOK, "")
+	return c.JSON(http.StatusOK, lvInfo)
 }
 
 func GetVolumeGroup(c echo.Context) error {
