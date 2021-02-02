@@ -36,4 +36,7 @@ type LvInfo struct {
 	PoolLV        string `json:"poolLv"`
 	ThinCount     uint64 `json:"thinCount"`
 	LVTags        string `json:"lvTags"`
+	DataPercent   string `json:"dataPercent"`
+	LVAttr        string `json:"lvAttr"`
+	LVActive      string `json:"lvActive"`
 }

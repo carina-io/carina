@@ -35,9 +35,9 @@ type Lvm2 interface {
 	LVCreateFromVG(lv, vg string, size uint64, tags []string, stripe uint, stripeSize string) error
 	LVRemove(lv, vg string) error
 	LVResize(lv, vg string, size uint64) error
-	LVDisplay(lv, vg string) (string, error)
+	LVDisplay(lv, vg string) (*types.LvInfo, error)
 	// 这个方法会频繁调用
-	LVS() ([]types.LvInfo, error)
+	LVS(lvName string) ([]types.LvInfo, error)
 
 	// 快照占用Pool空间，要有足够对池空间才能创建快照，不然会导致数据损坏
 	CreateSnapshot(snap, lv, vg string) error

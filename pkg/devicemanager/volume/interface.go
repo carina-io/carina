@@ -15,6 +15,7 @@ type LocalVolume interface {
 	DeleteVolume(lvName, vgName string) error
 	ResizeVolume(lvName, vgName string, size, ratio uint64) error
 	VolumeList(lvName, vgName string) error
+	VolumeExist(lvName, vgName string) bool
 
 	CreateSnapshot(snapName, lvName, vgName string) error
 	DeleteSnapshot(snapName, vgName string) error

@@ -97,8 +97,14 @@ func parseLvs(lvsString string) []types.LvInfo {
 				tmp.ThinCount, _ = strconv.ParseUint(k[1], 10, 64)
 			case "LVM2_LV_TAGS":
 				tmp.LVTags = k[1]
+			case "LVM2_DATA_PERCENT":
+				tmp.DataPercent = k[1]
+			case "LVM2_LV_ATTR":
+				tmp.LVAttr = k[1]
+			case "LVM2_LV_ACTIVE":
+				tmp.LVActive = k[1]
 			default:
-				log.Warnf("undefined field %s-%s", k[0], k[1])
+				log.Warnf("undefined field %s=%s", k[0], k[1])
 			}
 		}
 		resp = append(resp, tmp)

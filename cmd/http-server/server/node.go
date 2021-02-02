@@ -33,7 +33,7 @@ func CreateVolume(c echo.Context) error {
 	req, _ := strconv.ParseUint(size, 10, 64)
 	err := dm.VolumeManager.CreateVolume(lvName, vgName, req, 1)
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, err)
+		return c.JSON(http.StatusInternalServerError, err.Error())
 	}
 	return c.JSON(http.StatusOK, "")
 }
@@ -45,7 +45,7 @@ func ResizeVolume(c echo.Context) error {
 	req, _ := strconv.ParseUint(size, 10, 64)
 	err := dm.VolumeManager.ResizeVolume(lvName, vgName, req, 1)
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, err)
+		return c.JSON(http.StatusInternalServerError, err.Error())
 	}
 	return c.JSON(http.StatusOK, "")
 }
