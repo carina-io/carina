@@ -7,7 +7,7 @@ import (
 	"os"
 )
 
-const logPath = "/var/log/carina.log"
+const logPath = "/var/log/carina/carina.log"
 
 var sugareLogger *zap.SugaredLogger
 

@@ -50,7 +50,7 @@ func initConfig() *viper.Viper {
 func dynamicConfig() {
 	GlobalConfig2.WatchConfig()
 	GlobalConfig2.OnConfigChange(func(event fsnotify.Event) {
-		log.Info("Detect config change: %s", event.String())
+		log.Infof("Detect config change: %s", event.String())
 	})
 }
 
@@ -65,7 +65,7 @@ func DiskSelector() []string {
 	return diskSelector
 }
 
-// 定时磁盘扫描时间间隔(秒),默认60s
+// 定时磁盘扫描时间间隔(秒),默认300s
 func DiskScanInterval() int64 {
 	diskScanInterval := GlobalConfig2.GetInt64("diskScanInterval")
 	if diskScanInterval < 300 {

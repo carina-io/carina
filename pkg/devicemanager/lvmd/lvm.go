@@ -1,9 +1,11 @@
 package lvmd
 
 import (
+	"carina/pkg/devicemanager/types"
 	"carina/utils/exec"
-	"carina/utils/log"
+	"errors"
 	"fmt"
+	"strings"
 )
 
 type Lvm2Implement struct {
@@ -25,12 +27,15 @@ func (lv2 *Lvm2Implement) PVRemove(dev string) error {
 // 示例输出
 // pvs --noheadings --separator=, --units=b --nosuffix --unbuffered --nameprefixes
 // LVM2_PV_NAME='/dev/loop2',LVM2_VG_NAME='lvmvg',LVM2_PV_FMT='lvm2',LVM2_PV_ATTR='a--',LVM2_PV_SIZE='16101933056',LVM2_PV_FREE='16101933056'
-func (lv2 *Lvm2Implement) PVS() (string, error) {
+func (lv2 *Lvm2Implement) PVS() ([]types.PVInfo, error) {
 
 	args := []string{"--noheadings", "--separator=,", "--units=b", "--nosuffix", "--unbuffered", "--nameprefixes"}
 
-	//pv, err := lv2.Executor.ExecuteCommandWithOutput("pvs", args...)
-	return lv2.Executor.ExecuteCommandWithOutput("pvs", args...)
+	pvsInfo, err := lv2.Executor.ExecuteCommandWithOutput("pvs", args...)
+	if err != nil {
+		return nil, err
+	}
+	return parsePvs(pvsInfo), nil
 }
 
 /*
@@ -46,8 +51,17 @@ func (lv2 *Lvm2Implement) PVS() (string, error) {
   Allocated PE          0
   PV UUID               OiNoxD-Y1sw-FSzi-mqPN-07EW-C77P-TNdtc6
 */
-func (lv2 *Lvm2Implement) PVDisplay(dev string) (string, error) {
-	return lv2.Executor.ExecuteCommandWithOutput("pvdisplay", dev)
+func (lv2 *Lvm2Implement) PVDisplay(dev string) (*types.PVInfo, error) {
+	pvsInfo, err := lv2.PVS()
+	if err != nil {
+		return nil, err
+	}
+	for _, pv := range pvsInfo {
+		if pv.PVName == dev {
+			return &pv, nil
+		}
+	}
+	return nil, errors.New("disk not found")
 }
 
 // PVScan runs the `pvscan --cache <dev>` command. It scans for the
@@ -82,14 +96,6 @@ func (lv2 *Lvm2Implement) VGCreate(vg string, tags, pvs []string) error {
 		return err
 	}
 
-	if err := lv2.PVScan(""); err != nil {
-		log.Warnf(" error during pvscan: %v", err)
-	}
-
-	if err := lv2.VGScan(""); err != nil {
-		log.Warnf("error during vgscan: %v", err)
-	}
-
 	return nil
 }
 
@@ -101,11 +107,30 @@ func (lv2 *Lvm2Implement) VGRemove(vg string) error {
 // vgs --noheadings --separator=, --units=b --nosuffix --unbuffered --nameprefixes
 // LVM2_VG_NAME='lvmvg',LVM2_PV_COUNT='1',LVM2_LV_COUNT='0',LVM2_SNAP_COUNT='0',LVM2_VG_ATTR='wz--n-',LVM2_VG_SIZE='16101933056',LVM2_VG_FREE='16101933056'
 // LVM2_VG_NAME='v1',LVM2_PV_COUNT='2',LVM2_LV_COUNT='0',LVM2_SNAP_COUNT='0',LVM2_VG_ATTR='wz--n-',LVM2_VG_SIZE='32203866112',LVM2_VG_FREE='32203866112'
-func (lv2 *Lvm2Implement) VGS() (string, error) {
-
+func (lv2 *Lvm2Implement) VGS() ([]types.VgGroup, error) {
+	flieds := []string{"-o", "VG_NAME,PV_NAME,PV_COUNT,LV_COUNT,SNAP_COUNT,VG_ATTR,VG_SIZE,VG_FREE"}
 	args := []string{"--noheadings", "--separator=,", "--units=b", "--nosuffix", "--unbuffered", "--nameprefixes"}
 
-	return lv2.Executor.ExecuteCommandWithOutput("vgs", args...)
+	vgsInfo, err := lv2.Executor.ExecuteCommandWithOutput("vgs", append(flieds, args...)...)
+	if err != nil {
+		return nil, err
+	}
+
+	return parseVgs(vgsInfo), nil
+}
+
+func (lv2 *Lvm2Implement) VGDisplay(vg string) (*types.VgGroup, error) {
+	vgsInfo, err := lv2.VGS()
+	if err != nil {
+		return nil, err
+	}
+	for _, vgs := range vgsInfo {
+		if vgs.VGName == vg {
+			return &vgs, nil
+		}
+	}
+
+	return nil, errors.New("vg not found")
 }
 
 // VGScan runs the `vgscan --cache <name>` command. It scans for the
@@ -120,28 +145,11 @@ func (lv2 *Lvm2Implement) VGScan(vg string) error {
 }
 
 func (lv2 *Lvm2Implement) VGExtend(vg, pv string) error {
-	if err := lv2.VGCheck(vg); err != nil {
-		return err
-	}
-	if err := lv2.PVCheck(pv); err != nil {
-		return err
-	}
-
-	// TODO: 检查pv是否已经加入到其他vg
 
 	err := lv2.Executor.ExecuteCommand("vgextend", vg, pv)
 	if err != nil {
 		return err
 	}
-
-	if err := lv2.PVScan(""); err != nil {
-		log.Warnf(" error during pvscan: %v", err)
-	}
-
-	if err := lv2.VGScan(""); err != nil {
-		log.Warnf("error during vgscan: %v", err)
-	}
-
 	return nil
 }
 
@@ -167,16 +175,10 @@ func (lv2 *Lvm2Implement) VGExtend(vg, pv string) error {
   /dev/loop4 v1    lvm2 a--  15.00g 15.00g
 */
 func (lv2 *Lvm2Implement) VGReduce(vg, pv string) error {
-	if err := lv2.VGCheck(vg); err != nil {
-		return err
-	}
-	if err := lv2.PVCheck(pv); err != nil {
-		return err
-	}
 
-	// TODO: 检查pv是否在该vg下
+	output, err := lv2.Executor.ExecuteCommandWithOutput("pvmove", pv)
 
-	if err := lv2.Executor.ExecuteCommand("pvmove", pv); err != nil {
+	if err != nil && !strings.Contains(output, "No data to move") {
 		return err
 	}
 
@@ -184,17 +186,9 @@ func (lv2 *Lvm2Implement) VGReduce(vg, pv string) error {
 		return err
 	}
 
-	err := lv2.PVRemove(pv)
+	err = lv2.PVRemove(pv)
 	if err != nil {
 		return err
-	}
-
-	if err := lv2.PVScan(""); err != nil {
-		log.Warnf(" error during pvscan: %v", err)
-	}
-
-	if err := lv2.VGScan(""); err != nil {
-		log.Warnf("error during vgscan: %v", err)
 	}
 
 	return nil
@@ -253,8 +247,16 @@ func (lv2 *Lvm2Implement) LVResize(lv, vg string, size uint64) error {
 }
 
 // lvdisplay v1/m2
-func (lv2 *Lvm2Implement) LVDisplay(lv, vg string) (string, error) {
-	return lv2.Executor.ExecuteCommandWithOutput("lvdisplay", fmt.Sprintf("%s/%s", vg, lv))
+func (lv2 *Lvm2Implement) LVDisplay(lv, vg string) (*types.LvInfo, error) {
+	lvInfo, err := lv2.LVS(fmt.Sprintf("%s/%s", vg, lv))
+	if err != nil {
+		return nil, err
+	}
+	if len(lvInfo) != 1 {
+		return nil, errors.New("not found")
+	}
+	return &lvInfo[0], nil
+	//return lv2.Executor.ExecuteCommandWithOutput("lvdisplay", fmt.Sprintf("%s/%s", vg, lv))
 }
 
 /*
@@ -264,11 +266,19 @@ func (lv2 *Lvm2Implement) LVDisplay(lv, vg string) (string, error) {
   LVM2_LV_NAME='m2',LVM2_LV_PATH='/dev/v1/m2',LVM2_LV_SIZE='2147483648',LVM2_LV_KERNEL_MAJOR='252',LVM2_LV_KERNEL_MINOR='5',LVM2_ORIGIN='',LVM2_ORIGIN_SIZE='',LVM2_POOL_LV='t5',LVM2_THIN_COUNT='',LVM2_LV_TAGS=''
 
 */
-func (lv2 *Lvm2Implement) LVS() (string, error) {
+func (lv2 *Lvm2Implement) LVS(lvName string) ([]types.LvInfo, error) {
 	fields := []string{"-o", "lv_name,vg_name,lv_path,lv_size,data_percent,lv_attr,lv_kernel_major,lv_kernel_minor,origin,origin_size,pool_lv,thin_count,lv_tags,lv_active"}
 	args := []string{"--noheadings", "--separator=,", "--units=b", "--nosuffix", "--unbuffered", "--nameprefixes"}
 
-	return lv2.Executor.ExecuteCommandWithOutput("lvs", append(fields, args...)...)
+	if lvName != "" {
+		args = append(args, lvName)
+	}
+
+	lvsInfo, err := lv2.Executor.ExecuteCommandWithOutput("lvs", append(fields, args...)...)
+	if err != nil {
+		return nil, err
+	}
+	return parseLvs(lvsInfo), nil
 }
 
 // lvcreate -s v1/m2 -n snaph-m1 -ay -Ky

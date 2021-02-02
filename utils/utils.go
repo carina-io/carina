@@ -28,3 +28,19 @@ func SliceSubSlice(src []string, dst []string) []string {
 	}
 	return result
 }
+
+func SliceMergeSlice(src []string, dst []string) []string {
+	result := []string{}
+	tmp := map[string]bool{}
+	for _, s := range src {
+		tmp[s] = true
+	}
+
+	for _, d := range dst {
+		tmp[d] = true
+	}
+	for k, _ := range tmp {
+		result = append(result, k)
+	}
+	return result
+}

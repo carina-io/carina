@@ -14,17 +14,21 @@ type LocalVolume interface {
 	CreateVolume(lvName, vgName string, size, ratio uint64) error
 	DeleteVolume(lvName, vgName string) error
 	ResizeVolume(lvName, vgName string, size, ratio uint64) error
-	VolumeList(lvName, vgName string) error
+	VolumeList(lvName, vgName string) ([]types.LvInfo, error)
 
 	CreateSnapshot(snapName, lvName, vgName string) error
 	DeleteSnapshot(snapName, vgName string) error
 	RestoreSnapshot(snapName, vgName string) error
-	SnapshotList(lvName, vgName string) error
+	SnapshotList(lvName, vgName string) ([]types.LvInfo, error)
 
 	CloneVolume(lvName, vgName, newLvName string) error
 
 	// 额外的方法
-	GetCurrentVgStruct() ([]*types.VgGroup, error)
+	GetCurrentVgStruct() ([]types.VgGroup, error)
+	GetCurrentPvStruct() ([]types.PVInfo, error)
 	AddNewDiskToVg(disk, vgName string) error
 	RemoveDiskInVg(disk, vgName string) error
+
+	HealthCheck()
+	RefreshLvmCache()
 }
