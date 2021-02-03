@@ -19,6 +19,7 @@ package controllers
 import (
 	"carina/pkg/devicemanager/volume"
 	"carina/utils"
+	"carina/utils/log"
 	"context"
 	"google.golang.org/grpc/codes"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -57,7 +58,7 @@ func NewLogicVolumeReconciler(client client.Client, log logr.Logger, nodeName st
 
 func (r *LogicVolumeReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	ctx := context.Background()
-	log := r.Log.WithValues("logicvolume", req.NamespacedName)
+	_ = r.Log.WithValues("logicvolume", req.NamespacedName)
 
 	// your logic here
 	lv := new(carinav1.LogicVolume)
@@ -87,13 +88,13 @@ func (r *LogicVolumeReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error)
 		}
 
 		if lv.Status.VolumeID == "" {
-			err := r.createLV(ctx, log, lv)
+			err := r.createLV(ctx, lv)
 			if err != nil {
 				log.Error(err, "failed to create LV", "name", lv.Name)
 			}
 			return ctrl.Result{}, err
 		}
-		err := r.expandLV(ctx, log, lv)
+		err := r.expandLV(ctx, lv)
 		if err != nil {
 			log.Error(err, "failed to expand LV", "name", lv.Name)
 		}
@@ -106,8 +107,8 @@ func (r *LogicVolumeReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error)
 		return ctrl.Result{}, nil
 	}
 
-	log.Info("start finalizing LogicVolume", "name", lv.Name)
-	err := r.removeLVIfExists(ctx, log, lv)
+	log.Info("start finalizing LogicVolume name ", lv.Name)
+	err := r.removeLVIfExists(ctx, lv)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
@@ -116,7 +117,7 @@ func (r *LogicVolumeReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error)
 	lv2.Finalizers = utils.SliceRemoveString(lv2.Finalizers, utils.LogicVolumeFinalizer)
 	patch := client.MergeFrom(lv)
 	if err := r.Patch(ctx, lv2, patch); err != nil {
-		log.Error(err, "failed to remove finalizer", "name", lv.Name)
+		log.Error(err, "failed to remove finalizer name ", lv.Name)
 		return ctrl.Result{}, err
 	}
 
@@ -131,18 +132,18 @@ func (r *LogicVolumeReconciler) SetupWithManager(mgr ctrl.Manager) error {
 }
 
 // operation lvm
-func (r *LogicVolumeReconciler) removeLVIfExists(ctx context.Context, log logr.Logger, lv *carinav1.LogicVolume) error {
+func (r *LogicVolumeReconciler) removeLVIfExists(ctx context.Context, lv *carinav1.LogicVolume) error {
 	// Finalizer's process ( RemoveLV then removeString ) is not atomic,
 	// so checking existence of LV to ensure its idempotence
 	err := r.volume.DeleteVolume(lv.Spec.Name, lv.Spec.DeviceGroup)
 	if err != nil {
-		log.Error(err, "failed to remove LV", "name", lv.Name, "uid", lv.Spec.DeviceGroup)
+		log.Error(err, " failed to remove LV name ", lv.Name, " uid ", lv.Spec.DeviceGroup)
 	}
-	log.Info("LV already removed", "name", lv.Name, "uid", lv.UID)
+	log.Info("LV already removed name ", lv.Name, " uid ", lv.UID)
 	return nil
 }
 
-func (r *LogicVolumeReconciler) createLV(ctx context.Context, log logr.Logger, lv *carinav1.LogicVolume) error {
+func (r *LogicVolumeReconciler) createLV(ctx context.Context, lv *carinav1.LogicVolume) error {
 	// When lv.Status.Code is not codes.OK (== 0), CreateLV has already failed.
 	// LogicalVolume CRD will be deleted soon by the controller.
 	if lv.Status.Code != codes.OK {
@@ -166,21 +167,21 @@ func (r *LogicVolumeReconciler) createLV(ctx context.Context, log logr.Logger, l
 	if err != nil {
 		if err2 := r.Status().Update(ctx, lv); err2 != nil {
 			// err2 is logged but not returned because err is more important
-			log.Error(err2, "failed to update status", "name", lv.Name, "uid", lv.UID)
+			log.Error(err2, " failed to update status name ", lv.Name, " uid ", lv.UID)
 		}
 		return err
 	}
 
 	if err := r.Status().Update(ctx, lv); err != nil {
-		log.Error(err, "failed to update status", "name", lv.Name, "uid", lv.UID)
+		log.Error(err, " failed to update status name ", lv.Name, " uid ", lv.UID)
 		return err
 	}
 
-	log.Info("created new LV", "name", lv.Name, "uid", lv.UID, "status.volumeID", lv.Status.VolumeID)
+	log.Info("created new LV name ", lv.Name, " uid ", lv.UID, " status.volumeID ", lv.Status.VolumeID)
 	return nil
 }
 
-func (r *LogicVolumeReconciler) expandLV(ctx context.Context, log logr.Logger, lv *carinav1.LogicVolume) error {
+func (r *LogicVolumeReconciler) expandLV(ctx context.Context, lv *carinav1.LogicVolume) error {
 	// The reconciliation loop of LogicVolume may call expandLV before resizing is triggered.
 	// So, lv.Status.CurrentSize could be nil here.
 	if lv.Status.CurrentSize == nil {
@@ -207,18 +208,18 @@ func (r *LogicVolumeReconciler) expandLV(ctx context.Context, log logr.Logger, l
 	if err != nil {
 		if err2 := r.Status().Update(ctx, lv); err2 != nil {
 			// err2 is logged but not returned because err is more important
-			log.Error(err2, "failed to update status", "name", lv.Name, "uid", lv.UID)
+			log.Error(err2, " failed to update status name ", lv.Name, " uid ", lv.UID)
 		}
 		return err
 	}
 
 	if err := r.Status().Update(ctx, lv); err != nil {
-		log.Error(err, "failed to update status", "name", lv.Name, "uid", lv.UID)
+		log.Error(err, " failed to update status name ", lv.Name, " uid ", lv.UID)
 		return err
 	}
 
-	log.Info("expanded LV", "name", lv.Name, "uid", lv.UID, "status.volumeID", lv.Status.VolumeID,
-		"original status.currentSize", origBytes, "status.currentSize", reqBytes)
+	log.Info("expanded LV name ", lv.Name, " uid ", lv.UID, " status.volumeID ", lv.Status.VolumeID,
+		" original status.currentSize ", origBytes, " status.currentSize ", reqBytes)
 	return nil
 }
 

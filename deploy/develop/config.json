@@ -1,0 +1,6 @@
+{
+  "diskSelector": ["loop*", "sbdea*"],
+  "diskScanInterval": "300",
+  "diskGroupPolicy": "type",
+  "schedulerStrategy": "binpack"
+}

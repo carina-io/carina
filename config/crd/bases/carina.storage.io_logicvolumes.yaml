@@ -32,7 +32,7 @@ spec:
           spec:
             description: LogicVolumeSpec defines the desired state of LogicVolume
             properties:
-              device_group:
+              deviceGroup:
                 type: string
               name:
                 description: 'INSERT ADDITIONAL SPEC FIELDS - desired state of cluster Important: Run "make" to regenerate code after modifying this file'
@@ -46,7 +46,7 @@ spec:
                 pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
                 x-kubernetes-int-or-string: true
             required:
-            - device_group
+            - deviceGroup
             - name
             - nodeName
             - size

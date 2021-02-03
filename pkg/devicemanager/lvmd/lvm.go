@@ -252,7 +252,7 @@ func (lv2 *Lvm2Implement) LVDisplay(lv, vg string) (*types.LvInfo, error) {
 	if err != nil {
 		return nil, err
 	}
-	if len(lvInfo) != 1 {
+	if len(lvInfo) < 1 {
 		return nil, errors.New("not found")
 	}
 	return &lvInfo[0], nil
@@ -275,6 +275,9 @@ func (lv2 *Lvm2Implement) LVS(lvName string) ([]types.LvInfo, error) {
 	}
 
 	lvsInfo, err := lv2.Executor.ExecuteCommandWithOutput("lvs", append(fields, args...)...)
+	if err != nil && strings.Contains(lvsInfo, "Failed to find logical volume") {
+		return []types.LvInfo{}, nil
+	}
 	if err != nil {
 		return nil, err
 	}

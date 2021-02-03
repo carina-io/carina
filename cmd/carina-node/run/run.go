@@ -5,9 +5,9 @@ import (
 	"carina/controllers"
 	deviceManager "carina/pkg/devicemanager"
 	"errors"
-	"github.com/spf13/viper"
 	"k8s.io/apimachinery/pkg/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
+	"os"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	// +kubebuilder:scaffold:imports
@@ -30,9 +30,9 @@ func init() {
 }
 
 func subMain() error {
-	nodeName := viper.GetString("nodename")
+	nodeName := os.Getenv("nodeName")
 	if len(nodeName) == 0 {
-		return errors.New("node name is not given")
+		return errors.New("env nodeName is not given")
 	}
 
 	ctrl.SetLogger(zap.New(zap.UseDevMode(config.development)))

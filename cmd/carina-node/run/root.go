@@ -6,7 +6,6 @@ import (
 	"flag"
 	"fmt"
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 	"k8s.io/klog"
 	"os"
 )
@@ -46,11 +45,7 @@ func init() {
 	fs := rootCmd.Flags()
 	fs.StringVar(&config.csiSocket, "csi-socket", utils.DefaultCSISocket, "UNIX domain socket filename for CSI")
 	fs.StringVar(&config.metricsAddr, "metrics-addr", ":8080", "Listen address for metrics")
-	fs.String("nodename", "", "The resource name of the running node")
 	fs.BoolVar(&config.development, "development", true, "Use development logger config")
-
-	viper.BindEnv("nodename", "NODE_NAME")
-	viper.BindPFlag("nodename", fs.Lookup("nodename"))
 
 	goflags := flag.NewFlagSet("klog", flag.ExitOnError)
 	klog.InitFlags(goflags)
