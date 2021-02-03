@@ -71,7 +71,7 @@ func (r *LogicVolumeReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error)
 	}
 
 	if lv.Spec.NodeName != r.nodeName {
-		log.Info("unfiltered logic value", "nodeName", lv.Spec.NodeName)
+		log.Info("unfiltered logic value nodeName ", lv.Spec.NodeName)
 		return ctrl.Result{}, nil
 	}
 
@@ -81,7 +81,7 @@ func (r *LogicVolumeReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error)
 			lv2.Finalizers = append(lv2.Finalizers, utils.LogicVolumeFinalizer)
 			patch := client.MergeFrom(lv)
 			if err := r.Patch(ctx, lv2, patch); err != nil {
-				log.Error(err, "failed to add finalizer", "name", lv.Name)
+				log.Error(err, " failed to add finalizer name ", lv.Name)
 				return ctrl.Result{}, err
 			}
 			return ctrl.Result{Requeue: true}, nil
@@ -90,13 +90,13 @@ func (r *LogicVolumeReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error)
 		if lv.Status.VolumeID == "" {
 			err := r.createLV(ctx, lv)
 			if err != nil {
-				log.Error(err, "failed to create LV", "name", lv.Name)
+				log.Error(err, " failed to create LV name ", lv.Name)
 			}
 			return ctrl.Result{}, err
 		}
 		err := r.expandLV(ctx, lv)
 		if err != nil {
-			log.Error(err, "failed to expand LV", "name", lv.Name)
+			log.Error(err, " failed to expand LV name ", lv.Name)
 		}
 		return ctrl.Result{}, err
 	}
@@ -117,7 +117,7 @@ func (r *LogicVolumeReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error)
 	lv2.Finalizers = utils.SliceRemoveString(lv2.Finalizers, utils.LogicVolumeFinalizer)
 	patch := client.MergeFrom(lv)
 	if err := r.Patch(ctx, lv2, patch); err != nil {
-		log.Error(err, "failed to remove finalizer name ", lv.Name)
+		log.Error(err, " failed to remove finalizer name ", lv.Name)
 		return ctrl.Result{}, err
 	}
 
@@ -152,7 +152,7 @@ func (r *LogicVolumeReconciler) createLV(ctx context.Context, lv *carinav1.Logic
 
 	reqBytes := lv.Spec.Size.Value()
 
-	err := r.volume.CreateVolume(lv.Name, lv.Spec.DeviceGroup, uint64(reqBytes), 1)
+	err := r.volume.CreateVolume(lv.Spec.Name, lv.Spec.DeviceGroup, uint64(reqBytes), 1)
 
 	if err != nil {
 		lv.Status.Code = codes.Internal
@@ -195,7 +195,7 @@ func (r *LogicVolumeReconciler) expandLV(ctx context.Context, lv *carinav1.Logic
 	origBytes := (*lv.Status.CurrentSize).Value()
 	reqBytes := lv.Spec.Size.Value()
 
-	err := r.volume.ResizeVolume(lv.Name, lv.Spec.DeviceGroup, uint64(reqBytes), 1)
+	err := r.volume.ResizeVolume(lv.Spec.Name, lv.Spec.DeviceGroup, uint64(reqBytes), 1)
 	if err != nil {
 		lv.Status.Code = codes.Internal
 		lv.Status.Message = err.Error()
