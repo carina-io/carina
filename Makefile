@@ -67,7 +67,10 @@ docker-build: test
 
 # Push the docker image
 docker-push:
-	docker push ${IMG}
+# 	docker push ${IMG}
+	docker rmi docker.hub.com/carina/carina:latest 2>1 1>/dev/null ;\
+    docker build -t docker.hub.com/carina/carina:latest . ;\
+    docker push docker.hub.com/carina/carina:latest
 
 # find or download controller-gen
 # download controller-gen if necessary

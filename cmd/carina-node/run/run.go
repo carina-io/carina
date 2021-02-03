@@ -30,7 +30,7 @@ func init() {
 }
 
 func subMain() error {
-	nodeName := os.Getenv("nodeName")
+	nodeName := os.Getenv("NODE_NAME")
 	if len(nodeName) == 0 {
 		return errors.New("env nodeName is not given")
 	}
