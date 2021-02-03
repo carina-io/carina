@@ -1,0 +1,12 @@
+---
+apiVersion: v1
+kind: LogicVolume
+metadata:
+  name: debug
+spec:
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 1Gi
+  storageClassName: csi-carina-sc
