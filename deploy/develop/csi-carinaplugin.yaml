@@ -63,8 +63,12 @@ spec:
               mountPath: /dev
             - name: host-mount
               mountPath: /run/mount
+            - name: host-lvm
+              mountPath: /run/lvm
             - name: config
               mountPath: /etc/carina/
+            - name: log-dir
+              mountPath: /var/log/carina/
       volumes:
         - name: socket-dir
           hostPath:
@@ -78,6 +82,10 @@ spec:
           hostPath:
             path: /var/lib/kubelet/pods
             type: DirectoryOrCreate
+        - name: log-dir
+          hostPath:
+            path: /var/log/carina
+            type: DirectorOrCreate
         - name: plugin-dir
           hostPath:
             path: /var/lib/kubelet/plugins
@@ -91,6 +99,9 @@ spec:
         - name: host-dev
           hostPath:
             path: /dev
+        - name: host-lvm
+          hostPath:
+            path: /run/lvm
         - name: host-mount
           hostPath:
             path: /run/mount
