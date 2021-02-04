@@ -157,11 +157,13 @@ func (r *LogicVolumeReconciler) createLV(ctx context.Context, lv *carinav1.Logic
 	if err != nil {
 		lv.Status.Code = codes.Internal
 		lv.Status.Message = err.Error()
+		lv.Status.Status = "failed"
 	} else {
 		lv.Status.VolumeID = string(lv.UID)
 		lv.Status.CurrentSize = resource.NewQuantity(reqBytes, resource.BinarySI)
 		lv.Status.Code = codes.OK
 		lv.Status.Message = ""
+		lv.Status.Status = "success"
 	}
 
 	if err != nil {
@@ -199,10 +201,12 @@ func (r *LogicVolumeReconciler) expandLV(ctx context.Context, lv *carinav1.Logic
 	if err != nil {
 		lv.Status.Code = codes.Internal
 		lv.Status.Message = err.Error()
+		lv.Status.Status = "failed"
 	} else {
 		lv.Status.CurrentSize = resource.NewQuantity(reqBytes, resource.BinarySI)
 		lv.Status.Code = codes.OK
 		lv.Status.Message = ""
+		lv.Status.Status = "success"
 	}
 
 	if err != nil {

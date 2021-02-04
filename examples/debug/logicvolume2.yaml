@@ -5,6 +5,6 @@ metadata:
   name: test
 spec:
   name: pvc-uuid-uuid
-  nodeName: localhost
+  nodeName: 10.20.9.154
   size: 2Gi
   deviceGroup: carina-vg-hdd

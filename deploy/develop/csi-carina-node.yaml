@@ -2,22 +2,22 @@
 kind: DaemonSet
 apiVersion: apps/v1
 metadata:
-  name: csi-carinaplugin
+  name: csi-carina-node
 spec:
   selector:
     matchLabels:
-      app: csi-carinaplugin
+      app: csi-carina-node
   template:
     metadata:
       labels:
-        app: csi-carinaplugin
+        app: csi-carina-node
     spec:
       serviceAccount: carina-csi-nodeplugin
       hostNetwork: true
       # resolved through k8s service, set dns policy to cluster first
       dnsPolicy: ClusterFirstWithHostNet
       containers:
-        - name: csi-carinaplugin
+        - name: csi-carina-node
           securityContext:
             privileged: true
             capabilities:
@@ -85,7 +85,7 @@ spec:
         - name: log-dir
           hostPath:
             path: /var/log/carina
-            type: DirectorOrCreate
+            type: DirectoryOrCreate
         - name: plugin-dir
           hostPath:
             path: /var/lib/kubelet/plugins
