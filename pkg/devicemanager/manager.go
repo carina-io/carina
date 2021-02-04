@@ -259,10 +259,10 @@ func (dm *DeviceManager) LvmHealthCheck() {
 		for {
 			select {
 			case <-t.C:
-				log.Info("run lvm check")
+				log.Info("volume health check")
 				dm.VolumeManager.HealthCheck()
 			case <-dm.StopChan:
-				log.Info("stop lvm check")
+				log.Info("stop volume health check")
 				return
 			}
 		}
@@ -290,5 +290,4 @@ func (dm *DeviceManager) DeviceCheckTask() {
 			}
 		}
 	}(ticker1)
-
 }

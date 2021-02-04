@@ -442,6 +442,15 @@ func (v *LocalVolumeImplement) HealthCheck() {
 	}
 	defer v.Mutex.Release(VOLUMEMUTEX)
 
+	info, err := v.Lv.PVCheck("/dev/sda")
+	if err != nil && strings.Contains(info, "connect failed") {
+		err = v.Lv.StartLvm2()
+		if err != nil {
+			log.Errorf("start lvm2 failed %s, please check...", err.Error())
+			return
+		}
+	}
+
 	lvInfo, err := v.Lv.LVS("")
 	if err != nil {
 		log.Errorf("get all lv info failed %s", err.Error())
@@ -457,6 +466,17 @@ func (v *LocalVolumeImplement) HealthCheck() {
 }
 
 func (v *LocalVolumeImplement) RefreshLvmCache() {
+
+	info, err := v.Lv.PVCheck("/dev/sda")
+	if err != nil && strings.Contains(info, "connect failed") {
+		err = v.Lv.StartLvm2()
+		if err != nil {
+			log.Errorf("start lvm2 failed %s, please check...", err.Error())
+			return
+		}
+	}
+	log.Info("lvm2 server active")
+
 	// 刷新缓存
 	if err := v.Lv.PVScan(""); err != nil {
 		log.Warnf(" error during pvscan: %v", err)

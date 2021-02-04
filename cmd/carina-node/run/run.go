@@ -32,7 +32,7 @@ func init() {
 func subMain() error {
 	nodeName := os.Getenv("NODE_NAME")
 	if len(nodeName) == 0 {
-		return errors.New("env nodeName is not given")
+		return errors.New("env NODE_NAME is not given")
 	}
 
 	ctrl.SetLogger(zap.New(zap.UseDevMode(config.development)))

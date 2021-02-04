@@ -6,14 +6,15 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 )
 
 type Lvm2Implement struct {
 	Executor exec.Executor
 }
 
-func (lv2 *Lvm2Implement) PVCheck(dev string) error {
-	return lv2.Executor.ExecuteCommand("pvck", dev)
+func (lv2 *Lvm2Implement) PVCheck(dev string) (string, error) {
+	return lv2.Executor.ExecuteCommandWithCombinedOutput("pvck", dev)
 }
 
 func (lv2 *Lvm2Implement) PVCreate(dev string) error {
@@ -279,7 +280,7 @@ func (lv2 *Lvm2Implement) LVS(lvName string) ([]types.LvInfo, error) {
 		return []types.LvInfo{}, nil
 	}
 	if err != nil {
-		return nil, err
+		return nil, errors.New(lvsInfo)
 	}
 	return parseLvs(lvsInfo), nil
 }
@@ -308,4 +309,16 @@ func (lv2 *Lvm2Implement) RestoreSnapshot(snap, vg string) error {
 	// 恢复快照后，此快照将消失
 	// TODO: 恢复快照前要umount
 	return lv2.Executor.ExecuteCommand("lvconvert", "--merge", fmt.Sprintf("%s/%s", vg, snap))
+}
+
+func (lv2 *Lvm2Implement) StartLvm2() error {
+	err := lv2.Executor.ExecuteCommandResidentBinary(3*time.Second, "lvmetad")
+	if err != nil {
+		return err
+	}
+	err = lv2.Executor.ExecuteCommandResidentBinary(3*time.Second, "lvmpolld")
+	if err != nil {
+		return err
+	}
+	return nil
 }

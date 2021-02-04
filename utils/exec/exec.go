@@ -11,6 +11,7 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+	"syscall"
 	"time"
 )
 
@@ -23,6 +24,7 @@ type Executor interface {
 	ExecuteCommandWithOutputFile(command, outfileArg string, arg ...string) (string, error)
 	ExecuteCommandWithOutputFileTimeout(timeout time.Duration, command, outfileArg string, arg ...string) (string, error)
 	ExecuteCommandWithTimeout(timeout time.Duration, command string, arg ...string) (string, error)
+	ExecuteCommandResidentBinary(timeout time.Duration, command string, arg ...string) error
 }
 
 // CommandExecutor is the type of the Executor
@@ -199,6 +201,21 @@ func (*CommandExecutor) ExecuteCommandWithOutputFile(command, outfileArg string,
 		return "", err
 	}
 	return string(fileOut), err
+}
+
+func (*CommandExecutor) ExecuteCommandResidentBinary(timeout time.Duration, command string, arg ...string) error {
+	cmd := exec.Command(command, arg...)
+	cmd.SysProcAttr = &syscall.SysProcAttr{
+		Pdeathsig: syscall.SIGKILL,
+	}
+	go func() {
+		if err := cmd.Run(); err != nil {
+			log.Errorf("run Resident server failed: %s+v", err)
+		}
+		//<-c
+	}()
+	time.Sleep(timeout)
+	return nil
 }
 
 func startCommand(env []string, command string, arg ...string) (*exec.Cmd, io.ReadCloser, io.ReadCloser, error) {

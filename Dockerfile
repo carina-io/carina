@@ -23,8 +23,9 @@ RUN mv /etc/apt/sources.list /etc/apt/sources.list.bak && mv /tmp/sources.list /
 # copy binary file
 COPY --from=builder /tmp/carina-node /usr/bin/
 COPY --from=builder /tmp/http-server /usr/bin/
-RUN chmod +x /usr/bin/carina-node
-RUN chmod +x /usr/bin/http-server
+COPY --from=builder /workspace/carina/deploy/develop/config.json /etc/carina/
+
+RUN chmod +x /usr/bin/http-server && chmod +x /usr/bin/carina-node
 
 # Update time zone to Asia-Shanghai
 COPY --from=builder /workspace/carina/Shanghai /etc/localtime
