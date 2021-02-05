@@ -259,10 +259,10 @@ func (dm *DeviceManager) LvmHealthCheck() {
 		for {
 			select {
 			case <-t.C:
-				log.Info("volume health check")
+				log.Info("volume health check...")
 				dm.VolumeManager.HealthCheck()
 			case <-dm.StopChan:
-				log.Info("stop volume health check")
+				log.Info("stop volume health check...")
 				return
 			}
 		}
@@ -270,7 +270,7 @@ func (dm *DeviceManager) LvmHealthCheck() {
 }
 
 func (dm *DeviceManager) DeviceCheckTask() {
-	log.Info("start device monitor")
+	log.Info("start device monitor...")
 	dm.VolumeManager.RefreshLvmCache()
 	// 服务启动先检查一次
 	dm.AddAndRemoveDevice()
@@ -282,10 +282,10 @@ func (dm *DeviceManager) DeviceCheckTask() {
 			select {
 			case <-t.C:
 				time.Sleep(time.Duration(configruation.DiskScanInterval()-int64(60)) * time.Second)
-				log.Info("exec device monitor task")
+				log.Info("device monitor...")
 				dm.AddAndRemoveDevice()
 			case <-dm.StopChan:
-				log.Info("stop device monitor task")
+				log.Info("stop device monitor...")
 				return
 			}
 		}

@@ -21,15 +21,18 @@ import (
 	"carina/utils"
 	"carina/utils/log"
 	"context"
-	"google.golang.org/grpc/codes"
-	"k8s.io/apimachinery/pkg/api/resource"
-	"sigs.k8s.io/controller-runtime/pkg/event"
-
+	"fmt"
 	"github.com/go-logr/logr"
+	"google.golang.org/grpc/codes"
+	corev1 "k8s.io/api/core/v1"
 	apierrs "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/event"
+	"time"
 
 	carinav1 "carina/api/v1"
 )
@@ -39,6 +42,7 @@ type LogicVolumeReconciler struct {
 	client.Client
 	Log      logr.Logger
 	Scheme   *runtime.Scheme
+	Recorder record.EventRecorder
 	nodeName string
 	volume   volume.LocalVolume
 }
@@ -46,11 +50,12 @@ type LogicVolumeReconciler struct {
 // +kubebuilder:rbac:groups=carina.storage.io,resources=logicvolumes,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=carina.storage.io,resources=logicvolumes/status,verbs=get;update;patch
 
-func NewLogicVolumeReconciler(client client.Client, log logr.Logger, nodeName string, volume volume.LocalVolume) *LogicVolumeReconciler {
+func NewLogicVolumeReconciler(client client.Client, log logr.Logger, scheme *runtime.Scheme, recorder record.EventRecorder, nodeName string, volume volume.LocalVolume) *LogicVolumeReconciler {
 	return &LogicVolumeReconciler{
 		Client:   client,
 		Log:      log,
-		Scheme:   nil,
+		Scheme:   scheme,
+		Recorder: recorder,
 		nodeName: nodeName,
 		volume:   volume,
 	}
@@ -157,13 +162,15 @@ func (r *LogicVolumeReconciler) createLV(ctx context.Context, lv *carinav1.Logic
 	if err != nil {
 		lv.Status.Code = codes.Internal
 		lv.Status.Message = err.Error()
-		lv.Status.Status = "failed"
+		lv.Status.Status = "Failed"
+		r.Recorder.Event(lv, corev1.EventTypeWarning, "failed", fmt.Sprintf("create volume failed node: %s, time: %s, error: %s", r.nodeName, time.Now().Format("2006-01-02T15:04:05.000Z"), err.Error()))
 	} else {
 		lv.Status.VolumeID = string(lv.UID)
 		lv.Status.CurrentSize = resource.NewQuantity(reqBytes, resource.BinarySI)
 		lv.Status.Code = codes.OK
 		lv.Status.Message = ""
-		lv.Status.Status = "success"
+		lv.Status.Status = "Success"
+		r.Recorder.Event(lv, corev1.EventTypeNormal, "success", fmt.Sprintf("create volume success node: %s, time: %s", r.nodeName, time.Now().Format("2006-01-02T15:04:05.000Z")))
 	}
 
 	if err != nil {
@@ -171,6 +178,7 @@ func (r *LogicVolumeReconciler) createLV(ctx context.Context, lv *carinav1.Logic
 			// err2 is logged but not returned because err is more important
 			log.Error(err2, " failed to update status name ", lv.Name, " uid ", lv.UID)
 		}
+
 		return err
 	}
 
@@ -201,12 +209,16 @@ func (r *LogicVolumeReconciler) expandLV(ctx context.Context, lv *carinav1.Logic
 	if err != nil {
 		lv.Status.Code = codes.Internal
 		lv.Status.Message = err.Error()
-		lv.Status.Status = "failed"
+		lv.Status.Status = "Failed"
+		r.Recorder.Event(lv, corev1.EventTypeWarning, "failed", fmt.Sprintf("expand volume failed node: %s, time: %s, error: %s", r.nodeName, time.Now().Format("2006-01-02T15:04:05.000Z"), err.Error()))
+
 	} else {
 		lv.Status.CurrentSize = resource.NewQuantity(reqBytes, resource.BinarySI)
 		lv.Status.Code = codes.OK
 		lv.Status.Message = ""
-		lv.Status.Status = "success"
+		lv.Status.Status = "Success"
+		r.Recorder.Event(lv, corev1.EventTypeNormal, "success", fmt.Sprintf("expand volume success node: %s, time: %s", r.nodeName, time.Now().Format("2006-01-02T15:04:05.000Z")))
+
 	}
 
 	if err != nil {

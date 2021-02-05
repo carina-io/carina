@@ -55,10 +55,7 @@ spec:
               mountPath: /var/lib/kubelet/plugins
               mountPropagation: "Bidirectional"
             - name: host-sys
-              mountPath: /sys
-            - name: lib-modules
-              mountPath: /lib/modules
-              readOnly: true
+              mountPath: /sys/fs/cgroup
             - name: host-dev
               mountPath: /dev
             - name: host-mount
@@ -92,10 +89,7 @@ spec:
             type: Directory
         - name: host-sys
           hostPath:
-            path: /sys
-        - name: lib-modules
-          hostPath:
-            path: /lib/modules
+            path: /sys/fs/cgroup
         - name: host-dev
           hostPath:
             path: /dev

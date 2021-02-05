@@ -2,9 +2,9 @@
 kind: LogicVolume
 apiVersion: carina.storage.io/v1
 metadata:
-  name: test
+  name: localhost
 spec:
-  name: pvc-uuid-uuid
+  name: pvc-localhost
   nodeName: localhost
   size: 2Gi
   deviceGroup: carina-vg-hdd
