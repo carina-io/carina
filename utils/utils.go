@@ -44,3 +44,16 @@ func SliceMergeSlice(src []string, dst []string) []string {
 	}
 	return result
 }
+
+func SliceEqualSlice(src, dst []string) bool {
+	if len(src) != len(dst) {
+		return false
+	}
+
+	for _, s := range src {
+		if !IsContainsString(dst, s) {
+			return false
+		}
+	}
+	return true
+}

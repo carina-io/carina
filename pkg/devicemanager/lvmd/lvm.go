@@ -3,6 +3,7 @@ package lvmd
 import (
 	"carina/pkg/devicemanager/types"
 	"carina/utils/exec"
+	"carina/utils/log"
 	"errors"
 	"fmt"
 	"strings"
@@ -180,10 +181,12 @@ func (lv2 *Lvm2Implement) VGReduce(vg, pv string) error {
 	output, err := lv2.Executor.ExecuteCommandWithOutput("pvmove", pv)
 
 	if err != nil && !strings.Contains(output, "No data to move") {
+		log.Error(output)
 		return err
 	}
 
-	if err := lv2.Executor.ExecuteCommand("vgreduce", vg, pv); err != nil {
+	if output, err := lv2.Executor.ExecuteCommandWithOutput("vgreduce", vg, pv); err != nil {
+		log.Error(output)
 		return err
 	}
 

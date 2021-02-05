@@ -12,7 +12,7 @@ spec:
       labels:
         app: csi-carina-node
     spec:
-      serviceAccount: carina-csi-nodeplugin
+      serviceAccount: carina-csi-node
       hostNetwork: true
       # resolved through k8s service, set dns policy to cluster first
       dnsPolicy: ClusterFirstWithHostNet

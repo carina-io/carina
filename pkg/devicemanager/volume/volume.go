@@ -442,7 +442,7 @@ func (v *LocalVolumeImplement) HealthCheck() {
 	}
 	defer v.Mutex.Release(VOLUMEMUTEX)
 
-	info, err := v.Lv.PVCheck("/dev/sda")
+	info, err := v.Lv.PVCheck("/dev/loop")
 	if err != nil && strings.Contains(info, "connect failed") {
 		err = v.Lv.StartLvm2()
 		if err != nil {
@@ -467,7 +467,7 @@ func (v *LocalVolumeImplement) HealthCheck() {
 
 func (v *LocalVolumeImplement) RefreshLvmCache() {
 
-	info, err := v.Lv.PVCheck("/dev/sda")
+	info, err := v.Lv.PVCheck("/dev/loop")
 	if err != nil && strings.Contains(info, "connect failed") {
 		err = v.Lv.StartLvm2()
 		if err != nil {
