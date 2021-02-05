@@ -178,12 +178,17 @@ func (lv2 *Lvm2Implement) VGExtend(vg, pv string) error {
 */
 func (lv2 *Lvm2Implement) VGReduce(vg, pv string) error {
 
-	output, err := lv2.Executor.ExecuteCommandWithOutput("pvmove", pv)
-
-	if err != nil && !strings.Contains(output, "No data to move") {
-		log.Error(output)
+	err := lv2.Executor.ExecuteCommand("pvmove", pv)
+	if err != nil {
 		return err
 	}
+
+	//output, err := lv2.Executor.ExecuteCommandWithOutput("pvmove", pv)
+	//
+	//if err != nil && !strings.Contains(output, "No data to move") {
+	//	log.Error(output)
+	//	return err
+	//}
 
 	if output, err := lv2.Executor.ExecuteCommandWithOutput("vgreduce", vg, pv); err != nil {
 		log.Error(output)
@@ -315,11 +320,11 @@ func (lv2 *Lvm2Implement) RestoreSnapshot(snap, vg string) error {
 }
 
 func (lv2 *Lvm2Implement) StartLvm2() error {
-	err := lv2.Executor.ExecuteCommandResidentBinary(3*time.Second, "lvmetad")
-	if err != nil {
-		return err
-	}
-	err = lv2.Executor.ExecuteCommandResidentBinary(3*time.Second, "lvmpolld")
+	//err := lv2.Executor.ExecuteCommandResidentBinary(3*time.Second, "lvmetad")
+	//if err != nil {
+	//	return err
+	//}
+	err := lv2.Executor.ExecuteCommandResidentBinary(3*time.Second, "lvmpolld")
 	if err != nil {
 		return err
 	}

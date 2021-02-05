@@ -442,14 +442,14 @@ func (v *LocalVolumeImplement) HealthCheck() {
 	}
 	defer v.Mutex.Release(VOLUMEMUTEX)
 
-	info, err := v.Lv.PVCheck("/dev/loop")
-	if err != nil && strings.Contains(info, "connect failed") {
-		err = v.Lv.StartLvm2()
-		if err != nil {
-			log.Errorf("start lvm2 failed %s, please check...", err.Error())
-			return
-		}
-	}
+	//info, err := v.Lv.PVCheck("/dev/loop")
+	//if err != nil && strings.Contains(info, "connect failed") {
+	//	err = v.Lv.StartLvm2()
+	//	if err != nil {
+	//		log.Errorf("start lvm2 failed %s, please check...", err.Error())
+	//		return
+	//	}
+	//}
 
 	lvInfo, err := v.Lv.LVS("")
 	if err != nil {
@@ -467,15 +467,15 @@ func (v *LocalVolumeImplement) HealthCheck() {
 
 func (v *LocalVolumeImplement) RefreshLvmCache() {
 
-	info, err := v.Lv.PVCheck("/dev/loop")
-	if err != nil && strings.Contains(info, "connect failed") {
-		err = v.Lv.StartLvm2()
-		if err != nil {
-			log.Errorf("start lvm2 failed %s, please check...", err.Error())
-			return
-		}
-	}
-	log.Info("lvm2 server active")
+	//info, err := v.Lv.PVCheck("/dev/loop")
+	//if err != nil && strings.Contains(info, "connect failed") {
+	//	err = v.Lv.StartLvm2()
+	//	if err != nil {
+	//		log.Errorf("start lvm2 failed %s, please check...", err.Error())
+	//		return
+	//	}
+	//}
+	//log.Info("lvm2 server active")
 
 	// 刷新缓存
 	if err := v.Lv.PVScan(""); err != nil {
