@@ -477,6 +477,9 @@ func (v *LocalVolumeImplement) RefreshLvmCache() {
 	//}
 	//log.Info("lvm2 server active")
 
+	// start lvmpolld
+	_ = v.Lv.StartLvm2()
+
 	// 刷新缓存
 	if err := v.Lv.PVScan(""); err != nil {
 		log.Warnf(" error during pvscan: %v", err)

@@ -2,6 +2,7 @@ package lvmd
 
 import (
 	"carina/pkg/devicemanager/types"
+	"carina/utils"
 	"carina/utils/exec"
 	"carina/utils/log"
 	"errors"
@@ -324,9 +325,11 @@ func (lv2 *Lvm2Implement) StartLvm2() error {
 	//if err != nil {
 	//	return err
 	//}
-	err := lv2.Executor.ExecuteCommandResidentBinary(3*time.Second, "lvmpolld")
-	if err != nil {
-		return err
+	if !utils.FileExists("/run/lvm/lvmpolld.socket") {
+		err := lv2.Executor.ExecuteCommandResidentBinary(3*time.Second, "lvmpolld")
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }
