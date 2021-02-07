@@ -1,0 +1,10 @@
+---
+kind: LogicVolume
+apiVersion: carina.storage.io/v1
+metadata:
+  name: 10.20.9.154
+spec:
+  name: pvc-10-20-9-154
+  nodeName: 10.20.9.154
+  size: 2Gi
+  deviceGroup: carina-vg-hdd

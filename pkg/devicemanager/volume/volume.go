@@ -27,12 +27,12 @@ func (v *LocalVolumeImplement) CreateVolume(lvName, vgName string, size, ratio u
 
 	vgInfo, err := v.Lv.VGDisplay(vgName)
 	if err != nil {
-		log.Errorf("get vg info failed %s %s", vgName, err.Error())
+		log.Errorf("get device group info failed %s %s", vgName, err.Error())
 		return err
 	}
 	if vgInfo == nil {
-		log.Error("cannot find vg info")
-		return errors.New("cannot find vg info")
+		log.Error("cannot find device group info")
+		return errors.New("cannot find device group info")
 	}
 
 	if vgInfo.VGFree-size < utils.DefaultReservedSpace {
@@ -78,8 +78,12 @@ func (v *LocalVolumeImplement) DeleteVolume(lvName, vgName string) error {
 
 	name := LVVolume + lvName
 	lvInfo, err := v.Lv.LVDisplay(name, vgName)
+	if err != nil && strings.Contains(err.Error(), "not found") {
+		log.Warnf("volume %s/%s not exist", vgName, lvName)
+		return nil
+	}
 	if err != nil {
-		log.Errorf("get lv failed %s/%s %s", vgName, lvName, err.Error())
+		log.Errorf("get volume failed %s/%s %s", vgName, lvName, err.Error())
 		return err
 	}
 	thinName := lvInfo.PoolLV
@@ -104,12 +108,12 @@ func (v *LocalVolumeImplement) ResizeVolume(lvName, vgName string, size, ratio u
 	// vg 检查
 	vgInfo, err := v.Lv.VGDisplay(vgName)
 	if err != nil {
-		log.Errorf("get vg info failed %s %s", vgName, err.Error())
+		log.Errorf("get device group info failed %s %s", vgName, err.Error())
 		return err
 	}
 	if vgInfo == nil {
-		log.Error("cannot find vg info")
-		return errors.New("cannot find vg info")
+		log.Error("cannot find device group info")
+		return errors.New("cannot find device group info")
 	}
 
 	if vgInfo.VGFree-size < utils.DefaultReservedSpace {
@@ -121,7 +125,7 @@ func (v *LocalVolumeImplement) ResizeVolume(lvName, vgName string, size, ratio u
 
 	lvInfo, err := v.Lv.LVDisplay(name, vgName)
 	if err != nil {
-		log.Errorf("get lv info failed %s/%s %s", vgName, name, err.Error())
+		log.Errorf("get volume info failed %s/%s %s", vgName, name, err.Error())
 		return nil
 	}
 	if lvInfo == nil {
@@ -438,6 +442,15 @@ func (v *LocalVolumeImplement) HealthCheck() {
 	}
 	defer v.Mutex.Release(VOLUMEMUTEX)
 
+	//info, err := v.Lv.PVCheck("/dev/loop")
+	//if err != nil && strings.Contains(info, "connect failed") {
+	//	err = v.Lv.StartLvm2()
+	//	if err != nil {
+	//		log.Errorf("start lvm2 failed %s, please check...", err.Error())
+	//		return
+	//	}
+	//}
+
 	lvInfo, err := v.Lv.LVS("")
 	if err != nil {
 		log.Errorf("get all lv info failed %s", err.Error())
@@ -453,6 +466,20 @@ func (v *LocalVolumeImplement) HealthCheck() {
 }
 
 func (v *LocalVolumeImplement) RefreshLvmCache() {
+
+	//info, err := v.Lv.PVCheck("/dev/loop")
+	//if err != nil && strings.Contains(info, "connect failed") {
+	//	err = v.Lv.StartLvm2()
+	//	if err != nil {
+	//		log.Errorf("start lvm2 failed %s, please check...", err.Error())
+	//		return
+	//	}
+	//}
+	//log.Info("lvm2 server active")
+
+	// start lvmpolld
+	_ = v.Lv.StartLvm2()
+
 	// 刷新缓存
 	if err := v.Lv.PVScan(""); err != nil {
 		log.Warnf(" error during pvscan: %v", err)

@@ -1,0 +1,104 @@
+---
+kind: DaemonSet
+apiVersion: apps/v1
+metadata:
+  name: csi-carina-node
+spec:
+  selector:
+    matchLabels:
+      app: csi-carina-node
+  template:
+    metadata:
+      labels:
+        app: csi-carina-node
+    spec:
+      serviceAccount: carina-csi-node
+      hostNetwork: true
+      # resolved through k8s service, set dns policy to cluster first
+      dnsPolicy: ClusterFirstWithHostNet
+      containers:
+        - name: csi-carina-node
+          securityContext:
+            privileged: true
+            capabilities:
+              add: ["SYS_ADMIN"]
+            allowPrivilegeEscalation: true
+          # for stable functionality replace canary with latest release version
+          image: docker.hub.com/carina/carina:latest
+          command: ["carina-node"]
+          args:
+            - "--development=true"
+            # If topology based provisioning is desired, configure required
+            # node labels representing the nodes topology domain
+            # and pass the label names below, for CSI to consume and advertise
+            # its equivalent topology domain
+            # - "--domainlabels=failure-domain/region,failure-domain/zone"
+          env:
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+            - name: NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+            - name: CSI_ENDPOINT
+              value: unix:///csi/csi.sock
+          imagePullPolicy: "Always"
+          volumeMounts:
+            - name: socket-dir
+              mountPath: /csi
+            - name: mountpoint-dir
+              mountPath: /var/lib/kubelet/pods
+              mountPropagation: Bidirectional
+            - name: plugin-dir
+              mountPath: /var/lib/kubelet/plugins
+              mountPropagation: "Bidirectional"
+            - name: host-sys
+              mountPath: /sys/fs/cgroup
+            - name: host-dev
+              mountPath: /dev
+            - name: host-mount
+              mountPath: /run/mount
+#            - name: host-lvm
+#              mountPath: /run/lvm
+            - name: config
+              mountPath: /etc/carina/
+            - name: log-dir
+              mountPath: /var/log/carina/
+      volumes:
+        - name: socket-dir
+          hostPath:
+            path: /var/lib/kubelet/plugins/csi.carina.com/
+            type: DirectoryOrCreate
+        - name: registration-dir
+          hostPath:
+            path: /var/lib/kubelet/plugins_registry/
+            type: Directory
+        - name: mountpoint-dir
+          hostPath:
+            path: /var/lib/kubelet/pods
+            type: DirectoryOrCreate
+        - name: log-dir
+          hostPath:
+            path: /var/log/carina
+            type: DirectoryOrCreate
+        - name: plugin-dir
+          hostPath:
+            path: /var/lib/kubelet/plugins
+            type: Directory
+        - name: host-sys
+          hostPath:
+            path: /sys/fs/cgroup
+        - name: host-dev
+          hostPath:
+            path: /dev
+#        - name: host-lvm
+#          hostPath:
+#            path: /run/lvm
+        - name: host-mount
+          hostPath:
+            path: /run/mount
+        - name: config
+          configMap:
+            name: carina-csi-config

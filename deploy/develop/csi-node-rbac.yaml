@@ -1,0 +1,38 @@
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: carina-csi-node
+---
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: carina-csi-node-rbac
+rules:
+  - apiGroups: [""]
+    resources: ["nodes"]
+    verbs: ["get", "list", "watch", "update", "patch"]
+  - apiGroups: [""]
+    resources: ["events"]
+    verbs: ["*"]
+  - apiGroups: ["carina.storage.io"]
+    resources: ["logicvolumes", "logicvolumes/status"]
+    verbs: ["get", "list", "watch", "update", "patch"]
+  - apiGroups: ["storage.k8s.io"]
+    resources: ["csidrivers"]
+    verbs: ["get", "list", "watch"]
+
+---
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: carina-csi-node
+subjects:
+  - kind: ServiceAccount
+    name: carina-csi-node
+    namespace: default
+roleRef:
+  kind: ClusterRole
+  name: carina-csi-node-rbac
+  apiGroup: rbac.authorization.k8s.io
+

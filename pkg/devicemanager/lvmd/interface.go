@@ -4,7 +4,7 @@ import "carina/pkg/devicemanager/types"
 
 type Lvm2 interface {
 	// 检查pv是否存在
-	PVCheck(dev string) error
+	PVCheck(dev string) (string, error)
 	PVCreate(dev string) error
 	PVRemove(dev string) error
 	// 列出pv列表
@@ -44,4 +44,7 @@ type Lvm2 interface {
 	DeleteSnapshot(snap, vg string) error
 	// 恢复快照会导致此快照消失
 	RestoreSnapshot(snap, vg string) error
+
+	// 启动必要的lvm2服务
+	StartLvm2() error
 }

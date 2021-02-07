@@ -1,3 +1,10 @@
+## Dependency versions
+CSI_VERSION=1.1.0
+K8S_VERSION=1.19.6
+KUBEBUILDER_VERSION = 2.3.1
+KIND_VERSION=0.9.0
+KUSTOMIZE_VERSION= 3.8.9
+PROTOC_VERSION=3.12.4
 
 # Image URL to use all building/pushing image targets
 IMG ?= controller:latest
@@ -60,7 +67,10 @@ docker-build: test
 
 # Push the docker image
 docker-push:
-	docker push ${IMG}
+# 	docker push ${IMG}
+	docker rmi docker.hub.com/carina/carina:latest 2>1 1>/dev/null ;\
+    docker build -t docker.hub.com/carina/carina:latest . ;\
+    docker push docker.hub.com/carina/carina:latest
 
 # find or download controller-gen
 # download controller-gen if necessary

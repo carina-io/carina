@@ -2,18 +2,21 @@ package lvmd
 
 import (
 	"carina/pkg/devicemanager/types"
+	"carina/utils"
 	"carina/utils/exec"
+	"carina/utils/log"
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 )
 
 type Lvm2Implement struct {
 	Executor exec.Executor
 }
 
-func (lv2 *Lvm2Implement) PVCheck(dev string) error {
-	return lv2.Executor.ExecuteCommand("pvck", dev)
+func (lv2 *Lvm2Implement) PVCheck(dev string) (string, error) {
+	return lv2.Executor.ExecuteCommandWithCombinedOutput("pvck", dev)
 }
 
 func (lv2 *Lvm2Implement) PVCreate(dev string) error {
@@ -176,13 +179,20 @@ func (lv2 *Lvm2Implement) VGExtend(vg, pv string) error {
 */
 func (lv2 *Lvm2Implement) VGReduce(vg, pv string) error {
 
-	output, err := lv2.Executor.ExecuteCommandWithOutput("pvmove", pv)
-
-	if err != nil && !strings.Contains(output, "No data to move") {
+	err := lv2.Executor.ExecuteCommand("pvmove", pv)
+	if err != nil {
 		return err
 	}
 
-	if err := lv2.Executor.ExecuteCommand("vgreduce", vg, pv); err != nil {
+	//output, err := lv2.Executor.ExecuteCommandWithOutput("pvmove", pv)
+	//
+	//if err != nil && !strings.Contains(output, "No data to move") {
+	//	log.Error(output)
+	//	return err
+	//}
+
+	if output, err := lv2.Executor.ExecuteCommandWithOutput("vgreduce", vg, pv); err != nil {
+		log.Error(output)
 		return err
 	}
 
@@ -252,7 +262,7 @@ func (lv2 *Lvm2Implement) LVDisplay(lv, vg string) (*types.LvInfo, error) {
 	if err != nil {
 		return nil, err
 	}
-	if len(lvInfo) != 1 {
+	if len(lvInfo) < 1 {
 		return nil, errors.New("not found")
 	}
 	return &lvInfo[0], nil
@@ -275,8 +285,11 @@ func (lv2 *Lvm2Implement) LVS(lvName string) ([]types.LvInfo, error) {
 	}
 
 	lvsInfo, err := lv2.Executor.ExecuteCommandWithOutput("lvs", append(fields, args...)...)
+	if err != nil && strings.Contains(lvsInfo, "Failed to find logical volume") {
+		return []types.LvInfo{}, nil
+	}
 	if err != nil {
-		return nil, err
+		return nil, errors.New(lvsInfo)
 	}
 	return parseLvs(lvsInfo), nil
 }
@@ -305,4 +318,18 @@ func (lv2 *Lvm2Implement) RestoreSnapshot(snap, vg string) error {
 	// 恢复快照后，此快照将消失
 	// TODO: 恢复快照前要umount
 	return lv2.Executor.ExecuteCommand("lvconvert", "--merge", fmt.Sprintf("%s/%s", vg, snap))
+}
+
+func (lv2 *Lvm2Implement) StartLvm2() error {
+	//err := lv2.Executor.ExecuteCommandResidentBinary(3*time.Second, "lvmetad")
+	//if err != nil {
+	//	return err
+	//}
+	if !utils.FileExists("/run/lvm/lvmpolld.socket") {
+		err := lv2.Executor.ExecuteCommandResidentBinary(3*time.Second, "lvmpolld")
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }

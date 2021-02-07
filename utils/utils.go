@@ -1,5 +1,7 @@
 package utils
 
+import "os"
+
 func IsContainsString(slice []string, s string) bool {
 	for _, item := range slice {
 		if item == s {
@@ -43,4 +45,28 @@ func SliceMergeSlice(src []string, dst []string) []string {
 		result = append(result, k)
 	}
 	return result
+}
+
+func SliceEqualSlice(src, dst []string) bool {
+	if len(src) != len(dst) {
+		return false
+	}
+
+	for _, s := range src {
+		if !IsContainsString(dst, s) {
+			return false
+		}
+	}
+	return true
+}
+
+func FileExists(path string) bool {
+	_, err := os.Stat(path) //os.Stat获取文件信息
+	if err != nil {
+		if os.IsExist(err) {
+			return true
+		}
+		return false
+	}
+	return true
 }

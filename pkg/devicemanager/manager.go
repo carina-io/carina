@@ -30,6 +30,8 @@ type DeviceManager struct {
 	// stop
 	StopChan <-chan struct{}
 	nodeName string
+	// 磁盘选择器
+	diskSelector []string
 }
 
 func NewDeviceManager(nodeName string, stopChan <-chan struct{}) *DeviceManager {
@@ -52,6 +54,14 @@ func NewDeviceManager(nodeName string, stopChan <-chan struct{}) *DeviceManager 
 
 // 定时巡检磁盘，是否有新磁盘加入
 func (dm *DeviceManager) AddAndRemoveDevice() {
+	// 判断配置是否更改，若是没有更改没必要扫盲磁盘
+	noErrorFlag := true
+	currentDiskSelector := configruation.DiskSelector()
+	if utils.SliceEqualSlice(dm.diskSelector, currentDiskSelector) {
+		log.Info("no change disk selector")
+		return
+	}
+
 	newDisk, err := dm.DiscoverDisk()
 	if err != nil {
 		log.Error("find new device failed: " + err.Error())
@@ -99,6 +109,7 @@ func (dm *DeviceManager) AddAndRemoveDevice() {
 		for _, pv := range pvs {
 			if err := dm.VolumeManager.AddNewDiskToVg(pv, vg); err != nil {
 				log.Errorf("add new disk failed vg: %s, disk: %s, error: %v", vg, pv, err)
+				noErrorFlag = false
 			}
 		}
 	}
@@ -112,7 +123,7 @@ func (dm *DeviceManager) AddAndRemoveDevice() {
 		return
 	}
 
-	diskSelector, err := regexp.Compile(strings.Join(configruation.DiskSelector(), "|"))
+	diskSelector, err := regexp.Compile(strings.Join(currentDiskSelector, "|"))
 	if err != nil {
 		log.Warnf("disk regex %s error %v ", strings.Join(configruation.DiskSelector(), "|"), err)
 		return
@@ -123,9 +134,13 @@ func (dm *DeviceManager) AddAndRemoveDevice() {
 			if !diskSelector.MatchString(pv.PVName) {
 				if err := dm.VolumeManager.RemoveDiskInVg(pv.PVName, v.VGName); err != nil {
 					log.Errorf("remove disk %s error %v", pv.PVName, err)
+					noErrorFlag = false
 				}
 			}
 		}
+	}
+	if noErrorFlag {
+		dm.diskSelector = currentDiskSelector
 	}
 }
 
@@ -156,6 +171,11 @@ func (dm *DeviceManager) DiscoverDisk() (map[string][]string, error) {
 
 	// 过滤出空对块设备
 	for _, d := range localDisk {
+
+		if strings.Contains(d.Name, types.KEYWORD) {
+			continue
+		}
+
 		if d.Readonly || d.Size < 10<<30 || d.Filesystem != "" || d.MountPoint != "" || d.State == "running" {
 			log.Infof("mismatched disk: %s filesystem:%s mountpoint:%s state:%s, readonly:%t, size:%d", d.Name, d.Filesystem, d.MountPoint, d.State, d.Readonly, d.Size)
 			continue
@@ -259,10 +279,10 @@ func (dm *DeviceManager) LvmHealthCheck() {
 		for {
 			select {
 			case <-t.C:
-				log.Info("run lvm check")
-				dm.VolumeManager.HealthCheck()
+				log.Info("volume health check...")
+				//dm.VolumeManager.HealthCheck()
 			case <-dm.StopChan:
-				log.Info("stop lvm check")
+				log.Info("stop volume health check...")
 				return
 			}
 		}
@@ -270,25 +290,24 @@ func (dm *DeviceManager) LvmHealthCheck() {
 }
 
 func (dm *DeviceManager) DeviceCheckTask() {
-	log.Info("start device monitor")
+	log.Info("start device monitor...")
 	dm.VolumeManager.RefreshLvmCache()
 	// 服务启动先检查一次
 	dm.AddAndRemoveDevice()
 
-	ticker1 := time.NewTicker(60 * time.Second)
+	ticker1 := time.NewTicker(120 * time.Second)
 	go func(t *time.Ticker) {
 		defer ticker1.Stop()
 		for {
 			select {
 			case <-t.C:
-				time.Sleep(time.Duration(configruation.DiskScanInterval()-int64(60)) * time.Second)
-				log.Info("exec device monitor task")
+				time.Sleep(time.Duration(configruation.DiskScanInterval()-int64(120)) * time.Second)
+				log.Info("device monitor...")
 				dm.AddAndRemoveDevice()
 			case <-dm.StopChan:
-				log.Info("stop device monitor task")
+				log.Info("stop device monitor...")
 				return
 			}
 		}
 	}(ticker1)
-
 }

@@ -4,20 +4,18 @@ import (
 	carinav1 "carina/api/v1"
 	"carina/controllers"
 	deviceManager "carina/pkg/devicemanager"
-	"carina/utils/log"
 	"errors"
-	"github.com/spf13/viper"
 	"k8s.io/apimachinery/pkg/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
+	"os"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	// +kubebuilder:scaffold:imports
 )
 
 var (
-	gitCommitID = "dev"
-	scheme      = runtime.NewScheme()
-	setupLog    = ctrl.Log.WithName("setup")
+	scheme   = runtime.NewScheme()
+	setupLog = ctrl.Log.WithName("setup")
 )
 
 func init() {
@@ -32,11 +30,10 @@ func init() {
 }
 
 func subMain() error {
-	nodeName := viper.GetString("nodename")
+	nodeName := os.Getenv("NODE_NAME")
 	if len(nodeName) == 0 {
-		return errors.New("node name is not given")
+		return errors.New("env NODE_NAME is not given")
 	}
-	printWelcome()
 
 	ctrl.SetLogger(zap.New(zap.UseDevMode(config.development)))
 
@@ -57,6 +54,8 @@ func subMain() error {
 	lvController := controllers.NewLogicVolumeReconciler(
 		mgr.GetClient(),
 		ctrl.Log.WithName("controllers").WithName("LogicVolume"),
+		mgr.GetScheme(),
+		mgr.GetEventRecorderFor("logicvolume-node"),
 		nodeName,
 		dm.VolumeManager,
 	)
@@ -108,13 +107,4 @@ func subMain() error {
 	}
 
 	return nil
-}
-
-func printWelcome() {
-	if gitCommitID == "" {
-		gitCommitID = "dev"
-	}
-	log.Info("-------- Welcome to use Carina Node Server --------")
-	log.Infof("Git Commit ID : %s", gitCommitID)
-	log.Info("------------------------------------")
 }
