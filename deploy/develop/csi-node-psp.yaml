@@ -46,6 +46,8 @@ spec:
       readOnly: false
     - pathPrefix: '/var/lib/kubelet/plugins'
       readOnly: false
+    - pathPrefix: '/var/lib/kubelet/device-plugins'
+      readOnly: false
 
 ---
 kind: Role

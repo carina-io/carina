@@ -53,7 +53,10 @@ spec:
               mountPropagation: Bidirectional
             - name: plugin-dir
               mountPath: /var/lib/kubelet/plugins
-              mountPropagation: "Bidirectional"
+              mountPropagation: Bidirectional
+            - name: plugin-device
+              mountPath: /var/lib/kubelet/device-plugins
+              mountPropagation: Bidirectional
             - name: host-sys
               mountPath: /sys/fs/cgroup
             - name: host-dev
@@ -86,6 +89,9 @@ spec:
         - name: plugin-dir
           hostPath:
             path: /var/lib/kubelet/plugins
+            type: Directory
+        - name: device-plugin
+            path: /var/lib/kubelet/device-plugins
             type: Directory
         - name: host-sys
           hostPath:
