@@ -16,6 +16,12 @@ const (
 
 	// PluginName is the name of the CSI plugin.
 	PluginName = "carina.storage.io"
+
+	// DeviceClassKey is the key used in CSI volume create requests to specify a device-class.
+	DeviceClassKey = "carina.storage.io/device-class"
+
+	// TopologyNodeKey is the key of topology that represents node name.
+	TopologyNodeKey = "topology.carina.storage.io/node"
 )
 
 // CapacityKeyPrefix is the key prefix of Node annotation that represents VG free space.
@@ -23,12 +29,6 @@ const CapacityKeyPrefix = "capacity.carina.storage.io/"
 
 // CapacityResource is the resource name of carina capacity.
 const CapacityResource = corev1.ResourceName("carina.storage.io/capacity")
-
-// TopologyNodeKey is the key of topology that represents node name.
-const TopologyNodeKey = "topology.carina.storage.io/node"
-
-// DeviceClassKey is the key used in CSI volume create requests to specify a device-class.
-const DeviceClassKey = "carina.storage.io/device-class"
 
 // ResizeRequestedAtKey is the key of LogicalVolume that represents the timestamp of the resize request.
 const ResizeRequestedAtKey = "carina.storage.io/resize-requested-at"
