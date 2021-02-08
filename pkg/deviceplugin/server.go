@@ -265,7 +265,7 @@ func (m *CarinaDevicePlugin) getDeviceCapacity() ([]*v1beta1.Device, error) {
 	}
 
 	sizeGb := capacity.VGSize>>30 + 1
-	freeGb := capacity.VGFree>>30 - utils.DefaultReservedSpace
+	freeGb := (capacity.VGFree - utils.DefaultReservedSpace) >> 30
 
 	// Capacity 这个是设备总资源数
 	// Allocatable 这个是资源可使用数，调度器使用对这个指标，它的值是总量-预留-已使用
