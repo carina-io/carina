@@ -1,12 +1,15 @@
 package deviceplugin
 
 import (
+	"carina/pkg/devicemanager/types"
 	"carina/pkg/devicemanager/volume"
 	"carina/pkg/deviceplugin/v1beta1"
+	"carina/utils"
 	"carina/utils/log"
 	"net"
 	"os"
 	"path"
+	"strings"
 	"time"
 
 	"golang.org/x/net/context"
@@ -216,7 +219,6 @@ func (m *CarinaDevicePlugin) Allocate(ctx context.Context, reqs *v1beta1.Allocat
 		response := v1beta1.ContainerAllocateResponse{}
 		responses.ContainerResponses = append(responses.ContainerResponses, &response)
 	}
-
 	return &responses, nil
 }
 
@@ -233,14 +235,6 @@ func (m *CarinaDevicePlugin) dial(unixSocketPath string, timeout time.Duration) 
 			return net.DialTimeout("unix", addr, timeout)
 		}))
 
-	//c, err := grpc.Dial(unixSocketPath, grpc.WithInsecure(), grpc.WithBlock(),
-	//	grpc.WithTimeout(timeout),
-	//
-	//	grpc.WithDialer(func(addr string, timeout time.Duration) (net.Conn, error) {
-	//		return net.DialTimeout("unix", addr, timeout)
-	//	}),
-	//)
-
 	if err != nil {
 		return nil, err
 	}
@@ -254,13 +248,38 @@ func (m *CarinaDevicePlugin) getDeviceCapacity() ([]*v1beta1.Device, error) {
 	if err != nil {
 		return pdevs, err
 	}
+	// 对于此种存储设备实际上不适合采用device plugin模式
+	// device plugin 通过ListAndWatch方法上报对只包含设备ID，而对于存储来说，只上报一个设备者显然不满足我们对需求，我们需要的是设备总容量
+	// 关于如何计算设备数量参考，kubernetes/pkg/kubelet/cm/devicemanager/manager.go：GetCapacity():536，只是获取了一下数组长度
+	// 基于此展示我们黑科技了，根基容量构建一个数组，为了避免数组太大，以G为单位
 
+	var capacity types.VgGroup
 	for _, v := range vgs {
+		if strings.HasSuffix(m.resourceName, v.VGName) {
+			capacity = v
+		}
+	}
+
+	if capacity.VGName == "" {
+		return pdevs, nil
+	}
+
+	sizeGb := 1 + capacity.VGSize>>30
+	freeGb := utils.DefaultReservedSpace + capacity.VGFree>>30
+
+	// Capacity 为总容量，这个是硬件总资源数
+	// Allocatable 为可用容量这个是资源可使用数，调度器使用对这个指标
+	// 我们将已经使用对磁盘容量标记为unhealthy状态，如此变成在Node信息中看到allocatable在不断减少
+	for i := uint64(0); i < sizeGb; i++ {
+		health := v1beta1.Healthy
+		if i > freeGb {
+			health = v1beta1.Unhealthy
+		}
 		pdevs = append(pdevs, &v1beta1.Device{
-			ID:       v.VGName,
-			Health:   v1beta1.Healthy,
-			Topology: nil,
+			ID:     string(i),
+			Health: health,
 		})
 	}
+
 	return pdevs, nil
 }
