@@ -9,13 +9,15 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 )
 
 const VOLUMEMUTEX = "VolumeMutex"
 
 type LocalVolumeImplement struct {
-	Lv    lvmd.Lvm2
-	Mutex *mutx.GlobalLocks
+	Lv         lvmd.Lvm2
+	Mutex      *mutx.GlobalLocks
+	NoticeChan chan struct{}
 }
 
 func (v *LocalVolumeImplement) CreateVolume(lvName, vgName string, size, ratio uint64) error {
@@ -442,15 +444,6 @@ func (v *LocalVolumeImplement) HealthCheck() {
 	}
 	defer v.Mutex.Release(VOLUMEMUTEX)
 
-	//info, err := v.Lv.PVCheck("/dev/loop")
-	//if err != nil && strings.Contains(info, "connect failed") {
-	//	err = v.Lv.StartLvm2()
-	//	if err != nil {
-	//		log.Errorf("start lvm2 failed %s, please check...", err.Error())
-	//		return
-	//	}
-	//}
-
 	lvInfo, err := v.Lv.LVS("")
 	if err != nil {
 		log.Errorf("get all lv info failed %s", err.Error())
@@ -466,17 +459,6 @@ func (v *LocalVolumeImplement) HealthCheck() {
 }
 
 func (v *LocalVolumeImplement) RefreshLvmCache() {
-
-	//info, err := v.Lv.PVCheck("/dev/loop")
-	//if err != nil && strings.Contains(info, "connect failed") {
-	//	err = v.Lv.StartLvm2()
-	//	if err != nil {
-	//		log.Errorf("start lvm2 failed %s, please check...", err.Error())
-	//		return
-	//	}
-	//}
-	//log.Info("lvm2 server active")
-
 	// start lvmpolld
 	_ = v.Lv.StartLvm2()
 
@@ -489,4 +471,25 @@ func (v *LocalVolumeImplement) RefreshLvmCache() {
 		log.Warnf("error during vgscan: %v", err)
 	}
 
+}
+
+func (v *LocalVolumeImplement) NoticeUpdateCapacity() {
+
+	// 对于更新消息来说，只要有一个生效就ok了
+	// 防止一直阻塞，设置超时
+
+	c1 := make(chan byte, 1)
+	go func() {
+		time.Sleep(time.Second * 2)
+		v.NoticeChan <- struct{}{}
+		c1 <- 1
+	}()
+	select {
+	case <-c1:
+		log.Info("update channel send success.")
+		return
+	case <-time.After(time.Second * 2):
+		log.Warn("update channel send failed.")
+		return
+	}
 }

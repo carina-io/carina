@@ -7,12 +7,12 @@ import (
 	"carina/utils"
 	"carina/utils/log"
 	"github.com/fsnotify/fsnotify"
+	"os"
 	// 依赖冲突，把整个proto目录挪移过来
 	//pluginapi "k8s.io/kubelet/pkg/apis/deviceplugin/v1beta1"
-	"os"
 )
 
-func Run(volumeManager volume.LocalVolume, stopChan <-chan struct{}) {
+func Run(volumeManager volume.LocalVolume, update <-chan struct{}, stopChan <-chan struct{}) {
 
 	watcher, err := newFSWatcher(v1beta1.DevicePluginPath)
 	if err != nil {
@@ -32,6 +32,7 @@ restart:
 		plugins = append(plugins, NewCarinaDevicePlugin(
 			utils.DeviceCapacityKeyPrefix+d,
 			volumeManager,
+			update,
 			v1beta1.DevicePluginPath+d+".sock",
 		))
 	}

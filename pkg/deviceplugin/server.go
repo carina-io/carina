@@ -29,7 +29,7 @@ type CarinaDevicePlugin struct {
 }
 
 // NewCarinaDevicePlugin returns an initialized CarinaDevicePlugin
-func NewCarinaDevicePlugin(resourceName string, volumeManager volume.LocalVolume, socket string) *CarinaDevicePlugin {
+func NewCarinaDevicePlugin(resourceName string, volumeManager volume.LocalVolume, update <-chan struct{}, socket string) *CarinaDevicePlugin {
 	return &CarinaDevicePlugin{
 		resourceName:  resourceName,
 		volumeManager: volumeManager,
@@ -38,8 +38,8 @@ func NewCarinaDevicePlugin(resourceName string, volumeManager volume.LocalVolume
 		// These will be reinitialized every
 		// time the plugin server is restarted.
 		server: nil,
-		//health:   nil,
-		stop: nil,
+		update: update,
+		stop:   nil,
 	}
 }
 
@@ -70,8 +70,6 @@ func (m *CarinaDevicePlugin) Start() error {
 		return err
 	}
 	log.Infof("Registered device plugin for '%s' with Kubelet", m.resourceName)
-
-	//go m.CheckHealth(m.stopChan, m.cachedDevices, m.health)
 
 	return nil
 }
@@ -249,9 +247,10 @@ func (m *CarinaDevicePlugin) getDeviceCapacity() ([]*v1beta1.Device, error) {
 		return pdevs, err
 	}
 	// 对于此种存储设备实际上不适合采用device plugin模式
-	// device plugin 通过ListAndWatch方法上报对只包含设备ID，而对于存储来说，只上报一个设备者显然不满足我们对需求，我们需要的是设备总容量
-	// 关于如何计算设备数量参考，kubernetes/pkg/kubelet/cm/devicemanager/manager.go：GetCapacity():536，只是获取了一下数组长度
-	// 基于此展示我们黑科技了，根基容量构建一个数组，为了避免数组太大，以G为单位
+	// device plugin 通过ListAndWatch方法上报数据只包含设备ID，而对于存储来说，只上报一个设备ID显然不满足我们需求，我们需要总容量及可用量
+	// 关于Kubelet如何计算设备数量参考，kubernetes/pkg/kubelet/cm/devicemanager/manager.go：GetCapacity():536
+	// Kubelet实质只是获取一下设备数量len(v1betal.Device)，就像8个gpu
+	// 基于此需要展示我们的黑科技了，基于容量构建一个数组，为了避免数组太大，以G为单位
 
 	var capacity types.VgGroup
 	for _, v := range vgs {
@@ -268,8 +267,8 @@ func (m *CarinaDevicePlugin) getDeviceCapacity() ([]*v1beta1.Device, error) {
 	freeGb := (capacity.VGFree - utils.DefaultReservedSpace) >> 30
 
 	// Capacity 这个是设备总资源数
-	// Allocatable 这个是资源可使用数，调度器使用对这个指标，它的值是总量-预留-已使用
-	// 我们将已经使用对磁盘容量标记为unhealthy状态，如此变成在Node信息中看到allocatable在不断减少
+	// Allocatable 这个是资源可使用数，调度器使用这个指标，它的值是总量-预留-已使用
+	// 我们将已经使用的磁盘容量标记为unhealthy状态，如此在Node信息中看到allocatable在不断减少
 	for i := uint64(0); i < sizeGb; i++ {
 		health := v1beta1.Healthy
 		if i > freeGb {

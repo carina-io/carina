@@ -1,6 +1,8 @@
 package volume
 
-import "carina/pkg/devicemanager/types"
+import (
+	"carina/pkg/devicemanager/types"
+)
 
 const (
 	THIN     = "thin-"
@@ -31,4 +33,6 @@ type LocalVolume interface {
 
 	HealthCheck()
 	RefreshLvmCache()
+	// For Device Plugin
+	NoticeUpdateCapacity()
 }
