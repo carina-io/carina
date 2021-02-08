@@ -2,6 +2,7 @@ package deviceplugin
 
 import (
 	"carina/pkg/devicemanager/volume"
+	"carina/pkg/deviceplugin/v1beta1"
 	"carina/utils/log"
 	"net"
 	"os"
@@ -94,7 +95,7 @@ func (m *CarinaDevicePlugin) Serve() error {
 		return err
 	}
 
-	pluginapi.RegisterDevicePluginServer(m.server, m)
+	v1beta1.RegisterDevicePluginServer(m.server, m)
 
 	go func() {
 		lastCrashTime := time.Now()
@@ -137,18 +138,18 @@ func (m *CarinaDevicePlugin) Serve() error {
 
 // Register registers the device plugin for the given resourceName with Kubelet.
 func (m *CarinaDevicePlugin) Register() error {
-	conn, err := m.dial(pluginapi.KubeletSocket, 5*time.Second)
+	conn, err := m.dial(v1beta1.KubeletSocket, 5*time.Second)
 	if err != nil {
 		return err
 	}
 	defer conn.Close()
 
-	client := pluginapi.NewRegistrationClient(conn)
-	reqt := &pluginapi.RegisterRequest{
-		Version:      pluginapi.Version,
+	client := v1beta1.NewRegistrationClient(conn)
+	reqt := &v1beta1.RegisterRequest{
+		Version:      v1beta1.Version,
 		Endpoint:     path.Base(m.socket),
 		ResourceName: m.resourceName,
-		Options: &pluginapi.DevicePluginOptions{
+		Options: &v1beta1.DevicePluginOptions{
 			GetPreferredAllocationAvailable: true,
 		},
 	}
@@ -161,15 +162,15 @@ func (m *CarinaDevicePlugin) Register() error {
 }
 
 // GetDevicePluginOptions returns the values of the optional settings for this plugin
-func (m *CarinaDevicePlugin) GetDevicePluginOptions(context.Context, *pluginapi.Empty) (*pluginapi.DevicePluginOptions, error) {
-	options := &pluginapi.DevicePluginOptions{
+func (m *CarinaDevicePlugin) GetDevicePluginOptions(context.Context, *v1beta1.Empty) (*v1beta1.DevicePluginOptions, error) {
+	options := &v1beta1.DevicePluginOptions{
 		GetPreferredAllocationAvailable: true,
 	}
 	return options, nil
 }
 
 // ListAndWatch lists devices and update that list according to the health status
-func (m *CarinaDevicePlugin) ListAndWatch(e *pluginapi.Empty, s pluginapi.DevicePlugin_ListAndWatchServer) error {
+func (m *CarinaDevicePlugin) ListAndWatch(e *v1beta1.Empty, s v1beta1.DevicePlugin_ListAndWatchServer) error {
 
 	request, err := m.getDeviceCapacity()
 	if err != nil {
@@ -177,7 +178,7 @@ func (m *CarinaDevicePlugin) ListAndWatch(e *pluginapi.Empty, s pluginapi.Device
 		return err
 	}
 
-	_ = s.Send(&pluginapi.ListAndWatchResponse{Devices: request})
+	_ = s.Send(&v1beta1.ListAndWatchResponse{Devices: request})
 
 	for {
 		select {
@@ -190,16 +191,16 @@ func (m *CarinaDevicePlugin) ListAndWatch(e *pluginapi.Empty, s pluginapi.Device
 				return err
 			}
 			log.Info("update device capacity: %s", m.resourceName)
-			_ = s.Send(&pluginapi.ListAndWatchResponse{Devices: request})
+			_ = s.Send(&v1beta1.ListAndWatchResponse{Devices: request})
 		}
 	}
 }
 
 // GetPreferredAllocation returns the preferred allocation from the set of devices specified in the request
-func (m *CarinaDevicePlugin) GetPreferredAllocation(ctx context.Context, r *pluginapi.PreferredAllocationRequest) (*pluginapi.PreferredAllocationResponse, error) {
-	response := &pluginapi.PreferredAllocationResponse{}
+func (m *CarinaDevicePlugin) GetPreferredAllocation(ctx context.Context, r *v1beta1.PreferredAllocationRequest) (*v1beta1.PreferredAllocationResponse, error) {
+	response := &v1beta1.PreferredAllocationResponse{}
 	for _, req := range r.ContainerRequests {
-		resp := &pluginapi.ContainerPreferredAllocationResponse{
+		resp := &v1beta1.ContainerPreferredAllocationResponse{
 			DeviceIDs: req.MustIncludeDeviceIDs,
 		}
 		response.ContainerResponses = append(response.ContainerResponses, resp)
@@ -208,11 +209,11 @@ func (m *CarinaDevicePlugin) GetPreferredAllocation(ctx context.Context, r *plug
 }
 
 // Allocate which return list of devices.
-func (m *CarinaDevicePlugin) Allocate(ctx context.Context, reqs *pluginapi.AllocateRequest) (*pluginapi.AllocateResponse, error) {
-	responses := pluginapi.AllocateResponse{}
+func (m *CarinaDevicePlugin) Allocate(ctx context.Context, reqs *v1beta1.AllocateRequest) (*v1beta1.AllocateResponse, error) {
+	responses := v1beta1.AllocateResponse{}
 	for _, req := range reqs.ContainerRequests {
 		log.Infof("ignore  implement %s", req.DevicesIDs)
-		response := pluginapi.ContainerAllocateResponse{}
+		response := v1beta1.ContainerAllocateResponse{}
 		responses.ContainerResponses = append(responses.ContainerResponses, &response)
 	}
 
@@ -220,8 +221,8 @@ func (m *CarinaDevicePlugin) Allocate(ctx context.Context, reqs *pluginapi.Alloc
 }
 
 // PreStartContainer is unimplemented for this plugin
-func (m *CarinaDevicePlugin) PreStartContainer(context.Context, *pluginapi.PreStartContainerRequest) (*pluginapi.PreStartContainerResponse, error) {
-	return &pluginapi.PreStartContainerResponse{}, nil
+func (m *CarinaDevicePlugin) PreStartContainer(context.Context, *v1beta1.PreStartContainerRequest) (*v1beta1.PreStartContainerResponse, error) {
+	return &v1beta1.PreStartContainerResponse{}, nil
 }
 
 // dial establishes the gRPC communication with the registered device plugin.
@@ -247,17 +248,17 @@ func (m *CarinaDevicePlugin) dial(unixSocketPath string, timeout time.Duration) 
 	return c, nil
 }
 
-func (m *CarinaDevicePlugin) getDeviceCapacity() ([]*pluginapi.Device, error) {
-	var pdevs []*pluginapi.Device
+func (m *CarinaDevicePlugin) getDeviceCapacity() ([]*v1beta1.Device, error) {
+	var pdevs []*v1beta1.Device
 	vgs, err := m.volumeManager.GetCurrentVgStruct()
 	if err != nil {
 		return pdevs, err
 	}
 
 	for _, v := range vgs {
-		pdevs = append(pdevs, &pluginapi.Device{
+		pdevs = append(pdevs, &v1beta1.Device{
 			ID:       v.VGName,
-			Health:   pluginapi.Healthy,
+			Health:   v1beta1.Healthy,
 			Topology: nil,
 		})
 	}

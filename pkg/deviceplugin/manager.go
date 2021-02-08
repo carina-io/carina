@@ -3,16 +3,18 @@ package deviceplugin
 import (
 	"carina/pkg/devicemanager/types"
 	"carina/pkg/devicemanager/volume"
+	"carina/pkg/deviceplugin/v1beta1"
 	"carina/utils"
 	"carina/utils/log"
 	"github.com/fsnotify/fsnotify"
+	// 依赖冲突，把整个proto目录挪移过来
 	//pluginapi "k8s.io/kubelet/pkg/apis/deviceplugin/v1beta1"
 	"os"
 )
 
 func Run(volumeManager volume.LocalVolume, stopChan <-chan struct{}) {
 
-	watcher, err := newFSWatcher(pluginapi.DevicePluginPath)
+	watcher, err := newFSWatcher(v1beta1.DevicePluginPath)
 	if err != nil {
 		log.Errorf("Failed to create FS watcher: %v", err)
 		os.Exit(1)
@@ -30,7 +32,7 @@ restart:
 		plugins = append(plugins, NewCarinaDevicePlugin(
 			utils.DeviceCapacityKeyPrefix+d,
 			volumeManager,
-			pluginapi.DevicePluginPath+d+".sock",
+			v1beta1.DevicePluginPath+d+".sock",
 		))
 	}
 
@@ -61,8 +63,8 @@ events:
 		// 'pluginapi.KubeletSocket' file. When this occurs, restart this loop,
 		// restarting all of the plugins in the process.
 		case event := <-watcher.Events:
-			if event.Name == pluginapi.KubeletSocket && event.Op&fsnotify.Create == fsnotify.Create {
-				log.Infof("inotify: %s created, restarting.", pluginapi.KubeletSocket)
+			if event.Name == v1beta1.KubeletSocket && event.Op&fsnotify.Create == fsnotify.Create {
+				log.Infof("inotify: %s created, restarting.", v1beta1.KubeletSocket)
 				goto restart
 			}
 
