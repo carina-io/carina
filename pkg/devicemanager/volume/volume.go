@@ -17,7 +17,7 @@ const VOLUMEMUTEX = "VolumeMutex"
 type LocalVolumeImplement struct {
 	Lv              lvmd.Lvm2
 	Mutex           *mutx.GlobalLocks
-	noticeServerMap map[string]chan struct{}
+	NoticeServerMap map[string]chan struct{}
 }
 
 func (v *LocalVolumeImplement) CreateVolume(lvName, vgName string, size, ratio uint64) error {
@@ -484,7 +484,7 @@ func (v *LocalVolumeImplement) NoticeUpdateCapacity(vgName []string) {
 				log.Errorf("send notice server %s panic", strings.Join(vgName, " "))
 			}
 		}()
-		for k, c := range v.noticeServerMap {
+		for k, c := range v.NoticeServerMap {
 			if len(vgName) == 0 {
 				c <- struct{}{}
 			} else if utils.IsContainsString(vgName, k) {
@@ -504,5 +504,5 @@ func (v *LocalVolumeImplement) NoticeUpdateCapacity(vgName []string) {
 }
 
 func (v *LocalVolumeImplement) RegisterNoticeServer(vgName string, notice chan struct{}) {
-	v.noticeServerMap[vgName] = notice
+	v.NoticeServerMap[vgName] = notice
 }

@@ -43,8 +43,9 @@ func NewDeviceManager(nodeName string, stopChan <-chan struct{}) *DeviceManager 
 		DiskManager: &device.LocalDeviceImplement{Executor: executor},
 		LvmManager:  &lvmd.Lvm2Implement{Executor: executor},
 		VolumeManager: &volume.LocalVolumeImplement{
-			Mutex:      mutex,
-			Lv:         &lvmd.Lvm2Implement{Executor: executor},
+			Mutex:           mutex,
+			Lv:              &lvmd.Lvm2Implement{Executor: executor},
+			NoticeServerMap: make(map[string]chan struct{}),
 		},
 		stopChan: stopChan,
 		nodeName: nodeName,
