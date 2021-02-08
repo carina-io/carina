@@ -264,11 +264,11 @@ func (m *CarinaDevicePlugin) getDeviceCapacity() ([]*v1beta1.Device, error) {
 		return pdevs, nil
 	}
 
-	sizeGb := 1 + capacity.VGSize>>30
-	freeGb := utils.DefaultReservedSpace + capacity.VGFree>>30
+	sizeGb := capacity.VGSize>>30 + 1
+	freeGb := capacity.VGFree>>30 - utils.DefaultReservedSpace
 
-	// Capacity 为总容量，这个是硬件总资源数
-	// Allocatable 为可用容量这个是资源可使用数，调度器使用对这个指标
+	// Capacity 这个是设备总资源数
+	// Allocatable 这个是资源可使用数，调度器使用对这个指标，它的值是总量-预留-已使用
 	// 我们将已经使用对磁盘容量标记为unhealthy状态，如此变成在Node信息中看到allocatable在不断减少
 	for i := uint64(0); i < sizeGb; i++ {
 		health := v1beta1.Healthy
