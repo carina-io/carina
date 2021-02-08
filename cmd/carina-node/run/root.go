@@ -1,7 +1,6 @@
 package run
 
 import (
-	"carina"
 	"carina/utils"
 	"flag"
 	"fmt"
@@ -18,7 +17,7 @@ var config struct {
 
 var rootCmd = &cobra.Command{
 	Use:     "carina-node",
-	Version: carina.Version,
+	Version: utils.Version,
 	Short:   "Carina CSI node",
 	Long: `carina-node provides CSI node service.
 It also works as a custom Kubernetes controller.

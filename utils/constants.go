@@ -3,6 +3,7 @@ package utils
 import corev1 "k8s.io/api/core/v1"
 
 const (
+	Version = "beta"
 	// LogicalVolumeFinalizer is the name of LogicalVolume finalizer
 	LogicVolumeFinalizer = "carina.storage.io/logicvolume"
 	// DefaultCSISocket is the default path of the CSI socket file.
@@ -12,6 +13,9 @@ const (
 
 	// device plugin
 	DeviceCapacityKeyPrefix = "carina.storage.io/"
+
+	// PluginName is the name of the CSI plugin.
+	PluginName = "carina.storage.io"
 )
 
 // CapacityKeyPrefix is the key prefix of Node annotation that represents VG free space.
@@ -19,9 +23,6 @@ const CapacityKeyPrefix = "capacity.carina.storage.io/"
 
 // CapacityResource is the resource name of carina capacity.
 const CapacityResource = corev1.ResourceName("carina.storage.io/capacity")
-
-// PluginName is the name of the CSI plugin.
-const PluginName = "carina.storage.io"
 
 // TopologyNodeKey is the key of topology that represents node name.
 const TopologyNodeKey = "topology.carina.storage.io/node"
