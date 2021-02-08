@@ -9,13 +9,15 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 )
 
 const VOLUMEMUTEX = "VolumeMutex"
 
 type LocalVolumeImplement struct {
-	Lv    lvmd.Lvm2
-	Mutex *mutx.GlobalLocks
+	Lv              lvmd.Lvm2
+	Mutex           *mutx.GlobalLocks
+	NoticeServerMap map[string]chan struct{}
 }
 
 func (v *LocalVolumeImplement) CreateVolume(lvName, vgName string, size, ratio uint64) error {
@@ -442,15 +444,6 @@ func (v *LocalVolumeImplement) HealthCheck() {
 	}
 	defer v.Mutex.Release(VOLUMEMUTEX)
 
-	//info, err := v.Lv.PVCheck("/dev/loop")
-	//if err != nil && strings.Contains(info, "connect failed") {
-	//	err = v.Lv.StartLvm2()
-	//	if err != nil {
-	//		log.Errorf("start lvm2 failed %s, please check...", err.Error())
-	//		return
-	//	}
-	//}
-
 	lvInfo, err := v.Lv.LVS("")
 	if err != nil {
 		log.Errorf("get all lv info failed %s", err.Error())
@@ -466,17 +459,6 @@ func (v *LocalVolumeImplement) HealthCheck() {
 }
 
 func (v *LocalVolumeImplement) RefreshLvmCache() {
-
-	//info, err := v.Lv.PVCheck("/dev/loop")
-	//if err != nil && strings.Contains(info, "connect failed") {
-	//	err = v.Lv.StartLvm2()
-	//	if err != nil {
-	//		log.Errorf("start lvm2 failed %s, please check...", err.Error())
-	//		return
-	//	}
-	//}
-	//log.Info("lvm2 server active")
-
 	// start lvmpolld
 	_ = v.Lv.StartLvm2()
 
@@ -489,4 +471,38 @@ func (v *LocalVolumeImplement) RefreshLvmCache() {
 		log.Warnf("error during vgscan: %v", err)
 	}
 
+}
+
+func (v *LocalVolumeImplement) NoticeUpdateCapacity(vgName []string) {
+
+	// 如果更新不成功，chan会一直阻塞，5s无法更新完成则输出超时日志
+
+	c1 := make(chan byte, 1)
+	go func() {
+		defer func() {
+			if err := recover(); err != nil {
+				log.Errorf("send notice server %s panic", strings.Join(vgName, " "))
+			}
+		}()
+		for k, c := range v.NoticeServerMap {
+			if len(vgName) == 0 {
+				c <- struct{}{}
+			} else if utils.IsContainsString(vgName, k) {
+				c <- struct{}{}
+			}
+		}
+		c1 <- 1
+	}()
+	select {
+	case <-c1:
+		log.Info("send all update channel done.")
+		return
+	case <-time.After(5 * time.Second):
+		log.Warn("send all update channel timeout.")
+		return
+	}
+}
+
+func (v *LocalVolumeImplement) RegisterNoticeServer(vgName string, notice chan struct{}) {
+	v.NoticeServerMap[vgName] = notice
 }

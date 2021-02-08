@@ -28,7 +28,7 @@ type DeviceManager struct {
 	// Volume 操作
 	VolumeManager volume.LocalVolume
 	// stop
-	StopChan <-chan struct{}
+	stopChan <-chan struct{}
 	nodeName string
 	// 磁盘选择器
 	diskSelector []string
@@ -43,10 +43,11 @@ func NewDeviceManager(nodeName string, stopChan <-chan struct{}) *DeviceManager 
 		DiskManager: &device.LocalDeviceImplement{Executor: executor},
 		LvmManager:  &lvmd.Lvm2Implement{Executor: executor},
 		VolumeManager: &volume.LocalVolumeImplement{
-			Mutex: mutex,
-			Lv:    &lvmd.Lvm2Implement{Executor: executor},
+			Mutex:           mutex,
+			Lv:              &lvmd.Lvm2Implement{Executor: executor},
+			NoticeServerMap: make(map[string]chan struct{}),
 		},
-		StopChan: stopChan,
+		stopChan: stopChan,
 		nodeName: nodeName,
 	}
 	return &dm
@@ -281,7 +282,7 @@ func (dm *DeviceManager) LvmHealthCheck() {
 			case <-t.C:
 				log.Info("volume health check...")
 				//dm.VolumeManager.HealthCheck()
-			case <-dm.StopChan:
+			case <-dm.stopChan:
 				log.Info("stop volume health check...")
 				return
 			}
@@ -304,7 +305,7 @@ func (dm *DeviceManager) DeviceCheckTask() {
 				time.Sleep(time.Duration(configruation.DiskScanInterval()-int64(120)) * time.Second)
 				log.Info("device monitor...")
 				dm.AddAndRemoveDevice()
-			case <-dm.StopChan:
+			case <-dm.stopChan:
 				log.Info("stop device monitor...")
 				return
 			}

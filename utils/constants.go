@@ -9,6 +9,9 @@ const (
 	DefaultCSISocket = "/run/carina/csi-carina.sock"
 	// Default space hold
 	DefaultReservedSpace = 10 << 30
+
+	// device plugin
+	DeviceCapacityKeyPrefix = "carina.storage.io/"
 )
 
 // CapacityKeyPrefix is the key prefix of Node annotation that represents VG free space.

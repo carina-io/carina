@@ -68,7 +68,7 @@ docker-build: test
 # Push the docker image
 docker-push:
 # 	docker push ${IMG}
-	docker rmi docker.hub.com/carina/carina:latest 2>1 1>/dev/null ;\
+	docker rmi docker.hub.com/carina/carina:latest 1>/dev/null 2>&1;\
     docker build -t docker.hub.com/carina/carina:latest . ;\
     docker push docker.hub.com/carina/carina:latest
 
