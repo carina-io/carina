@@ -15,9 +15,9 @@ import (
 const VOLUMEMUTEX = "VolumeMutex"
 
 type LocalVolumeImplement struct {
-	Lv         lvmd.Lvm2
-	Mutex      *mutx.GlobalLocks
-	NoticeChan chan struct{}
+	Lv              lvmd.Lvm2
+	Mutex           *mutx.GlobalLocks
+	noticeServerMap map[string]chan struct{}
 }
 
 func (v *LocalVolumeImplement) CreateVolume(lvName, vgName string, size, ratio uint64) error {
@@ -473,23 +473,36 @@ func (v *LocalVolumeImplement) RefreshLvmCache() {
 
 }
 
-func (v *LocalVolumeImplement) NoticeUpdateCapacity() {
+func (v *LocalVolumeImplement) NoticeUpdateCapacity(vgName []string) {
 
-	// 对于更新消息来说，只要有一个生效就ok了
-	// 防止一直阻塞，设置超时
+	// 如果更新不成功，chan会一直阻塞，5s无法更新完成则输出超时日志
 
 	c1 := make(chan byte, 1)
 	go func() {
-		time.Sleep(time.Second * 2)
-		v.NoticeChan <- struct{}{}
+		defer func() {
+			if err := recover(); err != nil {
+				log.Errorf("send notice server %s panic", strings.Join(vgName, " "))
+			}
+		}()
+		for k, c := range v.noticeServerMap {
+			if len(vgName) == 0 {
+				c <- struct{}{}
+			} else if utils.IsContainsString(vgName, k) {
+				c <- struct{}{}
+			}
+		}
 		c1 <- 1
 	}()
 	select {
 	case <-c1:
-		log.Info("update channel send success.")
+		log.Info("send all update channel done.")
 		return
-	case <-time.After(time.Second * 2):
-		log.Warn("update channel send failed.")
+	case <-time.After(5 * time.Second):
+		log.Warn("send all update channel timeout.")
 		return
 	}
+}
+
+func (v *LocalVolumeImplement) RegisterNoticeServer(vgName string, notice chan struct{}) {
+	v.noticeServerMap[vgName] = notice
 }

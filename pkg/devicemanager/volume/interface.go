@@ -34,5 +34,7 @@ type LocalVolume interface {
 	HealthCheck()
 	RefreshLvmCache()
 	// For Device Plugin
-	NoticeUpdateCapacity()
+	NoticeUpdateCapacity(vgName []string)
+	// 注册通知服务，因为多个vg组，每个组需要不同的channel
+	RegisterNoticeServer(vgName string, notice chan struct{})
 }

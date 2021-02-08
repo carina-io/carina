@@ -32,14 +32,11 @@ type DeviceManager struct {
 	nodeName string
 	// 磁盘选择器
 	diskSelector []string
-	// 通知其他服务更新容量信息
-	NoticeChan chan struct{}
 }
 
 func NewDeviceManager(nodeName string, stopChan <-chan struct{}) *DeviceManager {
 	executor := &exec.CommandExecutor{}
 	mutex := mutx.NewGlobalLocks()
-	noticeChan := make(chan struct{}, 2)
 	dm := DeviceManager{
 		Executor:    executor,
 		Mutex:       mutex,
@@ -48,11 +45,9 @@ func NewDeviceManager(nodeName string, stopChan <-chan struct{}) *DeviceManager 
 		VolumeManager: &volume.LocalVolumeImplement{
 			Mutex:      mutex,
 			Lv:         &lvmd.Lvm2Implement{Executor: executor},
-			NoticeChan: noticeChan,
 		},
-		stopChan:   stopChan,
-		nodeName:   nodeName,
-		NoticeChan: noticeChan,
+		stopChan: stopChan,
+		nodeName: nodeName,
 	}
 	return &dm
 }

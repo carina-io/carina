@@ -12,12 +12,12 @@ import (
 	//pluginapi "k8s.io/kubelet/pkg/apis/deviceplugin/v1beta1"
 )
 
-func Run(volumeManager volume.LocalVolume, update <-chan struct{}, stopChan <-chan struct{}) {
+func Run(volumeManager volume.LocalVolume, stopChan <-chan struct{}) {
 
 	watcher, err := newFSWatcher(v1beta1.DevicePluginPath)
 	if err != nil {
 		log.Errorf("Failed to create FS watcher: %v", err)
-		os.Exit(1)
+		os.Exit(-1)
 	}
 	defer watcher.Close()
 
@@ -29,12 +29,16 @@ restart:
 
 	log.Info("Retreiving plugins.")
 	for _, d := range []string{types.VGSSD, types.VGHDD} {
+		c := make(chan struct{}, 5)
 		plugins = append(plugins, NewCarinaDevicePlugin(
 			utils.DeviceCapacityKeyPrefix+d,
 			volumeManager,
-			update,
+			c,
 			v1beta1.DevicePluginPath+d+".sock",
 		))
+		// 注册通知服务
+		log.Info("register volume notice server.")
+		volumeManager.RegisterNoticeServer(d, c)
 	}
 
 	started := 0

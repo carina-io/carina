@@ -101,7 +101,7 @@ func subMain() error {
 	// 启动lvm卷健康检查
 	dm.LvmHealthCheck()
 	// 启动设备插件
-	go deviceplugin.Run(dm.VolumeManager, dm.NoticeChan, stopChan)
+	go deviceplugin.Run(dm.VolumeManager, stopChan)
 	setupLog.Info("starting manager")
 	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
 		setupLog.Error(err, "problem running manager")

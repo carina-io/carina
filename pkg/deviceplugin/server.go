@@ -24,12 +24,12 @@ type CarinaDevicePlugin struct {
 
 	volumeManager volume.LocalVolume
 	server        *grpc.Server
-	update        <-chan struct{}
+	update        chan struct{}
 	stop          chan interface{}
 }
 
 // NewCarinaDevicePlugin returns an initialized CarinaDevicePlugin
-func NewCarinaDevicePlugin(resourceName string, volumeManager volume.LocalVolume, update <-chan struct{}, socket string) *CarinaDevicePlugin {
+func NewCarinaDevicePlugin(resourceName string, volumeManager volume.LocalVolume, update chan struct{}, socket string) *CarinaDevicePlugin {
 	return &CarinaDevicePlugin{
 		resourceName:  resourceName,
 		volumeManager: volumeManager,
@@ -45,7 +45,9 @@ func NewCarinaDevicePlugin(resourceName string, volumeManager volume.LocalVolume
 
 func (m *CarinaDevicePlugin) cleanup() {
 	close(m.stop)
+	close(m.update)
 	m.server = nil
+	m.update = nil
 	m.stop = nil
 }
 
@@ -191,7 +193,7 @@ func (m *CarinaDevicePlugin) ListAndWatch(e *v1beta1.Empty, s v1beta1.DevicePlug
 				log.Errorf("get device capacity error: %s", err.Error())
 				return err
 			}
-			log.Info("update device capacity: %s", m.resourceName)
+			log.Infof("update device capacity: %s", m.resourceName)
 			_ = s.Send(&v1beta1.ListAndWatchResponse{Devices: request})
 		}
 	}
