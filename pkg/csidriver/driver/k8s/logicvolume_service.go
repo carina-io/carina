@@ -58,8 +58,8 @@ func (s *LogicVolumeService) CreateVolume(ctx context.Context, node, dc, name st
 
 	lv := &carinav1.LogicVolume{
 		TypeMeta: metav1.TypeMeta{
-			Kind:       "LogicalVolume",
-			APIVersion: "topolvm.cybozu.com/v1",
+			Kind:       "LogicVolume",
+			APIVersion: "carina.storage.io/v1",
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name: name,

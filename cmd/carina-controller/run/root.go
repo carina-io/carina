@@ -43,7 +43,7 @@ func Execute() {
 
 func init() {
 	fs := rootCmd.Flags()
-	fs.StringVar(&config.csiSocket, "csi-socket", utils.DefaultCSISocket, "UNIX domain socket filename for CSI")
+	fs.StringVar(&config.csiSocket, "csi-address", utils.DefaultCSISocket, "UNIX domain socket filename for CSI")
 	fs.StringVar(&config.metricsAddr, "metrics-addr", ":8080", "Listen address for metrics")
 	//fs.StringVar(&config.webhookAddr, "webhook-addr", ":8443", "Listen address for the webhook endpoint")
 	//fs.StringVar(&config.certDir, "cert-dir", "", "certificate directory")

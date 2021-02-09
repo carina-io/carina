@@ -29,11 +29,11 @@ type controllerService struct {
 func (s controllerService) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest) (*csi.CreateVolumeResponse, error) {
 	capabilities := req.GetVolumeCapabilities()
 	source := req.GetVolumeContentSource()
-	deviceClass := req.GetParameters()[utils.DeviceGroupKey]
+	deviceGroup := req.GetParameters()[utils.DeviceDiskKey]
 
 	log.Info("CreateVolume called ",
 		"name ", req.GetName(),
-		"device_class ", deviceClass,
+		"device_group ", deviceGroup,
 		"required ", req.GetCapacityRange().GetRequiredBytes(),
 		"limit ", req.GetCapacityRange().GetLimitBytes(),
 		"parameters ", req.GetParameters(),
@@ -86,7 +86,7 @@ func (s controllerService) CreateVolume(ctx context.Context, req *csi.CreateVolu
 		// - https://github.com/container-storage-interface/spec/blob/release-1.1/spec.md#createvolume
 		// - https://github.com/kubernetes-csi/csi-test/blob/6738ab2206eac88874f0a3ede59b40f680f59f43/pkg/sanity/controller.go#L404-L428
 		log.Info("decide node because accessibility_requirements not found")
-		nodeName, capacity, err := s.nodeService.GetMaxCapacity(ctx, deviceClass)
+		nodeName, capacity, err := s.nodeService.GetMaxCapacity(ctx, deviceGroup)
 		if err != nil {
 			return nil, status.Errorf(codes.Internal, "failed to get max capacity node %v", err)
 		}
@@ -232,7 +232,7 @@ func (s controllerService) GetCapacity(ctx context.Context, req *csi.GetCapacity
 		log.Info("capability argument is not nil, but TopoLVM ignores it")
 	}
 
-	deviceClass := req.GetParameters()[utils.DeviceGroupKey]
+	deviceClass := req.GetParameters()[utils.DeviceDiskKey]
 
 	var capacity int64
 	switch topology {

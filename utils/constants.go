@@ -17,8 +17,8 @@ const (
 	// PluginName is the name of the CSI plugin.
 	PluginName = "carina.storage.io"
 
-	// DeviceClassKey is the key used in CSI volume create requests to specify a device-class.
-	DeviceGroupKey = "carina.storage.io/device-group"
+	// DeviceDiskKey is the key used in CSI volume create requests to specify a DeviceDiskKey.
+	DeviceDiskKey = "carina.storage.io/disk"
 
 	// TopologyNodeKey is the key of topology that represents node name.
 	TopologyNodeKey = "topology.carina.storage.io/node"
