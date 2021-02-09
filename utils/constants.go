@@ -7,7 +7,7 @@ const (
 	// LogicalVolumeFinalizer is the name of LogicalVolume finalizer
 	LogicVolumeFinalizer = "carina.storage.io/logicvolume"
 	// DefaultCSISocket is the default path of the CSI socket file.
-	DefaultCSISocket = "/run/carina/csi-carina.sock"
+	DefaultCSISocket = "/tmp/csi-provisioner.sock"
 	// Default space hold
 	DefaultReservedSpace = 10 << 30
 
