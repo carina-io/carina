@@ -124,7 +124,7 @@ func (s controllerService) CreateVolume(ctx context.Context, req *csi.CreateVolu
 
 	name = strings.ToLower(name)
 
-	volumeID, err := s.lvService.CreateVolume(ctx, node, deviceClass, name, requestGb)
+	volumeID, err := s.lvService.CreateVolume(ctx, node, deviceGroup, name, requestGb)
 	if err != nil {
 		_, ok := status.FromError(err)
 		if !ok {
