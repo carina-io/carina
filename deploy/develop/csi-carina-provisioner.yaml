@@ -89,7 +89,7 @@ spec:
           volumeMounts:
             - name: socket-dir
               mountPath: /csi
-        - name: csi-carinaplugin
+        - name: csi-carina-contorller
           securityContext:
             privileged: true
             capabilities:
