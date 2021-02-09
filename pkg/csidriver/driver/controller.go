@@ -1,7 +1,8 @@
-package server
+package driver
 
 import (
 	"carina/pkg/csidriver/csi"
+	"carina/pkg/csidriver/driver/k8s"
 	"carina/utils"
 	"carina/utils/log"
 	"context"
@@ -14,21 +15,21 @@ import (
 )
 
 // NewControllerService returns a new ControllerServer.
-func NewControllerService(lvService *LogicalVolumeService, nodeService *NodeService) csi.ControllerServer {
+func NewControllerService(lvService *k8s.LogicVolumeService, nodeService *k8s.NodeService) csi.ControllerServer {
 	return &controllerService{lvService: lvService, nodeService: nodeService}
 }
 
 type controllerService struct {
 	csi.UnimplementedControllerServer
 
-	lvService   *LogicalVolumeService
-	nodeService *NodeService
+	lvService   *k8s.LogicVolumeService
+	nodeService *k8s.NodeService
 }
 
 func (s controllerService) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest) (*csi.CreateVolumeResponse, error) {
 	capabilities := req.GetVolumeCapabilities()
 	source := req.GetVolumeContentSource()
-	deviceClass := req.GetParameters()[utils.DeviceClassKey]
+	deviceClass := req.GetParameters()[utils.DeviceGroupKey]
 
 	log.Info("CreateVolume called ",
 		"name ", req.GetName(),
@@ -203,7 +204,7 @@ func (s controllerService) ValidateVolumeCapabilities(ctx context.Context, req *
 
 	_, err := s.lvService.GetVolume(ctx, req.GetVolumeId())
 	if err != nil {
-		if err == ErrVolumeNotFound {
+		if err == k8s.ErrVolumeNotFound {
 			return nil, status.Errorf(codes.NotFound, "LogicalVolume for volume id %s is not found", req.GetVolumeId())
 		}
 		return nil, status.Error(codes.Internal, err.Error())
@@ -231,7 +232,7 @@ func (s controllerService) GetCapacity(ctx context.Context, req *csi.GetCapacity
 		log.Info("capability argument is not nil, but TopoLVM ignores it")
 	}
 
-	deviceClass := req.GetParameters()[utils.DeviceClassKey]
+	deviceClass := req.GetParameters()[utils.DeviceGroupKey]
 
 	var capacity int64
 	switch topology {
@@ -249,7 +250,7 @@ func (s controllerService) GetCapacity(ctx context.Context, req *csi.GetCapacity
 		var err error
 		capacity, err = s.nodeService.GetCapacityByTopologyLabel(ctx, v, deviceClass)
 		switch err {
-		case ErrNodeNotFound:
+		case k8s.ErrNodeNotFound:
 			log.Info("target is not found accessible_topology ", req.AccessibleTopology)
 			return &csi.GetCapacityResponse{AvailableCapacity: 0}, nil
 		case nil:
@@ -300,7 +301,7 @@ func (s controllerService) ControllerExpandVolume(ctx context.Context, req *csi.
 
 	lv, err := s.lvService.GetVolume(ctx, volumeID)
 	if err != nil {
-		if err == ErrVolumeNotFound {
+		if err == k8s.ErrVolumeNotFound {
 			return nil, status.Errorf(codes.NotFound, "LogicalVolume for volume id %s is not found", volumeID)
 		}
 		return nil, status.Error(codes.Internal, err.Error())
@@ -330,7 +331,7 @@ func (s controllerService) ControllerExpandVolume(ctx context.Context, req *csi.
 			NodeExpansionRequired: true,
 		}, nil
 	}
-	capacity, err := s.nodeService.GetCapacityByName(ctx, lv.Spec.NodeName, lv.Spec.DeviceClass)
+	capacity, err := s.nodeService.GetCapacityByName(ctx, lv.Spec.NodeName, lv.Spec.DeviceGroup)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}

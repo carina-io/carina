@@ -1,4 +1,4 @@
-package server
+package k8s
 
 import (
 	"carina/utils"

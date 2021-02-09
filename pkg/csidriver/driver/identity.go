@@ -1,4 +1,4 @@
-package server
+package driver
 
 import (
 	"carina/pkg/csidriver/csi"
@@ -10,15 +10,15 @@ import (
 
 // NewIdentityService returns a new IdentityServer.
 
-func NewIdentityServer() csi.IdentityServer {
-	return &IdentityServer{}
+func NewIdentityService() csi.IdentityServer {
+	return &identityService{}
 }
 
-type IdentityServer struct {
+type identityService struct {
 	csi.UnimplementedIdentityServer
 }
 
-func (s IdentityServer) GetPluginInfo(ctx context.Context, req *csi.GetPluginInfoRequest) (*csi.GetPluginInfoResponse, error) {
+func (s identityService) GetPluginInfo(ctx context.Context, req *csi.GetPluginInfoRequest) (*csi.GetPluginInfoResponse, error) {
 	log.Info("GetPluginInfo req ", req.String())
 	return &csi.GetPluginInfoResponse{
 		Name:          utils.PluginName,
@@ -26,7 +26,7 @@ func (s IdentityServer) GetPluginInfo(ctx context.Context, req *csi.GetPluginInf
 	}, nil
 }
 
-func (s IdentityServer) GetPluginCapabilities(ctx context.Context, req *csi.GetPluginCapabilitiesRequest) (*csi.GetPluginCapabilitiesResponse, error) {
+func (s identityService) GetPluginCapabilities(ctx context.Context, req *csi.GetPluginCapabilitiesRequest) (*csi.GetPluginCapabilitiesResponse, error) {
 	log.Info("GetPluginCapabilities req ", req.String())
 	return &csi.GetPluginCapabilitiesResponse{
 		Capabilities: []*csi.PluginCapability{
@@ -62,7 +62,7 @@ func (s IdentityServer) GetPluginCapabilities(ctx context.Context, req *csi.GetP
 	}, nil
 }
 
-func (s IdentityServer) Probe(ctx context.Context, req *csi.ProbeRequest) (*csi.ProbeResponse, error) {
+func (s identityService) Probe(ctx context.Context, req *csi.ProbeRequest) (*csi.ProbeResponse, error) {
 	log.Info("Probe req ", req.String())
 	return &csi.ProbeResponse{Ready: &wrappers.BoolValue{Value: true}}, nil
 }
