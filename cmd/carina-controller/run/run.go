@@ -56,7 +56,7 @@ func subMain() error {
 		MetricsBindAddress:      config.metricsAddr,
 		LeaderElection:          true,
 		LeaderElectionID:        utils.PluginName + "-carina-controller",
-		LeaderElectionNamespace: "kube-system",
+		LeaderElectionNamespace: "default",
 		//Host:               hookHost,
 		//Port:               hookPort,
 		//CertDir:            config.certDir,
