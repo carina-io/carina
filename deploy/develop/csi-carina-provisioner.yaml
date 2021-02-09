@@ -115,8 +115,8 @@ spec:
           volumeMounts:
             - name: socket-dir
               mountPath: /csi
-            - name: log-dir
-              mountPath: /var/log/carina/
+            - name: config
+              mountPath: /etc/carina/
       volumes:
         - name: socket-dir
           emptyDir: {
