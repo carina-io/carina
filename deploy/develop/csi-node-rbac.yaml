@@ -36,3 +36,14 @@ roleRef:
   name: carina-csi-node-rbac
   apiGroup: rbac.authorization.k8s.io
 
+---
+apiVersion: storage.k8s.io/v1beta1
+kind: CSIDriver
+metadata:
+  name: carina.storage.io
+spec:
+  attachRequired: true
+  podInfoOnMount: true
+  volumeLifecycleModes:
+    - Persistent
+    - Ephemeral
