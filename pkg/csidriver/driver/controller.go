@@ -270,7 +270,7 @@ func (s controllerService) ControllerGetCapabilities(context.Context, *csi.Contr
 
 func (s controllerService) ControllerExpandVolume(ctx context.Context, req *csi.ControllerExpandVolumeRequest) (*csi.ControllerExpandVolumeResponse, error) {
 	volumeID := req.GetVolumeId()
-	log.Infof("ControllerExpandVolume called volumeID %s required %s limit %s num_secrets %d", volumeID, req.GetCapacityRange().GetRequiredBytes(),
+	log.Infof("ControllerExpandVolume called volumeID %s required %d limit %d num_secrets %d", volumeID, req.GetCapacityRange().GetRequiredBytes(),
 		req.GetCapacityRange().GetLimitBytes(), len(req.GetSecrets()))
 
 	if len(volumeID) == 0 {
@@ -320,7 +320,7 @@ func (s controllerService) ControllerExpandVolume(ctx context.Context, req *csi.
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 
-	if capacity < (requestGb<<30 - currentGb<<30) {
+	if capacity < (requestGb - currentGb) {
 		return nil, status.Error(codes.Internal, "not enough space")
 	}
 

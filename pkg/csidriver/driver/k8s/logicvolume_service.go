@@ -188,6 +188,7 @@ func (s *LogicVolumeService) ExpandVolume(ctx context.Context, volumeID string, 
 		}
 
 		if changedLV.Status.Code != codes.OK {
+			log.Infof("volume expand success %s", volumeID)
 			return status.Error(changedLV.Status.Code, changedLV.Status.Message)
 		}
 
