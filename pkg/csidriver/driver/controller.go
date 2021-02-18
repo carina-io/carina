@@ -90,9 +90,6 @@ func (s controllerService) CreateVolume(ctx context.Context, req *csi.CreateVolu
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
-	if requestGb < utils.MinRequestSizeGb {
-		requestGb = utils.MinRequestSizeGb
-	}
 
 	// process topology
 	var node string
@@ -153,30 +150,8 @@ func (s controllerService) CreateVolume(ctx context.Context, req *csi.CreateVolu
 	}, nil
 }
 
-func convertRequestCapacity(requestBytes, limitBytes int64) (int64, error) {
-	if requestBytes < 0 {
-		return 0, errors.New("required capacity must not be negative")
-	}
-	if limitBytes < 0 {
-		return 0, errors.New("capacity limit must not be negative")
-	}
-
-	if limitBytes != 0 && requestBytes > limitBytes {
-		return 0, fmt.Errorf(
-			"requested capacity exceeds limit capacity: request=%d limit=%d", requestBytes, limitBytes,
-		)
-	}
-
-	if requestBytes == 0 {
-		return 1, nil
-	}
-	return (requestBytes-1)>>30 + 1, nil
-}
-
 func (s controllerService) DeleteVolume(ctx context.Context, req *csi.DeleteVolumeRequest) (*csi.DeleteVolumeResponse, error) {
-	log.Info("DeleteVolume called ",
-		"volume_id ", req.GetVolumeId(),
-		"num_secrets ", len(req.GetSecrets()))
+	log.Info("DeleteVolume called volume_id ", req.GetVolumeId(), " num_secrets ", len(req.GetSecrets()))
 	if len(req.GetVolumeId()) == 0 {
 		return nil, status.Error(codes.InvalidArgument, "volume_id is not provided")
 	}
@@ -209,7 +184,7 @@ func (s controllerService) ValidateVolumeCapabilities(ctx context.Context, req *
 		return nil, status.Error(codes.InvalidArgument, "volume capabilities are empty")
 	}
 
-	_, err := s.lvService.GetVolume(ctx, req.GetVolumeId())
+	_, err := s.lvService.GetLogicVolume(ctx, req.GetVolumeId())
 	if err != nil {
 		if err == k8s.ErrVolumeNotFound {
 			return nil, status.Errorf(codes.NotFound, "LogicalVolume for volume id %s is not found", req.GetVolumeId())
@@ -231,21 +206,20 @@ func (s controllerService) ValidateVolumeCapabilities(ctx context.Context, req *
 func (s controllerService) GetCapacity(ctx context.Context, req *csi.GetCapacityRequest) (*csi.GetCapacityResponse, error) {
 	topology := req.GetAccessibleTopology()
 	capabilities := req.GetVolumeCapabilities()
-	log.Info("GetCapacity called ",
-		"volume_capabilities ", capabilities,
-		"parameters ", req.GetParameters(),
-		"accessible_topology ", topology)
+	log.Info("GetCapacity called volume_capabilities ", capabilities,
+		" parameters ", req.GetParameters(),
+		" accessible_topology ", topology)
 	if capabilities != nil {
 		log.Info("capability argument is not nil, but TopoLVM ignores it")
 	}
 
-	deviceClass := req.GetParameters()[utils.DeviceDiskKey]
+	deviceGroup := req.GetParameters()[utils.DeviceDiskKey]
 
 	var capacity int64
 	switch topology {
 	case nil:
 		var err error
-		capacity, err = s.nodeService.GetTotalCapacity(ctx, deviceClass)
+		capacity, err = s.nodeService.GetTotalCapacity(ctx, deviceGroup)
 		if err != nil {
 			return nil, status.Error(codes.Internal, err.Error())
 		}
@@ -255,7 +229,7 @@ func (s controllerService) GetCapacity(ctx context.Context, req *csi.GetCapacity
 			return nil, status.Errorf(codes.Internal, "%s is not found in req.AccessibleTopology ", utils.TopologyNodeKey)
 		}
 		var err error
-		capacity, err = s.nodeService.GetCapacityByTopologyLabel(ctx, v, deviceClass)
+		capacity, err = s.nodeService.GetCapacityByTopologyLabel(ctx, v, deviceGroup)
 		switch err {
 		case k8s.ErrNodeNotFound:
 			log.Info("target is not found accessible_topology ", req.AccessibleTopology)
@@ -296,17 +270,20 @@ func (s controllerService) ControllerGetCapabilities(context.Context, *csi.Contr
 
 func (s controllerService) ControllerExpandVolume(ctx context.Context, req *csi.ControllerExpandVolumeRequest) (*csi.ControllerExpandVolumeResponse, error) {
 	volumeID := req.GetVolumeId()
-	log.Info("ControllerExpandVolume called",
-		"volumeID", volumeID,
-		"required", req.GetCapacityRange().GetRequiredBytes(),
-		"limit", req.GetCapacityRange().GetLimitBytes(),
-		"num_secrets", len(req.GetSecrets()))
+	log.Infof("ControllerExpandVolume called volumeID %s required %s limit %s num_secrets %d", volumeID, req.GetCapacityRange().GetRequiredBytes(),
+		req.GetCapacityRange().GetLimitBytes(), len(req.GetSecrets()))
 
 	if len(volumeID) == 0 {
 		return nil, status.Error(codes.InvalidArgument, "volume id is nil")
 	}
 
-	lv, err := s.lvService.GetVolume(ctx, volumeID)
+	if acquired := s.mutex.TryAcquire(volumeID); !acquired {
+		log.Warnf("an operation with the given Volume ID %s already exists", volumeID)
+		return nil, status.Errorf(codes.Aborted, "an operation with the given Volume ID %s already exists", volumeID)
+	}
+	defer s.mutex.Release(volumeID)
+
+	lv, err := s.lvService.GetLogicVolume(ctx, volumeID)
 	if err != nil {
 		if err == k8s.ErrVolumeNotFound {
 			return nil, status.Errorf(codes.NotFound, "LogicalVolume for volume id %s is not found", volumeID)
@@ -322,7 +299,7 @@ func (s controllerService) ControllerExpandVolume(ctx context.Context, req *csi.
 	currentSize := lv.Status.CurrentSize
 	if currentSize == nil {
 		// fill currentGb for old volume created in v0.3.0 or before.
-		err := s.lvService.UpdateCurrentSize(ctx, volumeID, &lv.Spec.Size)
+		err := s.lvService.UpdateLogicVolumeCurrentSize(ctx, volumeID, &lv.Spec.Size)
 		if err != nil {
 			return nil, status.Error(codes.Internal, err.Error())
 		}
@@ -338,7 +315,7 @@ func (s controllerService) ControllerExpandVolume(ctx context.Context, req *csi.
 			NodeExpansionRequired: true,
 		}, nil
 	}
-	capacity, err := s.nodeService.GetCapacityByName(ctx, lv.Spec.NodeName, lv.Spec.DeviceGroup)
+	capacity, err := s.nodeService.GetCapacityByNodeName(ctx, lv.Spec.NodeName, lv.Spec.DeviceGroup)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
@@ -359,4 +336,24 @@ func (s controllerService) ControllerExpandVolume(ctx context.Context, req *csi.
 		CapacityBytes:         requestGb << 30,
 		NodeExpansionRequired: true,
 	}, nil
+}
+
+func convertRequestCapacity(requestBytes, limitBytes int64) (int64, error) {
+	if requestBytes < 0 {
+		return 0, errors.New("required capacity must not be negative")
+	}
+	if limitBytes < 0 {
+		return 0, errors.New("capacity limit must not be negative")
+	}
+
+	if limitBytes != 0 && requestBytes > limitBytes {
+		return 0, fmt.Errorf(
+			"requested capacity exceeds limit capacity: request=%d limit=%d", requestBytes, limitBytes,
+		)
+	}
+
+	if requestBytes == 0 {
+		return utils.MinRequestSizeGb, nil
+	}
+	return (requestBytes-1)>>30 + 1, nil
 }

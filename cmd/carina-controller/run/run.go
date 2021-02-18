@@ -13,6 +13,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
+	"os"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	// +kubebuilder:scaffold:imports
@@ -51,12 +52,16 @@ func subMain() error {
 	//if err != nil {
 	//	return fmt.Errorf("invalid webhook port: %v", err)
 	//}
+	namespace := os.Getenv("NAMESPACE")
+	if namespace == "" {
+		namespace = "default"
+	}
 	mgr, err := ctrl.NewManager(cfg, ctrl.Options{
 		Scheme:                  scheme,
 		MetricsBindAddress:      config.metricsAddr,
-		LeaderElection:          false,
+		LeaderElection:          true,
 		LeaderElectionID:        utils.PluginName + "-carina-controller",
-		LeaderElectionNamespace: "default",
+		LeaderElectionNamespace: namespace,
 		//Host:               hookHost,
 		//Port:               hookPort,
 		//CertDir:            config.certDir,
