@@ -22,6 +22,9 @@ const (
 
 	// TopologyNodeKey is the key of topology that represents node name.
 	TopologyNodeKey = "topology.carina.storage.io/node"
+
+	// DefaultSizeGb is the default size in GiB for  volumes (PVC or inline ephemeral volumes) w/o capacity requests.
+	MinRequestSizeGb = 1
 )
 
 // CapacityKeyPrefix is the key prefix of Node annotation that represents VG free space.
@@ -42,15 +45,3 @@ const PVCFinalizer = "carina.storage.io/pvc"
 // EphemeralVolumeSizeKey is the key used to obtain ephemeral inline volume size
 // from the volume context
 const EphemeralVolumeSizeKey = "carina.storage.io/size"
-
-// DefaultDeviceClassAnnotationName is the part of annotation name for the default device-class.
-const DefaultDeviceClassAnnotationName = "00default"
-
-// DefaultDeviceClassName is the name for the default device-class.
-const DefaultDeviceClassName = ""
-
-// DefaultSizeGb is the default size in GiB for  volumes (PVC or inline ephemeral volumes) w/o capacity requests.
-const DefaultSizeGb = 1
-
-// DefaultSize is DefaultSizeGb in bytes
-const DefaultSize = DefaultSizeGb << 30

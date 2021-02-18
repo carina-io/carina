@@ -54,7 +54,7 @@ func subMain() error {
 	mgr, err := ctrl.NewManager(cfg, ctrl.Options{
 		Scheme:                  scheme,
 		MetricsBindAddress:      config.metricsAddr,
-		LeaderElection:          true,
+		LeaderElection:          false,
 		LeaderElectionID:        utils.PluginName + "-carina-controller",
 		LeaderElectionNamespace: "default",
 		//Host:               hookHost,

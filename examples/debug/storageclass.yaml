@@ -8,7 +8,7 @@ parameters:
   # file system
   carina.storage.io/fs: xfs
   # disk group
-  carina.storage.io/disk: vg-hdd
+  carina.storage.io/disk: carina-vg-hdd
 reclaimPolicy: Delete
 allowVolumeExpansion: true
 # 创建pvc后立即创建pv,WaitForFirstConsumer表示被容器绑定调度后再创建pv

@@ -5,6 +5,7 @@ import (
 	"carina/pkg/csidriver/driver/k8s"
 	"carina/utils"
 	"carina/utils/log"
+	"carina/utils/mutx"
 	"context"
 	"errors"
 	"fmt"
@@ -16,31 +17,38 @@ import (
 
 // NewControllerService returns a new ControllerServer.
 func NewControllerService(lvService *k8s.LogicVolumeService, nodeService *k8s.NodeService) csi.ControllerServer {
-	return &controllerService{lvService: lvService, nodeService: nodeService}
+	return &controllerService{lvService: lvService, nodeService: nodeService, mutex: mutx.NewGlobalLocks()}
 }
 
 type controllerService struct {
 	csi.UnimplementedControllerServer
+	mutex *mutx.GlobalLocks
 
 	lvService   *k8s.LogicVolumeService
 	nodeService *k8s.NodeService
 }
 
 func (s controllerService) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest) (*csi.CreateVolumeResponse, error) {
+
 	capabilities := req.GetVolumeCapabilities()
 	source := req.GetVolumeContentSource()
 	deviceGroup := req.GetParameters()[utils.DeviceDiskKey]
+	name := req.GetName()
+	if name == "" {
+		return nil, status.Error(codes.InvalidArgument, "invalid name")
+	}
+	name = strings.ToLower(name)
 
 	log.Info("CreateVolume called ",
-		"name ", req.GetName(),
-		"device_group ", deviceGroup,
-		"required ", req.GetCapacityRange().GetRequiredBytes(),
-		"limit ", req.GetCapacityRange().GetLimitBytes(),
-		"parameters ", req.GetParameters(),
-		"num_secrets ", len(req.GetSecrets()),
-		"capabilities ", capabilities,
-		"content_source ", source,
-		"accessibility_requirements ", req.GetAccessibilityRequirements().String())
+		" name ", req.GetName(),
+		" device_group ", deviceGroup,
+		" required ", req.GetCapacityRange().GetRequiredBytes(),
+		" limit ", req.GetCapacityRange().GetLimitBytes(),
+		" parameters ", req.GetParameters(),
+		" num_secrets ", len(req.GetSecrets()),
+		" capabilities ", capabilities,
+		" content_source ", source,
+		" accessibility_requirements ", req.GetAccessibilityRequirements().String())
 
 	if source != nil {
 		return nil, status.Error(codes.InvalidArgument, "volume_content_source not supported")
@@ -48,6 +56,12 @@ func (s controllerService) CreateVolume(ctx context.Context, req *csi.CreateVolu
 	if capabilities == nil {
 		return nil, status.Error(codes.InvalidArgument, "no volume capabilities are provided")
 	}
+
+	if acquired := s.mutex.TryAcquire(name); !acquired {
+		log.Warnf("an operation with the given Volume ID %s already exists", name)
+		return nil, status.Errorf(codes.Aborted, "an operation with the given Volume ID %s already exists", name)
+	}
+	defer s.mutex.Release(name)
 
 	// check required volume capabilities
 	for _, capability := range capabilities {
@@ -76,6 +90,9 @@ func (s controllerService) CreateVolume(ctx context.Context, req *csi.CreateVolu
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
+	if requestGb < utils.MinRequestSizeGb {
+		requestGb = utils.MinRequestSizeGb
+	}
 
 	// process topology
 	var node string
@@ -86,15 +103,12 @@ func (s controllerService) CreateVolume(ctx context.Context, req *csi.CreateVolu
 		// - https://github.com/container-storage-interface/spec/blob/release-1.1/spec.md#createvolume
 		// - https://github.com/kubernetes-csi/csi-test/blob/6738ab2206eac88874f0a3ede59b40f680f59f43/pkg/sanity/controller.go#L404-L428
 		log.Info("decide node because accessibility_requirements not found")
-		nodeName, capacity, err := s.nodeService.GetMaxCapacity(ctx, deviceGroup)
+		nodeName, err := s.nodeService.SelectVolumeNode(ctx, requestGb, deviceGroup)
 		if err != nil {
 			return nil, status.Errorf(codes.Internal, "failed to get max capacity node %v", err)
 		}
 		if nodeName == "" {
 			return nil, status.Error(codes.Internal, "can not find any node")
-		}
-		if capacity < (requestGb << 30) {
-			return nil, status.Errorf(codes.Internal, "can not find enough volume space %d", capacity)
 		}
 		node = nodeName
 	} else {
@@ -116,13 +130,6 @@ func (s controllerService) CreateVolume(ctx context.Context, req *csi.CreateVolu
 			return nil, status.Errorf(codes.InvalidArgument, "cannot find key '%s' in accessibility_requirements", utils.TopologyNodeKey)
 		}
 	}
-
-	name := req.GetName()
-	if name == "" {
-		return nil, status.Error(codes.InvalidArgument, "invalid name")
-	}
-
-	name = strings.ToLower(name)
 
 	volumeID, err := s.lvService.CreateVolume(ctx, node, deviceGroup, name, requestGb)
 	if err != nil {

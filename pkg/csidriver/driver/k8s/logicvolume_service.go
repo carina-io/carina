@@ -23,7 +23,7 @@ import (
 // ErrVolumeNotFound represents the specified volume is not found.
 var ErrVolumeNotFound = errors.New("VolumeID is not found")
 
-// LogicVolumeService represents service for LogicalVolume.
+// LogicVolumeService represents service for LogicVolume.
 type LogicVolumeService struct {
 	client.Client
 	mu sync.Mutex
@@ -33,7 +33,7 @@ const (
 	indexFieldVolumeID = "status.volumeID"
 )
 
-// +kubebuilder:rbac:groups=topolvm.cybozu.com,resources=logicalvolumes,verbs=get;list;watch;create;delete
+// +kubebuilder:rbac:groups=topolvm.cybozu.com,resources=LogicVolumes,verbs=get;list;watch;create;delete
 // +kubebuilder:rbac:groups="",resources=nodes,verbs=get;list;watch
 
 // NewLogicVolumeService returns LogicVolumeService.
@@ -52,7 +52,7 @@ func NewLogicVolumeService(mgr manager.Manager) (*LogicVolumeService, error) {
 
 // CreateVolume creates volume
 func (s *LogicVolumeService) CreateVolume(ctx context.Context, node, dc, name string, requestGb int64) (string, error) {
-	log.Info("k8s.CreateVolume called", "name", name, "node", node, "size_gb", requestGb)
+	log.Info("k8s.CreateVolume called name ", name, " node ", node, " size_gb ", requestGb)
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -62,7 +62,8 @@ func (s *LogicVolumeService) CreateVolume(ctx context.Context, node, dc, name st
 			APIVersion: "carina.storage.io/v1",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name: name,
+			Name:      name,
+			Namespace: "default",
 		},
 		Spec: carinav1.LogicVolumeSpec{
 			Name:        name,
@@ -83,19 +84,19 @@ func (s *LogicVolumeService) CreateVolume(ctx context.Context, node, dc, name st
 		if err != nil {
 			return "", err
 		}
-		log.Info("created LogicalVolume CRD", "name", name)
+		log.Info("created LogicVolume CRD name ", name)
 	} else {
 		// LV with same name was found; check compatibility
 		// skip check of capabilities because (1) we allow both of two access types, and (2) we allow only one access mode
 		// for ease of comparison, sizes are compared strictly, not by compatibility of ranges
 		if !existingLV.IsCompatibleWith(lv) {
-			return "", status.Error(codes.AlreadyExists, "Incompatible LogicalVolume already exists")
+			return "", status.Error(codes.AlreadyExists, "Incompatible LogicVolume already exists")
 		}
 		// compatible LV was found
 	}
 
 	for {
-		log.Info("waiting for setting 'status.volumeID'", "name", name)
+		log.Info("waiting for setting 'status.volumeID' name ", name)
 		select {
 		case <-ctx.Done():
 			return "", ctx.Err()
@@ -105,18 +106,18 @@ func (s *LogicVolumeService) CreateVolume(ctx context.Context, node, dc, name st
 		var newLV carinav1.LogicVolume
 		err := s.Get(ctx, client.ObjectKey{Name: name}, &newLV)
 		if err != nil {
-			log.Error(err, "failed to get LogicalVolume", "name", name)
+			log.Error(err, "failed to get LogicVolume name ", name)
 			return "", err
 		}
 		if newLV.Status.VolumeID != "" {
-			log.Info("end k8s.LogicalVolume", "volume_id", newLV.Status.VolumeID)
+			log.Info("end k8s.LogicVolume volume_id ", newLV.Status.VolumeID)
 			return newLV.Status.VolumeID, nil
 		}
 		if newLV.Status.Code != codes.OK {
 			err := s.Delete(ctx, &newLV)
 			if err != nil {
 				// log this error but do not return this error, because newLV.Status.Message is more important
-				log.Error(err, "failed to delete LogicalVolume")
+				log.Error(err, " failed to delete LogicVolume")
 			}
 			return "", status.Error(newLV.Status.Code, newLV.Status.Message)
 		}
@@ -167,7 +168,7 @@ func (s *LogicVolumeService) ExpandVolume(ctx context.Context, volumeID string, 
 		var changedLV carinav1.LogicVolume
 		err := s.Get(ctx, client.ObjectKey{Name: lv.Name}, &changedLV)
 		if err != nil {
-			log.Error(err, "failed to get LogicalVolume", "name", lv.Name)
+			log.Error(err, "failed to get LogicVolume", "name", lv.Name)
 			return err
 		}
 		if changedLV.Status.CurrentSize == nil {
@@ -186,7 +187,7 @@ func (s *LogicVolumeService) ExpandVolume(ctx context.Context, volumeID string, 
 	}
 }
 
-// GetVolume returns LogicalVolume by volume ID.
+// GetVolume returns LogicVolume by volume ID.
 func (s *LogicVolumeService) GetVolume(ctx context.Context, volumeID string) (*carinav1.LogicVolume, error) {
 	lvList := new(carinav1.LogicVolumeList)
 	err := s.List(ctx, lvList, client.MatchingFields{indexFieldVolumeID: volumeID})
@@ -197,12 +198,12 @@ func (s *LogicVolumeService) GetVolume(ctx context.Context, volumeID string) (*c
 	if len(lvList.Items) == 0 {
 		return nil, ErrVolumeNotFound
 	} else if len(lvList.Items) > 1 {
-		return nil, fmt.Errorf("multiple LogicalVolume is found for VolumeID %s", volumeID)
+		return nil, fmt.Errorf("multiple LogicVolume is found for VolumeID %s", volumeID)
 	}
 	return &lvList.Items[0], nil
 }
 
-// UpdateSpecSize updates .Spec.Size of LogicalVolume.
+// UpdateSpecSize updates .Spec.Size of LogicVolume.
 func (s *LogicVolumeService) UpdateSpecSize(ctx context.Context, volumeID string, size *resource.Quantity) error {
 	for {
 		select {
@@ -224,10 +225,10 @@ func (s *LogicVolumeService) UpdateSpecSize(ctx context.Context, volumeID string
 
 		if err := s.Update(ctx, lv); err != nil {
 			if apierrors.IsConflict(err) {
-				log.Info("detect conflict when LogicalVolume spec update", "name", lv.Name)
+				log.Info("detect conflict when LogicVolume spec update", "name", lv.Name)
 				continue
 			}
-			log.Error(err, "failed to update LogicalVolume spec", "name", lv.Name)
+			log.Error(err, "failed to update LogicVolume spec", "name", lv.Name)
 			return err
 		}
 
@@ -235,7 +236,7 @@ func (s *LogicVolumeService) UpdateSpecSize(ctx context.Context, volumeID string
 	}
 }
 
-// UpdateCurrentSize updates .Status.CurrentSize of LogicalVolume.
+// UpdateCurrentSize updates .Status.CurrentSize of LogicVolume.
 func (s *LogicVolumeService) UpdateCurrentSize(ctx context.Context, volumeID string, size *resource.Quantity) error {
 	for {
 		select {
@@ -253,10 +254,10 @@ func (s *LogicVolumeService) UpdateCurrentSize(ctx context.Context, volumeID str
 
 		if err := s.Status().Update(ctx, lv); err != nil {
 			if apierrors.IsConflict(err) {
-				log.Info("detect conflict when LogicalVolume status update", "name", lv.Name)
+				log.Info("detect conflict when LogicVolume status update", "name", lv.Name)
 				continue
 			}
-			log.Error(err, "failed to update LogicalVolume status", "name", lv.Name)
+			log.Error(err, "failed to update LogicVolume status", "name", lv.Name)
 			return err
 		}
 
