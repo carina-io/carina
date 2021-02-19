@@ -1,15 +1,19 @@
 package controllers
 
 import (
+	carinav1 "carina/api/v1"
+	"carina/utils"
 	"carina/utils/log"
 	"context"
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/client-go/util/workqueue"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
+	"time"
 )
 
 // PersistentVolumeClaimReconciler reconciles a PersistentVolumeClaim object
@@ -29,87 +33,46 @@ func (r *PersistentVolumeReconciler) Reconcile(req ctrl.Request) (ctrl.Result, e
 	// your logic here
 	pv := &corev1.PersistentVolume{}
 	err := r.Get(ctx, req.NamespacedName, pv)
-	switch {
-	case err == nil:
-	case apierrors.IsNotFound(err):
-		return ctrl.Result{}, nil
-	default:
+	if err != nil {
+		log.Errorf("get pv info failed %s", req.Name)
 		return ctrl.Result{}, err
 	}
-	log.Info(pv.Spec.HostPath.String())
 
-	//if pv.DeletionTimestamp == nil {
-	//	return ctrl.Result{}, nil
-	//}
-
-	//needFinalize := false
-	//for _, fin := range pvc.Finalizers {
-	//	if fin == utils.PVCFinalizer {
-	//		needFinalize = true
-	//		break
-	//	}
-	//}
-	//if !needFinalize {
-	//	return ctrl.Result{}, nil
-	//}
-	//
-	//// Requeue until other finalizers complete their jobs.
-	//if len(pvc.Finalizers) != 1 {
-	//	return ctrl.Result{
-	//		Requeue:      true,
-	//		RequeueAfter: 10 * time.Second,
-	//	}, nil
-	//}
-	//
-	//pvc.Finalizers = nil
-	//if err := r.Update(ctx, pvc); err != nil {
-	//	log.Error(err, "failed to remove finalizer", "name", pvc.Name)
-	//	return ctrl.Result{}, err
-	//}
-	//
-	//// sleep shortly to wait StatefulSet controller notices PVC deletion
-	//time.Sleep(100 * time.Millisecond)
-	//
-	//pods, err := r.getPodsByPVC(ctx, pvc)
-	//if err != nil {
-	//	log.Error(err, "unable to fetch PodList for a PVC", "pvc", pvc.Name, "namespace", pvc.Namespace)
-	//	return ctrl.Result{}, err
-	//}
-	//for _, pod := range pods {
-	//	err := r.Delete(ctx, &pod, client.GracePeriodSeconds(1))
-	//	if err != nil {
-	//		log.Error(err, "unable to delete Pod", "name", pod.Name, "namespace", pod.Namespace)
-	//		return ctrl.Result{}, err
-	//	}
-	//	log.Info("deleted Pod", "name", pod.Name, "namespace", pod.Namespace)
-	//}
-
-	return ctrl.Result{}, nil
-}
-
-func (r *PersistentVolumeReconciler) getPodsByPVC(ctx context.Context, pvc *corev1.PersistentVolumeClaim) ([]corev1.Pod, error) {
-	var pods corev1.PodList
-	// query directly to API server to avoid latency for cache updates
-	err := r.APIReader.List(ctx, &pods, client.InNamespace(pvc.Namespace))
-	if err != nil {
-		return nil, err
+	if pv.Spec.CSI.Driver != utils.CSIPluginName {
+		return ctrl.Result{}, nil
 	}
 
-	var result []corev1.Pod
-OUTER:
-	for _, pod := range pods.Items {
-		for _, volume := range pod.Spec.Volumes {
-			if volume.PersistentVolumeClaim == nil {
-				continue
-			}
-			if volume.PersistentVolumeClaim.ClaimName == pvc.Name {
-				result = append(result, pod)
-				continue OUTER
-			}
+	if pv.Spec.NodeAffinity == nil {
+		lv := &carinav1.LogicVolume{}
+		err = r.Get(ctx, client.ObjectKey{Namespace: utils.LogicVolumeNamespace, Name: pv.Name}, lv)
+		if err != nil {
+			log.Errorf("get lv failed %s %s", pv.Name, err.Error())
+			return ctrl.Result{}, err
+		}
+
+		pv.Spec.NodeAffinity = &corev1.VolumeNodeAffinity{
+			Required: &corev1.NodeSelector{
+				NodeSelectorTerms: []corev1.NodeSelectorTerm{
+					{
+						MatchExpressions: []corev1.NodeSelectorRequirement{
+							{
+								Key:      "kubernetes.io/hostname",
+								Operator: corev1.NodeSelectorOpIn,
+								Values:   []string{lv.Spec.NodeName},
+							},
+						},
+					},
+				},
+			},
 		}
 	}
 
-	return result, nil
+	if err := r.Update(ctx, pv); err != nil {
+		log.Errorf("failed to update pv %s", pv.Name)
+		return ctrl.Result{}, err
+	}
+
+	return ctrl.Result{}, nil
 }
 
 // SetupWithManager sets up Reconciler with Manager.
@@ -122,6 +85,9 @@ func (r *PersistentVolumeReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	}
 	return ctrl.NewControllerManagedBy(mgr).
 		WithEventFilter(pred).
-		For(&corev1.PersistentVolumeClaim{}).
+		WithOptions(controller.Options{
+			RateLimiter: workqueue.NewItemFastSlowRateLimiter(10*time.Second, 60*time.Second, 5),
+		}).
+		For(&corev1.PersistentVolume{}).
 		Complete(r)
 }

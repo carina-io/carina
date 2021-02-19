@@ -21,7 +21,7 @@ type identityService struct {
 func (s identityService) GetPluginInfo(ctx context.Context, req *csi.GetPluginInfoRequest) (*csi.GetPluginInfoResponse, error) {
 	log.Info("GetPluginInfo req ", req.String())
 	return &csi.GetPluginInfoResponse{
-		Name:          utils.PluginName,
+		Name:          utils.CSIPluginName,
 		VendorVersion: utils.Version,
 	}, nil
 }

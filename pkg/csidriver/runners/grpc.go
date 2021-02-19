@@ -1,6 +1,7 @@
 package runners
 
 import (
+	"carina/utils"
 	"net"
 	"os"
 
@@ -25,6 +26,9 @@ func NewGRPCRunner(srv *grpc.Server, sockFile string, leaderElection bool) manag
 
 // Start implements controller-runtime's manager.Runnable.
 func (r gRPCServerRunner) Start(ch <-chan struct{}) error {
+	if !utils.FileExists(r.sockFile) {
+		_ = os.MkdirAll(r.sockFile, os.ModeSocket)
+	}
 	_ = os.Remove(r.sockFile)
 	lis, err := net.Listen("unix", r.sockFile)
 	if err != nil {

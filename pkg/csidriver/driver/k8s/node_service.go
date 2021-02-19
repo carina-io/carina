@@ -16,7 +16,7 @@ import (
 
 type nodeService interface {
 	getNodes(ctx context.Context) (*corev1.NodeList, error)
-	SelectVolumeNode(ctx context.Context, request int64, deviceGroup string) (string, error)
+	SelectVolumeNode(ctx context.Context, request int64, deviceGroup string) (string, string, error)
 	GetCapacityByNodeName(ctx context.Context, nodeName, deviceGroup string) (int64, error)
 	GetTotalCapacity(ctx context.Context, deviceGroup string) (int64, error)
 	GetCapacityByTopologyLabel(ctx context.Context, topology, deviceGroup string) (int64, error)
@@ -44,11 +44,11 @@ func (s NodeService) getNodes(ctx context.Context) (*corev1.NodeList, error) {
 	return nl, nil
 }
 
-func (s NodeService) SelectVolumeNode(ctx context.Context, requestGb int64, deviceGroup string) (string, error) {
-	var nodeName string
+func (s NodeService) SelectVolumeNode(ctx context.Context, requestGb int64, deviceGroup string) (string, string, error) {
+	var nodeName, selectDeviceGroup string
 	nl, err := s.getNodes(ctx)
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
 
 	type paris struct {
@@ -76,7 +76,7 @@ func (s NodeService) SelectVolumeNode(ctx context.Context, requestGb int64, devi
 		}
 	}
 	if len(preselectNode) < 1 {
-		return "", ErrNodeNotFound
+		return "", "", ErrNodeNotFound
 	}
 
 	sort.Slice(preselectNode, func(i, j int) bool {
@@ -85,13 +85,15 @@ func (s NodeService) SelectVolumeNode(ctx context.Context, requestGb int64, devi
 
 	if configruation.SchedulerStrategy() == configruation.SchedulerBinpack {
 		nodeName = strings.Split(preselectNode[0].Key, "-")[0]
+		selectDeviceGroup = strings.Split(preselectNode[0].Key, "/")[1]
 	} else if configruation.SchedulerStrategy() == configruation.SchedulerSpradout {
 		nodeName = strings.Split(preselectNode[len(preselectNode)-1].Key, "-")[0]
+		selectDeviceGroup = strings.Split(preselectNode[0].Key, "/")[1]
 	} else {
-		return "", errors.New(fmt.Sprintf("no support scheduler strategy %s", configruation.SchedulerStrategy()))
+		return "", "", errors.New(fmt.Sprintf("no support scheduler strategy %s", configruation.SchedulerStrategy()))
 	}
 
-	return nodeName, nil
+	return nodeName, selectDeviceGroup, nil
 }
 
 // GetCapacityByNodeName returns VG capacity of specified node by name.

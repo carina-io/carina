@@ -100,12 +100,15 @@ func (s controllerService) CreateVolume(ctx context.Context, req *csi.CreateVolu
 		// - https://github.com/container-storage-interface/spec/blob/release-1.1/spec.md#createvolume
 		// - https://github.com/kubernetes-csi/csi-test/blob/6738ab2206eac88874f0a3ede59b40f680f59f43/pkg/sanity/controller.go#L404-L428
 		log.Info("decide node because accessibility_requirements not found")
-		nodeName, err := s.nodeService.SelectVolumeNode(ctx, requestGb, deviceGroup)
+		nodeName, deviceGroup, err := s.nodeService.SelectVolumeNode(ctx, requestGb, deviceGroup)
 		if err != nil {
 			return nil, status.Errorf(codes.Internal, "failed to get max capacity node %v", err)
 		}
 		if nodeName == "" {
 			return nil, status.Error(codes.Internal, "can not find any node")
+		}
+		if deviceGroup == "" {
+			return nil, status.Error(codes.Internal, "can not find any device group")
 		}
 		node = nodeName
 	} else {
@@ -123,6 +126,10 @@ func (s controllerService) CreateVolume(ctx context.Context, req *csi.CreateVolu
 				}
 			}
 		}
+		// TODO deviceGroup为空，提供选择方法
+		if deviceGroup == "" {
+			return nil, status.Errorf(codes.InvalidArgument, "cannot find device group %s", name)
+		}
 		if node == "" {
 			return nil, status.Errorf(codes.InvalidArgument, "cannot find key '%s' in accessibility_requirements", utils.TopologyNodeKey)
 		}
@@ -137,10 +144,16 @@ func (s controllerService) CreateVolume(ctx context.Context, req *csi.CreateVolu
 		return nil, err
 	}
 
+	volumeContext := req.GetParameters()
+	volumeContext[utils.DeviceDiskKey] = deviceGroup
+	volumeContext["carina.storage.io/path"] = fmt.Sprintf("/dev/%s/volume-%s", deviceGroup, name)
+	volumeContext["carina.storage.io/node"] = node
 	return &csi.CreateVolumeResponse{
 		Volume: &csi.Volume{
 			CapacityBytes: requestGb << 30,
 			VolumeId:      volumeID,
+			VolumeContext: volumeContext,
+			ContentSource: source,
 			AccessibleTopology: []*csi.Topology{
 				{
 					Segments: map[string]string{utils.TopologyNodeKey: node},

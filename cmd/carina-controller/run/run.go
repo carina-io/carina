@@ -60,7 +60,7 @@ func subMain() error {
 		Scheme:                  scheme,
 		MetricsBindAddress:      config.metricsAddr,
 		LeaderElection:          true,
-		LeaderElectionID:        utils.PluginName + "-carina-controller",
+		LeaderElectionID:        utils.CSIPluginName + "-carina-controller",
 		LeaderElectionNamespace: namespace,
 		//Host:               hookHost,
 		//Port:               hookPort,

@@ -6,7 +6,7 @@ metadata:
 provisioner: carina.storage.io
 parameters:
   # file system
-  carina.storage.io/fs: xfs
+  csi.storage.k8s.io/fstype: xfs
   # disk group
   carina.storage.io/disk: carina-vg-hdd
 reclaimPolicy: Delete
