@@ -43,79 +43,79 @@ func NewCarinaDevicePlugin(resourceName string, volumeManager volume.LocalVolume
 	}
 }
 
-func (m *CarinaDevicePlugin) cleanup() {
-	close(m.stop)
-	close(m.update)
-	m.server = nil
-	m.update = nil
-	m.stop = nil
+func (dp *CarinaDevicePlugin) cleanup() {
+	close(dp.stop)
+	close(dp.update)
+	dp.server = nil
+	dp.update = nil
+	dp.stop = nil
 }
 
 // Start starts the gRPC server, registers the device plugin with the Kubelet,
 // and starts the device healthchecks.
-func (m *CarinaDevicePlugin) Start() error {
-	m.server = grpc.NewServer([]grpc.ServerOption{}...)
-	m.stop = make(chan interface{})
+func (dp *CarinaDevicePlugin) Start() error {
+	dp.server = grpc.NewServer([]grpc.ServerOption{}...)
+	dp.stop = make(chan interface{})
 
-	err := m.Serve()
+	err := dp.Serve()
 	if err != nil {
-		log.Errorf("Could not start device plugin for '%s': %s", m.resourceName, err)
-		m.cleanup()
+		log.Errorf("Could not start device plugin for '%s': %s", dp.resourceName, err)
+		dp.cleanup()
 		return err
 	}
-	log.Infof("Starting to serve '%s' on %s", m.resourceName, m.socket)
+	log.Infof("Starting to serve '%s' on %s", dp.resourceName, dp.socket)
 
-	err = m.Register()
+	err = dp.Register()
 	if err != nil {
 		log.Errorf("Could not register device plugin: %s", err)
-		_ = m.Stop()
+		_ = dp.Stop()
 		return err
 	}
-	log.Infof("Registered device plugin for '%s' with Kubelet", m.resourceName)
+	log.Infof("Registered device plugin for '%s' with Kubelet", dp.resourceName)
 
 	return nil
 }
 
 // Stop stops the gRPC server.
-func (m *CarinaDevicePlugin) Stop() error {
-	if m == nil || m.server == nil {
+func (dp *CarinaDevicePlugin) Stop() error {
+	if dp == nil || dp.server == nil {
 		return nil
 	}
-	log.Infof("Stopping to serve '%s' on %s", m.resourceName, m.socket)
-	m.server.Stop()
-	if err := os.Remove(m.socket); err != nil && !os.IsNotExist(err) {
+	log.Infof("Stopping to serve '%s' on %s", dp.resourceName, dp.socket)
+	dp.server.Stop()
+	if err := os.Remove(dp.socket); err != nil && !os.IsNotExist(err) {
 		return err
 	}
-	m.cleanup()
+	dp.cleanup()
 	return nil
 }
 
 // Serve starts the gRPC server of the device plugin.
-func (m *CarinaDevicePlugin) Serve() error {
-	_ = os.Remove(m.socket)
-	sock, err := net.Listen("unix", m.socket)
+func (dp *CarinaDevicePlugin) Serve() error {
+	_ = os.Remove(dp.socket)
+	sock, err := net.Listen("unix", dp.socket)
 	if err != nil {
 		return err
 	}
 
-	v1beta1.RegisterDevicePluginServer(m.server, m)
+	v1beta1.RegisterDevicePluginServer(dp.server, dp)
 
 	go func() {
 		lastCrashTime := time.Now()
 		restartCount := 0
 		for {
-			log.Infof("Starting GRPC server for '%s'", m.resourceName)
-			err := m.server.Serve(sock)
+			log.Infof("Starting GRPC server for '%s'", dp.resourceName)
+			err := dp.server.Serve(sock)
 			if err == nil {
 				break
 			}
-			log.Infof("GRPC server for '%s' crashed with error: %v", m.resourceName, err)
+			log.Infof("GRPC server for '%s' crashed with error: %v", dp.resourceName, err)
 
 			// restart if it has not been too often
 			// i.e. if server has crashed more than 5 times and it didn't last more than one hour each time
 			if restartCount > 5 {
 				// quit
-				log.Fatalf("GRPC server for '%s' has repeatedly crashed recently. Quitting", m.resourceName)
+				log.Fatalf("GRPC server for '%s' has repeatedly crashed recently. Quitting", dp.resourceName)
 			}
 			timeSinceLastCrash := time.Since(lastCrashTime).Seconds()
 			lastCrashTime = time.Now()
@@ -130,7 +130,7 @@ func (m *CarinaDevicePlugin) Serve() error {
 	}()
 
 	// Wait for server to start by launching a blocking connexion
-	conn, err := m.dial(m.socket, 5*time.Second)
+	conn, err := dp.dial(dp.socket, 5*time.Second)
 	if err != nil {
 		return err
 	}
@@ -140,8 +140,8 @@ func (m *CarinaDevicePlugin) Serve() error {
 }
 
 // Register registers the device plugin for the given resourceName with Kubelet.
-func (m *CarinaDevicePlugin) Register() error {
-	conn, err := m.dial(v1beta1.KubeletSocket, 5*time.Second)
+func (dp *CarinaDevicePlugin) Register() error {
+	conn, err := dp.dial(v1beta1.KubeletSocket, 5*time.Second)
 	if err != nil {
 		return err
 	}
@@ -150,8 +150,8 @@ func (m *CarinaDevicePlugin) Register() error {
 	client := v1beta1.NewRegistrationClient(conn)
 	reqt := &v1beta1.RegisterRequest{
 		Version:      v1beta1.Version,
-		Endpoint:     path.Base(m.socket),
-		ResourceName: m.resourceName,
+		Endpoint:     path.Base(dp.socket),
+		ResourceName: dp.resourceName,
 		Options: &v1beta1.DevicePluginOptions{
 			GetPreferredAllocationAvailable: true,
 		},
@@ -165,7 +165,7 @@ func (m *CarinaDevicePlugin) Register() error {
 }
 
 // GetDevicePluginOptions returns the values of the optional settings for this plugin
-func (m *CarinaDevicePlugin) GetDevicePluginOptions(context.Context, *v1beta1.Empty) (*v1beta1.DevicePluginOptions, error) {
+func (dp *CarinaDevicePlugin) GetDevicePluginOptions(context.Context, *v1beta1.Empty) (*v1beta1.DevicePluginOptions, error) {
 	options := &v1beta1.DevicePluginOptions{
 		GetPreferredAllocationAvailable: true,
 	}
@@ -173,9 +173,9 @@ func (m *CarinaDevicePlugin) GetDevicePluginOptions(context.Context, *v1beta1.Em
 }
 
 // ListAndWatch lists devices and update that list according to the health status
-func (m *CarinaDevicePlugin) ListAndWatch(e *v1beta1.Empty, s v1beta1.DevicePlugin_ListAndWatchServer) error {
+func (dp *CarinaDevicePlugin) ListAndWatch(e *v1beta1.Empty, s v1beta1.DevicePlugin_ListAndWatchServer) error {
 
-	request, err := m.getDeviceCapacity()
+	request, err := dp.getDeviceCapacity()
 	if err != nil {
 		log.Errorf("get device capacity error: %s", err.Error())
 		return err
@@ -185,15 +185,15 @@ func (m *CarinaDevicePlugin) ListAndWatch(e *v1beta1.Empty, s v1beta1.DevicePlug
 
 	for {
 		select {
-		case <-m.stop:
+		case <-dp.stop:
 			return nil
-		case <-m.update:
-			request, err := m.getDeviceCapacity()
+		case <-dp.update:
+			request, err := dp.getDeviceCapacity()
 			if err != nil {
 				log.Errorf("get device capacity error: %s", err.Error())
 				return err
 			}
-			log.Infof("update device capacity: %s", m.resourceName)
+			log.Infof("update device capacity: %s", dp.resourceName)
 			_ = s.Send(&v1beta1.ListAndWatchResponse{Devices: request})
 		}
 	}
@@ -242,9 +242,9 @@ func (m *CarinaDevicePlugin) dial(unixSocketPath string, timeout time.Duration) 
 	return c, nil
 }
 
-func (m *CarinaDevicePlugin) getDeviceCapacity() ([]*v1beta1.Device, error) {
+func (dp *CarinaDevicePlugin) getDeviceCapacity() ([]*v1beta1.Device, error) {
 	var pdevs []*v1beta1.Device
-	vgs, err := m.volumeManager.GetCurrentVgStruct()
+	vgs, err := dp.volumeManager.GetCurrentVgStruct()
 	if err != nil {
 		return pdevs, err
 	}
@@ -256,7 +256,7 @@ func (m *CarinaDevicePlugin) getDeviceCapacity() ([]*v1beta1.Device, error) {
 
 	var capacity types.VgGroup
 	for _, v := range vgs {
-		if strings.HasSuffix(m.resourceName, v.VGName) {
+		if strings.HasSuffix(dp.resourceName, v.VGName) {
 			capacity = v
 		}
 	}

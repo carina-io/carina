@@ -487,7 +487,7 @@ func (v *LocalVolumeImplement) NoticeUpdateCapacity(vgName []string) {
 		for k, c := range v.NoticeServerMap {
 			if len(vgName) == 0 {
 				c <- struct{}{}
-			} else if utils.IsContainsString(vgName, k) {
+			} else if utils.ContainsString(vgName, k) {
 				c <- struct{}{}
 			}
 		}

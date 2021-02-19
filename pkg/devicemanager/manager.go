@@ -55,7 +55,7 @@ func NewDeviceManager(nodeName string, stopChan <-chan struct{}) *DeviceManager 
 
 // 定时巡检磁盘，是否有新磁盘加入
 func (dm *DeviceManager) AddAndRemoveDevice() {
-	// 判断配置是否更改，若是没有更改没必要扫盲磁盘
+	// 判断配置是否更改，若是没有更改没必要扫描磁盘
 	noErrorFlag := true
 	currentDiskSelector := configruation.DiskSelector()
 	if utils.SliceEqualSlice(dm.diskSelector, currentDiskSelector) {
@@ -116,7 +116,7 @@ func (dm *DeviceManager) AddAndRemoveDevice() {
 	}
 	time.Sleep(5 * time.Second)
 	// 移出磁盘
-	// 无法判断单独的PV属于carina管理范围，所以不支持将单独对pvremove
+	// 无法判断单独的PV属于carina管理范围，所以不支持单独对pv remove
 	// 若是发生vgreduce成功，但是pvremove失败的情况，并不影响carina工作，也不影响磁盘再次使用
 	ActuallyVg, err = dm.VolumeManager.GetCurrentVgStruct()
 	if err != nil {
@@ -145,7 +145,7 @@ func (dm *DeviceManager) AddAndRemoveDevice() {
 	}
 }
 
-// 查找是否有符合条件对快设备加入
+// 查找是否有符合条件的块设备加入
 func (dm *DeviceManager) DiscoverDisk() (map[string][]string, error) {
 	blockClass := map[string][]string{}
 	// 列出所有本地磁盘
@@ -170,7 +170,7 @@ func (dm *DeviceManager) DiscoverDisk() (map[string][]string, error) {
 		return blockClass, err
 	}
 
-	// 过滤出空对块设备
+	// 过滤出空块设备
 	for _, d := range localDisk {
 
 		if strings.Contains(d.Name, types.KEYWORD) {
