@@ -112,6 +112,7 @@ func (s controllerService) CreateVolume(ctx context.Context, req *csi.CreateVolu
 		}
 		node = nodeName
 	} else {
+		// TODO 重写选择方法
 		for _, topo := range requirements.Preferred {
 			if v, ok := topo.GetSegments()[utils.TopologyNodeKey]; ok {
 				node = v

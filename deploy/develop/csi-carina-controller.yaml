@@ -23,7 +23,7 @@ spec:
             - "--timeout=150s"
             - "--leader-election=true"
             - "--retry-interval-start=500ms"
-            - "--feature-gates=Topology=false"
+            - "--feature-gates=Topology=true"
             - "--extra-create-metadata=true"
           env:
             - name: ADDRESS

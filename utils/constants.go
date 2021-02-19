@@ -28,6 +28,9 @@ const (
 	// volume node
 	VolumeDeviceNode = "carina.storage.io/node"
 
+	// Kubernetes label
+	KubernetesHostName = "kubernetes.io/hostname"
+
 	// device plugin
 	DeviceCapacityKeyPrefix = "carina.storage.io/"
 )
