@@ -15,16 +15,18 @@ const (
 
 	// DefaultSizeGb is the default size in GiB for  volumes (PVC or inline ephemeral volumes) w/o capacity requests.
 	MinRequestSizeGb = 1
-	// DeviceDiskKey is the key used in CSI volume create requests to specify a DeviceDiskKey.
-	// carina-vg-ssd carina-vg-hdd
+	// DeviceDiskKey is the key used in CSI volume create requests to specify a DeviceDiskKey support carina-vg-ssd carina-vg-hdd
 	DeviceDiskKey = "carina.storage.io/disk"
-	// Device FileSystem
-	// xfs ext4
+	// k8s default key Device FileSystem eg. xfs ext4
 	DeviceFileSystem = "csi.storage.k8s.io/fstype"
 	// ResizeRequestedAtKey is the key of LogicalVolume that represents the timestamp of the resize request.
 	ResizeRequestedAtKey = "carina.storage.io/resize-requested-at"
 	// TopologyNodeKey is the key of topology that represents node name.
 	TopologyNodeKey = "topology.carina.storage.io/node"
+	// volume path
+	VolumeDevicePath = "carina.storage.io/path"
+	// volume node
+	VolumeDeviceNode = "carina.storage.io/node"
 
 	// device plugin
 	DeviceCapacityKeyPrefix = "carina.storage.io/"

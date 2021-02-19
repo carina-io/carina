@@ -146,8 +146,8 @@ func (s controllerService) CreateVolume(ctx context.Context, req *csi.CreateVolu
 
 	volumeContext := req.GetParameters()
 	volumeContext[utils.DeviceDiskKey] = deviceGroup
-	volumeContext["carina.storage.io/path"] = fmt.Sprintf("/dev/%s/volume-%s", deviceGroup, name)
-	volumeContext["carina.storage.io/node"] = node
+	volumeContext[utils.VolumeDevicePath] = fmt.Sprintf("/dev/%s/volume-%s", deviceGroup, name)
+	volumeContext[utils.VolumeDeviceNode] = node
 	return &csi.CreateVolumeResponse{
 		Volume: &csi.Volume{
 			CapacityBytes: requestGb << 30,
