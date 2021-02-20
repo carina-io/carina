@@ -29,8 +29,8 @@ type LvInfo struct {
 	VGName        string `json:"vgName"`
 	LVPath        string `json:"lvPath"`
 	LVSize        uint64 `json:"lvSize"`
-	LVKernelMajor uint64 `json:"lvKernelMajor"`
-	LVKernelMinor uint64 `json:"lvKernelMinor"`
+	LVKernelMajor uint32 `json:"lvKernelMajor"`
+	LVKernelMinor uint32 `json:"lvKernelMinor"`
 	Origin        string `json:"origin"`
 	OriginSize    uint64 `json:"originSize"`
 	PoolLV        string `json:"poolLv"`

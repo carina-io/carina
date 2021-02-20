@@ -17,7 +17,7 @@ require (
 	github.com/spf13/viper v1.7.1
 	go.uber.org/zap v1.10.0
 	golang.org/x/net v0.0.0-20200822124328-c89045814202
-	golang.org/x/sys v0.0.0-20210124154548-22da62e12c0c // indirect
+	golang.org/x/sys v0.0.0-20210124154548-22da62e12c0c
 	google.golang.org/grpc v1.32.0
 	google.golang.org/protobuf v1.23.0
 	k8s.io/api v0.18.9

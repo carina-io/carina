@@ -187,7 +187,7 @@ func (s controllerService) ValidateVolumeCapabilities(ctx context.Context, req *
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 
-	// Since TopoLVM does not provide means to pre-provision volumes,
+	// Since Carina does not provide means to pre-provision volumes,
 	// any existing volume is valid.
 	return &csi.ValidateVolumeCapabilitiesResponse{
 		Confirmed: &csi.ValidateVolumeCapabilitiesResponse_Confirmed{
@@ -205,7 +205,7 @@ func (s controllerService) GetCapacity(ctx context.Context, req *csi.GetCapacity
 		" parameters ", req.GetParameters(),
 		" accessible_topology ", topology)
 	if capabilities != nil {
-		log.Info("capability argument is not nil, but TopoLVM ignores it")
+		log.Info("capability argument is not nil, but Carina ignores it")
 	}
 
 	deviceGroup := req.GetParameters()[utils.DeviceDiskKey]
