@@ -59,7 +59,7 @@ func subMain() error {
 	mgr, err := ctrl.NewManager(cfg, ctrl.Options{
 		Scheme:                  scheme,
 		MetricsBindAddress:      config.metricsAddr,
-		LeaderElection:          false,
+		LeaderElection:          true,
 		LeaderElectionID:        utils.CSIPluginName + "-carina-controller",
 		LeaderElectionNamespace: namespace,
 		//Host:               hookHost,
@@ -113,19 +113,6 @@ func subMain() error {
 	if _, err := mgr.GetCache().GetInformer(ctx, &carinav1.LogicVolume{}); err != nil {
 		return err
 	}
-
-	// Add health checker to manager
-	//check := func() error {
-	//	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
-	//	defer cancel()
-	//
-	//	var drv storagev1beta1.CSIDriver
-	//	return mgr.GetAPIReader().Get(ctx, types.NamespacedName{Name: utils.PluginName}, &drv)
-	//}
-	//checker := runners.NewChecker(check, 1*time.Minute)
-	//if err := mgr.Add(checker); err != nil {
-	//	return err
-	//}
 
 	// Add gRPC server to manager.
 	s, err := k8s.NewLogicVolumeService(mgr)
