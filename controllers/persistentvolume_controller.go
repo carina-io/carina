@@ -1,7 +1,6 @@
 package controllers
 
 import (
-	carinav1 "carina/api/v1"
 	"carina/utils"
 	"carina/utils/log"
 	"context"
@@ -38,38 +37,9 @@ func (r *PersistentVolumeReconciler) Reconcile(req ctrl.Request) (ctrl.Result, e
 		return ctrl.Result{}, err
 	}
 
-	if pv.Spec.CSI.Driver != utils.CSIPluginName {
+	if pv.Spec.CSI.Driver == utils.CSIPluginName {
+		log.Infof("find pv create success %s", pv.Name)
 		return ctrl.Result{}, nil
-	}
-
-	if pv.Spec.NodeAffinity == nil {
-		lv := &carinav1.LogicVolume{}
-		err = r.Get(ctx, client.ObjectKey{Namespace: utils.LogicVolumeNamespace, Name: pv.Name}, lv)
-		if err != nil {
-			log.Errorf("get lv failed %s %s", pv.Name, err.Error())
-			return ctrl.Result{}, err
-		}
-
-		pv.Spec.NodeAffinity = &corev1.VolumeNodeAffinity{
-			Required: &corev1.NodeSelector{
-				NodeSelectorTerms: []corev1.NodeSelectorTerm{
-					{
-						MatchExpressions: []corev1.NodeSelectorRequirement{
-							{
-								Key:      "kubernetes.io/hostname",
-								Operator: corev1.NodeSelectorOpIn,
-								Values:   []string{lv.Spec.NodeName},
-							},
-						},
-					},
-				},
-			},
-		}
-	}
-
-	if err := r.Update(ctx, pv); err != nil {
-		log.Errorf("failed to update pv %s", pv.Name)
-		return ctrl.Result{}, err
 	}
 
 	return ctrl.Result{}, nil

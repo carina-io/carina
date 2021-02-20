@@ -19,4 +19,8 @@ allowedTopologies:
       - key: beta.kubernetes.io/os
         values:
           - linux
-
+          - amd64
+      - key: kubernetes.io/hostname
+        values:
+          - 10.20.9.153
+          - 10.20.9.154

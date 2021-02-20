@@ -94,47 +94,23 @@ func (s controllerService) CreateVolume(ctx context.Context, req *csi.CreateVolu
 	// process topology
 	var node string
 	requirements := req.GetAccessibilityRequirements()
-	if requirements == nil {
-		// In CSI spec, controllers are required that they response OK even if accessibility_requirements field is nil.
-		// So we must create volume, and must not return error response in this case.
-		// - https://github.com/container-storage-interface/spec/blob/release-1.1/spec.md#createvolume
-		// - https://github.com/kubernetes-csi/csi-test/blob/6738ab2206eac88874f0a3ede59b40f680f59f43/pkg/sanity/controller.go#L404-L428
-		log.Info("decide node because accessibility_requirements not found")
-		nodeName, deviceGroup, err := s.nodeService.SelectVolumeNode(ctx, requestGb, deviceGroup)
-		if err != nil {
-			return nil, status.Errorf(codes.Internal, "failed to get max capacity node %v", err)
-		}
-		if nodeName == "" {
-			return nil, status.Error(codes.Internal, "can not find any node")
-		}
-		if deviceGroup == "" {
-			return nil, status.Error(codes.Internal, "can not find any device group")
-		}
-		node = nodeName
-	} else {
-		// TODO 重写选择方法
-		for _, topo := range requirements.Preferred {
-			if v, ok := topo.GetSegments()[utils.TopologyNodeKey]; ok {
-				node = v
-				break
-			}
-		}
-		if node == "" {
-			for _, topo := range requirements.Requisite {
-				if v, ok := topo.GetSegments()[utils.TopologyNodeKey]; ok {
-					node = v
-					break
-				}
-			}
-		}
-		// TODO deviceGroup为空，提供选择方法
-		if deviceGroup == "" {
-			return nil, status.Errorf(codes.InvalidArgument, "cannot find device group %s", name)
-		}
-		if node == "" {
-			return nil, status.Errorf(codes.InvalidArgument, "cannot find key '%s' in accessibility_requirements", utils.TopologyNodeKey)
-		}
+
+	// In CSI spec, controllers are required that they response OK even if accessibility_requirements field is nil.
+	// So we must create volume, and must not return error response in this case.
+	// - https://github.com/container-storage-interface/spec/blob/release-1.1/spec.md#createvolume
+	// - https://github.com/kubernetes-csi/csi-test/blob/6738ab2206eac88874f0a3ede59b40f680f59f43/pkg/sanity/controller.go#L404-L428
+	log.Info("decide node because accessibility_requirements not found")
+	nodeName, deviceGroup, segments, err := s.nodeService.SelectVolumeNode(ctx, requestGb, deviceGroup, requirements)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to get max capacity node %v", err)
 	}
+	if nodeName == "" {
+		return nil, status.Error(codes.Internal, "can not find any node")
+	}
+	if deviceGroup == "" {
+		return nil, status.Error(codes.Internal, "can not find any device group")
+	}
+	node = nodeName
 
 	volumeID, err := s.lvService.CreateVolume(ctx, node, deviceGroup, name, requestGb)
 	if err != nil {
@@ -145,10 +121,15 @@ func (s controllerService) CreateVolume(ctx context.Context, req *csi.CreateVolu
 		return nil, err
 	}
 
+	// pv csi VolumeAttributes
 	volumeContext := req.GetParameters()
 	volumeContext[utils.DeviceDiskKey] = deviceGroup
 	volumeContext[utils.VolumeDevicePath] = fmt.Sprintf("/dev/%s/volume-%s", deviceGroup, name)
 	volumeContext[utils.VolumeDeviceNode] = node
+
+	// pv nodeAffinity
+	segments[utils.KubernetesHostName] = node
+
 	return &csi.CreateVolumeResponse{
 		Volume: &csi.Volume{
 			CapacityBytes: requestGb << 30,
@@ -157,7 +138,7 @@ func (s controllerService) CreateVolume(ctx context.Context, req *csi.CreateVolu
 			ContentSource: source,
 			AccessibleTopology: []*csi.Topology{
 				{
-					Segments: map[string]string{utils.TopologyNodeKey: node},
+					Segments: segments,
 				},
 			},
 		},
@@ -238,9 +219,9 @@ func (s controllerService) GetCapacity(ctx context.Context, req *csi.GetCapacity
 			return nil, status.Error(codes.Internal, err.Error())
 		}
 	default:
-		v, ok := topology.Segments[utils.TopologyNodeKey]
+		v, ok := topology.Segments[utils.TopologyZoneKey]
 		if !ok {
-			return nil, status.Errorf(codes.Internal, "%s is not found in req.AccessibleTopology ", utils.TopologyNodeKey)
+			return nil, status.Errorf(codes.Internal, "%s is not found in req.AccessibleTopology ", utils.TopologyZoneKey)
 		}
 		var err error
 		capacity, err = s.nodeService.GetCapacityByTopologyLabel(ctx, v, deviceGroup)
