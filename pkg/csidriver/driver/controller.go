@@ -210,31 +210,10 @@ func (s controllerService) GetCapacity(ctx context.Context, req *csi.GetCapacity
 
 	deviceGroup := req.GetParameters()[utils.DeviceDiskKey]
 
-	var capacity int64
-	switch topology {
-	case nil:
-		var err error
-		capacity, err = s.nodeService.GetTotalCapacity(ctx, deviceGroup)
-		if err != nil {
-			return nil, status.Error(codes.Internal, err.Error())
-		}
-	default:
-		v, ok := topology.Segments[utils.TopologyZoneKey]
-		if !ok {
-			return nil, status.Errorf(codes.Internal, "%s is not found in req.AccessibleTopology ", utils.TopologyZoneKey)
-		}
-		var err error
-		capacity, err = s.nodeService.GetCapacityByTopologyLabel(ctx, v, deviceGroup)
-		switch err {
-		case k8s.ErrNodeNotFound:
-			log.Info("target is not found accessible_topology ", req.AccessibleTopology)
-			return &csi.GetCapacityResponse{AvailableCapacity: 0}, nil
-		case nil:
-		default:
-			return nil, status.Error(codes.Internal, err.Error())
-		}
+	capacity, err := s.nodeService.GetTotalCapacity(ctx, deviceGroup, topology)
+	if err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
 	}
-
 	return &csi.GetCapacityResponse{
 		AvailableCapacity: capacity,
 	}, nil

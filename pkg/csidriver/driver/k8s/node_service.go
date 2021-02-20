@@ -21,8 +21,7 @@ type nodeService interface {
 	// 支持 volume size 及 topology match
 	SelectVolumeNode(ctx context.Context, request int64, deviceGroup string, requirement *csi.TopologyRequirement) (string, string, map[string]string, error)
 	GetCapacityByNodeName(ctx context.Context, nodeName, deviceGroup string) (int64, error)
-	GetTotalCapacity(ctx context.Context, deviceGroup string) (int64, error)
-	GetCapacityByTopologyLabel(ctx context.Context, topology, deviceGroup string) (int64, error)
+	GetTotalCapacity(ctx context.Context, deviceGroup string, topology *csi.Topology) (int64, error)
 }
 
 // ErrNodeNotFound represents the error that node is not found.
@@ -146,7 +145,7 @@ func (s NodeService) GetCapacityByNodeName(ctx context.Context, name, deviceGrou
 }
 
 // GetTotalCapacity returns total VG capacity of all nodes.
-func (s NodeService) GetTotalCapacity(ctx context.Context, deviceGroup string) (int64, error) {
+func (s NodeService) GetTotalCapacity(ctx context.Context, deviceGroup string, topology *csi.Topology) (int64, error) {
 	nl, err := s.getNodes(ctx)
 	if err != nil {
 		return 0, err
@@ -154,36 +153,22 @@ func (s NodeService) GetTotalCapacity(ctx context.Context, deviceGroup string) (
 
 	capacity := int64(0)
 	for _, node := range nl.Items {
+		// topology selector
+		if topology != nil {
+			selector := labels.SelectorFromSet(topology.GetSegments())
+			if !selector.Matches(labels.Set(node.Labels)) {
+				continue
+			}
+		}
+
 		for key, v := range node.Status.Capacity {
-			if deviceGroup == "" || string(key) == deviceGroup || string(key) == utils.DeviceCapacityKeyPrefix+deviceGroup {
+
+			if deviceGroup == "" && strings.HasPrefix(string(key), utils.DeviceCapacityKeyPrefix) {
+				capacity += v.Value()
+			} else if string(key) == deviceGroup || string(key) == utils.DeviceCapacityKeyPrefix+deviceGroup {
 				capacity += v.Value()
 			}
 		}
 	}
 	return capacity, nil
-}
-
-// GetCapacityByTopologyLabel returns VG capacity of specified node by utils's topology label.
-func (s NodeService) GetCapacityByTopologyLabel(ctx context.Context, topology, deviceGroup string) (int64, error) {
-
-	nl, err := s.getNodes(ctx)
-	if err != nil {
-		return 0, err
-	}
-
-	capacity := int64(0)
-	for _, node := range nl.Items {
-		if v, ok := node.Labels[utils.TopologyZoneKey]; ok {
-			if v != topology {
-				continue
-			}
-			for key, v := range node.Status.Allocatable {
-				if string(key) == deviceGroup || string(key) == utils.DeviceCapacityKeyPrefix+deviceGroup {
-					capacity += v.Value()
-				}
-			}
-		}
-	}
-
-	return 0, ErrNodeNotFound
 }
