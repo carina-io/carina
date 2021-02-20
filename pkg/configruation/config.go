@@ -21,8 +21,8 @@ const (
 // 这个configMap理论上应该由Node Server更新，为了实现简单改为有Control Server更新，遍历所有Node信息更新configmap
 // 暂定这些参数字段，不排除会增加一些需要暴露的数据
 type ConfigProvider struct {
-	NodeIp string   `json:"nodeip"`
-	Vg     []string `json:"vg"`
+	NodeName string   `json:"nodeName"`
+	Vg       []string `json:"vg"`
 }
 
 var GlobalConfig *viper.Viper
@@ -85,7 +85,7 @@ func DiskGroupPolicy() string {
 // pv调度策略binpac/spradout，默认为binpac
 func SchedulerStrategy() string {
 	schedulerStrategy := GlobalConfig.GetString("schedulerStrategy")
-	if utils.IsContainsString([]string{SchedulerBinpack, SchedulerSpradout}, strings.ToLower(schedulerStrategy)) {
+	if utils.ContainsString([]string{SchedulerBinpack, SchedulerSpradout}, strings.ToLower(schedulerStrategy)) {
 		schedulerStrategy = strings.ToLower(schedulerStrategy)
 	} else {
 		schedulerStrategy = SchedulerBinpack

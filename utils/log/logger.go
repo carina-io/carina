@@ -24,8 +24,8 @@ var sugareLogger *zap.SugaredLogger
 func init() {
 	hook := lumberjack.Logger{
 		Filename:   logPath, // 日志文件路径
-		MaxSize:    50,      // megabytes
-		MaxBackups: 10,      // 最多保留300个备份
+		MaxSize:    30,      // megabytes
+		MaxBackups: 3,       // 最多保留300个备份
 		Compress:   false,   // 是否压缩 disabled by default
 	}
 

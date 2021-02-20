@@ -2,7 +2,7 @@ package utils
 
 import "os"
 
-func IsContainsString(slice []string, s string) bool {
+func ContainsString(slice []string, s string) bool {
 	for _, item := range slice {
 		if item == s {
 			return true
@@ -24,7 +24,7 @@ func SliceRemoveString(slice []string, s string) (result []string) {
 func SliceSubSlice(src []string, dst []string) []string {
 	result := []string{}
 	for _, item := range src {
-		if !IsContainsString(dst, item) {
+		if !ContainsString(dst, item) {
 			result = append(result, item)
 		}
 	}
@@ -53,7 +53,7 @@ func SliceEqualSlice(src, dst []string) bool {
 	}
 
 	for _, s := range src {
-		if !IsContainsString(dst, s) {
+		if !ContainsString(dst, s) {
 			return false
 		}
 	}

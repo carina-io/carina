@@ -81,7 +81,7 @@ func (r *LogicVolumeReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error)
 	}
 
 	if lv.ObjectMeta.DeletionTimestamp == nil {
-		if !utils.IsContainsString(lv.Finalizers, utils.LogicVolumeFinalizer) {
+		if !utils.ContainsString(lv.Finalizers, utils.LogicVolumeFinalizer) {
 			lv2 := lv.DeepCopy()
 			lv2.Finalizers = append(lv2.Finalizers, utils.LogicVolumeFinalizer)
 			patch := client.MergeFrom(lv)
@@ -107,7 +107,7 @@ func (r *LogicVolumeReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error)
 	}
 
 	// finalization
-	if !utils.IsContainsString(lv.Finalizers, utils.LogicVolumeFinalizer) {
+	if !utils.ContainsString(lv.Finalizers, utils.LogicVolumeFinalizer) {
 		// Our finalizer has finished, so the reconciler can do nothing.
 		return ctrl.Result{}, nil
 	}
