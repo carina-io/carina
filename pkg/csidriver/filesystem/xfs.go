@@ -1,10 +1,9 @@
 package filesystem
 
 import (
+	"carina/utils/log"
 	"fmt"
 	"os/exec"
-
-	ctrl "sigs.k8s.io/controller-runtime"
 )
 
 const (
@@ -13,8 +12,6 @@ const (
 	cmdXFSGrowFS = "/usr/sbin/xfs_growfs"
 	xfsMountOpts = "wsync"
 )
-
-var xfsLogger = ctrl.Log.WithName("filesystem").WithName("xfs")
 
 type xfs struct {
 	device string
@@ -44,12 +41,12 @@ func (fs xfs) Mkfs() error {
 
 	out, err := exec.Command(cmdMkfsXfs, "-f", "-q", fs.device).CombinedOutput()
 	if err != nil {
-		xfsLogger.Error(err, "xfs: failed to create",
-			"device", fs.device,
-			"output", string(out))
+		log.Error(err, "xfs: failed to create",
+			" device ", fs.device,
+			" output ", string(out))
 	}
 
-	xfsLogger.Info("xfs: created", "device", fs.device)
+	log.Info("xfs: created device ", fs.device)
 	return nil
 }
 
@@ -65,10 +62,10 @@ func (fs xfs) Resize(target string) error {
 	out, err := exec.Command(cmdXFSGrowFS, target).CombinedOutput()
 	if err != nil {
 		out := string(out)
-		xfsLogger.Error(err, "failed to resize xfs filesystem",
-			"device", fs.device,
-			"directory", target,
-			"output", out)
+		log.Error(err, "failed to resize xfs filesystem",
+			" device ", fs.device,
+			" directory ", target,
+			" output ", out)
 		return fmt.Errorf("failed to resize xfs filesystem: device=%s, directory=%s, err=%v, output=%s",
 			fs.device, target, err, out)
 	}

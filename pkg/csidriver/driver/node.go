@@ -9,6 +9,7 @@ import (
 	"carina/utils"
 	"carina/utils/log"
 	"context"
+	"errors"
 	"io"
 	"os"
 	"path/filepath"
@@ -77,48 +78,23 @@ func (s *nodeService) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	if !(isBlockVol || isFsVol) {
 		return nil, status.Errorf(codes.InvalidArgument, "no supported volume capability: %v", req.GetVolumeCapability())
 	}
-	isInlineEphemeralVolumeReq := volumeContext[ephVolConKey] == "true"
+	//isInlineEphemeralVolumeReq := volumeContext[ephVolConKey] == "true"
 
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	var lv *types.LvInfo
 	var err error
-	if isInlineEphemeralVolumeReq {
-		lv, err = s.getLvFromContext("carina-vg-hdd", volumeID)
-		if err != nil {
-			return nil, err
-		}
-		// Need to check if the LV already exists so this block is idempotent.
-		//if lv == nil {
-		//	var reqGb uint64 = utils.MinRequestSizeGb
-		//	if sizeStr, ok := volumeContext["EphemeralVolumeSizeKey"]; ok {
-		//		var err error
-		//		reqGb, err = strconv.ParseUint(sizeStr, 10, 64)
-		//		if err != nil {
-		//			return nil, status.Errorf(codes.InvalidArgument, "Invalid size: %s", sizeStr)
-		//		}
-		//	}
-		//	log.Info("Processing ephemeral inline volume request reqGb ", reqGb)
-		//	_, err := s.volumeManager.CreateVolume()
-		//	if err != nil {
-		//		return nil, status.Errorf(codes.Internal, "failed to create LV %v", err)
-		//	}
-		//	lv, err = s.getLvFromContext("carina-vg-hdd", volumeID)
-		//	if err != nil {
-		//		return nil, err
-		//	}
-		//}
-	} else {
-		lvr, err := s.k8sLVService.GetLogicVolume(ctx, volumeID)
-		if err != nil {
-			return nil, err
-		}
-		lv, err = s.getLvFromContext(lvr.Spec.DeviceGroup, volumeID)
-		if err != nil {
-			return nil, err
-		}
+
+	lvr, err := s.k8sLVService.GetLogicVolume(ctx, volumeID)
+	if err != nil {
+		return nil, err
 	}
+	lv, err = s.getLvFromContext(lvr.Spec.DeviceGroup, volumeID)
+	if err != nil {
+		return nil, err
+	}
+
 	if lv == nil {
 		return nil, status.Errorf(codes.NotFound, "failed to find LV: %s", volumeID)
 	}
@@ -130,17 +106,37 @@ func (s *nodeService) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	}
 
 	if err != nil {
-		//if isInlineEphemeralVolumeReq {
-		//	// In the case of an inline ephemeral volume, there is no
-		//	// guarantee that NodePublishVolume will be called again, so if
-		//	// anything fails after the volume is created we need to attempt to
-		//	// clean up the LVM so we don't leak storage space.
-		//	if _, err = s.volumeManager.DeleteVolume(); err != nil {
-		//		return nil, status.Errorf(codes.Internal, "failed to remove LV for %s: %v", volumeID, err)
-		//	}
-		//}
 		return nil, err
 	}
+	return &csi.NodePublishVolumeResponse{}, nil
+}
+
+func (s *nodeService) nodePublishBlockVolume(req *csi.NodePublishVolumeRequest, lv *types.LvInfo) (*csi.NodePublishVolumeResponse, error) {
+	// Find lv and create a block device with it
+	var stat unix.Stat_t
+	target := req.GetTargetPath()
+	err := filesystem.Stat(target, &stat)
+	switch err {
+	case nil:
+		if stat.Rdev == unix.Mkdev(lv.LVKernelMajor, lv.LVKernelMinor) && stat.Mode&devicePermission == devicePermission {
+			return &csi.NodePublishVolumeResponse{}, nil
+		}
+		if err := os.Remove(target); err != nil {
+			return nil, status.Errorf(codes.Internal, "failed to remove %s", target)
+		}
+	case unix.ENOENT:
+	default:
+		return nil, status.Errorf(codes.Internal, "failed to stat: %v", err)
+	}
+
+	devno := unix.Mkdev(lv.LVKernelMajor, lv.LVKernelMinor)
+	if err := filesystem.Mknod(target, devicePermission, int(devno)); err != nil {
+		return nil, status.Errorf(codes.Internal, "mknod failed for %s: error=%v", req.GetTargetPath(), err)
+	}
+
+	log.Info("NodePublishVolume(block) succeeded",
+		" volume_id ", req.GetVolumeId(),
+		" target_path ", req.GetTargetPath())
 	return &csi.NodePublishVolumeResponse{}, nil
 }
 
@@ -216,35 +212,6 @@ func (s *nodeService) createDeviceIfNeeded(device string, lv *types.LvInfo) erro
 		return status.Errorf(codes.Internal, "failed to stat %s: error=%v", device, err)
 	}
 	return nil
-}
-
-func (s *nodeService) nodePublishBlockVolume(req *csi.NodePublishVolumeRequest, lv *types.LvInfo) (*csi.NodePublishVolumeResponse, error) {
-	// Find lv and create a block device with it
-	var stat unix.Stat_t
-	target := req.GetTargetPath()
-	err := filesystem.Stat(target, &stat)
-	switch err {
-	case nil:
-		if stat.Rdev == unix.Mkdev(lv.LVKernelMajor, lv.LVKernelMinor) && stat.Mode&devicePermission == devicePermission {
-			return &csi.NodePublishVolumeResponse{}, nil
-		}
-		if err := os.Remove(target); err != nil {
-			return nil, status.Errorf(codes.Internal, "failed to remove %s", target)
-		}
-	case unix.ENOENT:
-	default:
-		return nil, status.Errorf(codes.Internal, "failed to stat: %v", err)
-	}
-
-	devno := unix.Mkdev(lv.LVKernelMajor, lv.LVKernelMinor)
-	if err := filesystem.Mknod(target, devicePermission, int(devno)); err != nil {
-		return nil, status.Errorf(codes.Internal, "mknod failed for %s: error=%v", req.GetTargetPath(), err)
-	}
-
-	log.Info("NodePublishVolume(block) succeeded",
-		" volume_id ", req.GetVolumeId(),
-		" target_path ", req.GetTargetPath())
-	return &csi.NodePublishVolumeResponse{}, nil
 }
 
 func (s *nodeService) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpublishVolumeRequest) (*csi.NodeUnpublishVolumeResponse, error) {
@@ -519,20 +486,17 @@ func (s *nodeService) NodeGetInfo(ctx context.Context, req *csi.NodeGetInfoReque
 	}, nil
 }
 
-func (s *nodeService) findVolumeByID(lvs []types.LvInfo, name string) *types.LvInfo {
-	for _, v := range lvs {
-		if v.LVName == name {
-			return &v
-		}
-	}
-	return nil
-}
-
 func (s *nodeService) getLvFromContext(deviceGroup, volumeID string) (*types.LvInfo, error) {
 	lvs, err := s.volumeManager.VolumeList(volumeID, deviceGroup)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "failed to list lv :%v", err)
 	}
 
-	return s.findVolumeByID(lvs, volumeID), nil
+	for _, v := range lvs {
+		if v.LVName == volumeID {
+			return &v, nil
+		}
+	}
+
+	return nil, errors.New("not found")
 }
