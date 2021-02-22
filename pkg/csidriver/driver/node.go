@@ -509,7 +509,8 @@ func (s *nodeService) NodeGetCapabilities(context.Context, *csi.NodeGetCapabilit
 
 func (s *nodeService) NodeGetInfo(ctx context.Context, req *csi.NodeGetInfoRequest) (*csi.NodeGetInfoResponse, error) {
 	return &csi.NodeGetInfoResponse{
-		NodeId: s.nodeName,
+		NodeId:            s.nodeName,
+		MaxVolumesPerNode: 1000,
 		AccessibleTopology: &csi.Topology{
 			Segments: map[string]string{
 				utils.TopologyZoneKey: s.nodeName,

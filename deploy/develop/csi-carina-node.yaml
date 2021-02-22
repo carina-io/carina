@@ -48,6 +48,7 @@ spec:
           image: docker.hub.com/carina/carina:latest
           command: ["carina-node"]
           args:
+            - "--csi-address=$(ADDRESS)"
             - "--development=true"
           env:
             - name: POD_IP
@@ -58,7 +59,7 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: spec.nodeName
-            - name: CSI_ENDPOINT
+            - name: ADDRESS
               value: /csi/csi.sock
           imagePullPolicy: "Always"
           volumeMounts:

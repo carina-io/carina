@@ -8,7 +8,6 @@ import (
 	"carina/pkg/csidriver/driver/k8s"
 	"carina/pkg/csidriver/runners"
 	deviceManager "carina/pkg/devicemanager"
-	"carina/pkg/deviceplugin"
 	"errors"
 	"google.golang.org/grpc"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -106,7 +105,7 @@ func subMain() error {
 	// 启动lvm卷健康检查
 	dm.LvmHealthCheck()
 	// 启动设备插件
-	go deviceplugin.Run(dm.VolumeManager, stopChan)
+	//go deviceplugin.Run(dm.VolumeManager, stopChan)
 	setupLog.Info("starting manager")
 	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
 		setupLog.Error(err, "problem running manager")
