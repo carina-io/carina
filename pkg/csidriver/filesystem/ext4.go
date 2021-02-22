@@ -1,7 +1,6 @@
 package filesystem
 
 import (
-	"carina/utils/exec"
 	"carina/utils/log"
 	"fmt"
 )
@@ -14,18 +13,17 @@ const (
 )
 
 type ext4 struct {
-	device   string
-	executor exec.Executor
+	device string
 }
 
 func init() {
 	fsTypeMap["ext4"] = func(device string) Filesystem {
-		return ext4{device: device, executor: &exec.CommandExecutor{}}
+		return ext4{device: device}
 	}
 }
 
 func (fs ext4) Exists() bool {
-	return fs.executor.ExecuteCommand(cmdDumpe2fs, "-h", fs.device) == nil
+	return executor.ExecuteCommand(cmdDumpe2fs, "-h", fs.device) == nil
 }
 
 func (fs ext4) Mkfs() error {
@@ -36,11 +34,11 @@ func (fs ext4) Mkfs() error {
 	if fsType != "" {
 		return ErrFilesystemExists
 	}
-	if err := fs.executor.ExecuteCommand(cmdDumpe2fs, "-h", fs.device); err == nil {
+	if err := executor.ExecuteCommand(cmdDumpe2fs, "-h", fs.device); err == nil {
 		return ErrFilesystemExists
 	}
 
-	out, err := fs.executor.ExecuteCommandWithCombinedOutput(cmdMkfsExt4, "-F", "-q", "-m", "0", fs.device)
+	out, err := executor.ExecuteCommandWithCombinedOutput(cmdMkfsExt4, "-F", "-q", "-m", "0", fs.device)
 	if err != nil {
 		log.Error(err, "ext4: failed to create",
 			" device ", fs.device,
@@ -60,7 +58,7 @@ func (fs ext4) Unmount(target string) error {
 }
 
 func (fs ext4) Resize(_ string) error {
-	out, err := fs.executor.ExecuteCommandWithCombinedOutput(cmdResize2fs, fs.device)
+	out, err := executor.ExecuteCommandWithCombinedOutput(cmdResize2fs, fs.device)
 	if err != nil {
 		log.Error(err, "failed to resize ext4 filesystem",
 			" device ", fs.device,

@@ -1,6 +1,7 @@
 package filesystem
 
 import (
+	"carina/utils/exec"
 	"errors"
 	"path/filepath"
 
@@ -18,6 +19,9 @@ var (
 	ErrFilesystemExists = errors.New("filesystem exists")
 
 	fsTypeMap = make(map[string]func(device string) Filesystem)
+
+	// public executor
+	executor = &exec.CommandExecutor{}
 )
 
 // Filesystem represents the operations of a filesystem in a block device.
