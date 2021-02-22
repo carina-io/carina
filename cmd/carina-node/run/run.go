@@ -8,6 +8,7 @@ import (
 	"carina/pkg/csidriver/driver/k8s"
 	"carina/pkg/csidriver/runners"
 	deviceManager "carina/pkg/devicemanager"
+	"carina/pkg/deviceplugin"
 	"errors"
 	"google.golang.org/grpc"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -71,12 +72,6 @@ func subMain() error {
 	}
 	// +kubebuilder:scaffold:builder
 
-	// Add health checker to manager
-	//checker := runners.NewChecker(checkFunc(conn, mgr.GetAPIReader()), 1*time.Minute)
-	//if err := mgr.Add(checker); err != nil {
-	//	return err
-	//}
-
 	// Add metrics exporter to manager.
 	// Note that grpc.ClientConn can be shared with multiple stubs/services.
 	// https://github.com/grpc/grpc-go/tree/master/examples/features/multiplex
@@ -105,7 +100,7 @@ func subMain() error {
 	// 启动lvm卷健康检查
 	dm.LvmHealthCheck()
 	// 启动设备插件
-	//go deviceplugin.Run(dm.VolumeManager, stopChan)
+	go deviceplugin.Run(dm.VolumeManager, stopChan)
 	setupLog.Info("starting manager")
 	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
 		setupLog.Error(err, "problem running manager")

@@ -1,9 +1,9 @@
 package filesystem
 
 import (
+	"carina/utils/exec"
 	"carina/utils/log"
 	"fmt"
-	"os/exec"
 )
 
 const (
@@ -14,17 +14,18 @@ const (
 )
 
 type xfs struct {
-	device string
+	device   string
+	executor exec.Executor
 }
 
 func init() {
 	fsTypeMap["xfs"] = func(device string) Filesystem {
-		return xfs{device}
+		return xfs{device: device, executor: &exec.CommandExecutor{}}
 	}
 }
 
 func (fs xfs) Exists() bool {
-	return exec.Command(cmdXFSAdmin, "-l", fs.device).Run() == nil
+	return fs.executor.ExecuteCommand(cmdXFSAdmin, "-l", fs.device) == nil
 }
 
 func (fs xfs) Mkfs() error {
@@ -35,11 +36,12 @@ func (fs xfs) Mkfs() error {
 	if fsType != "" {
 		return ErrFilesystemExists
 	}
-	if err := exec.Command(cmdXFSAdmin, "-l", fs.device).Run(); err == nil {
+
+	if err := fs.executor.ExecuteCommand(cmdXFSAdmin, "-l", fs.device); err == nil {
 		return ErrFilesystemExists
 	}
 
-	out, err := exec.Command(cmdMkfsXfs, "-f", "-q", fs.device).CombinedOutput()
+	out, err := fs.executor.ExecuteCommandWithCombinedOutput(cmdMkfsXfs, "-f", "-q", fs.device)
 	if err != nil {
 		log.Error(err, "xfs: failed to create",
 			" device ", fs.device,
@@ -59,7 +61,7 @@ func (fs xfs) Unmount(target string) error {
 }
 
 func (fs xfs) Resize(target string) error {
-	out, err := exec.Command(cmdXFSGrowFS, target).CombinedOutput()
+	out, err := fs.executor.ExecuteCommandWithCombinedOutput(cmdXFSGrowFS, target)
 	if err != nil {
 		out := string(out)
 		log.Error(err, "failed to resize xfs filesystem",
