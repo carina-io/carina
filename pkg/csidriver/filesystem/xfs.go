@@ -63,7 +63,6 @@ func (fs xfs) Unmount(target string) error {
 func (fs xfs) Resize(target string) error {
 	out, err := fs.executor.ExecuteCommandWithCombinedOutput(cmdXFSGrowFS, target)
 	if err != nil {
-		out := string(out)
 		log.Error(err, "failed to resize xfs filesystem",
 			" device ", fs.device,
 			" directory ", target,

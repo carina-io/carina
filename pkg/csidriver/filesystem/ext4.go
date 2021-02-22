@@ -62,7 +62,6 @@ func (fs ext4) Unmount(target string) error {
 func (fs ext4) Resize(_ string) error {
 	out, err := fs.executor.ExecuteCommandWithCombinedOutput(cmdResize2fs, fs.device)
 	if err != nil {
-		out := string(out)
 		log.Error(err, "failed to resize ext4 filesystem",
 			" device ", fs.device,
 			" output ", out)

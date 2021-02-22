@@ -13,7 +13,6 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"strings"
 	"sync"
 
 	"golang.org/x/sys/unix"
@@ -24,13 +23,11 @@ import (
 const (
 	// DeviceDirectory is a directory where Node service creates device files.
 	DeviceDirectory = "/dev/carina"
-
-	mkfsCmd          = "/sbin/mkfs"
-	mountCmd         = "/bin/mount"
-	mountpointCmd    = "/bin/mountpoint"
-	umountCmd        = "/bin/umount"
+	//mkfsCmd          = "/sbin/mkfs"
+	//mountCmd         = "/bin/mount"
+	//mountpointCmd    = "/bin/mountpoint"
+	//umountCmd        = "/bin/umount"
 	devicePermission = 0600 | unix.S_IFBLK
-	ephVolConKey     = "csi.storage.k8s.io/ephemeral"
 )
 
 // NewNodeService returns a new NodeServer.
@@ -248,25 +245,9 @@ func (s *nodeService) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 		if err != nil {
 			return unpublishResp, err
 		}
-		volume, err := s.getLvFromContext("carina-vg-hdd", volID)
-		if err != nil {
-			return nil, err
-		}
-		if volume != nil && s.isEphemeralVolume(volume) {
-			//if _, err = s.lvService.RemoveLV(ctx, &proto.RemoveLVRequest{Name: volID, DeviceClass: DefaultDeviceClassName}); err != nil {
-			//	return nil, status.Errorf(codes.Internal, "failed to remove LV for %s: %v", volID, err)
-			//}
-		}
 		return &csi.NodeUnpublishVolumeResponse{}, nil
 	}
 	return s.nodeUnpublishBlockVolume(req)
-}
-
-func (s *nodeService) isEphemeralVolume(volume *types.LvInfo) bool {
-	if strings.Contains(volume.LVTags, "ephemeral") {
-		return true
-	}
-	return false
 }
 
 func (s *nodeService) nodeUnpublishFilesystemVolume(req *csi.NodeUnpublishVolumeRequest, device string) (*csi.NodeUnpublishVolumeResponse, error) {
@@ -445,10 +426,6 @@ func (s *nodeService) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandV
 		" target_path ", vpath,
 	)
 
-	// `capacity_bytes` in NodeExpandVolumeResponse is defined as OPTIONAL.
-	// If this field needs to be filled, the value should be equal to `.status.currentSize` of the corresponding
-	// `LogicalVolume`, but currently the node plugin does not have an access to the resource.
-	// In addtion to this, Kubernetes does not care if the field is blank or not, so leave it blank.
 	return &csi.NodeExpandVolumeResponse{}, nil
 }
 
