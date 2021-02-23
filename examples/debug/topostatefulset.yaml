@@ -17,12 +17,12 @@ spec:
       affinity:
         nodeAffinity:
           requiredDuringSchedulingIgnoredDuringExecution:
-            - nodeSelectorTerms:
-                matchExpressions:
+            nodeSelectorTerms:
+              - matchExpressions:
                   - key: topology.carina.storage.io/zone
                     operator: In
                     values:
-                      - 10.20.9.153
+                      - local
         podAntiAffinity:
           requiredDuringSchedulingIgnoredDuringExecution:
             - labelSelector:
