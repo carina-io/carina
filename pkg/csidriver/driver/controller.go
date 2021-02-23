@@ -93,24 +93,42 @@ func (s controllerService) CreateVolume(ctx context.Context, req *csi.CreateVolu
 
 	// process topology
 	var node string
+	segments := map[string]string{}
 	requirements := req.GetAccessibilityRequirements()
 
-	// In CSI spec, controllers are required that they response OK even if accessibility_requirements field is nil.
-	// So we must create volume, and must not return error response in this case.
-	// - https://github.com/container-storage-interface/spec/blob/release-1.1/spec.md#createvolume
-	// - https://github.com/kubernetes-csi/csi-test/blob/6738ab2206eac88874f0a3ede59b40f680f59f43/pkg/sanity/controller.go#L404-L428
-	log.Info("decide node because accessibility_requirements not found")
-	nodeName, deviceGroup, segments, err := s.nodeService.SelectVolumeNode(ctx, requestGb, deviceGroup, requirements)
-	if err != nil {
-		return nil, status.Errorf(codes.Internal, "failed to get max capacity node %v", err)
+	if requirements != nil {
+		for _, topo := range requirements.Requisite {
+			if v, ok := topo.GetSegments()[utils.TopologyZoneKey]; ok {
+				segments[utils.TopologyZoneKey] = v
+				node = v
+				break
+			}
+		}
+		if deviceGroup == "" {
+			// TODO: 调度完成在补充，若是storageclass未设置carina.storage.io/disk参数，只能从pvc annontation获取
+		}
 	}
-	if nodeName == "" {
-		return nil, status.Error(codes.Internal, "can not find any node")
+
+	// 不是调度器完成pv调度，则采用controller调度
+	if node == "" {
+		// In CSI spec, controllers are required that they response OK even if accessibility_requirements field is nil.
+		// So we must create volume, and must not return error response in this case.
+		// - https://github.com/container-storage-interface/spec/blob/release-1.1/spec.md#createvolume
+		// - https://github.com/kubernetes-csi/csi-test/blob/6738ab2206eac88874f0a3ede59b40f680f59f43/pkg/sanity/controller.go#L404-L428
+		log.Info("decide node because accessibility_requirements not found")
+		nodeName, deviceGroup, segmentsTmp, err := s.nodeService.SelectVolumeNode(ctx, requestGb, deviceGroup, requirements)
+		if err != nil {
+			return nil, status.Errorf(codes.Internal, "failed to get max capacity node %v", err)
+		}
+		if nodeName == "" {
+			return nil, status.Error(codes.Internal, "can not find any node")
+		}
+		if deviceGroup == "" {
+			return nil, status.Error(codes.Internal, "can not find any device group")
+		}
+		node = nodeName
+		segments = segmentsTmp
 	}
-	if deviceGroup == "" {
-		return nil, status.Error(codes.Internal, "can not find any device group")
-	}
-	node = nodeName
 
 	volumeID, err := s.lvService.CreateVolume(ctx, node, deviceGroup, name, requestGb)
 	if err != nil {
@@ -187,7 +205,7 @@ func (s controllerService) ValidateVolumeCapabilities(ctx context.Context, req *
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 
-	// Since TopoLVM does not provide means to pre-provision volumes,
+	// Since Carina does not provide means to pre-provision volumes,
 	// any existing volume is valid.
 	return &csi.ValidateVolumeCapabilitiesResponse{
 		Confirmed: &csi.ValidateVolumeCapabilitiesResponse_Confirmed{
@@ -205,7 +223,7 @@ func (s controllerService) GetCapacity(ctx context.Context, req *csi.GetCapacity
 		" parameters ", req.GetParameters(),
 		" accessible_topology ", topology)
 	if capabilities != nil {
-		log.Info("capability argument is not nil, but TopoLVM ignores it")
+		log.Info("capability argument is not nil, but Carina ignores it")
 	}
 
 	deviceGroup := req.GetParameters()[utils.DeviceDiskKey]

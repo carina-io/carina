@@ -3,6 +3,9 @@ kind: DaemonSet
 apiVersion: apps/v1
 metadata:
   name: csi-carina-node
+  namespace: kube-system
+  labels:
+    class: carina
 spec:
   selector:
     matchLabels:
@@ -17,6 +20,27 @@ spec:
       # resolved through k8s service, set dns policy to cluster first
       dnsPolicy: ClusterFirstWithHostNet
       containers:
+        - name: csi-node-driver-registrar
+          # This is necessary only for systems with SELinux, where
+          # non-privileged sidecar containers cannot access unix domain socket
+          # created by privileged CSI driver container.
+          securityContext:
+            privileged: true
+          image: antmoveh/csi-node-driver-registrar:v2.1.0
+          args:
+            - "--v=5"
+            - "--csi-address=/csi/csi.sock"
+            - "--kubelet-registration-path=/var/lib/kubelet/plugins/csi.carina.com/csi.sock"
+          env:
+            - name: KUBE_NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+          volumeMounts:
+            - name: socket-dir
+              mountPath: /csi
+            - name: registration-dir
+              mountPath: /registration
         - name: csi-carina-node
           securityContext:
             privileged: true
@@ -27,12 +51,8 @@ spec:
           image: docker.hub.com/carina/carina:latest
           command: ["carina-node"]
           args:
+            - "--csi-address=$(ADDRESS)"
             - "--development=true"
-            # If topology based provisioning is desired, configure required
-            # node labels representing the nodes topology domain
-            # and pass the label names below, for CSI to consume and advertise
-            # its equivalent topology domain
-            # - "--domainlabels=failure-domain/region,failure-domain/zone"
           env:
             - name: POD_IP
               valueFrom:
@@ -42,8 +62,8 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: spec.nodeName
-            - name: CSI_ENDPOINT
-              value: unix:///csi/csi.sock
+            - name: ADDRESS
+              value: /csi/csi.sock
           imagePullPolicy: "Always"
           volumeMounts:
             - name: socket-dir

@@ -140,7 +140,7 @@ func (r *LogicVolumeReconciler) SetupWithManager(mgr ctrl.Manager) error {
 func (r *LogicVolumeReconciler) removeLVIfExists(ctx context.Context, lv *carinav1.LogicVolume) error {
 	// Finalizer's process ( RemoveLV then removeString ) is not atomic,
 	// so checking existence of LV to ensure its idempotence
-	err := r.volume.DeleteVolume(lv.Spec.Name, lv.Spec.DeviceGroup)
+	err := r.volume.DeleteVolume(lv.Name, lv.Spec.DeviceGroup)
 	if err != nil {
 		log.Error(err, " failed to remove LV name ", lv.Name, " uid ", lv.Spec.DeviceGroup)
 	}
@@ -158,7 +158,7 @@ func (r *LogicVolumeReconciler) createLV(ctx context.Context, lv *carinav1.Logic
 
 	reqBytes := lv.Spec.Size.Value()
 
-	err := r.volume.CreateVolume(lv.Spec.Name, lv.Spec.DeviceGroup, uint64(reqBytes), 1)
+	err := r.volume.CreateVolume(lv.Name, lv.Spec.DeviceGroup, uint64(reqBytes), 1)
 
 	if err != nil {
 		lv.Status.Code = codes.Internal
@@ -166,7 +166,7 @@ func (r *LogicVolumeReconciler) createLV(ctx context.Context, lv *carinav1.Logic
 		lv.Status.Status = "Failed"
 		r.Recorder.Event(lv, corev1.EventTypeWarning, "CreateVolumeFailed", fmt.Sprintf("create volume failed node: %s, time: %s, error: %s", r.nodeName, time.Now().Format("2006-01-02T15:04:05.000Z"), err.Error()))
 	} else {
-		lv.Status.VolumeID = string(lv.UID)
+		lv.Status.VolumeID = "volume-" + lv.Name
 		lv.Status.CurrentSize = resource.NewQuantity(reqBytes, resource.BinarySI)
 		lv.Status.Code = codes.OK
 		lv.Status.Message = ""
@@ -207,7 +207,7 @@ func (r *LogicVolumeReconciler) expandLV(ctx context.Context, lv *carinav1.Logic
 	origBytes := (*lv.Status.CurrentSize).Value()
 	reqBytes := lv.Spec.Size.Value()
 
-	err := r.volume.ResizeVolume(lv.Spec.Name, lv.Spec.DeviceGroup, uint64(reqBytes), 1)
+	err := r.volume.ResizeVolume(lv.Name, lv.Spec.DeviceGroup, uint64(reqBytes), 1)
 	if err != nil {
 		lv.Status.Code = codes.Internal
 		lv.Status.Message = err.Error()

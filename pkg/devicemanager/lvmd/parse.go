@@ -84,9 +84,11 @@ func parseLvs(lvsString string) []types.LvInfo {
 			case "LVM2_LV_SIZE":
 				tmp.LVSize, _ = strconv.ParseUint(k[1], 10, 64)
 			case "LVM2_LV_KERNEL_MAJOR":
-				tmp.LVKernelMajor, _ = strconv.ParseUint(k[1], 10, 64)
+				t, _ := strconv.ParseUint(k[1], 10, 32)
+				tmp.LVKernelMajor = uint32(t)
 			case "LVM2_LV_KERNEL_MINOR":
-				tmp.LVKernelMinor, _ = strconv.ParseUint(k[1], 10, 64)
+				t, _ := strconv.ParseUint(k[1], 10, 32)
+				tmp.LVKernelMinor = uint32(t)
 			case "LVM2_ORIGIN":
 				tmp.Origin = k[1]
 			case "LVM2_ORIGIN_SIZE":

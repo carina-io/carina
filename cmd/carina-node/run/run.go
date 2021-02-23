@@ -3,9 +3,14 @@ package run
 import (
 	carinav1 "carina/api/v1"
 	"carina/controllers"
+	"carina/pkg/csidriver/csi"
+	"carina/pkg/csidriver/driver"
+	"carina/pkg/csidriver/driver/k8s"
+	"carina/pkg/csidriver/runners"
 	deviceManager "carina/pkg/devicemanager"
 	"carina/pkg/deviceplugin"
 	"errors"
+	"google.golang.org/grpc"
 	"k8s.io/apimachinery/pkg/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"os"
@@ -67,12 +72,6 @@ func subMain() error {
 	}
 	// +kubebuilder:scaffold:builder
 
-	// Add health checker to manager
-	//checker := runners.NewChecker(checkFunc(conn, mgr.GetAPIReader()), 1*time.Minute)
-	//if err := mgr.Add(checker); err != nil {
-	//	return err
-	//}
-
 	// Add metrics exporter to manager.
 	// Note that grpc.ClientConn can be shared with multiple stubs/services.
 	// https://github.com/grpc/grpc-go/tree/master/examples/features/multiplex
@@ -80,21 +79,21 @@ func subMain() error {
 	//	return err
 	//}
 	//
-	//// Add gRPC server to manager.
-	//s, err := k8s.NewLogicalVolumeService(mgr)
-	//if err != nil {
-	//	return err
-	//}
-	//if err := os.MkdirAll(driver.DeviceDirectory, 0755); err != nil {
-	//	return err
-	//}
-	//grpcServer := grpc.NewServer()
-	//csi.RegisterIdentityServer(grpcServer, driver.NewIdentityService(checker.Ready))
-	//csi.RegisterNodeServer(grpcServer, driver.NewNodeService(nodeName, conn, s))
-	//err = mgr.Add(runners.NewGRPCRunner(grpcServer, config.csiSocket, false))
-	//if err != nil {
-	//	return err
-	//}
+	// Add gRPC server to manager.
+	s, err := k8s.NewLogicVolumeService(mgr)
+	if err != nil {
+		return err
+	}
+	if err := os.MkdirAll(driver.DeviceDirectory, 0755); err != nil {
+		return err
+	}
+	grpcServer := grpc.NewServer()
+	csi.RegisterIdentityServer(grpcServer, driver.NewIdentityService())
+	csi.RegisterNodeServer(grpcServer, driver.NewNodeService(nodeName, dm.VolumeManager, s))
+	err = mgr.Add(runners.NewGRPCRunner(grpcServer, config.csiSocket, false))
+	if err != nil {
+		return err
+	}
 
 	// 启动磁盘检查
 	dm.DeviceCheckTask()

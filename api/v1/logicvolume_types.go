@@ -29,7 +29,6 @@ import (
 type LogicVolumeSpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
-	Name        string            `json:"name"`
 	NodeName    string            `json:"nodeName"`
 	Size        resource.Quantity `json:"size"`
 	DeviceGroup string            `json:"deviceGroup"`
@@ -66,7 +65,7 @@ type LogicVolume struct {
 
 // IsCompatibleWith returns true if the LogicalVolume is compatible.
 func (lv *LogicVolume) IsCompatibleWith(lv2 *LogicVolume) bool {
-	if lv.Spec.Name != lv2.Spec.Name {
+	if lv.Name != lv2.Name {
 		return false
 	}
 	if lv.Spec.Size.Cmp(lv2.Spec.Size) != 0 {

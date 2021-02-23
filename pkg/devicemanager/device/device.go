@@ -33,7 +33,7 @@ func (ld *LocalDeviceImplement) ListDevices() ([]string, error) {
 }
 
 /*
-# lsblk --pairs --paths --bytes --all --output NAME,FSTYPE,MOUNTPOINT,SIZE,STATE,TYPE,ROTA,RO
+# lsblk --pairs --paths --bytes --all --output NAME,FSTYPE,MOUNTPOINT,SIZE,STATE,TYPE,ROTA,RO,PKNAME
 NAME="/dev/sda" FSTYPE="" MOUNTPOINT="" SIZE="85899345920" STATE="running" TYPE="disk" ROTA="1" RO="0"
 NAME="/dev/sda1" FSTYPE="ext4" MOUNTPOINT="/" SIZE="81604378624" STATE="" TYPE="part" ROTA="1" RO="0"
 NAME="/dev/sda2" FSTYPE="" MOUNTPOINT="" SIZE="1024" STATE="" TYPE="part" ROTA="1" RO="0"
@@ -50,7 +50,7 @@ NAME="/dev/loop6" FSTYPE="" MOUNTPOINT="" SIZE="" STATE="" TYPE="loop" ROTA="1" 
 NAME="/dev/loop7" FSTYPE="" MOUNTPOINT="" SIZE="" STATE="" TYPE="loop" ROTA="1" RO="0"
 */
 func (ld *LocalDeviceImplement) ListDevicesDetail(device string) ([]*types.LocalDisk, error) {
-	args := []string{"--pairs", "--paths", "--bytes", "--all", "--output", "NAME,FSTYPE,MOUNTPOINT,SIZE,STATE,TYPE,ROTA,RO"}
+	args := []string{"--pairs", "--paths", "--bytes", "--all", "--output", "NAME,FSTYPE,MOUNTPOINT,SIZE,STATE,TYPE,ROTA,RO,PKNAME"}
 	if device != "" {
 		args = append(args, device)
 	}
@@ -116,6 +116,8 @@ func parseDiskString(diskString string) []*types.LocalDisk {
 				}
 			case "FSTYPE":
 				tmp.Filesystem = k[1]
+			case "PKNAME":
+				tmp.ParentName = k[1]
 			default:
 				log.Warnf("undefined filed %s-%s", k[0], k[1])
 			}

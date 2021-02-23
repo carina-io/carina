@@ -11,17 +11,15 @@ ADD . .
 RUN echo Commit: `git log --pretty='%s%b%B' -n 1`
 RUN cd $WORKSPACE/cmd/carina-node && go build -ldflags="-X main.gitCommitID=`git rev-parse HEAD`" -gcflags '-N -l' -o /tmp/carina-node .
 RUN cd $WORKSPACE/cmd/carina-controller && go build -ldflags="-X main.gitCommitID=`git rev-parse HEAD`" -gcflags '-N -l' -o /tmp/carina-controller .
-RUN cd $WORKSPACE/cmd/http-server && go build -gcflags '-N -l' -o /tmp/http-server .
 
 FROM antmoveh/centos-lvm2:v2
 
 # copy binary file
 COPY --from=builder /tmp/carina-node /usr/bin/
 COPY --from=builder /tmp/carina-controller /usr/bin/
-COPY --from=builder /tmp/http-server /usr/bin/
 COPY --from=builder /workspace/carina/deploy/develop/config.json /etc/carina/
 
-RUN chmod +x /usr/bin/http-server && chmod +x /usr/bin/carina-node && chmod +x /usr/bin/carina-controller
+RUN chmod +x /usr/bin/carina-node && chmod +x /usr/bin/carina-controller
 
 # Update time zone to Asia-Shanghai
 COPY --from=builder /workspace/carina/Shanghai /etc/localtime

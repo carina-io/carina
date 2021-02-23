@@ -41,7 +41,7 @@ const (
 	indexFieldVolumeID = "status.volumeID"
 )
 
-// +kubebuilder:rbac:groups=topolvm.cybozu.com,resources=LogicVolumes,verbs=get;list;watch;create;delete
+// +kubebuilder:rbac:groups=carina.storage.io,resources=LogicVolumes,verbs=get;list;watch;create;delete
 // +kubebuilder:rbac:groups="",resources=nodes,verbs=get;list;watch
 
 // NewLogicVolumeService returns LogicVolumeService.
@@ -74,7 +74,6 @@ func (s *LogicVolumeService) CreateVolume(ctx context.Context, node, deviceGroup
 			Namespace: utils.LogicVolumeNamespace,
 		},
 		Spec: carinav1.LogicVolumeSpec{
-			Name:        name,
 			NodeName:    node,
 			DeviceGroup: deviceGroup,
 			Size:        *resource.NewQuantity(requestGb<<30, resource.BinarySI),
@@ -164,7 +163,7 @@ func (s *LogicVolumeService) ExpandVolume(ctx context.Context, volumeID string, 
 		return err
 	}
 
-	// wait until topolvm-node expands the target volume
+	// wait until carina-node expands the target volume
 	for {
 		log.Info("waiting for update of 'status.currentSize' name ", lv.Name)
 		select {
