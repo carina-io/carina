@@ -20,6 +20,20 @@ type temporaryer interface {
 	Temporary() bool
 }
 
+// Mknod wrapped a golang.org/x/sys/unix.Mknod function to handle EINTR signal for Go 1.14+
+func Mknod(path string, mode uint32, dev int) (err error) {
+	for {
+		err := unix.Mknod(path, mode, dev)
+		if err == nil {
+			return nil
+		}
+		if e, ok := err.(temporaryer); ok && e.Temporary() {
+			continue
+		}
+		return err
+	}
+}
+
 func isSameDevice(dev1, dev2 string) (bool, error) {
 	if dev1 == dev2 {
 		return true, nil
@@ -144,7 +158,7 @@ func DetectFilesystem(device string) (string, error) {
 	f.Sync()
 	f.Close()
 
-	out, err := exec.Command(blkidCmd, "-c", "/dev/null", "-o", "export", device).CombinedOutput()
+	out, err := executor.ExecuteCommandWithCombinedOutput(blkidCmd, "-c", "/dev/null", "-o", "export", device)
 	if err != nil {
 		if exitErr, ok := err.(*exec.ExitError); ok {
 			// blkid exists with status 2 when anything can be found
@@ -168,20 +182,6 @@ func DetectFilesystem(device string) (string, error) {
 func Stat(path string, stat *unix.Stat_t) error {
 	for {
 		err := unix.Stat(path, stat)
-		if err == nil {
-			return nil
-		}
-		if e, ok := err.(temporaryer); ok && e.Temporary() {
-			continue
-		}
-		return err
-	}
-}
-
-// Mknod wrapped a golang.org/x/sys/unix.Mknod function to handle EINTR signal for Go 1.14+
-func Mknod(path string, mode uint32, dev int) (err error) {
-	for {
-		err := unix.Mknod(path, mode, dev)
 		if err == nil {
 			return nil
 		}

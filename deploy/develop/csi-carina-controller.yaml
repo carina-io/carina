@@ -3,6 +3,9 @@ kind: Deployment
 apiVersion: apps/v1
 metadata:
   name: csi-carina-provisioner
+  namespace: kube-system
+  labels:
+    class: carina
 spec:
   selector:
     matchLabels:

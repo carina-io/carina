@@ -3,6 +3,8 @@ apiVersion: policy/v1beta1
 kind: PodSecurityPolicy
 metadata:
   name: carina-csi-provisioner-psp
+  labels:
+    class: carina
 spec:
   allowPrivilegeEscalation: true
   allowedCapabilities:
@@ -35,7 +37,9 @@ apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: carina-csi-provisioner-psp
   # replace with non-default namespace name
-  namespace: default
+  namespace: kube-system
+  labels:
+    class: carina
 rules:
   - apiGroups: ['policy']
     resources: ['podsecuritypolicies']
@@ -48,12 +52,14 @@ apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: carina-csi-provisioner-psp
   # replace with non-default namespace name
-  namespace: default
+  namespace: kube-system
+  labels:
+    class: carina
 subjects:
   - kind: ServiceAccount
     name: carina-csi-controller
     # replace with non-default namespace name
-    namespace: default
+    namespace: kube-system
 roleRef:
   kind: Role
   name: carina-csi-provisioner-psp

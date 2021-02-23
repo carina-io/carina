@@ -3,6 +3,9 @@ kind: DaemonSet
 apiVersion: apps/v1
 metadata:
   name: csi-carina-node
+  namespace: kube-system
+  labels:
+    class: carina
 spec:
   selector:
     matchLabels:

@@ -92,3 +92,11 @@ func SchedulerStrategy() string {
 	}
 	return schedulerStrategy
 }
+
+func RuntimeNamespace() string {
+	namespace := os.Getenv("NAMESPACE")
+	if namespace == "" {
+		namespace = "default"
+	}
+	return namespace
+}

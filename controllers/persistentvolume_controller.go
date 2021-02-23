@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"carina/pkg/configruation"
 	"carina/utils"
 	"carina/utils/log"
 	"context"
@@ -76,7 +77,7 @@ func (r *PersistentVolumeReconciler) Reconcile(req ctrl.Request) (ctrl.Result, e
 	}
 
 	cm := &corev1.ConfigMap{}
-	err = r.Get(ctx, client.ObjectKey{Namespace: "kube-system", Name: "carina-node-storage"}, cm)
+	err = r.Get(ctx, client.ObjectKey{Namespace: configruation.RuntimeNamespace(), Name: "carina-node-storage"}, cm)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			c := corev1.ConfigMap{
@@ -86,7 +87,7 @@ func (r *PersistentVolumeReconciler) Reconcile(req ctrl.Request) (ctrl.Result, e
 				},
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "carina-node-storage",
-					Namespace: "kube-system",
+					Namespace: configruation.RuntimeNamespace(),
 				},
 				Data: map[string]string{"node": string(byteJson)},
 			}

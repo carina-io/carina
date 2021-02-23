@@ -74,7 +74,6 @@ func (s *LogicVolumeService) CreateVolume(ctx context.Context, node, deviceGroup
 			Namespace: utils.LogicVolumeNamespace,
 		},
 		Spec: carinav1.LogicVolumeSpec{
-			Name:        name,
 			NodeName:    node,
 			DeviceGroup: deviceGroup,
 			Size:        *resource.NewQuantity(requestGb<<30, resource.BinarySI),
