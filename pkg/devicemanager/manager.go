@@ -170,10 +170,17 @@ func (dm *DeviceManager) DiscoverDisk() (map[string][]string, error) {
 		return blockClass, err
 	}
 
+	parentDisk := map[string]int8{}
+	for _, d := range localDisk {
+		parentDisk[d.ParentName] = 1
+	}
 	// 过滤出空块设备
 	for _, d := range localDisk {
-
 		if strings.Contains(d.Name, types.KEYWORD) {
+			continue
+		}
+		// 如果是其他磁盘对Parent直接跳过
+		if _, ok := parentDisk[d.Name]; ok {
 			continue
 		}
 
@@ -221,6 +228,7 @@ func (dm *DeviceManager) DiscoverDisk() (map[string][]string, error) {
 			log.Infof("unsupported disk type name: %s, rota: %s", d.Name, d.Rotational)
 		}
 	}
+
 	return blockClass, nil
 }
 
