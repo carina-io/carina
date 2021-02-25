@@ -1,6 +1,0 @@
-{
-  "diskSelector": ["loop*", "^vda"],
-  "diskScanInterval": "300",
-  "diskGroupPolicy": "type",
-  "schedulerStrategy": "binpack"
-}

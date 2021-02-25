@@ -457,7 +457,7 @@ func (s *nodeService) NodeGetInfo(ctx context.Context, req *csi.NodeGetInfoReque
 		MaxVolumesPerNode: 1000,
 		AccessibleTopology: &csi.Topology{
 			Segments: map[string]string{
-				utils.TopologyZoneKey: s.nodeName,
+				utils.TopologyNodeKey: s.nodeName,
 			},
 		},
 	}, nil

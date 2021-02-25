@@ -33,9 +33,7 @@ const (
 
 	// topology
 	// TopologyZoneKey is the key of topology that represents zone name.
-	TopologyZoneKey = "topology.carina.storage.io/zone"
-	// Kubernetes label
-	KubernetesHostName = "kubernetes.io/hostname"
+	TopologyNodeKey = "topology.carina.storage.io/node"
 
 	// device plugin
 	DeviceCapacityKeyPrefix = "carina.storage.io/"

@@ -98,8 +98,8 @@ func (s controllerService) CreateVolume(ctx context.Context, req *csi.CreateVolu
 
 	if requirements != nil {
 		for _, topo := range requirements.Requisite {
-			if v, ok := topo.GetSegments()[utils.TopologyZoneKey]; ok {
-				segments[utils.TopologyZoneKey] = v
+			if v, ok := topo.GetSegments()[utils.TopologyNodeKey]; ok {
+				segments[utils.TopologyNodeKey] = v
 				node = v
 				break
 			}
@@ -128,6 +128,7 @@ func (s controllerService) CreateVolume(ctx context.Context, req *csi.CreateVolu
 		}
 		node = nodeName
 		segments = segmentsTmp
+		segments[utils.TopologyNodeKey] = nodeName
 	}
 
 	volumeID, err := s.lvService.CreateVolume(ctx, node, deviceGroup, name, requestGb)
@@ -146,7 +147,7 @@ func (s controllerService) CreateVolume(ctx context.Context, req *csi.CreateVolu
 	volumeContext[utils.VolumeDeviceNode] = node
 
 	// pv nodeAffinity
-	segments[utils.KubernetesHostName] = node
+	//segments[utils.KubernetesHostName] = node
 
 	return &csi.CreateVolumeResponse{
 		Volume: &csi.Volume{
