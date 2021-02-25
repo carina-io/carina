@@ -46,10 +46,54 @@ func (r *PersistentVolumeReconciler) Reconcile(req ctrl.Request) (ctrl.Result, e
 		return ctrl.Result{}, nil
 	}
 
-	nl := new(corev1.NodeList)
-	err = r.List(ctx, nl)
+	err = r.updateNodeConfigMap(ctx)
 	if err != nil {
 		return ctrl.Result{}, err
+	}
+	return ctrl.Result{}, nil
+}
+
+// SetupWithManager sets up Reconciler with Manager.
+func (r *PersistentVolumeReconciler) SetupWithManager(mgr ctrl.Manager) error {
+
+	ticker1 := time.NewTicker(60 * time.Second)
+	go func(t *time.Ticker) {
+		defer ticker1.Stop()
+		after := time.After(200 * time.Second)
+		for {
+			select {
+			case <-t.C:
+				err := r.updateNodeConfigMap(context.Background())
+				if err != nil {
+					log.Errorf("update node storage config map failed %s", err.Error())
+				}
+			case <-after:
+				log.Info("stop node storage config map update...")
+				return
+			}
+		}
+	}(ticker1)
+
+	pred := predicate.Funcs{
+		CreateFunc:  func(event.CreateEvent) bool { return true },
+		DeleteFunc:  func(event.DeleteEvent) bool { return true },
+		UpdateFunc:  func(event.UpdateEvent) bool { return true },
+		GenericFunc: func(event.GenericEvent) bool { return false },
+	}
+	return ctrl.NewControllerManagedBy(mgr).
+		WithEventFilter(pred).
+		WithOptions(controller.Options{
+			RateLimiter: workqueue.NewItemFastSlowRateLimiter(10*time.Second, 60*time.Second, 5),
+		}).
+		For(&corev1.PersistentVolume{}).
+		Complete(r)
+}
+
+func (r *PersistentVolumeReconciler) updateNodeConfigMap(ctx context.Context) error {
+	nl := new(corev1.NodeList)
+	err := r.List(ctx, nl)
+	if err != nil {
+		return err
 	}
 
 	nodeDevice := []map[string]string{}
@@ -73,7 +117,7 @@ func (r *PersistentVolumeReconciler) Reconcile(req ctrl.Request) (ctrl.Result, e
 	byteJson, err := json.Marshal(nodeDevice)
 	if err != nil {
 		log.Errorf("carina-node-storage json marshal failed %s", err.Error())
-		return ctrl.Result{}, err
+		return err
 	}
 
 	cm := &corev1.ConfigMap{}
@@ -94,36 +138,18 @@ func (r *PersistentVolumeReconciler) Reconcile(req ctrl.Request) (ctrl.Result, e
 			err = r.Create(ctx, &c)
 			if err != nil {
 				log.Errorf("update config map carina-vg failed %s", err.Error())
-				return ctrl.Result{}, err
+				return err
 			}
-			return ctrl.Result{}, nil
+			return nil
 		}
-		return ctrl.Result{}, err
+		return err
 	}
 
 	cm.Data = map[string]string{"node": string(byteJson)}
 	err = r.Update(ctx, cm)
 	if err != nil {
 		log.Errorf("update config map carina-vg failed %s", err.Error())
-		return ctrl.Result{}, err
+		return err
 	}
-
-	return ctrl.Result{}, nil
-}
-
-// SetupWithManager sets up Reconciler with Manager.
-func (r *PersistentVolumeReconciler) SetupWithManager(mgr ctrl.Manager) error {
-	pred := predicate.Funcs{
-		CreateFunc:  func(event.CreateEvent) bool { return true },
-		DeleteFunc:  func(event.DeleteEvent) bool { return true },
-		UpdateFunc:  func(event.UpdateEvent) bool { return true },
-		GenericFunc: func(event.GenericEvent) bool { return false },
-	}
-	return ctrl.NewControllerManagedBy(mgr).
-		WithEventFilter(pred).
-		WithOptions(controller.Options{
-			RateLimiter: workqueue.NewItemFastSlowRateLimiter(10*time.Second, 60*time.Second, 5),
-		}).
-		For(&corev1.PersistentVolume{}).
-		Complete(r)
+	return nil
 }

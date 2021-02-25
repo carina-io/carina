@@ -55,6 +55,7 @@ func subMain() error {
 
 	// 初始化磁盘管理服务
 	stopChan := make(chan struct{})
+	defer close(stopChan)
 	dm := deviceManager.NewDeviceManager(nodeName, stopChan)
 
 	lvController := controllers.NewLogicVolumeReconciler(

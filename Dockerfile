@@ -17,7 +17,7 @@ FROM antmoveh/centos-lvm2:v2
 # copy binary file
 COPY --from=builder /tmp/carina-node /usr/bin/
 COPY --from=builder /tmp/carina-controller /usr/bin/
-COPY --from=builder /workspace/carina/deploy/develop/config.json /etc/carina/
+COPY --from=builder /workspace/carina/deploy/config.json /etc/carina/
 
 RUN chmod +x /usr/bin/carina-node && chmod +x /usr/bin/carina-controller
 
