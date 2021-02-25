@@ -39,4 +39,7 @@ const (
 
 	// device plugin
 	DeviceCapacityKeyPrefix = "carina.storage.io/"
+
+	// custom schedule
+	CarinaSchedule = "carina-schedule"
 )

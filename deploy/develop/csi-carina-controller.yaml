@@ -92,6 +92,7 @@ spec:
           args:
             - "--csi-address=$(ADDRESS)"
             - "--development=true"
+            - "--cert-dir=/certs"
           env:
             - name: POD_IP
               valueFrom:
@@ -114,6 +115,8 @@ spec:
               mountPropagation: Bidirectional
             - name: config
               mountPath: /etc/carina/
+            - name: certs
+              mountPath: /certs
       volumes:
         - name: socket-dir
           emptyDir: {
@@ -122,3 +125,21 @@ spec:
         - name: config
           configMap:
             name: carina-csi-config
+        - name: certs
+          secret:
+            secretName: mutatingwebhook
+
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: carina-controller
+  namespace: kube-system
+spec:
+  selector:
+    app: csi-carina-provisioner
+  ports:
+    - protocol: TCP
+      port: 443
+      targetPort: 8443
