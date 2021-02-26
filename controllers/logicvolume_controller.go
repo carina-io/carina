@@ -61,8 +61,7 @@ func NewLogicVolumeReconciler(client client.Client, log logr.Logger, scheme *run
 	}
 }
 
-func (r *LogicVolumeReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
-	ctx := context.Background()
+func (r *LogicVolumeReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	_ = r.Log.WithValues("logicvolume", req.NamespacedName)
 
 	// your logic here

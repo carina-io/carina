@@ -7,7 +7,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sync"
 	"time"
@@ -48,7 +47,7 @@ const (
 func NewLogicVolumeService(mgr manager.Manager) (*LogicVolumeService, error) {
 	ctx := context.Background()
 	err := mgr.GetFieldIndexer().IndexField(ctx, &carinav1.LogicVolume{}, indexFieldVolumeID,
-		func(o runtime.Object) []string {
+		func(o client.Object) []string {
 			return []string{o.(*carinav1.LogicVolume).Status.VolumeID}
 		})
 	if err != nil {
