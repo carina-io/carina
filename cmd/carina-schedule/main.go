@@ -1,6 +1,8 @@
 package main
 
 import (
+	"carina/pkg/scheduleplugin/example"
+	"carina/pkg/scheduleplugin/localstorage"
 	"math/rand"
 	"os"
 	"time"
@@ -15,7 +17,10 @@ func main() {
 	// Register custom plugins to the scheduler framework.
 	// Later they can consist of scheduler profile(s) and hence
 	// used by various kinds of workloads.
-	command := app.NewSchedulerCommand()
+	command := app.NewSchedulerCommand(
+		app.WithPlugin(example.ExampleName, example.New),
+		app.WithPlugin(localstorage.Name, localstorage.New),
+	)
 
 	logs.InitLogs()
 	defer logs.FlushLogs()
