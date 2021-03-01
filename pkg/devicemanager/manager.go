@@ -219,10 +219,10 @@ func (dm *DeviceManager) DiscoverDisk() (map[string][]string, error) {
 		}
 
 		if d.Rotational == "0" {
-			blockClass[types.VGSSD] = append(blockClass[types.VGSSD], d.Name)
+			blockClass[utils.DeviceVGSSD] = append(blockClass[utils.DeviceVGSSD], d.Name)
 			log.Infof("eligible ssd device %s", d.Name)
 		} else if d.Rotational == "1" {
-			blockClass[types.VGHDD] = append(blockClass[types.VGHDD], d.Name)
+			blockClass[utils.DeviceVGHDD] = append(blockClass[utils.DeviceVGHDD], d.Name)
 			log.Infof("eligible hdd device %s", d.Name)
 		} else {
 			log.Infof("unsupported disk type name: %s, rota: %s", d.Name, d.Rotational)
@@ -268,10 +268,10 @@ func (dm *DeviceManager) DiscoverPv() (map[string][]string, error) {
 			continue
 		}
 		if disk[0].Rotational == "0" {
-			resp[types.VGSSD] = append(resp[types.VGSSD], disk[0].Name)
+			resp[utils.DeviceVGSSD] = append(resp[utils.DeviceVGSSD], disk[0].Name)
 			log.Infof("eligible ssd pv %s", disk[0].Name)
 		} else if disk[0].Rotational == "1" {
-			resp[types.VGHDD] = append(resp[types.VGHDD], disk[0].Name)
+			resp[utils.DeviceVGHDD] = append(resp[utils.DeviceVGHDD], disk[0].Name)
 			log.Infof("eligible hdd pv %s", disk[0].Name)
 		} else {
 			log.Infof("unsupported disk type name: %s, rota: %s", disk[0].Name, disk[0].Rotational)

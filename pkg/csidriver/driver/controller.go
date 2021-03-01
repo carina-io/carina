@@ -104,8 +104,15 @@ func (s controllerService) CreateVolume(ctx context.Context, req *csi.CreateVolu
 				break
 			}
 		}
+		// sc parameter未设置device group
 		if deviceGroup == "" {
-			// TODO: 调度完成在补充，若是storageclass未设置carina.storage.io/disk参数，只能从pvc annontation获取
+			deviceGroup, err := s.nodeService.SelectDeviceGroup(ctx, requestGb, node)
+			if err != nil {
+				return nil, status.Errorf(codes.Internal, "failed to get device group %v", err)
+			}
+			if deviceGroup == "" {
+				return nil, status.Errorf(codes.Internal, "can not find any device group")
+			}
 		}
 	}
 

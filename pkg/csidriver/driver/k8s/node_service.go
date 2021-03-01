@@ -22,6 +22,7 @@ type nodeService interface {
 	SelectVolumeNode(ctx context.Context, request int64, deviceGroup string, requirement *csi.TopologyRequirement) (string, string, map[string]string, error)
 	GetCapacityByNodeName(ctx context.Context, nodeName, deviceGroup string) (int64, error)
 	GetTotalCapacity(ctx context.Context, deviceGroup string, topology *csi.Topology) (int64, error)
+	SelectDeviceGroup(ctx context.Context, request int64, nodeName string) (string, error)
 }
 
 // ErrNodeNotFound represents the error that node is not found.
@@ -64,6 +65,7 @@ func (s NodeService) SelectVolumeNode(ctx context.Context, requestGb int64, devi
 	for _, node := range nl.Items {
 
 		// topology selector
+		// 若是sc配置了allowedTopologies，在此过滤出符合条件的node
 		if requirement != nil {
 			topologySelector := false
 			for _, topo := range requirement.GetRequisite() {
@@ -80,6 +82,7 @@ func (s NodeService) SelectVolumeNode(ctx context.Context, requestGb int64, devi
 		}
 
 		// capacity selector
+		// 注册设备时有特殊前缀的，若是sc指定了设备组则过滤出所有节点上符合条件的设备组
 		for key, value := range node.Status.Allocatable {
 
 			if strings.HasPrefix(string(key), utils.DeviceCapacityKeyPrefix) {
@@ -104,12 +107,13 @@ func (s NodeService) SelectVolumeNode(ctx context.Context, requestGb int64, devi
 		return preselectNode[i].Value < preselectNode[j].Value
 	})
 
+	// 根据配置文件中设置算法进行节点选择
 	if configruation.SchedulerStrategy() == configruation.SchedulerBinpack {
 		nodeName = strings.Split(preselectNode[0].Key, "-")[0]
 		selectDeviceGroup = strings.Split(preselectNode[0].Key, "/")[1]
 	} else if configruation.SchedulerStrategy() == configruation.SchedulerSpradout {
 		nodeName = strings.Split(preselectNode[len(preselectNode)-1].Key, "-")[0]
-		selectDeviceGroup = strings.Split(preselectNode[0].Key, "/")[1]
+		selectDeviceGroup = strings.Split(preselectNode[len(preselectNode)-1].Key, "/")[1]
 	} else {
 		return "", "", segments, errors.New(fmt.Sprintf("no support scheduler strategy %s", configruation.SchedulerStrategy()))
 	}
@@ -171,4 +175,53 @@ func (s NodeService) GetTotalCapacity(ctx context.Context, deviceGroup string, t
 		}
 	}
 	return capacity, nil
+}
+
+func (s NodeService) SelectDeviceGroup(ctx context.Context, request int64, nodeName string) (string, error) {
+	var selectDeviceGroup string
+
+	nl, err := s.getNodes(ctx)
+	if err != nil {
+		return "", err
+	}
+
+	type paris struct {
+		Key   string
+		Value int64
+	}
+
+	preselectNode := []paris{}
+
+	for _, node := range nl.Items {
+		if nodeName != node.Name {
+			continue
+		}
+		// capacity selector
+		// 经过上层过滤，这里只会有一个节点
+		for key, value := range node.Status.Allocatable {
+			if strings.HasPrefix(string(key), utils.DeviceCapacityKeyPrefix) {
+				preselectNode = append(preselectNode, paris{
+					Key:   string(key),
+					Value: value.Value(),
+				})
+			}
+		}
+	}
+	if len(preselectNode) < 1 {
+		return "", ErrNodeNotFound
+	}
+
+	sort.Slice(preselectNode, func(i, j int) bool {
+		return preselectNode[i].Value < preselectNode[j].Value
+	})
+
+	// 根据配置文件中设置算法进行节点选择
+	if configruation.SchedulerStrategy() == configruation.SchedulerBinpack {
+		selectDeviceGroup = preselectNode[0].Key
+	} else if configruation.SchedulerStrategy() == configruation.SchedulerSpradout {
+		selectDeviceGroup = preselectNode[len(preselectNode)-1].Key
+	} else {
+		return "", errors.New(fmt.Sprintf("no support scheduler strategy %s", configruation.SchedulerStrategy()))
+	}
+	return selectDeviceGroup, nil
 }

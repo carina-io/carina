@@ -1,7 +1,6 @@
 package deviceplugin
 
 import (
-	"carina/pkg/devicemanager/types"
 	"carina/pkg/devicemanager/volume"
 	"carina/pkg/deviceplugin/v1beta1"
 	"carina/utils"
@@ -28,7 +27,7 @@ restart:
 	}
 
 	log.Info("Retreiving plugins.")
-	for _, d := range []string{types.VGSSD, types.VGHDD} {
+	for _, d := range []string{utils.DeviceVGSSD, utils.DeviceVGHDD} {
 		c := make(chan struct{}, 5)
 		plugins = append(plugins, NewCarinaDevicePlugin(
 			utils.DeviceCapacityKeyPrefix+d,

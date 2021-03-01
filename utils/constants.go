@@ -37,6 +37,9 @@ const (
 
 	// device plugin
 	DeviceCapacityKeyPrefix = "carina.storage.io/"
+	// support disk type
+	DeviceVGSSD = "carina-vg-ssd"
+	DeviceVGHDD = "carina-vg-hdd"
 
 	// custom schedule
 	CarinaSchedule = "carina-schedule"
