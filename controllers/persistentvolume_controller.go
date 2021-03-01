@@ -120,7 +120,7 @@ func (r *PersistentVolumeReconciler) updateNodeConfigMap(ctx context.Context) er
 	}
 
 	cm := &corev1.ConfigMap{}
-	err = r.Get(ctx, client.ObjectKey{Namespace: configruation.RuntimeNamespace(), Name: "carina-node-storage"}, cm)
+	err = r.Get(ctx, client.ObjectKey{Namespace: configuration.RuntimeNamespace(), Name: "carina-node-storage"}, cm)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			c := corev1.ConfigMap{
@@ -130,7 +130,7 @@ func (r *PersistentVolumeReconciler) updateNodeConfigMap(ctx context.Context) er
 				},
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "carina-node-storage",
-					Namespace: configruation.RuntimeNamespace(),
+					Namespace: configuration.RuntimeNamespace(),
 				},
 				Data: map[string]string{"node": string(byteJson)},
 			}

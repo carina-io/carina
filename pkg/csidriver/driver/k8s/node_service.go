@@ -108,14 +108,14 @@ func (s NodeService) SelectVolumeNode(ctx context.Context, requestGb int64, devi
 	})
 
 	// 根据配置文件中设置算法进行节点选择
-	if configruation.SchedulerStrategy() == configruation.SchedulerBinpack {
+	if configuration.SchedulerStrategy() == configuration.SchedulerBinpack {
 		nodeName = strings.Split(preselectNode[0].Key, "-")[0]
 		selectDeviceGroup = strings.Split(preselectNode[0].Key, "/")[1]
-	} else if configruation.SchedulerStrategy() == configruation.SchedulerSpradout {
+	} else if configuration.SchedulerStrategy() == configuration.SchedulerSpradout {
 		nodeName = strings.Split(preselectNode[len(preselectNode)-1].Key, "-")[0]
 		selectDeviceGroup = strings.Split(preselectNode[len(preselectNode)-1].Key, "/")[1]
 	} else {
-		return "", "", segments, errors.New(fmt.Sprintf("no support scheduler strategy %s", configruation.SchedulerStrategy()))
+		return "", "", segments, errors.New(fmt.Sprintf("no support scheduler strategy %s", configuration.SchedulerStrategy()))
 	}
 
 	// 获取选择节点的label
@@ -214,14 +214,7 @@ func (s NodeService) SelectDeviceGroup(ctx context.Context, request int64, nodeN
 	sort.Slice(preselectNode, func(i, j int) bool {
 		return preselectNode[i].Value < preselectNode[j].Value
 	})
-
-	// 根据配置文件中设置算法进行节点选择
-	if configruation.SchedulerStrategy() == configruation.SchedulerBinpack {
-		selectDeviceGroup = preselectNode[0].Key
-	} else if configruation.SchedulerStrategy() == configruation.SchedulerSpradout {
-		selectDeviceGroup = preselectNode[len(preselectNode)-1].Key
-	} else {
-		return "", errors.New(fmt.Sprintf("no support scheduler strategy %s", configruation.SchedulerStrategy()))
-	}
+	// 这里只能选最小满足的，因为可能存在一个pod多个pv都需要落在这个节点
+	selectDeviceGroup = preselectNode[0].Key
 	return selectDeviceGroup, nil
 }

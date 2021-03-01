@@ -62,7 +62,7 @@ func subMain() error {
 		MetricsBindAddress:      config.metricsAddr,
 		LeaderElection:          true,
 		LeaderElectionID:        utils.CSIPluginName + "-carina-controller",
-		LeaderElectionNamespace: configruation.RuntimeNamespace(),
+		LeaderElectionNamespace: configuration.RuntimeNamespace(),
 		Host:                    hookHost,
 		Port:                    hookPort,
 		CertDir:                 config.certDir,
