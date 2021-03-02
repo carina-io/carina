@@ -96,23 +96,22 @@ func (s controllerService) CreateVolume(ctx context.Context, req *csi.CreateVolu
 	segments := map[string]string{}
 	requirements := req.GetAccessibilityRequirements()
 
-	if requirements != nil {
-		for _, topo := range requirements.Requisite {
-			if v, ok := topo.GetSegments()[utils.TopologyNodeKey]; ok {
-				segments[utils.TopologyNodeKey] = v
-				node = v
-				break
-			}
+	// 为什么requirements是所有的节点列表，不应该只有已选定的节点吗
+	// 只能通过pvc Annotations来判断pvc是否已经被选定节点
+	pvcName := req.Parameters["csi.storage.k8s.io/pvc/name"]
+	namespace := req.Parameters["csi.storage.k8s.io/pvc/namespace"]
+	node, err = s.nodeService.HaveSelectedNode(ctx, namespace, pvcName)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "can not find pvc %s %s", namespace, name)
+	}
+	// sc parameter未设置device group
+	if node != "" && deviceGroup == "" {
+		deviceGroup, err := s.nodeService.SelectDeviceGroup(ctx, requestGb, node)
+		if err != nil {
+			return nil, status.Errorf(codes.Internal, "failed to get device group %v", err)
 		}
-		// sc parameter未设置device group
 		if deviceGroup == "" {
-			deviceGroup, err := s.nodeService.SelectDeviceGroup(ctx, requestGb, node)
-			if err != nil {
-				return nil, status.Errorf(codes.Internal, "failed to get device group %v", err)
-			}
-			if deviceGroup == "" {
-				return nil, status.Errorf(codes.Internal, "can not find any device group")
-			}
+			return nil, status.Errorf(codes.Internal, "can not find any device group")
 		}
 	}
 

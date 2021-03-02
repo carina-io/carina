@@ -16,6 +16,13 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 )
 
+// This annotation is added to a PVC that has been triggered by scheduler to
+// be dynamically provisioned. Its value is the name of the selected node.
+const annSelectedNode = "volume.kubernetes.io/selected-node"
+
+// This annotation is present on K8s 1.11 release.
+const annAlphaSelectedNode = "volume.alpha.kubernetes.io/selected-node"
+
 type nodeService interface {
 	getNodes(ctx context.Context) (*corev1.NodeList, error)
 	// 支持 volume size 及 topology match
@@ -23,6 +30,8 @@ type nodeService interface {
 	GetCapacityByNodeName(ctx context.Context, nodeName, deviceGroup string) (int64, error)
 	GetTotalCapacity(ctx context.Context, deviceGroup string, topology *csi.Topology) (int64, error)
 	SelectDeviceGroup(ctx context.Context, request int64, nodeName string) (string, error)
+	// sc WaitForConsumer
+	HaveSelectedNode(ctx context.Context, namespace, name string) (string, error)
 }
 
 // ErrNodeNotFound represents the error that node is not found.
@@ -217,4 +226,19 @@ func (s NodeService) SelectDeviceGroup(ctx context.Context, request int64, nodeN
 	// 这里只能选最小满足的，因为可能存在一个pod多个pv都需要落在这个节点
 	selectDeviceGroup = preselectNode[0].Key
 	return selectDeviceGroup, nil
+}
+
+func (s NodeService) HaveSelectedNode(ctx context.Context, namespace, name string) (string, error) {
+	node := ""
+	pvc := new(corev1.PersistentVolumeClaim)
+	err := s.Get(ctx, client.ObjectKey{Namespace: namespace, Name: name}, pvc)
+	if err != nil {
+		return node, err
+	}
+	node = pvc.Annotations[annSelectedNode]
+	if node == "" {
+		node = pvc.Annotations[annAlphaSelectedNode]
+	}
+
+	return node, nil
 }
