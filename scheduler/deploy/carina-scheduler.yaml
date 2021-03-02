@@ -3,124 +3,49 @@ apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: carina-scheduler-clusterrole
 rules:
-  - apiGroups:
-      - ""
-    resources:
-      - endpoints
-      - events
-    verbs:
-      - create
-      - get
-      - update
-  - apiGroups:
-      - ""
-    resources:
-      - nodes
-    verbs:
-      - get
-      - list
-      - watch
-  - apiGroups:
-      - ""
-    resources:
-      - pods
-    verbs:
-      - delete
-      - get
-      - list
-      - watch
-      - update
-  - apiGroups:
-      - ""
-    resources:
-      - bindings
-      - pods/binding
-    verbs:
-      - create
-  - apiGroups:
-      - ""
-    resources:
-      - pods/status
-    verbs:
-      - patch
-      - update
-  - apiGroups:
-      - ""
-    resources:
-      - replicationcontrollers
-      - services
-    verbs:
-      - get
-      - list
-      - watch
-  - apiGroups:
-      - apps
-      - extensions
-    resources:
-      - replicasets
-    verbs:
-      - get
-      - list
-      - watch
-  - apiGroups:
-      - apps
-    resources:
-      - statefulsets
-    verbs:
-      - get
-      - list
-      - watch
-  - apiGroups:
-      - policy
-    resources:
-      - poddisruptionbudgets
-    verbs:
-      - get
-      - list
-      - watch
-  - apiGroups:
-      - ""
-    resources:
-      - persistentvolumeclaims
-      - persistentvolumes
-    verbs:
-      - get
-      - list
-      - watch
-  - apiGroups:
-      - ""
-    resources:
-      - configmaps
-    verbs:
-      - get
-      - list
-      - watch
-  - apiGroups:
-      - "storage.k8s.io"
-    resources:
-      - storageclasses
-      - csinodes
-    verbs:
-      - get
-      - list
-      - watch
-  - apiGroups:
-      - "coordination.k8s.io"
-    resources:
-      - leases
-    verbs:
-      - create
-      - get
-      - list
-      - update
-  - apiGroups:
-      - "events.k8s.io"
-    resources:
-      - events
-    verbs:
-      - create
-      - patch
-      - update
+  - apiGroups: [""]
+    resources: ["endpoints", "events"]
+    verbs: ["create", "get", "update"]
+  - apiGroups: [""]
+    resources: ["nodes"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["delete", "get", "list", "watch", "update"]
+  - apiGroups: [""]
+    resources: ["bindings", "pods/binding"]
+    verbs: ["create"]
+  - apiGroups: [""]
+    resources: ["pods/status"]
+    verbs: ["patch", "update"]
+  - apiGroups: [""]
+    resources: ["replicationcontrollers", "services"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["apps", "extensions"]
+    resources: ["replicasets"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["apps"]
+    resources: ["statefulsets"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["policy"]
+    resources: ["poddisruptionbudgets"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["persistentvolumeclaims", "persistentvolumes"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["configmaps"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["storage.k8s.io"]
+    resources: ["storageclasses", "csinodes"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["coordination.k8s.io"]
+    resources: ["leases"]
+    verbs: ["create", "get", "list", "update"]
+  - apiGroups: ["events.k8s.io"]
+    resources: ["events"]
+    verbs: ["create", "patch", "update"]
+
 ---
 apiVersion: v1
 kind: ServiceAccount
@@ -146,10 +71,10 @@ subjects:
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: scheduler-config
+  name: carina-scheduler-config
   namespace: kube-system
 data:
-  scheduler-config.yaml: |
+  scheduler-config.yaml: |-
     apiVersion: kubescheduler.config.k8s.io/v1beta1
     kind: KubeSchedulerConfiguration
     leaderElection:
@@ -189,24 +114,25 @@ spec:
       serviceAccount: carina-scheduler-sa
       priorityClassName: system-cluster-critical
       containers:
-        - name: scheduler-ctrl
+        - name: carina-scheduler
           image: docker.hub.com/carina/scheduler:latest
-          imagePullPolicy: Always
+          imagePullPolicy: "Always"
+          command: ["carina-scheduler"]
           args:
-            - --config=/etc/kubernetes/scheduler-config.yaml
+            - --config=/etc/kube/scheduler-config.yaml
             - --v=3
           resources:
             requests:
               cpu: "50m"
           volumeMounts:
             - name: scheduler-config
-              mountPath: /etc/kubernetes
+              mountPath: /etc/kube/
             - name: config
               mountPath: /etc/carina/
-          volumes:
-            - name: scheduler-config
-              configMap:
-                name: scheduler-config
-            - name: config
-              configMap:
-                name: carina-csi-config
+      volumes:
+        - name: scheduler-config
+          configMap:
+            name: carina-scheduler-config
+        - name: config
+          configMap:
+            name: carina-csi-config
