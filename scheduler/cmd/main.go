@@ -3,8 +3,8 @@ package main
 import (
 	"math/rand"
 	"os"
-	"schedule/scheduleplugin/example"
-	"schedule/scheduleplugin/localstorage"
+	"scheduler/scheduleplugin/example"
+	"scheduler/scheduleplugin/localstorage"
 	"time"
 
 	"k8s.io/component-base/logs"

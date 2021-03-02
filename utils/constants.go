@@ -42,5 +42,5 @@ const (
 	DeviceVGHDD = "carina-vg-hdd"
 
 	// custom schedule
-	CarinaSchedule = "carina-schedule"
+	CarinaSchedule = "carina-scheduler"
 )

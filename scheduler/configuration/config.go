@@ -4,7 +4,7 @@ import (
 	"github.com/fsnotify/fsnotify"
 	"github.com/spf13/viper"
 	"os"
-	"schedule/utils"
+	"scheduler/utils"
 	"strings"
 )
 

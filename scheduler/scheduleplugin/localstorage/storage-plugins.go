@@ -10,14 +10,14 @@ import (
 	lstoragev1 "k8s.io/client-go/listers/storage/v1"
 	"k8s.io/klog/v2"
 	"k8s.io/kubernetes/pkg/scheduler/framework"
-	"schedule/configuration"
-	"schedule/utils"
+	"scheduler/configuration"
+	"scheduler/utils"
 	"sort"
 	"strings"
 )
 
 // 插件名称
-const Name = "carina-schedule"
+const Name = "local-storage"
 const undefined = "undefined"
 
 type LocalStorage struct {

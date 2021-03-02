@@ -1,4 +1,4 @@
-module schedule
+module scheduler
 
 go 1.15
 
