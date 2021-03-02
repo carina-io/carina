@@ -150,13 +150,13 @@ metadata:
   namespace: kube-system
 data:
   scheduler-config.yaml: |
-  apiVersion: kubescheduler.config.k8s.io/v1beta1
-  kind: KubeSchedulerConfiguration
-  leaderElection:
-    leaderElect: true
-    resourceName:  carina-scheduler
-    resourceNamespace: kube-system
-  profiles:
+    apiVersion: kubescheduler.config.k8s.io/v1beta1
+    kind: KubeSchedulerConfiguration
+    leaderElection:
+      leaderElect: true
+      resourceName:  carina-scheduler
+      resourceNamespace: kube-system
+    profiles:
     - schedulerName: carina-scheduler
       plugins:
         filter:
@@ -188,13 +188,9 @@ spec:
     spec:
       serviceAccount: carina-scheduler-sa
       priorityClassName: system-cluster-critical
-      volumes:
-        - name: scheduler-config
-          configMap:
-            name: scheduler-config
       containers:
         - name: scheduler-ctrl
-          image: antmoveh/carina-scheduler:latest
+          image: docker.hub.com/carina/scheduler:latest
           imagePullPolicy: Always
           args:
             - --config=/etc/kubernetes/scheduler-config.yaml
@@ -205,3 +201,12 @@ spec:
           volumeMounts:
             - name: scheduler-config
               mountPath: /etc/kubernetes
+            - name: config
+              mountPath: /etc/carina/
+          volumes:
+            - name: scheduler-config
+              configMap:
+                name: scheduler-config
+            - name: config
+              configMap:
+                name: carina-csi-config

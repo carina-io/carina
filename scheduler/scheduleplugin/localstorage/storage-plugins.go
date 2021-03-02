@@ -114,13 +114,13 @@ func (ls *LocalStorage) Filter(ctx context.Context, cycleState *framework.CycleS
 			}
 		}
 	}
-
+	klog.V(3).Info("filter success")
 	return framework.NewStatus(framework.Success, "")
 }
 
 // 对节点进行打分（相当于旧版本的 priorities）
 func (ls *LocalStorage) Score(ctx context.Context, state *framework.CycleState, pod *v1.Pod, nodeName string) (int64, *framework.Status) {
-
+	klog.V(3).Infof("score pod: %v, node: %v", pod.Name, nodeName)
 	pvcMap, node, _ := ls.getLocalStoragePvc(pod)
 	if node == nodeName {
 		return 10, framework.NewStatus(framework.Success)
@@ -195,6 +195,7 @@ func (ls *LocalStorage) ScoreExtensions() framework.ScoreExtensions {
 
 // NormalizeScore invoked after scoring all nodes.
 func (ls *LocalStorage) NormalizeScore(ctx context.Context, _ *framework.CycleState, pod *v1.Pod, scores framework.NodeScoreList) *framework.Status {
+	klog.V(3).Infof("normalize score pod: %v, node: %v", pod.Name, scores)
 	return nil
 }
 
