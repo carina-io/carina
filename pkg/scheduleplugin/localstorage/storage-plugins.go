@@ -127,7 +127,7 @@ func (ls *LocalStorage) Score(ctx context.Context, state *framework.CycleState, 
 	}
 
 	if len(pvcMap) == 0 {
-		return 10, framework.NewStatus(framework.Success, "")
+		return 5, framework.NewStatus(framework.Success, "")
 	}
 
 	// Get Node Info
@@ -147,6 +147,8 @@ func (ls *LocalStorage) Score(ctx context.Context, state *framework.CycleState, 
 	}
 	var score int64
 	// 计算节点分数
+	// 影响磁盘分数的有磁盘容量,磁盘上现有pv数量,磁盘IO
+	// 在此我们以磁盘容量作为标准，同时配合设置对磁盘选择策略
 	for key, pvs := range pvcMap {
 		sort.Slice(pvs, func(i, j int) bool {
 			return pvs[i].Spec.Resources.Requests.Storage().Value() > pvs[j].Spec.Resources.Requests.Storage().Value()
@@ -179,7 +181,7 @@ func (ls *LocalStorage) Score(ctx context.Context, state *framework.CycleState, 
 				score = reasonableScore(ratio)
 			}
 			if configuration.SchedulerStrategy() == configuration.SchedulerBinpack {
-				score = 10 - reasonableScore(ratio)
+				score = 5 - reasonableScore(ratio)
 			}
 		}
 	}
@@ -266,12 +268,12 @@ func minimumValueMinus(array []int64, value int64) []int64 {
 	return array
 }
 
+// 分值范围为0-10，在此降低pv分值比例限制为1-5分
+// 考虑到扩容以及提高资源利用率方面，进行中性的评分
+// 对于申请用量与现存容量差距巨大，则配置文件中选节点策略可以忽略
 func reasonableScore(ratio int64) int64 {
 	if ratio >= 10 {
-		return 9
+		return 5
 	}
-	if ratio < 1 {
-		return 1
-	}
-	return ratio
+	return ratio / 2
 }

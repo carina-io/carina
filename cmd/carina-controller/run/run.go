@@ -4,7 +4,7 @@ import (
 	carinav1 "carina/api/v1"
 	"carina/controllers"
 	"carina/hook"
-	"carina/pkg/configruation"
+	"carina/pkg/configuration"
 	"carina/pkg/csidriver/csi"
 	"carina/pkg/csidriver/driver"
 	"carina/pkg/csidriver/driver/k8s"

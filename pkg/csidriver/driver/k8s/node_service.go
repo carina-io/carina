@@ -1,7 +1,7 @@
 package k8s
 
 import (
-	"carina/pkg/configruation"
+	"carina/pkg/configuration"
 	"carina/pkg/csidriver/csi"
 	"carina/utils"
 	"context"

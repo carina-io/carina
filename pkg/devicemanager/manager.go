@@ -1,7 +1,7 @@
 package deviceManager
 
 import (
-	"carina/pkg/configruation"
+	"carina/pkg/configuration"
 	"carina/pkg/devicemanager/device"
 	"carina/pkg/devicemanager/lvmd"
 	"carina/pkg/devicemanager/types"

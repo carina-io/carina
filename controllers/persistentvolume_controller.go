@@ -1,7 +1,7 @@
 package controllers
 
 import (
-	"carina/pkg/configruation"
+	"carina/pkg/configuration"
 	"carina/utils"
 	"carina/utils/log"
 	"context"
