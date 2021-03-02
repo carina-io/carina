@@ -1,32 +1,19 @@
-module carina
+module schedule
 
 go 1.15
 
 require (
 	github.com/fsnotify/fsnotify v1.4.9
-	github.com/go-logr/logr v0.3.0
-	github.com/gogo/protobuf v1.3.1
-	github.com/golang/protobuf v1.4.3
-	github.com/labstack/echo/v4 v4.1.17
-	github.com/natefinch/lumberjack v2.0.0+incompatible
-	github.com/onsi/ginkgo v1.14.1
-	github.com/onsi/gomega v1.10.2
-	github.com/spf13/cobra v1.1.1
+	github.com/hashicorp/golang-lru v0.5.4 // indirect
+	github.com/imdario/mergo v0.3.9 // indirect
+	github.com/onsi/gomega v1.10.1 // indirect
 	github.com/spf13/viper v1.7.1
-	go.uber.org/zap v1.15.0
-	golang.org/x/net v0.0.0-20201110031124-69a78807bb2b
-	golang.org/x/sys v0.0.0-20210124154548-22da62e12c0c
-	google.golang.org/grpc v1.36.0
-	google.golang.org/grpc/examples v0.0.0-20210223174733-dabedfb38b74 // indirect
-	google.golang.org/protobuf v1.25.0
-	k8s.io/api v1.20.4
+	k8s.io/api v0.20.4
 	k8s.io/apimachinery v0.20.4
 	k8s.io/client-go v0.20.4
 	k8s.io/component-base v0.20.4
-	k8s.io/klog/v2 v2.4.0
-	k8s.io/kubernetes v1.20.4
-	k8s.io/mount-utils v0.20.4 // indirect
-	sigs.k8s.io/controller-runtime v0.8.2
+	k8s.io/klog/v2 v2.5.0
+	k8s.io/kubernetes v0.0.0-00010101000000-000000000000
 )
 
 replace (
