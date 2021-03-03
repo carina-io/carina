@@ -20,7 +20,8 @@ function install() {
   kubectl apply -f csi-carina-node.yaml
   kubectl apply -f carina-scheduler.yaml
   sleep 3s
-  echo "kubectl get pods -n kube-system |grep carina"
+  echo "-------------------------------"
+  echo "$ kubectl get pods -n kube-system |grep carina"
   kubectl get pods -n kube-system |grep carina
 }
 
