@@ -114,7 +114,7 @@ func (ls *LocalStorage) Filter(ctx context.Context, cycleState *framework.CycleS
 			}
 		}
 	}
-	klog.V(3).Info("filter success")
+	klog.V(3).Infof("filter success pod: %v, node: %v", pod.Name, node.Node().Name)
 	return framework.NewStatus(framework.Success, "")
 }
 

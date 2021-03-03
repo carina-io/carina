@@ -106,13 +106,14 @@ func (s controllerService) CreateVolume(ctx context.Context, req *csi.CreateVolu
 	}
 	// sc parameter未设置device group
 	if node != "" && deviceGroup == "" {
-		deviceGroup, err := s.nodeService.SelectDeviceGroup(ctx, requestGb, node)
+		group, err := s.nodeService.SelectDeviceGroup(ctx, requestGb, node)
 		if err != nil {
 			return nil, status.Errorf(codes.Internal, "failed to get device group %v", err)
 		}
-		if deviceGroup == "" {
+		if group == "" {
 			return nil, status.Errorf(codes.Internal, "can not find any device group")
 		}
+		deviceGroup = group
 	}
 
 	// 不是调度器完成pv调度，则采用controller调度
@@ -122,18 +123,19 @@ func (s controllerService) CreateVolume(ctx context.Context, req *csi.CreateVolu
 		// - https://github.com/container-storage-interface/spec/blob/release-1.1/spec.md#createvolume
 		// - https://github.com/kubernetes-csi/csi-test/blob/6738ab2206eac88874f0a3ede59b40f680f59f43/pkg/sanity/controller.go#L404-L428
 		log.Info("decide node because accessibility_requirements not found")
-		nodeName, deviceGroup, segmentsTmp, err := s.nodeService.SelectVolumeNode(ctx, requestGb, deviceGroup, requirements)
+		nodeName, group, segmentsTmp, err := s.nodeService.SelectVolumeNode(ctx, requestGb, deviceGroup, requirements)
 		if err != nil {
 			return nil, status.Errorf(codes.Internal, "failed to get max capacity node %v", err)
 		}
 		if nodeName == "" {
 			return nil, status.Error(codes.Internal, "can not find any node")
 		}
-		if deviceGroup == "" {
+		if group == "" {
 			return nil, status.Error(codes.Internal, "can not find any device group")
 		}
 		node = nodeName
 		segments = segmentsTmp
+		deviceGroup = group
 	}
 
 	volumeID, err := s.lvService.CreateVolume(ctx, node, deviceGroup, name, requestGb)

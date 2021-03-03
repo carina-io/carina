@@ -224,7 +224,11 @@ func (s NodeService) SelectDeviceGroup(ctx context.Context, request int64, nodeN
 		return preselectNode[i].Value < preselectNode[j].Value
 	})
 	// 这里只能选最小满足的，因为可能存在一个pod多个pv都需要落在这个节点
-	selectDeviceGroup = preselectNode[0].Key
+	for _, p := range preselectNode {
+		if p.Value >= request {
+			selectDeviceGroup = strings.Split(p.Key, "/")[1]
+		}
+	}
 	return selectDeviceGroup, nil
 }
 
