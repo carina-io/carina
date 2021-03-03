@@ -19,10 +19,10 @@ spec:
           requiredDuringSchedulingIgnoredDuringExecution:
             nodeSelectorTerms:
               - matchExpressions:
-                  - key: topology.carina.storage.io/zone
+                  - key: kubernetes.io/os
                     operator: In
                     values:
-                      - local
+                      - linux
         podAntiAffinity:
           requiredDuringSchedulingIgnoredDuringExecution:
             - labelSelector:
@@ -31,7 +31,7 @@ spec:
                     operator: In
                     values:
                       - nginx
-              topologyKey: topology.carina.storage.io/zone
+              topologyKey: topology.carina.storage.io/node
       containers:
         - name: nginx
           image: nginx
@@ -59,4 +59,4 @@ spec:
         storageClassName: csi-carina-sc
         resources:
           requests:
-            storage: 1Gi
+            storage: 5Gi

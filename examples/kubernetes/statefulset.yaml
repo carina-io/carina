@@ -35,7 +35,7 @@ spec:
         storageClassName: csi-carina-sc
         resources:
           requests:
-            storage: 1Gi
+            storage: 3Gi
 ---
 
 apiVersion: v1

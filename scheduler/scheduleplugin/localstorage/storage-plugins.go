@@ -194,12 +194,6 @@ func (ls *LocalStorage) ScoreExtensions() framework.ScoreExtensions {
 	return nil
 }
 
-// NormalizeScore invoked after scoring all nodes.
-func (ls *LocalStorage) NormalizeScore(ctx context.Context, _ *framework.CycleState, pod *v1.Pod, scores framework.NodeScoreList) *framework.Status {
-	klog.V(3).Infof("normalize score pod: %v, node: %v", pod.Name, scores)
-	return nil
-}
-
 func (ls *LocalStorage) getLocalStoragePvc(pod *v1.Pod) (map[string][]*v1.PersistentVolumeClaim, string, error) {
 	nodeName := ""
 	localPvc := map[string][]*v1.PersistentVolumeClaim{}
