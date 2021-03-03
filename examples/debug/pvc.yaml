@@ -9,6 +9,6 @@ spec:
     - ReadWriteOnce
   resources:
     requests:
-      storage: 1Gi
+      storage: 7Gi
   storageClassName: csi-carina-sc
   volumeMode: Filesystem

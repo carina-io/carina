@@ -181,16 +181,17 @@ func (ls *LocalStorage) Score(ctx context.Context, state *framework.CycleState, 
 				score = reasonableScore(ratio)
 			}
 			if configuration.SchedulerStrategy() == configuration.SchedulerBinpack {
-				score = 5 - reasonableScore(ratio)
+				score = 6 - reasonableScore(ratio)
 			}
 		}
 	}
+	klog.V(3).Infof("score pod: %v, node: %v score %v", pod.Name, nodeName, score)
 	return score, framework.NewStatus(framework.Success)
 }
 
 // ScoreExtensions of the Score plugin.
 func (ls *LocalStorage) ScoreExtensions() framework.ScoreExtensions {
-	return ls
+	return nil
 }
 
 // NormalizeScore invoked after scoring all nodes.
@@ -273,8 +274,11 @@ func minimumValueMinus(array []int64, value int64) []int64 {
 // 考虑到扩容以及提高资源利用率方面，进行中性的评分
 // 对于申请用量与现存容量差距巨大，则配置文件中选节点策略可以忽略
 func reasonableScore(ratio int64) int64 {
-	if ratio >= 10 {
+	if ratio > 10 {
 		return 5
+	}
+	if ratio < 2 {
+		return 1
 	}
 	return ratio / 2
 }
