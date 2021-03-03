@@ -96,17 +96,24 @@ func (s controllerService) CreateVolume(ctx context.Context, req *csi.CreateVolu
 	segments := map[string]string{}
 	requirements := req.GetAccessibilityRequirements()
 
-	if requirements != nil {
-		for _, topo := range requirements.Requisite {
-			if v, ok := topo.GetSegments()[utils.TopologyZoneKey]; ok {
-				segments[utils.TopologyZoneKey] = v
-				node = v
-				break
-			}
+	// 为什么requirements是所有的节点列表，不应该只有已选定的节点吗
+	// 只能通过pvc Annotations来判断pvc是否已经被选定节点
+	pvcName := req.Parameters["csi.storage.k8s.io/pvc/name"]
+	namespace := req.Parameters["csi.storage.k8s.io/pvc/namespace"]
+	node, err = s.nodeService.HaveSelectedNode(ctx, namespace, pvcName)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "can not find pvc %s %s", namespace, name)
+	}
+	// sc parameter未设置device group
+	if node != "" && deviceGroup == "" {
+		group, err := s.nodeService.SelectDeviceGroup(ctx, requestGb, node)
+		if err != nil {
+			return nil, status.Errorf(codes.Internal, "failed to get device group %v", err)
 		}
-		if deviceGroup == "" {
-			// TODO: 调度完成在补充，若是storageclass未设置carina.storage.io/disk参数，只能从pvc annontation获取
+		if group == "" {
+			return nil, status.Errorf(codes.Internal, "can not find any device group")
 		}
+		deviceGroup = group
 	}
 
 	// 不是调度器完成pv调度，则采用controller调度
@@ -116,18 +123,19 @@ func (s controllerService) CreateVolume(ctx context.Context, req *csi.CreateVolu
 		// - https://github.com/container-storage-interface/spec/blob/release-1.1/spec.md#createvolume
 		// - https://github.com/kubernetes-csi/csi-test/blob/6738ab2206eac88874f0a3ede59b40f680f59f43/pkg/sanity/controller.go#L404-L428
 		log.Info("decide node because accessibility_requirements not found")
-		nodeName, deviceGroup, segmentsTmp, err := s.nodeService.SelectVolumeNode(ctx, requestGb, deviceGroup, requirements)
+		nodeName, group, segmentsTmp, err := s.nodeService.SelectVolumeNode(ctx, requestGb, deviceGroup, requirements)
 		if err != nil {
 			return nil, status.Errorf(codes.Internal, "failed to get max capacity node %v", err)
 		}
 		if nodeName == "" {
 			return nil, status.Error(codes.Internal, "can not find any node")
 		}
-		if deviceGroup == "" {
+		if group == "" {
 			return nil, status.Error(codes.Internal, "can not find any device group")
 		}
 		node = nodeName
 		segments = segmentsTmp
+		deviceGroup = group
 	}
 
 	volumeID, err := s.lvService.CreateVolume(ctx, node, deviceGroup, name, requestGb)
@@ -146,7 +154,7 @@ func (s controllerService) CreateVolume(ctx context.Context, req *csi.CreateVolu
 	volumeContext[utils.VolumeDeviceNode] = node
 
 	// pv nodeAffinity
-	segments[utils.KubernetesHostName] = node
+	segments[utils.TopologyNodeKey] = node
 
 	return &csi.CreateVolumeResponse{
 		Volume: &csi.Volume{

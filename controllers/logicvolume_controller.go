@@ -61,8 +61,7 @@ func NewLogicVolumeReconciler(client client.Client, log logr.Logger, scheme *run
 	}
 }
 
-func (r *LogicVolumeReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
-	ctx := context.Background()
+func (r *LogicVolumeReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	_ = r.Log.WithValues("logicvolume", req.NamespacedName)
 
 	// your logic here
@@ -220,7 +219,6 @@ func (r *LogicVolumeReconciler) expandLV(ctx context.Context, lv *carinav1.Logic
 		lv.Status.Message = ""
 		lv.Status.Status = "Success"
 		r.Recorder.Event(lv, corev1.EventTypeNormal, "ExpandVolumeSuccess", fmt.Sprintf("expand volume success node: %s, time: %s", r.nodeName, time.Now().Format("2006-01-02T15:04:05.000Z")))
-
 	}
 
 	if err != nil {

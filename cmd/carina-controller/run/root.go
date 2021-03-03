@@ -7,7 +7,7 @@ import (
 	"os"
 
 	"github.com/spf13/cobra"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 )
 
 var config struct {
@@ -45,6 +45,8 @@ func init() {
 	fs := rootCmd.Flags()
 	fs.StringVar(&config.csiSocket, "csi-address", utils.DefaultCSISocket, "UNIX domain socket filename for CSI")
 	fs.StringVar(&config.metricsAddr, "metrics-addr", ":8080", "Listen address for metrics")
+	fs.StringVar(&config.webhookAddr, "webhook-addr", ":8443", "Listen address for the webhook endpoint")
+	fs.StringVar(&config.certDir, "cert-dir", "", "certificate directory")
 	fs.BoolVar(&config.development, "development", false, "Use development logger config")
 
 	goflags := flag.NewFlagSet("klog", flag.ExitOnError)

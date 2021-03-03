@@ -10,5 +10,5 @@ spec:
   volumeMode: Block
   resources:
     requests:
-      storage: 1Gi
+      storage: 13Gi
   storageClassName: csi-carina-sc

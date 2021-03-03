@@ -1,4 +1,4 @@
-package configruation
+package configuration
 
 import (
 	"carina/utils"

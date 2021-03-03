@@ -2,8 +2,7 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: carin-deployment
-  namespace: carina
+  name: csi-carina-demo-depl
   labels:
     app: web-server
 spec:
