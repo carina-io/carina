@@ -17,6 +17,7 @@ function install() {
   kubectl apply -f csi-node-psp.yaml
   kubectl apply -f csi-node-rbac.yaml
   kubectl apply -f csi-carina-node.yaml
+  kubectl apply -f carina-scheduler.yaml
 }
 
 
@@ -31,6 +32,7 @@ function uninstall() {
   kubectl delete -f csi-node-psp.yaml
   kubectl delete -f csi-node-rbac.yaml
   kubectl delete -f csi-carina-node.yaml
+  kubectl delete -f carina-scheduler.yaml
 
   kubectl delete csr carina-controller.kube-system
   kubectl delete configmap carina-node-storage -n kube-system

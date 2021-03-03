@@ -1,0 +1,21 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: scheduler-test
+  labels:
+    app: scheduler-test
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: scheduler-test
+  template:
+    metadata:
+      labels:
+        app: scheduler-test
+    spec:
+      schedulerName: carina-scheduler
+      containers:
+        - name: web-server
+          image: docker.io/library/nginx:latest
