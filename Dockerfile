@@ -2,7 +2,7 @@
 FROM golang:1.15-buster AS builder
 
 ENV GO111MODULE=on CGO_ENABLED=0 GOOS=linux GOARCH=amd64 GOPROXY=https://goproxy.cn,direct
-ENV WORKSPACE=/workspace/carina
+ENV WORKSPACE=/workspace/bocloud.com/cloudnative/carina
 
 WORKDIR $WORKSPACE
 ADD . .
@@ -17,7 +17,7 @@ FROM antmoveh/centos-lvm2:v2
 # copy binary file
 COPY --from=builder /tmp/carina-node /usr/bin/
 COPY --from=builder /tmp/carina-controller /usr/bin/
-COPY --from=builder /workspace/carina/deploy/config.json /etc/carina/
+COPY --from=builder /workspace/bocloud.com/cloudnative/carina/debug/config.json /etc/carina/
 
 RUN chmod +x /usr/bin/carina-node && chmod +x /usr/bin/carina-controller
 

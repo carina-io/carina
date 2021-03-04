@@ -1,6 +1,6 @@
 package lvmd
 
-import "carina/pkg/devicemanager/types"
+import "bocloud.com/cloudnative/carina/pkg/devicemanager/types"
 
 type Lvm2 interface {
 	// 检查pv是否存在

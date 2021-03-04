@@ -1,4 +1,4 @@
-module carina
+module bocloud.com/cloudnative/carina
 
 go 1.15
 

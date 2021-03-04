@@ -1,9 +1,9 @@
 package k8s
 
 import (
-	carinav1 "carina/api/v1"
-	"carina/utils"
-	"carina/utils/log"
+	carinav1 "bocloud.com/cloudnative/carina/api/v1"
+	"bocloud.com/cloudnative/carina/utils"
+	"bocloud.com/cloudnative/carina/utils/log"
 	"context"
 	"errors"
 	"fmt"

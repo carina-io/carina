@@ -1,4 +1,4 @@
-module scheduler
+module bocloud.com/cloudnative/carina/scheduler
 
 go 1.15
 

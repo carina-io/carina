@@ -1,9 +1,9 @@
 package device
 
 import (
-	"carina/pkg/devicemanager/types"
-	"carina/utils/exec"
-	"carina/utils/log"
+	"bocloud.com/cloudnative/carina/pkg/devicemanager/types"
+	"bocloud.com/cloudnative/carina/utils/exec"
+	"bocloud.com/cloudnative/carina/utils/log"
 	"fmt"
 	"os"
 	"strconv"

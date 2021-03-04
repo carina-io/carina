@@ -10,8 +10,8 @@ import (
 	lstoragev1 "k8s.io/client-go/listers/storage/v1"
 	"k8s.io/klog/v2"
 	"k8s.io/kubernetes/pkg/scheduler/framework"
-	"scheduler/configuration"
-	"scheduler/utils"
+	"bocloud.com/cloudnative/carina/scheduler/configuration"
+	"bocloud.com/cloudnative/carina/scheduler/utils"
 	"sort"
 	"strings"
 )

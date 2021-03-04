@@ -1,9 +1,9 @@
 package controllers
 
 import (
-	"carina/pkg/configuration"
-	"carina/utils"
-	"carina/utils/log"
+	"bocloud.com/cloudnative/carina/pkg/configuration"
+	"bocloud.com/cloudnative/carina/utils"
+	"bocloud.com/cloudnative/carina/utils/log"
 	"context"
 	"encoding/json"
 	corev1 "k8s.io/api/core/v1"
