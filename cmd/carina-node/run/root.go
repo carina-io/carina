@@ -1,18 +1,19 @@
 package run
 
 import (
-	"carina/utils"
+	"bocloud.com/cloudnative/carina/utils"
 	"flag"
 	"fmt"
 	"github.com/spf13/cobra"
 	"k8s.io/klog/v2"
 	"os"
+	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 )
 
 var config struct {
 	csiSocket   string
 	metricsAddr string
-	development bool
+	zapOpts     zap.Options
 }
 
 var rootCmd = &cobra.Command{
@@ -44,9 +45,10 @@ func init() {
 	fs := rootCmd.Flags()
 	fs.StringVar(&config.csiSocket, "csi-address", utils.DefaultCSISocket, "UNIX domain socket filename for CSI")
 	fs.StringVar(&config.metricsAddr, "metrics-addr", ":8080", "Listen address for metrics")
-	fs.BoolVar(&config.development, "development", false, "Use development logger config")
 
 	goflags := flag.NewFlagSet("klog", flag.ExitOnError)
 	klog.InitFlags(goflags)
+	config.zapOpts.BindFlags(goflags)
+
 	fs.AddGoFlagSet(goflags)
 }

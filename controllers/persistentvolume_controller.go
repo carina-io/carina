@@ -1,12 +1,11 @@
 package controllers
 
 import (
-	"carina/pkg/configuration"
-	"carina/utils"
-	"carina/utils/log"
+	"bocloud.com/cloudnative/carina/pkg/configuration"
+	"bocloud.com/cloudnative/carina/utils"
+	"bocloud.com/cloudnative/carina/utils/log"
 	"context"
 	"encoding/json"
-	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -24,7 +23,6 @@ import (
 type PersistentVolumeReconciler struct {
 	client.Client
 	APIReader client.Reader
-	Log       logr.Logger
 }
 
 // +kubebuilder:rbac:groups="",resources=persistentvolumes,verbs=get;list;watch;update
@@ -32,7 +30,6 @@ type PersistentVolumeReconciler struct {
 
 // Reconcile finalize PVC
 func (r *PersistentVolumeReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	_ = r.Log.WithValues("persistentvolume", req.NamespacedName)
 	// your logic here
 	pv := &corev1.PersistentVolume{}
 	err := r.Get(ctx, req.NamespacedName, pv)

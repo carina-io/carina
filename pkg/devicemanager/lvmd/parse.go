@@ -1,8 +1,8 @@
 package lvmd
 
 import (
-	"carina/pkg/devicemanager/types"
-	"carina/utils/log"
+	"bocloud.com/cloudnative/carina/pkg/devicemanager/types"
+	"bocloud.com/cloudnative/carina/utils/log"
 	"strconv"
 	"strings"
 )

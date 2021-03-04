@@ -1,9 +1,9 @@
 package driver
 
 import (
-	"carina/pkg/csidriver/csi"
-	"carina/utils"
-	"carina/utils/log"
+	"bocloud.com/cloudnative/carina/pkg/csidriver/csi"
+	"bocloud.com/cloudnative/carina/utils"
+	"bocloud.com/cloudnative/carina/utils/log"
 	"context"
 	"github.com/golang/protobuf/ptypes/wrappers"
 )

@@ -3,7 +3,7 @@ package exec
 import (
 	"bufio"
 	"bytes"
-	"carina/utils/log"
+	"bocloud.com/cloudnative/carina/utils/log"
 	"context"
 	"fmt"
 	"io"

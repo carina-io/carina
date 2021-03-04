@@ -1,11 +1,11 @@
 package volume
 
 import (
-	"carina/pkg/devicemanager/lvmd"
-	"carina/pkg/devicemanager/types"
-	"carina/utils"
-	"carina/utils/log"
-	"carina/utils/mutx"
+	"bocloud.com/cloudnative/carina/pkg/devicemanager/lvmd"
+	"bocloud.com/cloudnative/carina/pkg/devicemanager/types"
+	"bocloud.com/cloudnative/carina/utils"
+	"bocloud.com/cloudnative/carina/utils/log"
+	"bocloud.com/cloudnative/carina/utils/mutx"
 	"errors"
 	"fmt"
 	"strings"

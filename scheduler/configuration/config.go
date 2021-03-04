@@ -4,7 +4,7 @@ import (
 	"github.com/fsnotify/fsnotify"
 	"github.com/spf13/viper"
 	"os"
-	"scheduler/utils"
+	"bocloud.com/cloudnative/carina/scheduler/utils"
 	"strings"
 )
 

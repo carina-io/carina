@@ -31,6 +31,7 @@ function uninstall() {
   kubectl delete secret mutatingwebhook -n kube-system
   kubectl delete -f csi-config-map.yaml
   kubectl delete -f mutatingwebhooks.yaml
+  kubectl delete -f mutatingwebhooks.yaml.tmpl
   kubectl delete -f csi-controller-psp.yaml
   kubectl delete -f csi-controller-rbac.yaml
   kubectl delete -f csi-carina-controller.yaml

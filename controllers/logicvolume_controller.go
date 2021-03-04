@@ -17,12 +17,11 @@ limitations under the License.
 package controllers
 
 import (
-	"carina/pkg/devicemanager/volume"
-	"carina/utils"
-	"carina/utils/log"
+	"bocloud.com/cloudnative/carina/pkg/devicemanager/volume"
+	"bocloud.com/cloudnative/carina/utils"
+	"bocloud.com/cloudnative/carina/utils/log"
 	"context"
 	"fmt"
-	"github.com/go-logr/logr"
 	"google.golang.org/grpc/codes"
 	corev1 "k8s.io/api/core/v1"
 	apierrs "k8s.io/apimachinery/pkg/api/errors"
@@ -34,13 +33,12 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"time"
 
-	carinav1 "carina/api/v1"
+	carinav1 "bocloud.com/cloudnative/carina/api/v1"
 )
 
 // LogicVolumeReconciler reconciles a LogicVolume object
 type LogicVolumeReconciler struct {
 	client.Client
-	Log      logr.Logger
 	Scheme   *runtime.Scheme
 	Recorder record.EventRecorder
 	nodeName string
@@ -50,10 +48,9 @@ type LogicVolumeReconciler struct {
 // +kubebuilder:rbac:groups=carina.storage.io,resources=logicvolumes,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=carina.storage.io,resources=logicvolumes/status,verbs=get;update;patch
 
-func NewLogicVolumeReconciler(client client.Client, log logr.Logger, scheme *runtime.Scheme, recorder record.EventRecorder, nodeName string, volume volume.LocalVolume) *LogicVolumeReconciler {
+func NewLogicVolumeReconciler(client client.Client, scheme *runtime.Scheme, recorder record.EventRecorder, nodeName string, volume volume.LocalVolume) *LogicVolumeReconciler {
 	return &LogicVolumeReconciler{
 		Client:   client,
-		Log:      log,
 		Scheme:   scheme,
 		Recorder: recorder,
 		nodeName: nodeName,
@@ -62,7 +59,6 @@ func NewLogicVolumeReconciler(client client.Client, log logr.Logger, scheme *run
 }
 
 func (r *LogicVolumeReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	_ = r.Log.WithValues("logicvolume", req.NamespacedName)
 
 	// your logic here
 	lv := new(carinav1.LogicVolume)

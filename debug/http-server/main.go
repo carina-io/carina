@@ -1,7 +1,7 @@
 package main
 
 import (
-	server2 "carina/debug/http-server/server"
+	server2 "bocloud.com/cloudnative/carina/debug/http-server/server"
 	"github.com/labstack/echo/v4"
 )
 

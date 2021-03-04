@@ -30,7 +30,7 @@ import (
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
-	carinav1 "carina/api/v1"
+	carinav1 "bocloud.com/cloudnative/carina/api/v1"
 	// +kubebuilder:scaffold:imports
 )
 

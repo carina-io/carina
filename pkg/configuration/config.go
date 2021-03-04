@@ -1,8 +1,8 @@
 package configuration
 
 import (
-	"carina/utils"
-	"carina/utils/log"
+	"bocloud.com/cloudnative/carina/utils"
+	"bocloud.com/cloudnative/carina/utils/log"
 	"github.com/fsnotify/fsnotify"
 	"github.com/spf13/viper"
 	"os"

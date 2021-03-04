@@ -1,9 +1,9 @@
 package k8s
 
 import (
-	carinav1 "carina/api/v1"
-	"carina/utils"
-	"carina/utils/log"
+	carinav1 "bocloud.com/cloudnative/carina/api/v1"
+	"bocloud.com/cloudnative/carina/utils"
+	"bocloud.com/cloudnative/carina/utils/log"
 	"context"
 	"errors"
 	"fmt"
@@ -112,7 +112,7 @@ func (s *LogicVolumeService) CreateVolume(ctx context.Context, node, deviceGroup
 		var newLV carinav1.LogicVolume
 		err := s.Get(ctx, client.ObjectKey{Name: name, Namespace: utils.LogicVolumeNamespace}, &newLV)
 		if err != nil {
-			log.Error(err, "failed to get LogicVolume name ", name)
+			log.Error(err, " failed to get LogicVolume name ", name)
 			return "", err
 		}
 		if newLV.Status.VolumeID != "" {
@@ -132,18 +132,43 @@ func (s *LogicVolumeService) CreateVolume(ctx context.Context, node, deviceGroup
 
 // DeleteVolume deletes volume
 func (s *LogicVolumeService) DeleteVolume(ctx context.Context, volumeID string) error {
-	log.Info("k8s.DeleteVolume called", "volumeID", volumeID)
+	log.Info("k8s.DeleteVolume called volumeID ", volumeID)
 
 	lv, err := s.GetLogicVolume(ctx, volumeID)
 	if err != nil {
 		if err == ErrVolumeNotFound {
-			log.Info("volume is not found", "volume_id", volumeID)
+			log.Info("volume is not found volume_id ", volumeID)
 			return nil
 		}
 		return err
 	}
 
-	return s.Delete(ctx, lv)
+	err = s.Delete(ctx, lv)
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			return nil
+		}
+		return err
+	}
+
+	// wait until delete the target volume
+	for {
+		log.Info("waiting for delete LogicalVolume name ", lv.Name)
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-time.After(100 * time.Millisecond):
+		}
+
+		err := s.Get(ctx, client.ObjectKey{Name: lv.Name}, new(carinav1.LogicVolume))
+		if err != nil {
+			if apierrors.IsNotFound(err) {
+				return nil
+			}
+			log.Error(err, " failed to get LogicalVolume name ", lv.Name)
+			return err
+		}
+	}
 }
 
 // ExpandVolume expands volume

@@ -1,7 +1,7 @@
 package filesystem
 
 import (
-	"carina/utils/log"
+	"bocloud.com/cloudnative/carina/utils/log"
 	"fmt"
 )
 
@@ -13,7 +13,7 @@ const (
 )
 
 type xfs struct {
-	device   string
+	device string
 }
 
 func init() {

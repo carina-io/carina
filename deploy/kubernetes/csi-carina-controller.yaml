@@ -91,7 +91,6 @@ spec:
           command: ["carina-controller"]
           args:
             - "--csi-address=$(ADDRESS)"
-            - "--development=true"
             - "--cert-dir=/certs"
           env:
             - name: POD_IP

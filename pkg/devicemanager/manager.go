@@ -1,15 +1,15 @@
 package deviceManager
 
 import (
-	"carina/pkg/configuration"
-	"carina/pkg/devicemanager/device"
-	"carina/pkg/devicemanager/lvmd"
-	"carina/pkg/devicemanager/types"
-	"carina/pkg/devicemanager/volume"
-	"carina/utils"
-	"carina/utils/exec"
-	"carina/utils/log"
-	"carina/utils/mutx"
+	"bocloud.com/cloudnative/carina/pkg/configuration"
+	"bocloud.com/cloudnative/carina/pkg/devicemanager/device"
+	"bocloud.com/cloudnative/carina/pkg/devicemanager/lvmd"
+	"bocloud.com/cloudnative/carina/pkg/devicemanager/types"
+	"bocloud.com/cloudnative/carina/pkg/devicemanager/volume"
+	"bocloud.com/cloudnative/carina/utils"
+	"bocloud.com/cloudnative/carina/utils/exec"
+	"bocloud.com/cloudnative/carina/utils/log"
+	"bocloud.com/cloudnative/carina/utils/mutx"
 	"regexp"
 	"strings"
 	"time"
@@ -289,7 +289,7 @@ func (dm *DeviceManager) LvmHealthCheck() {
 			select {
 			case <-t.C:
 				log.Info("volume health check...")
-				//dm.VolumeManager.HealthCheck()
+				dm.VolumeManager.HealthCheck()
 			case <-dm.stopChan:
 				log.Info("stop volume health check...")
 				return

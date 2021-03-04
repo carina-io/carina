@@ -1,10 +1,10 @@
 package lvmd
 
 import (
-	"carina/pkg/devicemanager/types"
-	"carina/utils"
-	"carina/utils/exec"
-	"carina/utils/log"
+	"bocloud.com/cloudnative/carina/pkg/devicemanager/types"
+	"bocloud.com/cloudnative/carina/utils"
+	"bocloud.com/cloudnative/carina/utils/exec"
+	"bocloud.com/cloudnative/carina/utils/log"
 	"errors"
 	"fmt"
 	"strings"
