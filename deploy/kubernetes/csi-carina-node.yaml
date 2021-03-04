@@ -52,7 +52,6 @@ spec:
           command: ["carina-node"]
           args:
             - "--csi-address=$(ADDRESS)"
-            - "--development=true"
           env:
             - name: POD_IP
               valueFrom:

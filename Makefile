@@ -1,10 +1,9 @@
 ## Dependency versions
-CSI_VERSION=1.1.0
-K8S_VERSION=1.19.6
+CSI_VERSION=1.3.0
+K8S_VERSION=1.20.4
 KUBEBUILDER_VERSION = 2.3.1
-KIND_VERSION=0.9.0
 KUSTOMIZE_VERSION= 3.8.9
-PROTOC_VERSION=3.12.4
+PROTOC_VERSION=3.15.0
 
 # Image URL to use all building/pushing image targets
 IMG ?= controller:latest

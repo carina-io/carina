@@ -16,6 +16,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"net"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -30,19 +31,15 @@ var (
 )
 
 func init() {
-	if err := carinav1.AddToScheme(scheme); err != nil {
-		panic(err)
-	}
-	if err := clientgoscheme.AddToScheme(scheme); err != nil {
-		panic(err)
-	}
+	utilruntime.Must(carinav1.AddToScheme(scheme))
+	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 
 	// +kubebuilder:scaffold:scheme
 }
 
 // Run builds and starts the manager with leader election.
 func subMain() error {
-	ctrl.SetLogger(zap.New(zap.UseDevMode(config.development)))
+	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&config.zapOpts)))
 
 	cfg, err := ctrl.GetConfig()
 	if err != nil {
@@ -91,7 +88,6 @@ func subMain() error {
 	pvcontroller := &controllers.PersistentVolumeReconciler{
 		Client:    mgr.GetClient(),
 		APIReader: mgr.GetAPIReader(),
-		Log:       ctrl.Log.WithName("controllers").WithName("PersistentVolume"),
 	}
 	if err := pvcontroller.SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "PersistentVolumeClaim")

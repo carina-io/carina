@@ -12,6 +12,7 @@ import (
 	"errors"
 	"google.golang.org/grpc"
 	"k8s.io/apimachinery/pkg/runtime"
+	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"os"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -25,12 +26,8 @@ var (
 )
 
 func init() {
-	if err := carinav1.AddToScheme(scheme); err != nil {
-		panic(err)
-	}
-	if err := clientgoscheme.AddToScheme(scheme); err != nil {
-		panic(err)
-	}
+	utilruntime.Must(carinav1.AddToScheme(scheme))
+	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 
 	// +kubebuilder:scaffold:scheme
 }
@@ -41,7 +38,7 @@ func subMain() error {
 		return errors.New("env NODE_NAME is not given")
 	}
 
-	ctrl.SetLogger(zap.New(zap.UseDevMode(config.development)))
+	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&config.zapOpts)))
 
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
 		Scheme:             scheme,
@@ -60,7 +57,6 @@ func subMain() error {
 
 	lvController := controllers.NewLogicVolumeReconciler(
 		mgr.GetClient(),
-		ctrl.Log.WithName("controllers").WithName("LogicVolume"),
 		mgr.GetScheme(),
 		mgr.GetEventRecorderFor("logicvolume-node"),
 		nodeName,

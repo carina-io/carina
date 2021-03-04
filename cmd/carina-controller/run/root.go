@@ -4,19 +4,18 @@ import (
 	"carina/utils"
 	"flag"
 	"fmt"
-	"os"
-
 	"github.com/spf13/cobra"
 	"k8s.io/klog/v2"
+	"os"
+	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 )
 
 var config struct {
-	csiSocket        string
-	metricsAddr      string
-	webhookAddr      string
-	certDir          string
-	leaderElectionID string
-	development      bool
+	csiSocket   string
+	metricsAddr string
+	webhookAddr string
+	certDir     string
+	zapOpts     zap.Options
 }
 
 var rootCmd = &cobra.Command{
@@ -47,9 +46,10 @@ func init() {
 	fs.StringVar(&config.metricsAddr, "metrics-addr", ":8080", "Listen address for metrics")
 	fs.StringVar(&config.webhookAddr, "webhook-addr", ":8443", "Listen address for the webhook endpoint")
 	fs.StringVar(&config.certDir, "cert-dir", "", "certificate directory")
-	fs.BoolVar(&config.development, "development", false, "Use development logger config")
 
 	goflags := flag.NewFlagSet("klog", flag.ExitOnError)
 	klog.InitFlags(goflags)
+	config.zapOpts.BindFlags(goflags)
+
 	fs.AddGoFlagSet(goflags)
 }
