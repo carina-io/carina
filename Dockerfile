@@ -22,7 +22,7 @@ COPY --from=builder /workspace/bocloud.com/cloudnative/carina/debug/config.json 
 RUN chmod +x /usr/bin/carina-node && chmod +x /usr/bin/carina-controller
 
 # Update time zone to Asia-Shanghai
-COPY --from=builder /workspace/carina/Shanghai /etc/localtime
+COPY --from=builder /workspace/bocloud.com/cloudnative/carina/Shanghai /etc/localtime
 RUN echo 'Asia/Shanghai' > /etc/timezone
 
 CMD ["http-server"]
