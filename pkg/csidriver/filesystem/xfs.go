@@ -13,7 +13,7 @@ const (
 )
 
 type xfs struct {
-	device   string
+	device string
 }
 
 func init() {
