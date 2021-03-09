@@ -17,6 +17,8 @@ const (
 	diskGroupType     = "type"
 )
 
+var TestAssistDiskSelector []string
+
 // 提供给其他应用获取服务数据
 // 这个configMap理论上应该由Node Server更新，为了实现简单改为有Control Server更新，遍历所有Node信息更新configmap
 // 暂定这些参数字段，不排除会增加一些需要暴露的数据
@@ -58,6 +60,10 @@ func dynamicConfig() {
 // 定时扫描本地磁盘，凡是匹配的将被加入到相应vg卷组
 // 对于此配置的修改需要非常慎重，如果更改匹配条件，可能会移除正在使用的磁盘
 func DiskSelector() []string {
+	// 测试辅助变量，这里入侵了业务逻辑
+	if len(TestAssistDiskSelector) > 0 {
+		return TestAssistDiskSelector
+	}
 	diskSelector := GlobalConfig.GetStringSlice("diskSelector")
 	if len(diskSelector) == 0 {
 		log.Warn("No device is initialized because there is no configuration")
