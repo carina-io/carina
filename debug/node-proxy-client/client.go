@@ -1,4 +1,4 @@
-package main
+package node_proxy_client
 
 import (
 	"fmt"

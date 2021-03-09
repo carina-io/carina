@@ -6,6 +6,7 @@ import (
 	"bocloud.com/cloudnative/carina/pkg/deviceplugin/v1beta1"
 	"bocloud.com/cloudnative/carina/utils"
 	"bocloud.com/cloudnative/carina/utils/log"
+	"fmt"
 	"net"
 	"os"
 	"path"
@@ -277,7 +278,7 @@ func (dp *CarinaDevicePlugin) getDeviceCapacity() ([]*v1beta1.Device, error) {
 			health = v1beta1.Unhealthy
 		}
 		pdevs = append(pdevs, &v1beta1.Device{
-			ID:     string(i),
+			ID:     fmt.Sprintf("%d", i),
 			Health: health,
 		})
 	}

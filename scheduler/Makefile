@@ -1,5 +1,9 @@
 
 
+# Run tests
+test:
+	go test -v ./... -coverprofile cover.out
+
 # Build the docker image
 docker-build: test
 	docker build . -t ${IMG}
