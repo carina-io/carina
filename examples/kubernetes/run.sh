@@ -11,6 +11,7 @@ function install() {
   kubectl apply -f topostatefulset.yaml
   kubectl apply -f raw-block-pvc.yaml
   kubectl apply -f raw-block-pod.yaml
+  kubectl apply -f sample.yaml
   sleep 10s
   echo "-------------------------------"
   echo "$ kubectl get pvc,pods -n $namespace"
@@ -19,6 +20,7 @@ function install() {
 
 function uninstall() {
   echo "uninstall..."
+  kubectl delete -f sample.yaml
   kubectl delete -f deployment.yaml
   kubectl delete -f statefulset.yaml
   kubectl delete -f topostatefulset.yaml

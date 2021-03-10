@@ -18,7 +18,6 @@ require (
 )
 
 replace (
-	//github.com/googleapis/gnostic => github.com/googleapis/gnostic v0.4.1
 	k8s.io/api => k8s.io/api v0.20.4
 	k8s.io/apiextensions-apiserver => k8s.io/apiextensions-apiserver v0.20.4
 	k8s.io/apimachinery => k8s.io/apimachinery v0.20.4
