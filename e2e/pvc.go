@@ -98,19 +98,61 @@ func createPvc() {
 	Expect(err).ShouldNot(HaveOccurred(), "stdout=%s, stderr=%s", stdout, stderr)
 	By("Waiting for pvc pending")
 	time.Sleep(5 * time.Second)
+	Eventually(func() error {
+		stdout, stderr, err = kubectl("get", "pvc", "csi-carina-pvc1", "-o", "json", "-n", NameSpace)
+		if err != nil {
+			return fmt.Errorf("failed to create PVC. stdout: %s, stderr: %s, err: %v", stdout, stderr, err)
+		}
+		var pvc corev1.PersistentVolumeClaim
+		err = json.Unmarshal(stdout, &pvc)
+		if err != nil {
+			return fmt.Errorf("unmarshal error: stdout=%s", stdout)
+		}
+		if pvc.Status.Phase != corev1.ClaimPending {
+			return fmt.Errorf("pvc status error: %s, %s", "csi-carina-pvc1", pvc.Status.Phase)
+		}
+		return nil
+	}).Should(Succeed())
 
 	stdout, stderr, err = kubectlWithInput([]byte(pvc3), "apply", "-f", "-")
 	Expect(err).ShouldNot(HaveOccurred(), "stdout=%s, stderr=%s", stdout, stderr)
 	By("Waiting for pvc pending")
 	time.Sleep(5 * time.Second)
+	Eventually(func() error {
+		stdout, stderr, err = kubectl("get", "pvc", "csi-carina-pvc1", "-o", "json", "-n", NameSpace)
+		if err != nil {
+			return fmt.Errorf("failed to create PVC. stdout: %s, stderr: %s, err: %v", stdout, stderr, err)
+		}
+		var pvc corev1.PersistentVolumeClaim
+		err = json.Unmarshal(stdout, &pvc)
+		if err != nil {
+			return fmt.Errorf("unmarshal error: stdout=%s", stdout)
+		}
+		if pvc.Status.Phase != corev1.ClaimPending {
+			return fmt.Errorf("pvc status error: %s, %s", "csi-carina-pvc1", pvc.Status.Phase)
+		}
+		return nil
+	}).Should(Succeed())
 
 	stdout, stderr, err = kubectlWithInput([]byte(pvc4), "apply", "-f", "-")
 	Expect(err).ShouldNot(HaveOccurred(), "stdout=%s, stderr=%s", stdout, stderr)
 	By("Waiting for pvc ready")
 	time.Sleep(10 * time.Second)
-	Eventually(func() {
-
-	})
+	Eventually(func() error {
+		stdout, stderr, err = kubectl("get", "pvc", "csi-carina-pvc1", "-o", "json", "-n", NameSpace)
+		if err != nil {
+			return fmt.Errorf("failed to create PVC. stdout: %s, stderr: %s, err: %v", stdout, stderr, err)
+		}
+		var pvc corev1.PersistentVolumeClaim
+		err = json.Unmarshal(stdout, &pvc)
+		if err != nil {
+			return fmt.Errorf("unmarshal error: stdout=%s", stdout)
+		}
+		if pvc.Status.Phase != corev1.ClaimBound {
+			return fmt.Errorf("pvc status error: %s, %s", "csi-carina-pvc1", pvc.Status.Phase)
+		}
+		return nil
+	}).Should(Succeed())
 }
 
 func deletePvc() {
