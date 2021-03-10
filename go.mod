@@ -8,14 +8,15 @@ require (
 	github.com/golang/protobuf v1.4.3
 	github.com/labstack/echo/v4 v4.2.0
 	github.com/natefinch/lumberjack v2.0.0+incompatible
-	github.com/onsi/ginkgo v1.15.0
+	github.com/onsi/ginkgo v1.15.1
 	github.com/onsi/gomega v1.10.5
 	github.com/spf13/cobra v1.1.3
 	github.com/spf13/viper v1.7.1
 	github.com/stretchr/testify v1.6.1
 	go.uber.org/zap v1.16.0
 	golang.org/x/net v0.0.0-20210226172049-e18ecbb05110
-	golang.org/x/sys v0.0.0-20210301091718-77cc2087c03b
+	golang.org/x/sys v0.0.0-20210309074719-68d13333faf2
+	golang.org/x/tools v0.1.0 // indirect
 	google.golang.org/grpc v1.36.0
 	google.golang.org/protobuf v1.25.0
 	k8s.io/api v0.20.4

@@ -87,7 +87,7 @@ spec:
             capabilities:
               add: ["SYS_ADMIN"]
           # for stable functionality replace canary with latest release version
-          image: docker.hub.com/carina/carina:latest
+          image: antmoveh/carina:latest
           command: ["carina-controller"]
           args:
             - "--csi-address=$(ADDRESS)"

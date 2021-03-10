@@ -10,6 +10,8 @@ IMG ?= controller:latest
 # Produce CRDs that work back to Kubernetes 1.11 (no version conversion)
 CRD_OPTIONS ?= "crd:trivialVersions=true"
 
+IMAGE_TAG ?= latest
+
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
 ifeq (,$(shell go env GOBIN))
 GOBIN=$(shell go env GOPATH)/bin
@@ -70,6 +72,12 @@ docker-push:
 	docker rmi docker.hub.com/carina/carina:latest 1>/dev/null 2>&1;\
     docker build -t docker.hub.com/carina/carina:latest . ;\
     docker push docker.hub.com/carina/carina:latest
+
+# Push the docker image
+release:
+	docker rmi antmoveh/carina:$(IMAGE_TAG) 2>&1 1>/dev/null;\
+    docker build -t antmoveh/carina:$(IMAGE_TAG) . ;\
+    docker push antmoveh/carina:$(IMAGE_TAG)
 
 # find or download controller-gen
 # download controller-gen if necessary
