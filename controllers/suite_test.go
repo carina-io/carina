@@ -17,13 +17,10 @@ limitations under the License.
 package controllers
 
 import (
-	"path/filepath"
 	"testing"
 
-	carinav1 "bocloud.com/cloudnative/carina/api/v1"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
-	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
@@ -46,33 +43,33 @@ func TestAPIs(t *testing.T) {
 		[]Reporter{printer.NewlineReporter{}})
 }
 
-var _ = BeforeSuite(func(done Done) {
-	//logf.SetLogger(zap.LoggerTo(GinkgoWriter, true))
-
-	By("bootstrapping test environment")
-	testEnv = &envtest.Environment{
-		CRDDirectoryPaths: []string{filepath.Join("..", "config", "crd", "bases")},
-	}
-
-	var err error
-	cfg, err = testEnv.Start()
-	Expect(err).ToNot(HaveOccurred())
-	Expect(cfg).ToNot(BeNil())
-
-	err = carinav1.AddToScheme(scheme.Scheme)
-	Expect(err).NotTo(HaveOccurred())
-
-	// +kubebuilder:scaffold:scheme
-
-	k8sClient, err = client.New(cfg, client.Options{Scheme: scheme.Scheme})
-	Expect(err).ToNot(HaveOccurred())
-	Expect(k8sClient).ToNot(BeNil())
-
-	close(done)
-}, 60)
-
-var _ = AfterSuite(func() {
-	By("tearing down the test environment")
-	err := testEnv.Stop()
-	Expect(err).ToNot(HaveOccurred())
-})
+//var _ = BeforeSuite(func(done Done) {
+//	//logf.SetLogger(zap.LoggerTo(GinkgoWriter, true))
+//
+//	By("bootstrapping test environment")
+//	testEnv = &envtest.Environment{
+//		CRDDirectoryPaths: []string{filepath.Join("..", "config", "crd", "bases")},
+//	}
+//
+//	var err error
+//	cfg, err = testEnv.Start()
+//	Expect(err).ToNot(HaveOccurred())
+//	Expect(cfg).ToNot(BeNil())
+//
+//	err = carinav1.AddToScheme(scheme.Scheme)
+//	Expect(err).NotTo(HaveOccurred())
+//
+//	// +kubebuilder:scaffold:scheme
+//
+//	k8sClient, err = client.New(cfg, client.Options{Scheme: scheme.Scheme})
+//	Expect(err).ToNot(HaveOccurred())
+//	Expect(k8sClient).ToNot(BeNil())
+//
+//	close(done)
+//}, 60)
+//
+//var _ = AfterSuite(func() {
+//	By("tearing down the test environment")
+//	err := testEnv.Stop()
+//	Expect(err).ToNot(HaveOccurred())
+//})

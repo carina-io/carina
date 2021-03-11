@@ -44,7 +44,11 @@ var _ = Describe("Carina", func() {
 			Expect("2").To(Equal("2"))
 		})
 	})
-	Context("pvc Create", createPvc)
-	Context("pvc Delete", deletePvc)
+	Context("first pvc create", testCreatePvc)
+	Context("second deploy deployment", testDeployment1)
+	Context("second deploy deployment3", testDeployment3)
+	Context("second delete deployment", testDeleteDeployment)
+
+	Context("first pvc delete", testDeletePvc)
 
 })

@@ -21,6 +21,7 @@ allowVolumeExpansion: true
 # WaitForFirstConsumer表示被容器绑定调度后再创建pv
 volumeBindingMode: WaitForFirstConsumer
 mountOptions:
+  - rw
 `
 
 var sc2 = `
@@ -51,7 +52,6 @@ allowVolumeExpansion: true
 # WaitForFirstConsumer表示被容器绑定调度后再创建pv
 volumeBindingMode: WaitForFirstConsumer
 mountOptions:
-  - rw
 `
 
 var sc4 string = `

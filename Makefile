@@ -23,7 +23,10 @@ all: manager
 
 # Run tests
 test:
-	go test -v ./... -coverprofile cover.out
+	#go test -v ./... -coverprofile cover.out
+	go test -v ./utils
+	go test -v ./pkg/csidriver/driver
+	go test -v ./pkg/devicemanager
 
 # Build manager binary
 manager: generate fmt vet

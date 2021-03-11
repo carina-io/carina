@@ -74,7 +74,7 @@ spec:
   volumeMode: Filesystem
 `
 
-func createPvc() {
+func testCreatePvc() {
 	It("create pvc with xfs", func() {
 		pvcName := "csi-carina-pvc1"
 		stdout, stderr, err := kubectlWithInput([]byte(pvc1), "apply", "-f", "-")
@@ -206,10 +206,10 @@ func createPvc() {
 	})
 }
 
-func deletePvc() {
+func testDeletePvc() {
 	It("delete pvc", func() {
 		pvcName := "csi-carina-pvc1"
-		stdout, stderr, err := kubectlWithInput([]byte(pvc1), "delete", "-f", "-")
+		stdout, stderr, err := kubectl("delete", "pvc", pvcName, "-n", NameSpace)
 		Expect(err).ShouldNot(HaveOccurred(), "stdout=%s, stderr=%s", stdout, stderr)
 		Eventually(func() error {
 			stdout, stderr, err = kubectl("get", "pvc", pvcName, "-n", NameSpace)
@@ -220,7 +220,7 @@ func deletePvc() {
 		}).Should(HaveOccurred())
 
 		pvcName = "csi-carina-pvc2"
-		stdout, stderr, err = kubectlWithInput([]byte(pvc2), "delete", "-f", "-")
+		stdout, stderr, err = kubectl("delete", "pvc", pvcName, "-n", NameSpace)
 		Expect(err).ShouldNot(HaveOccurred(), "stdout=%s, stderr=%s", stdout, stderr)
 		Eventually(func() error {
 			stdout, stderr, err = kubectl("get", "pvc", pvcName, "-n", NameSpace)
@@ -231,7 +231,7 @@ func deletePvc() {
 		}).Should(HaveOccurred())
 
 		pvcName = "csi-carina-pvc3"
-		stdout, stderr, err = kubectlWithInput([]byte(pvc3), "delete", "-f", "-")
+		stdout, stderr, err = kubectl("delete", "pvc", pvcName, "-n", NameSpace)
 		Expect(err).ShouldNot(HaveOccurred(), "stdout=%s, stderr=%s", stdout, stderr)
 		Eventually(func() error {
 			stdout, stderr, err = kubectl("get", "pvc", pvcName, "-n", NameSpace)
@@ -242,7 +242,7 @@ func deletePvc() {
 		}).Should(HaveOccurred())
 
 		pvcName = "csi-carina-pvc4"
-		stdout, stderr, err = kubectlWithInput([]byte(pvc4), "delete", "-f", "-")
+		stdout, stderr, err = kubectl("delete", "pvc", pvcName, "-n", NameSpace)
 		Expect(err).ShouldNot(HaveOccurred(), "stdout=%s, stderr=%s", stdout, stderr)
 		Eventually(func() error {
 			stdout, stderr, err = kubectl("get", "pvc", pvcName, "-n", NameSpace)
