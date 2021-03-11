@@ -1,14 +1,21 @@
 package e2e
 
 import (
+	"math/rand"
 	"testing"
+	"time"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 )
 
 func TestE2e(t *testing.T) {
+
+	rand.Seed(time.Now().UnixNano())
+
 	RegisterFailHandler(Fail)
+	SetDefaultEventuallyPollingInterval(3 * time.Second)
+	SetDefaultEventuallyTimeout(time.Minute)
 	RunSpecs(t, "E2e Suite")
 }
 
@@ -25,7 +32,11 @@ var _ = AfterSuite(func() {
 
 var _ = Describe("Carina", func() {
 	BeforeEach(func() {
-		By("only test .")
+		By("start carina e2e test.")
+	})
+
+	AfterEach(func() {
+		By("end carina e2e test.")
 	})
 
 	Context("pvc Immediate Create", func() {
@@ -33,5 +44,7 @@ var _ = Describe("Carina", func() {
 			Expect("2").To(Equal("2"))
 		})
 	})
+	Context("pvc Create", createPvc)
+	Context("pvc Delete", deletePvc)
 
 })
