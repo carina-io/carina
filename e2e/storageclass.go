@@ -54,7 +54,7 @@ volumeBindingMode: WaitForFirstConsumer
 mountOptions:
 `
 
-var sc4 string = `
+var sc4 = `
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:

@@ -10,6 +10,13 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 )
 
+const (
+	xfsPvcName     = "csi-carina-pvc1"
+	ext4PvcName    = "csi-carina-pvc3"
+	baseCapacity   = 7
+	expandCapacity = 14
+)
+
 var pvc1 = `
 apiVersion: v1
 kind: PersistentVolumeClaim
@@ -159,7 +166,7 @@ func testCreatePvc() {
 			}
 			if pvc.Status.Phase != corev1.ClaimBound {
 				log.Infof("pvc status error: %s, %s", pvcName, pvc.Status.Phase)
-				return fmt.Errorf("pvc status error: %s, %s", pvcName, pvc.Status.Phase)
+				return fmt.Errorf("pvc status: %s, %s", pvcName, pvc.Status.Phase)
 			}
 
 			By("get pv info")

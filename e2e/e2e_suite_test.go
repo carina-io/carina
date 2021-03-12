@@ -45,9 +45,9 @@ var _ = Describe("Carina", func() {
 		})
 	})
 	Context("first pvc create", testCreatePvc)
-	Context("second deploy deployment", testDeployment1)
-	Context("second deploy deployment3", testDeployment3)
-	Context("second delete deployment", testDeleteDeployment)
+	Context("mount xfs filesystem test", mountXfsFileSystem)
+	Context("mount ext4 filesystem test", mountExt4FileSystem)
+	Context("delete all deployment", deleteAllDeployment)
 
 	Context("first pvc delete", testDeletePvc)
 
