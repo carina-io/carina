@@ -37,18 +37,25 @@ var _ = Describe("Carina", func() {
 
 	AfterEach(func() {
 		By("end carina e2e test.")
+
 	})
 
-	Context("pvc Immediate Create", func() {
-		It("only test 2", func() {
-			Expect("2").To(Equal("2"))
+	Context("init", func() {
+		It("empty", func() {
+			By("empty context")
 		})
 	})
-	Context("first pvc create", testCreatePvc)
-	Context("mount xfs filesystem test", mountXfsFileSystem)
-	Context("mount ext4 filesystem test", mountExt4FileSystem)
-	Context("delete all deployment", deleteAllDeployment)
 
-	Context("first pvc delete", testDeletePvc)
+	Context("create normal pod", normalDeployment)
 
+	//Context("first pvc create", testCreatePvc)
+	//Context("mount xfs filesystem test", mountXfsFileSystem)
+	//Context("mount ext4 filesystem test", mountExt4FileSystem)
+	Context("raw block pod", rawBlockPod)
+
+	By("cleanup all resources")
+	Context("delete block pod", deleteBlockPod)
+	//Context("delete all deployment", deleteAllDeployment)
+	//Context("first pvc delete", testDeletePvc)
+	Context("delete normal pod", deleteNormalDeployment)
 })
