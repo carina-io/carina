@@ -48,17 +48,18 @@ var _ = Describe("Carina", func() {
 
 	Context("create normal pod", normalDeployment)
 
-	//Context("first pvc create", testCreatePvc)
-	//Context("mount xfs filesystem test", mountXfsFileSystem)
-	//Context("mount ext4 filesystem test", mountExt4FileSystem)
-	//Context("raw block pod", rawBlockPod)
-
+	Context("pvc create", testCreatePvc)
+	Context("mount xfs filesystem test", mountXfsFileSystem)
+	Context("mount ext4 filesystem test", mountExt4FileSystem)
+	Context("raw block pod", rawBlockPod)
 	Context("create statefulSet pod", statefulSetCreate)
+	Context("create topostatefulSet pod", topoStatefulSetCreate)
 
 	By("cleanup all resources")
+	Context("delete all deployment", deleteAllDeployment)
+	Context("delete block pod", deleteBlockPod)
 	Context("delete statefulSet pod", deleteStatefulSet)
-	//Context("delete block pod", deleteBlockPod)
-	//Context("delete all deployment", deleteAllDeployment)
-	//Context("first pvc delete", testDeletePvc)
+	Context("delete topostatefulSet pod", deletetopoStatefulSet)
+	Context("all pvc delete", testDeletePvc)
 	Context("delete normal pod", deleteNormalDeployment)
 })
