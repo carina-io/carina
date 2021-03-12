@@ -51,10 +51,13 @@ var _ = Describe("Carina", func() {
 	//Context("first pvc create", testCreatePvc)
 	//Context("mount xfs filesystem test", mountXfsFileSystem)
 	//Context("mount ext4 filesystem test", mountExt4FileSystem)
-	Context("raw block pod", rawBlockPod)
+	//Context("raw block pod", rawBlockPod)
+
+	Context("create statefulSet pod", statefulSetCreate)
 
 	By("cleanup all resources")
-	Context("delete block pod", deleteBlockPod)
+	Context("delete statefulSet pod", deleteStatefulSet)
+	//Context("delete block pod", deleteBlockPod)
 	//Context("delete all deployment", deleteAllDeployment)
 	//Context("first pvc delete", testDeletePvc)
 	Context("delete normal pod", deleteNormalDeployment)
