@@ -14,8 +14,8 @@ func TestE2e(t *testing.T) {
 	rand.Seed(time.Now().UnixNano())
 
 	RegisterFailHandler(Fail)
-	SetDefaultEventuallyPollingInterval(3 * time.Second)
-	SetDefaultEventuallyTimeout(time.Minute)
+	SetDefaultEventuallyPollingInterval(5 * time.Second)
+	SetDefaultEventuallyTimeout(2 * time.Minute)
 	RunSpecs(t, "E2e Suite")
 }
 
@@ -47,7 +47,6 @@ var _ = Describe("Carina", func() {
 	})
 
 	Context("create normal pod", normalDeployment)
-
 	Context("pvc create", testCreatePvc)
 	Context("mount xfs filesystem test", mountXfsFileSystem)
 	Context("mount ext4 filesystem test", mountExt4FileSystem)

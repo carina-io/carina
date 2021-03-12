@@ -71,6 +71,11 @@ func statefulSetCreate() {
 				return fmt.Errorf("unmarshal error: stdout=%s", stdout)
 			}
 
+			if len(pods.Items) == 0 {
+				log.Info("pods not create")
+				return fmt.Errorf("pods not create")
+			}
+
 			for _, pod := range pods.Items {
 				if pod.Name == "" {
 					log.Infof("not found pod label %s", label)

@@ -191,6 +191,11 @@ func mountXfsFileSystem() {
 				return fmt.Errorf("unmarshal error: stdout=%s", stdout)
 			}
 
+			if len(pods.Items) == 0 {
+				log.Info("pods not create")
+				return fmt.Errorf("pods not create")
+			}
+
 			for _, pod := range pods.Items {
 				if pod.Name == "" {
 					log.Infof("not found pod label %s", label)
@@ -256,6 +261,11 @@ func mountExt4FileSystem() {
 				return fmt.Errorf("unmarshal error: stdout=%s", stdout)
 			}
 
+			if len(pods.Items) == 0 {
+				log.Info("pods not create")
+				return fmt.Errorf("pods not create")
+			}
+
 			for _, pod := range pods.Items {
 				if pod.Name == "" {
 					log.Infof("not found pod label %s", label)
@@ -302,6 +312,8 @@ func mountExt4FileSystem() {
 
 		log.Info("ext4 filesystem expand")
 		By("ext4 filesystem expand")
+
+		//stdout, stderr, err = kubectlWithInput([]byte(strings.Replace(pvc3, "7", "14", 1)), "apply", "-f", "-")
 		stdout, stderr, err = kubectl("patch", "pvc", ext4PvcName, "-n", NameSpace, "-p", `{"spec": {"resources": {"requests": {"storage": "14Gi"}}}}`)
 		Expect(err).ShouldNot(HaveOccurred(), "stdout=%s, stderr=%s", stdout, stderr)
 
