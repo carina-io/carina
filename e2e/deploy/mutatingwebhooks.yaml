@@ -1,0 +1,31 @@
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: MutatingWebhookConfiguration
+metadata:
+  name: carina-hook
+webhooks:
+  - name: pod-hook.carin.storage.io
+    namespaceSelector:
+      matchExpressions:
+      - key: carina.storage.io/webhook
+        operator: NotIn
+        values: ["ignore"]
+    clientConfig:
+      caBundle: LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSUM1ekNDQWMrZ0F3SUJBZ0lCQURBTkJna3Foa2lHOXcwQkFRc0ZBREFWTVJNd0VRWURWUVFERXdwcmRXSmwKY201bGRHVnpNQjRYRFRJeE1ETXhOVEV3TWprd05Wb1hEVE14TURNeE16RXdNamt3TlZvd0ZURVRNQkVHQTFVRQpBeE1LYTNWaVpYSnVaWFJsY3pDQ0FTSXdEUVlKS29aSWh2Y05BUUVCQlFBRGdnRVBBRENDQVFvQ2dnRUJBTUV3CmZRQVhYbGFzeDRZeFNmZFNuOUcreW5sYUdRaHhGYk1hamlQZnZ4TVlHVVFDYi9ZdGJHWlQzWkdORGEyQXZZYnYKYWdVQkVxdXNIM1FJSkZZUWpnc3crNW5iYjNQd2VEd010QlJuaUlibTh0TXFDYkE0K2NETkhwK0lNY09uVEJnaQo5UE1sWWFFdWppeUo3MU9IbVg2V1JvMlFKR3R4dU5Bbzh0NGo1eGxUUGJYUUZqN0hJQWVaTmxPb3RhOGtzS1AvCm5Fcm4zNzhDcjI0TnRzOVJKaHNRRFNEaUpib0MybkN3VjBGTGorQk9BSWlYVVVCL3VHNDM5UmRzaUhEMG5uWGYKUllxR0pReGR1WXp2ODUxUzA3bTFhb2tFVTNka1NSYjluZWJ3S3lrOU1RWm13UGlrMnpxK1J3WlE3Y05zdFIvVAplYjdQSVhQNmpmUFp2Y0FOMENFQ0F3RUFBYU5DTUVBd0RnWURWUjBQQVFIL0JBUURBZ0trTUE4R0ExVWRFd0VCCi93UUZNQU1CQWY4d0hRWURWUjBPQkJZRUZFL3ZRazRzWUZZc215a1VXWEg3MTN3R0tINDFNQTBHQ1NxR1NJYjMKRFFFQkN3VUFBNElCQVFDMWtGZTJjTDdiMUtSOU5tcEZLTnJPemVLTWE4MTZTWE5URnF2WkxpLzNmSk1KT2FzYgp1WG5odkpDZm5ldHVvUm11WWhadzR3TjF3WXJCdmpqZjR5TXVIMGhPSjVZQVpRMnJnT0YzK256NS9KNEZsOGtQCnJMWjFaNVhmalBiWHRTUFBid0NTd1JjZFRSSjR2cDRYYmg1dmNlYTQzaGxacjBSb1gzOVhWazVUMnF4djRrRncKZVhENkEwZjNWaWxhM2w4Y1NJY3VUS3M0TmJCRTVYa3JRQTRhWWowNTNJU0Y3cEJNSVZxakxuUG1CSUVFbzI4eApFalpHRUtrL0lDc28xVU5Gbk8rdm16RUM4YW5RbFpTb3pnN243cGxTeC9KNzE0cWlvWGswUzN3WjU3dFdLS2RpCkQ3VytrRWM5OC9FeGVWWFgxK0ltd3YyRHZxVmRRSi9iUE1BZwotLS0tLUVORCBDRVJUSUZJQ0FURS0tLS0tCg==
+      service:
+        name: carina-controller
+        namespace: kube-system
+        path: /pod/mutate
+        port: 443
+    failurePolicy: Fail
+    matchPolicy: Exact
+    objectSelector: {}
+    reinvocationPolicy: Never
+    rules:
+      - operations: ["CREATE"]
+        apiGroups: [""]
+        apiVersions: ["v1"]
+        resources: ["pods"]
+    admissionReviewVersions: ["v1beta1"]
+    sideEffects: NoneOnDryRun
+    timeoutSeconds: 30

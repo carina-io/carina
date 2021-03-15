@@ -15,6 +15,9 @@ kc:
 
 	for n in `docker ps --filter name=worker --format "{{.Names}}"`; \
 	do \
+		docker exec $$n modprobe dm_snapshot && \
+		docker exec $$n modprobe dm_mirror && \
+		docker exec $$n modprobe dm_thin_pool && \
 		for i in `seq 1 5`; \
 		do \
 			docker exec $$n truncate --size=200G /tmp/disk$$i.device && \
