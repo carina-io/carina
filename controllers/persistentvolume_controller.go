@@ -9,6 +9,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/rand"
 	"k8s.io/client-go/util/workqueue"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -33,14 +34,19 @@ func (r *PersistentVolumeReconciler) Reconcile(ctx context.Context, req ctrl.Req
 	// your logic here
 	pv := &corev1.PersistentVolume{}
 	err := r.Get(ctx, req.NamespacedName, pv)
+
 	if err != nil {
-		log.Errorf("get pv info failed %s", req.Name)
-		return ctrl.Result{}, nil
+		if !apierrors.IsNotFound(err) {
+			log.Errorf("unable to fetch persistentvolume %s, %s", req.Name, err.Error())
+			return ctrl.Result{}, err
+		}
+	} else {
+		if pv.Spec.CSI.Driver != utils.CSIPluginName {
+			return ctrl.Result{}, nil
+		}
 	}
 
-	if pv.Spec.CSI.Driver != utils.CSIPluginName {
-		return ctrl.Result{}, nil
-	}
+	time.Sleep(time.Duration(rand.Int63nRange(30, 60)) * time.Second)
 
 	err = r.updateNodeConfigMap(ctx)
 	if err != nil {
