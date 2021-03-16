@@ -8,7 +8,6 @@ import (
 	"errors"
 	"fmt"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
-	"strings"
 	"sync"
 	"time"
 
@@ -121,17 +120,6 @@ func (s *LogicVolumeService) CreateVolume(ctx context.Context, node, deviceGroup
 			return newLV.Status.VolumeID, nil
 		}
 		if newLV.Status.Code != codes.OK {
-			if strings.Contains(newLV.Status.Message, "get global mutex failed") {
-				time.Sleep(10 * time.Second)
-				newLV.Annotations["global/mutex"] = time.Now().String()
-				err = s.Update(ctx, &newLV)
-				if err != nil {
-					log.Error(err, " failed to update LogicVolume")
-				} else {
-					continue
-				}
-			}
-
 			err := s.Delete(ctx, &newLV)
 			if err != nil {
 				// log this error but do not return this error, because newLV.Status.Message is more important
