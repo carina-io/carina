@@ -4,7 +4,7 @@ kind: MutatingWebhookConfiguration
 metadata:
   name: carina-hook
 webhooks:
-  - name: pod-hook.carin.storage.io
+  - name: pod-hook.carina.storage.io
     namespaceSelector:
       matchExpressions:
       - key: carina.storage.io/webhook
