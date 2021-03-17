@@ -6,6 +6,7 @@ import (
 	"bocloud.com/cloudnative/carina/utils"
 	"bocloud.com/cloudnative/carina/utils/log"
 	"bocloud.com/cloudnative/carina/utils/mutx"
+	"context"
 	"errors"
 	"fmt"
 	"strings"
@@ -444,18 +445,28 @@ func (v *LocalVolumeImplement) HealthCheck() {
 	}
 	defer v.Mutex.Release(VOLUMEMUTEX)
 
-	lvInfo, err := v.Lv.LVS("")
-	if err != nil {
-		log.Errorf("get all lv info failed %s", err.Error())
-		return
-	}
+	ctx, cf := context.WithTimeout(context.TODO(), 25*time.Second)
+	defer cf()
 
-	for _, lv := range lvInfo {
-		if lv.LVActive != "active" {
-			log.Warnf("lv %s current status %s", lv.LVName, lv.LVActive)
+	for {
+		select {
+		case <-ctx.Done():
+			log.Info("volume health check timeout.")
+		default:
+			lvInfo, err := v.Lv.LVS("")
+			if err != nil {
+				log.Errorf("get all lv info failed %s", err.Error())
+				return
+			}
+
+			for _, lv := range lvInfo {
+				if lv.LVActive != "active" {
+					log.Warnf("lv %s current status %s", lv.LVName, lv.LVActive)
+				}
+			}
+			return
 		}
 	}
-
 }
 
 func (v *LocalVolumeImplement) RefreshLvmCache() {

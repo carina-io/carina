@@ -8,6 +8,7 @@ require (
 	github.com/imdario/mergo v0.3.9 // indirect
 	github.com/onsi/gomega v1.10.1 // indirect
 	github.com/spf13/viper v1.7.1
+	github.com/stretchr/testify v1.6.1
 	k8s.io/api v0.20.4
 	k8s.io/apimachinery v0.20.4
 	k8s.io/client-go v0.20.4
@@ -17,7 +18,6 @@ require (
 )
 
 replace (
-	//github.com/googleapis/gnostic => github.com/googleapis/gnostic v0.4.1
 	k8s.io/api => k8s.io/api v0.20.4
 	k8s.io/apiextensions-apiserver => k8s.io/apiextensions-apiserver v0.20.4
 	k8s.io/apimachinery => k8s.io/apimachinery v0.20.4

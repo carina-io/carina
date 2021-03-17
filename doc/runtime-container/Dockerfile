@@ -23,6 +23,7 @@ yum --setopt=tsflags=nodocs -y install tar  && \
 yum --setopt=tsflags=nodocs -y install cronie  && \
 yum --setopt=tsflags=nodocs -y install lvm2 && \
 yum --setopt=tsflags=nodocs -y install file && \
+yum --setopt=tsflags=nodocs -y install e4fsprogs && \
 yum --setopt=tsflags=nodocs -y install xfsprogs  && yum clean all && \
 sed -i '/Port 22/c\Port 2222' /etc/ssh/sshd_config && \
 mkdir -p /var/log/core;

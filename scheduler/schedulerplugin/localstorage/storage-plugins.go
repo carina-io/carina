@@ -90,9 +90,6 @@ func (ls *LocalStorage) Filter(ctx context.Context, cycleState *framework.CycleS
 			for _, c := range capacityMap {
 				capacityList = append(capacityList, c)
 			}
-			sort.Slice(capacityList, func(i, j int) bool {
-				return capacityList[i] < capacityList[j]
-			})
 			for _, pv := range pvs {
 				requestBytes := pv.Spec.Resources.Requests.Storage().Value()
 				requestGb := (requestBytes-1)>>30 + 1
@@ -148,7 +145,7 @@ func (ls *LocalStorage) Score(ctx context.Context, state *framework.CycleState, 
 	var score int64
 	// 计算节点分数
 	// 影响磁盘分数的有磁盘容量,磁盘上现有pv数量,磁盘IO
-	// 在此我们以磁盘容量作为标准，同时配合设置对磁盘选择策略
+	// 在此我们以磁盘容量作为标准，同时配合配置文件中磁盘选择策略
 	for key, pvs := range pvcMap {
 		sort.Slice(pvs, func(i, j int) bool {
 			return pvs[i].Spec.Resources.Requests.Storage().Value() > pvs[j].Spec.Resources.Requests.Storage().Value()
@@ -158,9 +155,6 @@ func (ls *LocalStorage) Score(ctx context.Context, state *framework.CycleState, 
 			for _, c := range capacityMap {
 				capacityList = append(capacityList, c)
 			}
-			sort.Slice(capacityList, func(i, j int) bool {
-				return capacityList[i] < capacityList[j]
-			})
 			for _, pv := range pvs {
 				requestBytes := pv.Spec.Resources.Requests.Storage().Value()
 				requestGb := (requestBytes-1)>>30 + 1
@@ -246,7 +240,12 @@ func (ls *LocalStorage) getLocalStoragePvc(pod *v1.Pod) (map[string][]*v1.Persis
 	return localPvc, nodeName, nil
 }
 
+// 在所有容量列表中，找到最低满足的值，并减去请求容量
+// 循环便能判断该节点是否可满足所有pvc请求容量
 func minimumValueMinus(array []int64, value int64) []int64 {
+	sort.Slice(array, func(i, j int) bool {
+		return array[i] < array[j]
+	})
 	index := -1
 	for i, a := range array {
 		if a >= value {
@@ -258,9 +257,6 @@ func minimumValueMinus(array []int64, value int64) []int64 {
 		return []int64{}
 	}
 	array[index] = array[index] - value
-	sort.Slice(array, func(i, j int) bool {
-		return array[i] < array[j]
-	})
 	return array
 }
 

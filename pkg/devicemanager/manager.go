@@ -282,7 +282,7 @@ func (dm *DeviceManager) DiscoverPv() (map[string][]string, error) {
 
 func (dm *DeviceManager) LvmHealthCheck() {
 
-	ticker1 := time.NewTicker(60 * time.Second)
+	ticker1 := time.NewTicker(120 * time.Second)
 	go func(t *time.Ticker) {
 		defer ticker1.Stop()
 		for {

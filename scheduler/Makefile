@@ -1,4 +1,9 @@
 
+IMAGE_TAG ?= latest
+
+# Run tests
+test:
+	go test -v ./... -coverprofile cover.out
 
 # Build the docker image
 docker-build: test
@@ -11,4 +16,8 @@ docker-push:
     docker build -t docker.hub.com/carina/scheduler:latest . ;\
     docker push docker.hub.com/carina/scheduler:latest
 
-
+# Push the docker image
+release:
+	docker rmi antmoveh/scheduler:$(IMAGE_TAG) 2>&1 1>/dev/null;\
+    docker build -t antmoveh/scheduler:$(IMAGE_TAG) . ;\
+    docker push antmoveh/scheduler:$(IMAGE_TAG)

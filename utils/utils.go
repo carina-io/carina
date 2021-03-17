@@ -1,6 +1,9 @@
 package utils
 
-import "os"
+import (
+	"os"
+	"time"
+)
 
 func ContainsString(slice []string, s string) bool {
 	for _, item := range slice {
@@ -69,4 +72,18 @@ func FileExists(path string) bool {
 		return false
 	}
 	return true
+}
+
+func UntilMaxRetry(f func() error, maxRetry int, interval time.Duration) error {
+	var err error
+	for i := 0; i < maxRetry; i++ {
+
+		err = f()
+
+		if err == nil {
+			return nil
+		}
+		time.Sleep(interval)
+	}
+	return err
 }

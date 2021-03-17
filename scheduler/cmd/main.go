@@ -3,8 +3,7 @@ package main
 import (
 	"math/rand"
 	"os"
-	"bocloud.com/cloudnative/carina/scheduler/scheduleplugin/example"
-	"bocloud.com/cloudnative/carina/scheduler/scheduleplugin/localstorage"
+	"bocloud.com/cloudnative/carina/scheduler/schedulerplugin/localstorage"
 	"time"
 
 	"k8s.io/component-base/logs"
@@ -18,7 +17,7 @@ func main() {
 	// Later they can consist of scheduler profile(s) and hence
 	// used by various kinds of workloads.
 	command := app.NewSchedulerCommand(
-		app.WithPlugin(example.ExampleName, example.New),
+		//app.WithPlugin(example.ExampleName, example.New),
 		app.WithPlugin(localstorage.Name, localstorage.New),
 	)
 

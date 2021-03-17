@@ -102,7 +102,7 @@ func (s NodeService) SelectVolumeNode(ctx context.Context, requestGb int64, devi
 					continue
 				}
 				preselectNode = append(preselectNode, paris{
-					Key:   node.Name + "-" + string(key),
+					Key:   node.Name + "-*-" + string(key),
 					Value: value.Value(),
 				})
 			}
@@ -118,10 +118,10 @@ func (s NodeService) SelectVolumeNode(ctx context.Context, requestGb int64, devi
 
 	// 根据配置文件中设置算法进行节点选择
 	if configuration.SchedulerStrategy() == configuration.SchedulerBinpack {
-		nodeName = strings.Split(preselectNode[0].Key, "-")[0]
+		nodeName = strings.Split(preselectNode[0].Key, "-*-")[0]
 		selectDeviceGroup = strings.Split(preselectNode[0].Key, "/")[1]
 	} else if configuration.SchedulerStrategy() == configuration.SchedulerSpradout {
-		nodeName = strings.Split(preselectNode[len(preselectNode)-1].Key, "-")[0]
+		nodeName = strings.Split(preselectNode[len(preselectNode)-1].Key, "-*-")[0]
 		selectDeviceGroup = strings.Split(preselectNode[len(preselectNode)-1].Key, "/")[1]
 	} else {
 		return "", "", segments, errors.New(fmt.Sprintf("no support scheduler strategy %s", configuration.SchedulerStrategy()))

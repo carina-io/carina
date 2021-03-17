@@ -11,6 +11,7 @@ function install() {
   kubectl apply -f topostatefulset.yaml
   kubectl apply -f raw-block-pvc.yaml
   kubectl apply -f raw-block-pod.yaml
+  kubectl apply -f sample.yaml
   sleep 10s
   echo "-------------------------------"
   echo "$ kubectl get pvc,pods -n $namespace"
@@ -19,6 +20,7 @@ function install() {
 
 function uninstall() {
   echo "uninstall..."
+  kubectl delete -f sample.yaml
   kubectl delete -f deployment.yaml
   kubectl delete -f statefulset.yaml
   kubectl delete -f topostatefulset.yaml
@@ -71,7 +73,7 @@ function exec() {
   for z in `kubectl get pods -n carina | grep Running | awk '{print $1}'`; do
     if [ "carina-block-pod" == $z ]; then
       echo "$ $z exec ls /dev"
-      kubectl exec -it $z -n $namespace -- sh -c "ls /dev"
+      kubectl exec $z -n $namespace -- sh -c "ls /dev"
       echo "-------------------------------"
       continue
     fi
@@ -83,11 +85,11 @@ function exec() {
 
 function help() {
     echo "-------------------------------"
-    echo "./run.sh           ===> install all test yaml"
-    echo "./run.sh uninstall ===> uninstall all test yaml"
-    echo "./run.sh expand    ===> expand all pvc"
-    echo "./run.sh scale     ===> scale stateful replicas"
-    echo "./run.sh delete    ===> delete all pod"
+    echo "./test.sh           ===> install all test yaml"
+    echo "./test.sh uninstall ===> uninstall all test yaml"
+    echo "./test.sh expand    ===> expand all pvc"
+    echo "./test.sh scale     ===> scale stateful replicas"
+    echo "./test.sh delete    ===> delete all pod"
 }
 
 operator=${1:-'install'}

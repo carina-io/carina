@@ -125,6 +125,7 @@ func (s *LogicVolumeService) CreateVolume(ctx context.Context, node, deviceGroup
 				// log this error but do not return this error, because newLV.Status.Message is more important
 				log.Error(err, " failed to delete LogicVolume")
 			}
+
 			return "", status.Error(newLV.Status.Code, newLV.Status.Message)
 		}
 	}
