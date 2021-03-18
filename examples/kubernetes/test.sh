@@ -90,6 +90,7 @@ function help() {
     echo "./test.sh expand    ===> expand all pvc"
     echo "./test.sh scale     ===> scale stateful replicas"
     echo "./test.sh delete    ===> delete all pod"
+    echo "./test.sh exec      ===> show pod filesystem"
 }
 
 operator=${1:-'install'}
