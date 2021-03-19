@@ -77,8 +77,8 @@ function exec() {
       echo "-------------------------------"
       continue
     fi
-    echo "$ $z exec df -h"
-    kubectl exec -it $z -n $namespace -- sh -c "df -h" | grep carina
+    echo "$ $z exec df -h -T"
+    kubectl exec -it $z -n $namespace -- sh -c "df -h -T" | grep carina
     echo "-------------------------------"
   done
 }
@@ -88,7 +88,7 @@ function help() {
     echo "./test.sh           ===> install all test yaml"
     echo "./test.sh uninstall ===> uninstall all test yaml"
     echo "./test.sh expand    ===> expand all pvc"
-    echo "./test.sh scale     ===> scale stateful replicas"
+    echo "./test.sh scale     ===> scale statefulset replicas"
     echo "./test.sh delete    ===> delete all pod"
     echo "./test.sh exec      ===> show pod filesystem"
 }

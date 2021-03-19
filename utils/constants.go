@@ -19,7 +19,7 @@ const (
 
 	// storage class
 	// DeviceDiskKey is the key used in CSI volume create requests to specify a DeviceDiskKey support carina-vg-ssd carina-vg-hdd
-	DeviceDiskKey = "carina.storage.io/disk"
+	DeviceDiskKey = "carina.storage.io/disk-type"
 	// k8s default key Device FileSystem eg. xfs ext4
 	DeviceFileSystem = "csi.storage.k8s.io/fstype"
 

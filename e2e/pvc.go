@@ -181,7 +181,7 @@ func testCreatePvc() {
 				return fmt.Errorf("unmarshal error: stdout=%s", stdout)
 			}
 			nodeName = pv.Spec.CSI.VolumeAttributes["carina.storage.io/node"]
-			diskGroup = pv.Spec.CSI.VolumeAttributes["carina.storage.io/disk"]
+			diskGroup = pv.Spec.CSI.VolumeAttributes["carina.storage.io/disk-type"]
 
 			log.Info("pv check success")
 			return nil

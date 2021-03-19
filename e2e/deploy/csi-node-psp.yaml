@@ -39,7 +39,7 @@ spec:
     - pathPrefix: '/var/log/carina'
       readOnly: false
     - pathPrefix: '/lib/modules'
-      readOnly: true
+      readOnly: false
     - pathPrefix: '/var/lib/kubelet/pods'
       readOnly: false
     - pathPrefix: '/var/lib/kubelet/plugins/csi.carina.com/'
