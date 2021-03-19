@@ -94,7 +94,7 @@ func SchedulerStrategy() string {
 	if utils.ContainsString([]string{SchedulerBinpack, SchedulerSpradout}, strings.ToLower(schedulerStrategy)) {
 		schedulerStrategy = strings.ToLower(schedulerStrategy)
 	} else {
-		schedulerStrategy = SchedulerBinpack
+		schedulerStrategy = SchedulerSpradout
 	}
 	return schedulerStrategy
 }
