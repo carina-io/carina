@@ -310,6 +310,11 @@ func (dm *DeviceManager) DeviceCheckTask() {
 		for {
 			select {
 			case <-t.C:
+				if configuration.DiskScanInterval() == 0 {
+					time.Sleep(180 * time.Second)
+					log.Info("skip disk discovery...")
+					continue
+				}
 				time.Sleep(time.Duration(configuration.DiskScanInterval()-int64(120)) * time.Second)
 				log.Info("device monitor...")
 				dm.AddAndRemoveDevice()

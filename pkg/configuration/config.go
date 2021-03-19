@@ -74,6 +74,9 @@ func DiskSelector() []string {
 // 定时磁盘扫描时间间隔(秒),默认300s
 func DiskScanInterval() int64 {
 	diskScanInterval := GlobalConfig.GetInt64("diskScanInterval")
+	if diskScanInterval == 0 {
+		return 0
+	}
 	if diskScanInterval < 300 {
 		diskScanInterval = 300
 	}

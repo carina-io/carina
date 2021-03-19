@@ -39,6 +39,13 @@ func (s controllerService) CreateVolume(ctx context.Context, req *csi.CreateVolu
 	}
 	name = strings.ToLower(name)
 
+	// 处理磁盘类型参数，支持carina.storage.io/disk-type:ssd书写方式
+	if deviceGroup != "" {
+		if !strings.HasPrefix(deviceGroup, "carina-vg-") {
+			deviceGroup = fmt.Sprintf("carina-vg-%s", deviceGroup)
+		}
+	}
+
 	log.Info("CreateVolume called ",
 		" name ", req.GetName(),
 		" device_group ", deviceGroup,
@@ -235,6 +242,13 @@ func (s controllerService) GetCapacity(ctx context.Context, req *csi.GetCapacity
 	}
 
 	deviceGroup := req.GetParameters()[utils.DeviceDiskKey]
+
+	// 处理磁盘类型参数，支持carina.storage.io/disk-type:ssd书写方式
+	if deviceGroup != "" {
+		if !strings.HasPrefix(deviceGroup, "carina-vg-") {
+			deviceGroup = fmt.Sprintf("carina-vg-%s", deviceGroup)
+		}
+	}
 
 	capacity, err := s.nodeService.GetTotalCapacity(ctx, deviceGroup, topology)
 	if err != nil {
