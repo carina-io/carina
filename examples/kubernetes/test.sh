@@ -77,8 +77,8 @@ function exec() {
       echo "-------------------------------"
       continue
     fi
-    echo "$ $z exec df -h"
-    kubectl exec -it $z -n $namespace -- sh -c "df -h" | grep carina
+    echo "$ $z exec df -h -T"
+    kubectl exec -it $z -n $namespace -- sh -c "df -h -T" | grep carina
     echo "-------------------------------"
   done
 }
