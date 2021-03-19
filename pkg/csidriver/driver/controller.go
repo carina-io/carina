@@ -40,6 +40,7 @@ func (s controllerService) CreateVolume(ctx context.Context, req *csi.CreateVolu
 	name = strings.ToLower(name)
 
 	// 处理磁盘类型参数，支持carina.storage.io/disk-type:ssd书写方式
+	deviceGroup = strings.ToLower(deviceGroup)
 	if deviceGroup != "" {
 		if !strings.HasPrefix(deviceGroup, "carina-vg-") {
 			deviceGroup = fmt.Sprintf("carina-vg-%s", deviceGroup)
@@ -244,6 +245,7 @@ func (s controllerService) GetCapacity(ctx context.Context, req *csi.GetCapacity
 	deviceGroup := req.GetParameters()[utils.DeviceDiskKey]
 
 	// 处理磁盘类型参数，支持carina.storage.io/disk-type:ssd书写方式
+	deviceGroup = strings.ToLower(deviceGroup)
 	if deviceGroup != "" {
 		if !strings.HasPrefix(deviceGroup, "carina-vg-") {
 			deviceGroup = fmt.Sprintf("carina-vg-%s", deviceGroup)
