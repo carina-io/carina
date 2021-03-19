@@ -19,6 +19,16 @@ spec:
       hostNetwork: true
       # resolved through k8s service, set dns policy to cluster first
       dnsPolicy: ClusterFirstWithHostNet
+      initContainers:
+        - name: init-container
+          securityContext:
+            privileged: true
+          image: busybox:1.28
+          command: ["sh", "-c"]
+          args: ["for i in dm_snapshot dm_mirror dm_thin_pool; do modprobe $i; done"]
+          volumeMounts:
+            - mountPath: /lib/modules
+              name: modules
       containers:
         - name: csi-node-driver-registrar
           # This is necessary only for systems with SELinux, where
@@ -114,6 +124,9 @@ spec:
         - name: host-sys
           hostPath:
             path: /sys/fs/cgroup
+        - name: modules
+          hostPath:
+            path: /lib/modules
         - name: host-dev
           hostPath:
             path: /dev
