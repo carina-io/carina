@@ -62,7 +62,7 @@
   - 节点服务更新node.status.capacity配额资源，调度服务与控制服务获取扩展资源进行pv调度
   - Schedule进行节点评分与选择，调度完成更新pvc annotation表示该pvc有消费者了
 
-  ![csi-本地存储-整体流程](D:\img\csi-本地存储-整体流程.png)
+  ![csi-本地存储-整体流程](img/csi-overall.png)
 
   
 
