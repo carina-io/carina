@@ -508,7 +508,7 @@ func (v *LocalVolumeImplement) NoticeUpdateCapacity(vgName []string) {
 	case <-c1:
 		log.Info("send all update channel done.")
 		return
-	case <-time.After(5 * time.Second):
+	case <-time.After(10 * time.Second):
 		log.Warn("send all update channel timeout.")
 		return
 	}

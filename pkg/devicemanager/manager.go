@@ -143,6 +143,8 @@ func (dm *DeviceManager) AddAndRemoveDevice() {
 	if noErrorFlag {
 		dm.diskSelector = currentDiskSelector
 	}
+	// 更新设备容量
+	dm.VolumeManager.NoticeUpdateCapacity([]string{})
 }
 
 // 查找是否有符合条件的块设备加入
