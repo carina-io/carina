@@ -1,0 +1,143 @@
+---
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  name: csi-carina-provisioner
+  namespace: kube-system
+  labels:
+    class: carina
+spec:
+  selector:
+    matchLabels:
+      app: csi-carina-provisioner
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: csi-carina-provisioner
+    spec:
+      serviceAccount: carina-csi-controller
+      containers:
+        - name: csi-provisioner
+          image: antmoveh/csi-provisioner:v2.1.0
+          args:
+            - "--csi-address=$(ADDRESS)"
+            - "--v=5"
+            - "--timeout=150s"
+            - "--leader-election=true"
+            - "--retry-interval-start=500ms"
+            - "--feature-gates=Topology=true"
+            - "--extra-create-metadata=true"
+          env:
+            - name: ADDRESS
+              value: unix:///csi/csi-provisioner.sock
+          imagePullPolicy: "IfNotPresent"
+          volumeMounts:
+            - name: socket-dir
+              mountPath: /csi
+        - name: csi-resizer
+          image: antmoveh/csi-resizer:v1.1.0
+          args:
+            - "--csi-address=$(ADDRESS)"
+            - "--v=5"
+            - "--timeout=150s"
+            - "--leader-election"
+            - "--retry-interval-start=500ms"
+            - "--handle-volume-inuse-error=false"
+          env:
+            - name: ADDRESS
+              value: unix:///csi/csi-provisioner.sock
+          imagePullPolicy: "IfNotPresent"
+          volumeMounts:
+            - name: socket-dir
+              mountPath: /csi
+#        - name: csi-snapshotter
+#          image: antmoveh/csi-snapshotter:v4.0.0
+#          args:
+#            - "--csi-address=$(ADDRESS)"
+#            - "--v=5"
+#            - "--timeout=150s"
+#            - "--leader-election=true"
+#          env:
+#            - name: ADDRESS
+#              value: unix:///csi/csi-provisioner.sock
+#          imagePullPolicy: "IfNotPresent"
+#          securityContext:
+#            privileged: true
+#          volumeMounts:
+#            - name: socket-dir
+#              mountPath: /csi
+        - name: csi-carina-attacher
+          image: antmoveh/csi-attacher:v3.1.0
+          args:
+            - "--v=5"
+            - "--csi-address=$(ADDRESS)"
+            - "--leader-election=true"
+            - "--retry-interval-start=500ms"
+          env:
+            - name: ADDRESS
+              value: /csi/csi-provisioner.sock
+          imagePullPolicy: "IfNotPresent"
+          volumeMounts:
+            - name: socket-dir
+              mountPath: /csi
+        - name: csi-carina-controller
+          securityContext:
+            privileged: true
+            capabilities:
+              add: ["SYS_ADMIN"]
+          # for stable functionality replace canary with latest release version
+          image: antmoveh/carina:latest
+          command: ["carina-controller"]
+          args:
+            - "--csi-address=$(ADDRESS)"
+            - "--cert-dir=/certs"
+          env:
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+            - name: NODE_ID
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+            - name: NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: ADDRESS
+              value: /csi/csi-provisioner.sock
+          imagePullPolicy: "Always"
+          volumeMounts:
+            - name: socket-dir
+              mountPath: /csi
+              mountPropagation: Bidirectional
+            - name: config
+              mountPath: /etc/carina/
+            - name: certs
+              mountPath: /certs
+      volumes:
+        - name: socket-dir
+          emptyDir: {
+            medium: "Memory"
+          }
+        - name: config
+          configMap:
+            name: carina-csi-config
+        - name: certs
+          secret:
+            secretName: mutatingwebhook
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: carina-controller
+  namespace: kube-system
+spec:
+  selector:
+    app: csi-carina-provisioner
+  ports:
+    - protocol: TCP
+      port: 443
+      targetPort: 8443

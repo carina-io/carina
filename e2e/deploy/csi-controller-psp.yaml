@@ -1,0 +1,66 @@
+---
+apiVersion: policy/v1beta1
+kind: PodSecurityPolicy
+metadata:
+  name: carina-csi-provisioner-psp
+  labels:
+    class: carina
+spec:
+  allowPrivilegeEscalation: true
+  allowedCapabilities:
+    - 'SYS_ADMIN'
+  fsGroup:
+    rule: RunAsAny
+  privileged: true
+  runAsUser:
+    rule: RunAsAny
+  seLinux:
+    rule: RunAsAny
+  supplementalGroups:
+    rule: RunAsAny
+  volumes:
+    - 'configMap'
+    - 'emptyDir'
+    - 'projected'
+    - 'secret'
+    - 'downwardAPI'
+    - 'hostPath'
+  allowedHostPaths:
+    - pathPrefix: '/dev'
+      readOnly: false
+    - pathPrefix: '/sys'
+      readOnly: false
+
+---
+kind: Role
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: carina-csi-provisioner-psp
+  # replace with non-default namespace name
+  namespace: kube-system
+  labels:
+    class: carina
+rules:
+  - apiGroups: ['policy']
+    resources: ['podsecuritypolicies']
+    verbs: ['use']
+    resourceNames: ['carina-csi-provisioner-psp']
+
+---
+kind: RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: carina-csi-provisioner-psp
+  # replace with non-default namespace name
+  namespace: kube-system
+  labels:
+    class: carina
+subjects:
+  - kind: ServiceAccount
+    name: carina-csi-controller
+    # replace with non-default namespace name
+    namespace: kube-system
+roleRef:
+  kind: Role
+  name: carina-csi-provisioner-psp
+  apiGroup: rbac.authorization.k8s.io

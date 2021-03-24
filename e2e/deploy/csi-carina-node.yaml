@@ -1,0 +1,138 @@
+---
+kind: DaemonSet
+apiVersion: apps/v1
+metadata:
+  name: csi-carina-node
+  namespace: kube-system
+  labels:
+    class: carina
+spec:
+  selector:
+    matchLabels:
+      app: csi-carina-node
+  template:
+    metadata:
+      labels:
+        app: csi-carina-node
+    spec:
+      serviceAccount: carina-csi-node
+      hostNetwork: true
+      # resolved through k8s service, set dns policy to cluster first
+      dnsPolicy: ClusterFirstWithHostNet
+      initContainers:
+        - name: init-container
+          securityContext:
+            privileged: true
+          image: busybox:1.28
+          command: ["sh", "-c"]
+          args: ["for i in dm_snapshot dm_mirror dm_thin_pool; do modprobe $i; done"]
+          volumeMounts:
+            - mountPath: /lib/modules
+              name: modules
+      containers:
+        - name: csi-node-driver-registrar
+          # This is necessary only for systems with SELinux, where
+          # non-privileged sidecar containers cannot access unix domain socket
+          # created by privileged CSI driver container.
+          securityContext:
+            privileged: true
+          image: antmoveh/csi-node-driver-registrar:v2.1.0
+          args:
+            - "--v=5"
+            - "--csi-address=/csi/csi.sock"
+            - "--kubelet-registration-path=/var/lib/kubelet/plugins/csi.carina.com/csi.sock"
+          env:
+            - name: KUBE_NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+          volumeMounts:
+            - name: socket-dir
+              mountPath: /csi
+            - name: registration-dir
+              mountPath: /registration
+        - name: csi-carina-node
+          securityContext:
+            privileged: true
+            capabilities:
+              add: ["SYS_ADMIN"]
+            allowPrivilegeEscalation: true
+          # for stable functionality replace canary with latest release version
+          image: antmoveh/carina:latest
+          command: ["carina-node"]
+          args:
+            - "--csi-address=$(ADDRESS)"
+          env:
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+            - name: NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+            - name: ADDRESS
+              value: /csi/csi.sock
+          imagePullPolicy: "Always"
+          volumeMounts:
+            - name: socket-dir
+              mountPath: /csi
+            - name: mountpoint-dir
+              mountPath: /var/lib/kubelet/pods
+              mountPropagation: Bidirectional
+            - name: plugin-dir
+              mountPath: /var/lib/kubelet/plugins
+              mountPropagation: Bidirectional
+            - name: device-plugin
+              mountPath: /var/lib/kubelet/device-plugins
+              mountPropagation: Bidirectional
+            - name: host-sys
+              mountPath: /sys/fs/cgroup
+            - name: host-dev
+              mountPath: /dev
+            - name: host-mount
+              mountPath: /run/mount
+            - name: config
+              mountPath: /etc/carina/
+            - name: log-dir
+              mountPath: /var/log/carina/
+      volumes:
+        - name: socket-dir
+          hostPath:
+            path: /var/lib/kubelet/plugins/csi.carina.com/
+            type: DirectoryOrCreate
+        - name: registration-dir
+          hostPath:
+            path: /var/lib/kubelet/plugins_registry/
+            type: Directory
+        - name: mountpoint-dir
+          hostPath:
+            path: /var/lib/kubelet/pods
+            type: DirectoryOrCreate
+        - name: log-dir
+          hostPath:
+            path: /var/log/carina
+            type: DirectoryOrCreate
+        - name: plugin-dir
+          hostPath:
+            path: /var/lib/kubelet/plugins
+            type: Directory
+        - name: device-plugin
+          hostPath:
+            path: /var/lib/kubelet/device-plugins
+            type: Directory
+        - name: host-sys
+          hostPath:
+            path: /sys/fs/cgroup
+        - name: modules
+          hostPath:
+            path: /lib/modules
+        - name: host-dev
+          hostPath:
+            path: /dev
+        - name: host-mount
+          hostPath:
+            path: /run/mount
+        - name: config
+          configMap:
+            name: carina-csi-config

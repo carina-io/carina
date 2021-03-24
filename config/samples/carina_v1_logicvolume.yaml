@@ -1,0 +1,7 @@
+apiVersion: carina.storage.io/v1
+kind: LogicVolume
+metadata:
+  name: logicvolume-sample
+spec:
+  # Add fields here
+  foo: bar

@@ -1,0 +1,31 @@
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: MutatingWebhookConfiguration
+metadata:
+  name: carina-hook
+webhooks:
+  - name: pod-hook.carina.storage.io
+    namespaceSelector:
+      matchExpressions:
+      - key: carina.storage.io/webhook
+        operator: NotIn
+        values: ["ignore"]
+    clientConfig:
+      caBundle: ${CA_BUNDLE}
+      service:
+        name: carina-controller
+        namespace: kube-system
+        path: /pod/mutate
+        port: 443
+    failurePolicy: Fail
+    matchPolicy: Exact
+    objectSelector: {}
+    reinvocationPolicy: Never
+    rules:
+      - operations: ["CREATE"]
+        apiGroups: [""]
+        apiVersions: ["v1"]
+        resources: ["pods"]
+    admissionReviewVersions: ["v1beta1"]
+    sideEffects: NoneOnDryRun
+    timeoutSeconds: 30

@@ -1,0 +1,7 @@
+domain: storage.io
+repo: carina
+resources:
+- group: carina
+  kind: LogicVolume
+  version: v1
+version: "2"

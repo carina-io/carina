@@ -1,0 +1,21 @@
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: carina-block-pod
+  namespace: carina
+spec:
+  containers:
+    - name: centos
+      securityContext:
+        capabilities:
+          add: ["SYS_RAWIO"]
+      image: centos:latest
+      command: ["/bin/sleep", "infinity"]
+      volumeDevices:
+        - name: data
+          devicePath: /dev/xvda
+  volumes:
+    - name: data
+      persistentVolumeClaim:
+        claimName: raw-block-pvc
