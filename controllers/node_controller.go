@@ -11,6 +11,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
+	"time"
 )
 
 // NodeReconciler reconciles a Node object
@@ -42,6 +43,9 @@ func (r *NodeReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.
 
 	if err := r.doFinalize(ctx, node); err != nil {
 		log.Errorf("delete all pvc failed %s", err.Error())
+		go utils.UntilMaxRetry(func() error {
+			return r.ResourceReconcile(ctx)
+		}, 5, 300*time.Second)
 		return ctrl.Result{}, err
 	}
 
@@ -97,7 +101,7 @@ func (r *NodeReconciler) targetStorageClasses(ctx context.Context) (map[string]b
 }
 
 // SetupWithManager sets up Reconciler with Manager.
-func (r *NodeReconciler) SetupW4ithManager(mgr ctrl.Manager) error {
+func (r *NodeReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	ctx := context.Background()
 	err := mgr.GetFieldIndexer().IndexField(ctx, &corev1.PersistentVolumeClaim{}, utils.AnnSelectedNode, func(o client.Object) []string {
 		return []string{o.(*corev1.PersistentVolumeClaim).Annotations[utils.AnnSelectedNode]}
@@ -112,8 +116,74 @@ func (r *NodeReconciler) SetupW4ithManager(mgr ctrl.Manager) error {
 		GenericFunc: func(event.GenericEvent) bool { return false },
 	}
 
+	go utils.UntilMaxRetry(func() error {
+		time.Sleep(300 * time.Second)
+		return r.ResourceReconcile(ctx)
+
+	}, 2, 120*time.Second)
+
 	return ctrl.NewControllerManagedBy(mgr).
 		WithEventFilter(pred).
 		For(&corev1.Node{}).
 		Complete(r)
+}
+
+// 当pvc资源无法删除时，调用此方法将会执行延迟删除
+// 该延迟删除属于触发式，当服务启动时会执行检查，当出现删除资源失败时会触发
+// 该服务并不长驻，因为异常并不时常存在，若是常驻反而浪费cpu memory net等资源
+// 在延迟删除中也未能清理资源，只能借助于人工排查
+func (r *NodeReconciler) ResourceReconcile(ctx context.Context) error {
+
+	// 获取所有Node
+	nl := new(corev1.NodeList)
+	err := r.List(ctx, nl)
+	if err != nil {
+		log.Errorf("unable to fetch node list %s", err.Error())
+		return err
+	}
+
+	nodeList := []string{}
+	for _, n := range nl.Items {
+		if n.DeletionTimestamp != nil || n.Status.Phase == corev1.NodeTerminated {
+			continue
+		}
+		nodeList = append(nodeList, n.Name)
+	}
+
+	scs, err := r.targetStorageClasses(ctx)
+	if err != nil {
+		log.Errorf("unable to fetch StorageClass %s", err.Error())
+		return err
+	}
+
+	var pvcs corev1.PersistentVolumeClaimList
+	err = r.List(ctx, &pvcs)
+	if err != nil {
+		log.Errorf("unable to fetch PersistentVolumeClaimList %s", err.Error())
+		return err
+	}
+
+	for _, pvc := range pvcs.Items {
+		if pvc.Spec.StorageClassName == nil {
+			continue
+		}
+		if !scs[*pvc.Spec.StorageClassName] {
+			continue
+		}
+
+		if utils.ContainsString(nodeList, pvc.Annotations[utils.AnnSelectedNode]) {
+			continue
+		}
+		if pvc.DeletionTimestamp != nil {
+			continue
+		}
+
+		err = r.Delete(ctx, &pvc)
+		if err != nil {
+			log.Error(err.Error(), " unable to delete PVC name ", pvc.Name, " namespace ", pvc.Namespace)
+			return err
+		}
+	}
+
+	return nil
 }
