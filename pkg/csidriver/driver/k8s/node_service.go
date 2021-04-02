@@ -16,10 +16,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 )
 
-// This annotation is added to a PVC that has been triggered by scheduler to
-// be dynamically provisioned. Its value is the name of the selected node.
-const annSelectedNode = "volume.kubernetes.io/selected-node"
-
 // This annotation is present on K8s 1.11 release.
 const annAlphaSelectedNode = "volume.alpha.kubernetes.io/selected-node"
 
@@ -239,7 +235,7 @@ func (s NodeService) HaveSelectedNode(ctx context.Context, namespace, name strin
 	if err != nil {
 		return node, err
 	}
-	node = pvc.Annotations[annSelectedNode]
+	node = pvc.Annotations[utils.AnnSelectedNode]
 	if node == "" {
 		node = pvc.Annotations[annAlphaSelectedNode]
 	}

@@ -76,14 +76,13 @@ func subMain() error {
 	//wh.Register("/pvc/mutate", hook.PVCMutator(mgr.GetClient(), dec))
 
 	// register controllers
-	//nodecontroller := &controllers.NodeReconciler{
-	//	Client: mgr.GetClient(),
-	//	Log:    ctrl.Log.WithName("controllers").WithName("Node"),
-	//}
-	//if err := nodecontroller.SetupWithManager(mgr); err != nil {
-	//	setupLog.Error(err, "unable to create controller", "controller", "Node")
-	//	return err
-	//}
+	nodecontroller := &controllers.NodeReconciler{
+		Client: mgr.GetClient(),
+	}
+	if err := nodecontroller.SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "Node")
+		return err
+	}
 
 	pvcontroller := &controllers.PersistentVolumeReconciler{
 		Client:    mgr.GetClient(),
