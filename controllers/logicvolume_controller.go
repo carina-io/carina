@@ -170,6 +170,12 @@ func (r *LogicVolumeReconciler) createLV(ctx context.Context, lv *carinav1.Logic
 		lv.Status.Code = codes.OK
 		lv.Status.Message = ""
 		lv.Status.Status = "Success"
+
+		lvInfo, _ := r.volume.VolumeInfo(lv.Status.VolumeID, lv.Spec.DeviceGroup)
+		if lvInfo != nil {
+			lv.Status.DeviceMajor = lvInfo.LVKernelMajor
+			lv.Status.DeviceMinor = lvInfo.LVKernelMinor
+		}
 		r.Recorder.Event(lv, corev1.EventTypeNormal, "CreateVolumeSuccess", fmt.Sprintf("create volume success node: %s, time: %s", r.nodeName, time.Now().Format("2006-01-02T15:04:05.000Z")))
 	}
 

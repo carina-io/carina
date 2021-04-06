@@ -55,6 +55,17 @@ func subMain() error {
 	defer close(stopChan)
 	dm := deviceManager.NewDeviceManager(nodeName, stopChan)
 
+	podController := controllers.PodReconciler{
+		Client:   mgr.GetClient(),
+		NodeName: nodeName,
+		Executor: dm.Executor,
+	}
+
+	if err := podController.SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller ", "controller", "podController")
+		return err
+	}
+
 	lvController := controllers.NewLogicVolumeReconciler(
 		mgr.GetClient(),
 		mgr.GetScheme(),

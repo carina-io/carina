@@ -146,7 +146,7 @@ func (s controllerService) CreateVolume(ctx context.Context, req *csi.CreateVolu
 		deviceGroup = group
 	}
 
-	volumeID, err := s.lvService.CreateVolume(ctx, node, deviceGroup, name, requestGb)
+	volumeID, deviceMajor, deviceMinor, err := s.lvService.CreateVolume(ctx, node, deviceGroup, name, requestGb)
 	if err != nil {
 		_, ok := status.FromError(err)
 		if !ok {
@@ -160,6 +160,8 @@ func (s controllerService) CreateVolume(ctx context.Context, req *csi.CreateVolu
 	volumeContext[utils.DeviceDiskKey] = deviceGroup
 	volumeContext[utils.VolumeDevicePath] = fmt.Sprintf("/dev/%s/volume-%s", deviceGroup, name)
 	volumeContext[utils.VolumeDeviceNode] = node
+	volumeContext[utils.VolumeDeviceMajor] = fmt.Sprintf("%d", deviceMajor)
+	volumeContext[utils.VolumeDeviceMinor] = fmt.Sprintf("%d", deviceMinor)
 
 	// pv nodeAffinity
 	segments[utils.TopologyNodeKey] = node

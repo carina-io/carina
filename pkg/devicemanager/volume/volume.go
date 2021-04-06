@@ -9,6 +9,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	"strings"
 	"time"
 )
@@ -169,6 +171,21 @@ func (v *LocalVolumeImplement) VolumeList(lvName, vgName string) ([]types.LvInfo
 		name = fmt.Sprintf("%s/%s", vgName, lvName)
 	}
 	return v.Lv.LVS(name)
+}
+
+func (v *LocalVolumeImplement) VolumeInfo(lvName, vgName string) (*types.LvInfo, error) {
+	lvs, err := v.VolumeList(lvName, vgName)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to list lv :%v", err)
+	}
+
+	for _, v := range lvs {
+		if v.LVName == lvName {
+			return &v, nil
+		}
+	}
+
+	return nil, errors.New("not found")
 }
 
 func (v *LocalVolumeImplement) CreateSnapshot(snapName, lvName, vgName string) error {
