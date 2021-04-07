@@ -9,6 +9,7 @@ import (
 	"bocloud.com/cloudnative/carina/pkg/csidriver/runners"
 	deviceManager "bocloud.com/cloudnative/carina/pkg/devicemanager"
 	"bocloud.com/cloudnative/carina/pkg/deviceplugin"
+	"context"
 	"errors"
 	"google.golang.org/grpc"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -50,6 +51,8 @@ func subMain() error {
 		return err
 	}
 
+	mgr.GetCache().WaitForCacheSync(context.TODO())
+
 	// 初始化磁盘管理服务
 	stopChan := make(chan struct{})
 	defer close(stopChan)
@@ -59,7 +62,7 @@ func subMain() error {
 		Client:   mgr.GetClient(),
 		NodeName: nodeName,
 		Executor: dm.Executor,
-		StopChan:stopChan,
+		StopChan: stopChan,
 	}
 
 	if err := podController.SetupWithManager(mgr); err != nil {

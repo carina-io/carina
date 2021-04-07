@@ -1,0 +1,67 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: carina-topo-stateful-speed-limit
+  namespace: carina
+  annotations:
+    kubernetes.customized/blkio.throttle.read_bps_device: 10485760
+    kubernetes.customized/blkio.throttle.read_iops_device: 10
+    kubernetes.customized/blkio.throttle.write_bps_device: 10485760
+    kubernetes.customized/blkio.throttle.write_iops_device: 10
+spec:
+  serviceName: "nginx"
+  replicas: 1
+  selector:
+    matchLabels:
+      app: nginx
+  template:
+    metadata:
+      labels:
+        app: nginx
+    spec:
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: kubernetes.io/os
+                    operator: In
+                    values:
+                      - linux
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchExpressions:
+                  - key: app
+                    operator: In
+                    values:
+                      - nginx
+              topologyKey: topology.carina.storage.io/node
+      containers:
+        - name: nginx
+          image: nginx
+          ports:
+            - containerPort: 80
+              name: web
+          volumeMounts:
+            - name: www
+              mountPath: /usr/share/nginx/html
+            - name: logs
+              mountPath: /logs
+  volumeClaimTemplates:
+    - metadata:
+        name: www
+      spec:
+        accessModes: [ "ReadWriteOnce" ]
+        storageClassName: csi-carina-sc
+        resources:
+          requests:
+            storage: 10Gi
+    - metadata:
+        name: logs
+      spec:
+        accessModes: [ "ReadWriteOnce" ]
+        storageClassName: csi-carina-sc
+        resources:
+          requests:
+            storage: 5Gi
