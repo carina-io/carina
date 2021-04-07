@@ -36,8 +36,6 @@ const (
 	VolumeDeviceMajor = "carina.storage.io/major"
 	VolumeDeviceMinor = "carina.storage.io/minor"
 
-
-
 	// topology
 	// TopologyZoneKey is the key of topology that represents zone name.
 	TopologyNodeKey = "topology.carina.storage.io/node"
