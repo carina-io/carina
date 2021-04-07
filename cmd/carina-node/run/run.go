@@ -59,6 +59,7 @@ func subMain() error {
 		Client:   mgr.GetClient(),
 		NodeName: nodeName,
 		Executor: dm.Executor,
+		StopChan:stopChan,
 	}
 
 	if err := podController.SetupWithManager(mgr); err != nil {

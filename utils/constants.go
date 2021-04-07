@@ -36,11 +36,7 @@ const (
 	VolumeDeviceMajor = "carina.storage.io/major"
 	VolumeDeviceMinor = "carina.storage.io/minor"
 
-	// pod annotation
-	BlkIOThrottleReadBPS   = "kubernetes.customized/blkio.throttle.read_bps_device"
-	BlkIOThrottleReadIOPS  = "kubernetes.customized/blkio.throttle.read_iops_device"
-	BlkIOThrottleWriteBPS  = "kubernetes.customized/blkio.throttle.write_bps_device"
-	BlkIOThrottleWriteIOPS = "kubernetes.customized/blkio.throttle.write_iops_device"
+
 
 	// topology
 	// TopologyZoneKey is the key of topology that represents zone name.

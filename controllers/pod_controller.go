@@ -4,18 +4,30 @@ import (
 	"bocloud.com/cloudnative/carina/utils"
 	"bocloud.com/cloudnative/carina/utils/exec"
 	"bocloud.com/cloudnative/carina/utils/log"
+	"bufio"
 	"context"
 	"fmt"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/client-go/util/workqueue"
-	"path"
+	"os"
+	"path/filepath"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/event"
-	"strconv"
+	"strings"
 	"time"
+)
+
+const (
+	// pod annotation KubernetesCustomized/BlkIOThrottleReadBPS
+	KubernetesCustomized   = "kubernetes.customized"
+	BlkIOThrottleReadBPS   = "blkio.throttle.read_bps_device"
+	BlkIOThrottleReadIOPS  = "blkio.throttle.read_iops_device"
+	BlkIOThrottleWriteBPS  = "blkio.throttle.write_bps_device"
+	BlkIOThrottleWriteIOPS = "blkio.throttle.write_iops_device"
+	BlkIOCGroupPath        = "/sys/fs/cgroup/blkio/"
 )
 
 // PodReconciler reconciles a Node object
@@ -23,6 +35,8 @@ type PodReconciler struct {
 	client.Client
 	NodeName string
 	Executor exec.Executor
+	// stop
+	StopChan <-chan struct{}
 }
 
 // +kubebuilder:rbac:groups="",resources=pods,verbs=get;list;watch;update;patch
@@ -46,8 +60,8 @@ func (r *PodReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 		return ctrl.Result{}, nil
 	}
 
-	if err := r.deviceSpeedLimit(ctx, pod); err != nil {
-
+	if err := r.SinglePodCGroupConfig(ctx, pod); err != nil {
+		return ctrl.Result{}, err
 	}
 
 	return ctrl.Result{}, nil
@@ -55,6 +69,37 @@ func (r *PodReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 
 // SetupWithManager sets up Reconciler with Manager.
 func (r *PodReconciler) SetupWithManager(mgr ctrl.Manager) error {
+
+	ctx := context.Background()
+	err := mgr.GetFieldIndexer().IndexField(ctx, &corev1.Pod{}, "combinedIndex", func(object client.Object) []string {
+		combinedIndex := fmt.Sprintf("%s-%s", object.(*corev1.Pod).Spec.SchedulerName, object.(*corev1.Pod).Spec.NodeName)
+		return []string{combinedIndex}
+	})
+
+	if err != nil {
+		return err
+	}
+
+	// 服务启动，首先检查一下本节点cgroup设置是否正确
+	err = r.AllPodCGroupConfig(ctx)
+	if err != nil {
+		return err
+	}
+
+	ticker1 := time.NewTicker(600 * time.Second)
+	go func(t *time.Ticker) {
+		defer ticker1.Stop()
+		for {
+			select {
+			case <-t.C:
+				_ = r.AllPodCGroupConfig(ctx)
+			case <-r.StopChan:
+				log.Info("stop device monitor...")
+				return
+			}
+		}
+	}(ticker1)
+
 	return ctrl.NewControllerManagedBy(mgr).
 		WithEventFilter(podFilter{r.NodeName}).
 		WithOptions(controller.Options{
@@ -64,117 +109,74 @@ func (r *PodReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Complete(r)
 }
 
-func (r *PodReconciler) deviceSpeedLimit(ctx context.Context, pod *corev1.Pod) error {
+// 对于单独一个Pod的创建,修改事件只需要判断当前cgroup和pod.annotations对比，即可判定是否需要变更
+func (r *PodReconciler) SinglePodCGroupConfig(ctx context.Context, pod *corev1.Pod) error {
 
-	throttle, err := r.extractPodBlkioResources(pod.Annotations)
-	if err != nil {
-		return err
+	cb := []*cgroupblkio{}
+	for _, v := range []string{BlkIOThrottleReadBPS, BlkIOThrottleReadIOPS, BlkIOThrottleWriteBPS, BlkIOThrottleWriteIOPS} {
+		cb = append(cb, &cgroupblkio{
+			name:     v,
+			cpath:    filepath.Join(BlkIOCGroupPath, v),
+			oldBlkio: map[string]string{},
+			newBlkio: map[string]string{},
+		})
 	}
 
 	for _, pv := range pod.Spec.Volumes {
 		if pv.VolumeSource.CSI.Driver != utils.CSIPluginName {
 			continue
 		}
-
-		deviceMajor := pv.CSI.VolumeAttributes[utils.VolumeDeviceMajor]
-		deviceMinor := pv.CSI.VolumeAttributes[utils.VolumeDeviceMinor]
-
-		// TODO 检查设备限制是否已经存在
-		err = r.addBlkDeviceToCgroup(deviceMajor, deviceMinor, throttle)
-		if err != nil {
-			return err
+		// 设置主从版本号作为Key
+		blkioKey := fmt.Sprintf("%s:%s", pv.CSI.VolumeAttributes[utils.VolumeDeviceMajor], pv.CSI.VolumeAttributes[utils.VolumeDeviceMinor])
+		// 填充到将要变更的cgroup
+		for _, c := range cb {
+			newValue, newOk := pod.Annotations[fmt.Sprintf("%s/%s", KubernetesCustomized, c.name)]
+			// 对于单独Pod的更新这里判断很简单，如果存在这个注解则更新，如果不存在这个注解则删除
+			if newOk {
+				c.newBlkio[blkioKey] = newValue
+			} else {
+				c.newBlkio[blkioKey] = "0"
+			}
 		}
-
 	}
-
+	// 变更cgroup file
+	writeCgroupBlkioFile(r.Executor, cb)
 	return nil
 }
 
-func (r *PodReconciler) extractPodBlkioResources(podAnnotations map[string]string) (map[string]int, error) {
-	var err error
-	throttle := map[string]int{
-		utils.BlkIOThrottleReadBPS:   -1,
-		utils.BlkIOThrottleReadIOPS:  -1,
-		utils.BlkIOThrottleWriteBPS:  -1,
-		utils.BlkIOThrottleWriteIOPS: -1,
+func (r *PodReconciler) AllPodCGroupConfig(ctx context.Context) error {
+	podList := &corev1.PodList{}
+	err := r.Client.List(ctx, podList, client.MatchingFields{"combinedIndex": fmt.Sprintf("%s-%s", utils.CarinaSchedule, r.NodeName)})
+	if err != nil {
+		return err
 	}
+	// 获取当前cgroup 配置
+	cb := readCGroupBlkioFile()
+	// 获取设备限制
+	for _, p := range podList.Items {
 
-	if podAnnotations == nil {
-		return throttle, nil
-	}
-
-	if str, found := (podAnnotations)[utils.BlkIOThrottleReadBPS]; found {
-		if throttle[utils.BlkIOThrottleReadBPS], err = strconv.Atoi(str); err != nil {
-			return throttle, err
+		for _, pv := range p.Spec.Volumes {
+			if pv.VolumeSource.CSI.Driver != utils.CSIPluginName {
+				continue
+			}
+			// 设置主从版本号作为Key
+			blkioKey := fmt.Sprintf("%s:%s", pv.CSI.VolumeAttributes[utils.VolumeDeviceMajor], pv.CSI.VolumeAttributes[utils.VolumeDeviceMinor])
+			// 填充到将要变更的cgroup
+			for _, c := range cb {
+				_, oldOk := c.oldBlkio[blkioKey]
+				newValue, newOk := p.Annotations[fmt.Sprintf("%s/%s", KubernetesCustomized, c.name)]
+				if newOk {
+					c.newBlkio[blkioKey] = newValue
+				} else {
+					if oldOk {
+						c.newBlkio[blkioKey] = "0"
+					}
+				}
+			}
 		}
 	}
-	if str, found := (podAnnotations)[utils.BlkIOThrottleReadIOPS]; found {
-		if throttle[utils.BlkIOThrottleReadIOPS], err = strconv.Atoi(str); err != nil {
-			return throttle, err
-		}
-	}
-	if str, found := (podAnnotations)[utils.BlkIOThrottleWriteBPS]; found {
-		if throttle[utils.BlkIOThrottleWriteBPS], err = strconv.Atoi(str); err != nil {
-			return throttle, err
-		}
-	}
-	if str, found := (podAnnotations)[utils.BlkIOThrottleWriteIOPS]; found {
-		if throttle[utils.BlkIOThrottleWriteIOPS], err = strconv.Atoi(str); err != nil {
-			return throttle, err
-		}
-	}
-	return throttle, nil
-}
-
-func (r *PodReconciler) addBlkDeviceToCgroup(major, minor string, throttle map[string]int) error {
-	blkioCgroup := "/sys/fs/cgroup/blkio/"
-
-	if throttle[utils.BlkIOThrottleReadBPS] > 0 {
-		throttlePath := path.Join(blkioCgroup, "blkio.throttle.read_bps_device")
-		//TODO 处理一下限制变更的情况
-
-		if err := r.Executor.ExecuteCommand(fmt.Sprintf("echo %s:%s %d > %s", major, minor,
-			throttle[utils.BlkIOThrottleReadBPS], throttlePath)); err != nil {
-			log.Infof(
-				"failed to throttle %d:%d blkio.throttle.read_bps_device, err %s.",
-				major, minor, err)
-			return err
-		}
-	}
-	if throttle[utils.BlkIOThrottleReadIOPS] > 0 {
-		throttlePath := path.Join(blkioCgroup, "blkio.throttle.read_iops_device")
-		//TODO 处理一下限制变更的情况
-		if err := r.Executor.ExecuteCommand(fmt.Sprintf("echo %s:%s %d > %s", major, minor,
-			throttle[utils.BlkIOThrottleReadIOPS], throttlePath)); err != nil {
-			log.Infof(
-				"failed to throttle %d:%d blkio.throttle.read_iops_device, err %s.",
-				major, minor, err)
-			return err
-		}
-
-	}
-	if throttle[utils.BlkIOThrottleWriteBPS] > 0 {
-		throttlePath := path.Join(blkioCgroup, "blkio.throttle.write_bps_device")
-		//TODO 处理一下限制变更的情况
-		if err := r.Executor.ExecuteCommand(fmt.Sprintf("echo %s:%s %d > %s", major, minor,
-			throttle[utils.BlkIOThrottleWriteBPS], throttlePath)); err != nil {
-			log.Infof(
-				"failed to throttle %d:%d blkio.throttle.write_bps_device, err %s.",
-				major, minor, err)
-			return err
-		}
-	}
-	if throttle[utils.BlkIOThrottleWriteIOPS] > 0 {
-		throttlePath := path.Join(blkioCgroup, "blkio.throttle.write_iops_device")
-		//TODO 处理一下限制变更的情况
-		if err := r.Executor.ExecuteCommand(fmt.Sprintf("echo %s:%s %d > %s", major, minor,
-			throttle[utils.BlkIOThrottleWriteIOPS], throttlePath)); err != nil {
-			log.Infof(
-				"failed to throttle %d:%d blkio.throttle.write_iops_device, err %s.",
-				major, minor, err)
-			return err
-		}
-	}
+	// 判断设备是否需要更新
+	writeCgroupBlkioFile(r.Executor, cb)
 	return nil
 }
 
@@ -207,4 +209,67 @@ func (p podFilter) Update(e event.UpdateEvent) bool {
 
 func (p podFilter) Generic(e event.GenericEvent) bool {
 	return p.filter(e.Object.(*corev1.Pod))
+}
+
+type cgroupblkio struct {
+	name     string
+	cpath    string
+	oldBlkio map[string]string
+	newBlkio map[string]string
+}
+
+func readCGroupBlkioFile() []*cgroupblkio {
+
+	cb := []*cgroupblkio{}
+	for _, v := range []string{BlkIOThrottleReadBPS, BlkIOThrottleReadIOPS, BlkIOThrottleWriteBPS, BlkIOThrottleWriteIOPS} {
+		cpath := filepath.Join(BlkIOCGroupPath, v)
+		ctmp := &cgroupblkio{
+			name:     v,
+			cpath:    cpath,
+			oldBlkio: map[string]string{},
+			newBlkio: map[string]string{},
+		}
+		f, err := os.Open(cpath)
+		defer f.Close()
+		if err != nil {
+			log.Errorf("open file %s error %s", cpath, err.Error())
+			continue
+		}
+		buf := bufio.NewScanner(f)
+		for {
+			if !buf.Scan() {
+				break
+			}
+			line := buf.Text()
+			line = strings.TrimSpace(line)
+			strSlice := strings.Split(line, " ")
+			ctmp.oldBlkio[strSlice[0]] = strSlice[1]
+		}
+		cb = append(cb, ctmp)
+	}
+	return cb
+}
+
+// echo 1:2 1 > blkio cgroup 比较神奇的地方，会搜索当前系统是否存在该设备
+// echo 1:2 1 > xxx/blkio_throttle_read_bps 当设备不存在时会追加，当存在时会更新
+// echo 1:2 0 > xxx/blkio_throttle_read_bps 会删除符合条件的设备
+// 除非明确的要删除设备限制，否则不删除
+func writeCgroupBlkioFile(exec exec.Executor, cp []*cgroupblkio) {
+
+	for _, c := range cp {
+		// 处理一下需要更新的内容
+		for k, v := range c.oldBlkio {
+			if nv, ok := c.newBlkio[k]; ok {
+				if v == nv {
+					delete(c.newBlkio, k)
+				}
+			}
+		}
+		for k, v := range c.newBlkio {
+			err := exec.ExecuteCommand(fmt.Sprintf("echo %s %s > %s", k, v, c.cpath))
+			if err != nil {
+				log.Errorf("failed to exec %s error %s", fmt.Sprintf("echo %s %s > %s", k, v, c.cpath), err.Error())
+			}
+		}
+	}
 }
