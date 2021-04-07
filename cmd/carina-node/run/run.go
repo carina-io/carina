@@ -12,6 +12,7 @@ import (
 	"context"
 	"errors"
 	"google.golang.org/grpc"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
@@ -51,7 +52,11 @@ func subMain() error {
 		return err
 	}
 
-	mgr.GetCache().WaitForCacheSync(context.TODO())
+	// pre-cache objects
+	ctx := context.Background()
+	if _, err := mgr.GetCache().GetInformer(ctx, &corev1.Pod{}); err != nil {
+		return err
+	}
 
 	// 初始化磁盘管理服务
 	stopChan := make(chan struct{})

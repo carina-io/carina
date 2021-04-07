@@ -80,12 +80,6 @@ func (r *PodReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		return err
 	}
 
-	// 服务启动，首先检查一下本节点cgroup设置是否正确
-	err = r.AllPodCGroupConfig(ctx)
-	if err != nil {
-		return err
-	}
-
 	ticker1 := time.NewTicker(600 * time.Second)
 	go func(t *time.Ticker) {
 		defer ticker1.Stop()

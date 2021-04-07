@@ -110,6 +110,10 @@ func subMain() error {
 		return err
 	}
 
+	if _, err := mgr.GetCache().GetInformer(ctx, &corev1.Node{}); err != nil {
+		return err
+	}
+
 	// Add gRPC server to manager.
 	s, err := k8s.NewLogicVolumeService(mgr)
 	if err != nil {
