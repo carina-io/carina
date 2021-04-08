@@ -249,7 +249,7 @@ func (p podFilter) Create(e event.CreateEvent) bool {
 }
 
 func (p podFilter) Delete(e event.DeleteEvent) bool {
-	return p.filter(e.Object.(*corev1.Pod))
+	return false
 }
 
 func (p podFilter) Update(e event.UpdateEvent) bool {
@@ -257,7 +257,7 @@ func (p podFilter) Update(e event.UpdateEvent) bool {
 }
 
 func (p podFilter) Generic(e event.GenericEvent) bool {
-	return p.filter(e.Object.(*corev1.Pod))
+	return false
 }
 
 type cgroupblkio struct {
@@ -315,7 +315,7 @@ func writeCgroupBlkioFile(exec exec.Executor, cp []*cgroupblkio) {
 			}
 		}
 		for k, v := range c.newBlkio {
-			err := exec.ExecuteCommand(fmt.Sprintf("echo %s %s > %s", k, v, c.cpath))
+			err := exec.ExecuteCommand("bash", "-c", fmt.Sprintf("echo %s %s > %s", k, v, c.cpath))
 			if err != nil {
 				log.Errorf("failed to exec %s error %s", fmt.Sprintf("echo %s %s > %s", k, v, c.cpath), err.Error())
 			}

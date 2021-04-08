@@ -53,7 +53,7 @@ func (v *LocalVolumeImplement) CreateVolume(lvName, vgName string, size, ratio u
 	lvInfo, _ := v.Lv.LVDisplay(name, vgName)
 	if lvInfo != nil && lvInfo.VGName == vgName {
 		log.Infof("%s/%s volume exists", vgName, name)
-		return errors.New("volume exists")
+		return nil
 	}
 
 	thinInfo, _ := v.Lv.LVDisplay(thinName, vgName)

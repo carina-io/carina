@@ -184,7 +184,6 @@ func (r *LogicVolumeReconciler) createLV(ctx context.Context, lv *carinav1.Logic
 			// err2 is logged but not returned because err is more important
 			log.Error(err2, " failed to update status name ", lv.Name, " uid ", lv.UID)
 		}
-
 		return err
 	}
 
