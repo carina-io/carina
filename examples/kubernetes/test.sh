@@ -12,6 +12,7 @@ function install() {
   kubectl apply -f raw-block-pvc.yaml
   kubectl apply -f raw-block-pod.yaml
   kubectl apply -f sample.yaml
+  kubectl apply -f deploymentspeedlimit.yaml
   kubectl apply -f topostatefulsetspeedlimit.yaml
   sleep 10s
   echo "-------------------------------"
@@ -22,6 +23,7 @@ function install() {
 function uninstall() {
   echo "uninstall..."
   kubectl delete -f topostatefulsetspeedlimit.yaml
+  kubectl delete -f deploymentspeedlimit.yaml
   kubectl delete -f sample.yaml
   kubectl delete -f deployment.yaml
   kubectl delete -f statefulset.yaml

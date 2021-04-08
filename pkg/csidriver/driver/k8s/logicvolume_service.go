@@ -116,7 +116,7 @@ func (s *LogicVolumeService) CreateVolume(ctx context.Context, node, deviceGroup
 			return "", 0, 0, err
 		}
 		if newLV.Status.VolumeID != "" {
-			log.Info("end k8s.LogicVolume volume_id ", newLV.Status.VolumeID)
+			log.Info("create complete k8s.LogicVolume volume_id ", newLV.Status.VolumeID)
 			return newLV.Status.VolumeID, newLV.Status.DeviceMajor, newLV.Status.DeviceMinor, nil
 		}
 		if newLV.Status.Code != codes.OK {

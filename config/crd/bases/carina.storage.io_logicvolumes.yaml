@@ -31,6 +31,14 @@ spec:
     - jsonPath: .status.status
       name: STATUS
       type: string
+    - jsonPath: .status.deviceMajor
+      name: MAJOR
+      priority: 1
+      type: integer
+    - jsonPath: .status.deviceMinor
+      name: MINOR
+      priority: 1
+      type: integer
     name: v1
     schema:
       openAPIV3Schema:
@@ -76,6 +84,12 @@ spec:
                 - type: string
                 pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
                 x-kubernetes-int-or-string: true
+              deviceMajor:
+                format: int32
+                type: integer
+              deviceMinor:
+                format: int32
+                type: integer
               message:
                 type: string
               status:
