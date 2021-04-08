@@ -56,7 +56,7 @@ func (r *PodReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 		return ctrl.Result{}, err
 	}
 
-	if pod.DeletionTimestamp == nil {
+	if pod.DeletionTimestamp != nil {
 		return ctrl.Result{}, nil
 	}
 
@@ -75,7 +75,28 @@ func (r *PodReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		combinedIndex := fmt.Sprintf("%s-%s", object.(*corev1.Pod).Spec.SchedulerName, object.(*corev1.Pod).Spec.NodeName)
 		return []string{combinedIndex}
 	})
+	if err != nil {
+		return err
+	}
 
+	err = mgr.GetFieldIndexer().IndexField(ctx, &corev1.PersistentVolume{}, "pvIndex", func(object client.Object) []string {
+		pvIndex := []string{}
+		pv := object.(*corev1.PersistentVolume)
+		if pv == nil {
+			return pvIndex
+		}
+		if pv.Spec.CSI == nil {
+			return pvIndex
+		}
+		if pv.Spec.CSI.Driver != utils.CSIPluginName {
+			return pvIndex
+		}
+		if pv.Spec.ClaimRef == nil {
+			return pvIndex
+		}
+		pvIndex = append(pvIndex, fmt.Sprintf("%s-%s", pv.Spec.ClaimRef.Namespace, pv.Spec.ClaimRef.Name))
+		return pvIndex
+	})
 	if err != nil {
 		return err
 	}
@@ -106,6 +127,8 @@ func (r *PodReconciler) SetupWithManager(mgr ctrl.Manager) error {
 // 对于单独一个Pod的创建,修改事件只需要判断当前cgroup和pod.annotations对比，即可判定是否需要变更
 func (r *PodReconciler) SinglePodCGroupConfig(ctx context.Context, pod *corev1.Pod) error {
 
+	log.Infof("config cgroup blkio %s %s", pod.GetNamespace(), pod.GetName())
+
 	cb := []*cgroupblkio{}
 	for _, v := range []string{BlkIOThrottleReadBPS, BlkIOThrottleReadIOPS, BlkIOThrottleWriteBPS, BlkIOThrottleWriteIOPS} {
 		cb = append(cb, &cgroupblkio{
@@ -116,12 +139,28 @@ func (r *PodReconciler) SinglePodCGroupConfig(ctx context.Context, pod *corev1.P
 		})
 	}
 
-	for _, pv := range pod.Spec.Volumes {
-		if pv.VolumeSource.CSI.Driver != utils.CSIPluginName {
+	for _, volume := range pod.Spec.Volumes {
+		if volume.VolumeSource.PersistentVolumeClaim == nil {
+			continue
+		}
+		pvList := &corev1.PersistentVolumeList{}
+		err := r.Client.List(ctx, pvList, client.MatchingFields{"pvIndex": fmt.Sprintf("%s-%s", pod.GetNamespace(), volume.VolumeSource.PersistentVolumeClaim.ClaimName)})
+		if err != nil {
+			log.Errorf("get pv %s failed %s", volume.VolumeSource.PersistentVolumeClaim.ClaimName, err.Error())
+			continue
+		}
+
+		if len(pvList.Items) != 1 {
+			log.Errorf("get pv count not equal one,  %d", len(pvList.Items))
+			continue
+		}
+
+		pvInfo := pvList.Items[0]
+		if pvInfo.Spec.CSI.Driver != utils.CSIPluginName {
 			continue
 		}
 		// 设置主从版本号作为Key
-		blkioKey := fmt.Sprintf("%s:%s", pv.CSI.VolumeAttributes[utils.VolumeDeviceMajor], pv.CSI.VolumeAttributes[utils.VolumeDeviceMinor])
+		blkioKey := fmt.Sprintf("%s:%s", pvInfo.Spec.CSI.VolumeAttributes[utils.VolumeDeviceMajor], pvInfo.Spec.CSI.VolumeAttributes[utils.VolumeDeviceMinor])
 		// 填充到将要变更的cgroup
 		for _, c := range cb {
 			newValue, newOk := pod.Annotations[fmt.Sprintf("%s/%s", KubernetesCustomized, c.name)]
@@ -139,6 +178,8 @@ func (r *PodReconciler) SinglePodCGroupConfig(ctx context.Context, pod *corev1.P
 }
 
 func (r *PodReconciler) AllPodCGroupConfig(ctx context.Context) error {
+	log.Info("config all pod cgroup blkio")
+
 	podList := &corev1.PodList{}
 	err := r.Client.List(ctx, podList, client.MatchingFields{"combinedIndex": fmt.Sprintf("%s-%s", utils.CarinaSchedule, r.NodeName)})
 	if err != nil {
@@ -148,13 +189,27 @@ func (r *PodReconciler) AllPodCGroupConfig(ctx context.Context) error {
 	cb := readCGroupBlkioFile()
 	// 获取设备限制
 	for _, p := range podList.Items {
-
-		for _, pv := range p.Spec.Volumes {
-			if pv.VolumeSource.CSI.Driver != utils.CSIPluginName {
+		for _, volume := range p.Spec.Volumes {
+			if volume.PersistentVolumeClaim == nil {
 				continue
 			}
+			pvList := &corev1.PersistentVolumeList{}
+			err := r.Client.List(ctx, pvList, client.MatchingFields{"pvIndex": fmt.Sprintf("%s-%s", p.GetNamespace(), volume.VolumeSource.PersistentVolumeClaim.ClaimName)})
+			if err != nil {
+				log.Errorf("get pv %s failed %s", volume.VolumeSource.PersistentVolumeClaim.ClaimName, err.Error())
+				continue
+			}
+			if len(pvList.Items) != 1 {
+				log.Errorf("get pv count not equal one,  %d", len(pvList.Items))
+				continue
+			}
+			pvInfo := pvList.Items[0]
+			if pvInfo.Spec.CSI.Driver != utils.CSIPluginName {
+				continue
+			}
+
 			// 设置主从版本号作为Key
-			blkioKey := fmt.Sprintf("%s:%s", pv.CSI.VolumeAttributes[utils.VolumeDeviceMajor], pv.CSI.VolumeAttributes[utils.VolumeDeviceMinor])
+			blkioKey := fmt.Sprintf("%s:%s", pvInfo.Spec.CSI.VolumeAttributes[utils.VolumeDeviceMajor], pvInfo.Spec.CSI.VolumeAttributes[utils.VolumeDeviceMinor])
 			// 填充到将要变更的cgroup
 			for _, c := range cb {
 				_, oldOk := c.oldBlkio[blkioKey]
