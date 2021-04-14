@@ -25,7 +25,7 @@ type NodeReconciler struct {
 // Reconcile finalize Node
 func (r *NodeReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 
-	log.Infof("node %s is deleted.", req.Name)
+	log.Infof("node %s reconcile manager...", req.Name)
 	// your logic here
 	utils.UntilMaxRetry(func() error {
 		return r.ResourceReconcile(ctx)
@@ -45,10 +45,30 @@ func (r *NodeReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		return err
 	}
 	pred := predicate.Funcs{
-		CreateFunc:  func(event.CreateEvent) bool { return true },
-		DeleteFunc:  func(event.DeleteEvent) bool { return false },
-		UpdateFunc:  func(event.UpdateEvent) bool { return true },
-		GenericFunc: func(event.GenericEvent) bool { return false },
+		CreateFunc: func(e event.CreateEvent) bool {
+			if e.Object.GetObjectKind().GroupVersionKind().Kind != "Node" {
+				return false
+			}
+			return false
+		},
+		DeleteFunc: func(e event.DeleteEvent) bool {
+			if e.Object.GetObjectKind().GroupVersionKind().Kind != "Node" {
+				return false
+			}
+			return true
+		},
+		UpdateFunc: func(e event.UpdateEvent) bool {
+			if e.ObjectOld.GetObjectKind().GroupVersionKind().Kind != "Node" {
+				return false
+			}
+			return true
+		},
+		GenericFunc: func(e event.GenericEvent) bool {
+			if e.Object.GetObjectKind().GroupVersionKind().Kind != "Node" {
+				return false
+			}
+			return false
+		},
 	}
 
 	go utils.UntilMaxRetry(func() error {
@@ -101,6 +121,10 @@ func (r *NodeReconciler) ResourceReconcile(ctx context.Context) error {
 			continue
 		}
 		if !scs[*pvc.Spec.StorageClassName] {
+			continue
+		}
+
+		if _, ok := pvc.Annotations[utils.AnnSelectedNode]; !ok {
 			continue
 		}
 
