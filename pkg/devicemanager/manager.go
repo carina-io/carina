@@ -30,8 +30,6 @@ type DeviceManager struct {
 	// stop
 	stopChan <-chan struct{}
 	nodeName string
-	// 磁盘选择器
-	diskSelector []string
 }
 
 func NewDeviceManager(nodeName string, stopChan <-chan struct{}) *DeviceManager {
@@ -55,13 +53,7 @@ func NewDeviceManager(nodeName string, stopChan <-chan struct{}) *DeviceManager 
 
 // 定时巡检磁盘，是否有新磁盘加入
 func (dm *DeviceManager) AddAndRemoveDevice() {
-	// 判断配置是否更改，若是没有更改没必要扫描磁盘
-	noErrorFlag := true
 	currentDiskSelector := configuration.DiskSelector()
-	if utils.SliceEqualSlice(dm.diskSelector, currentDiskSelector) {
-		log.Info("no change disk selector")
-		return
-	}
 
 	newDisk, err := dm.DiscoverDisk()
 	if err != nil {
@@ -110,7 +102,6 @@ func (dm *DeviceManager) AddAndRemoveDevice() {
 		for _, pv := range pvs {
 			if err := dm.VolumeManager.AddNewDiskToVg(pv, vg); err != nil {
 				log.Errorf("add new disk failed vg: %s, disk: %s, error: %v", vg, pv, err)
-				noErrorFlag = false
 			}
 		}
 	}
@@ -135,13 +126,9 @@ func (dm *DeviceManager) AddAndRemoveDevice() {
 			if !diskSelector.MatchString(pv.PVName) {
 				if err := dm.VolumeManager.RemoveDiskInVg(pv.PVName, v.VGName); err != nil {
 					log.Errorf("remove disk %s error %v", pv.PVName, err)
-					noErrorFlag = false
 				}
 			}
 		}
-	}
-	if noErrorFlag {
-		dm.diskSelector = currentDiskSelector
 	}
 	// 更新设备容量
 	dm.VolumeManager.NoticeUpdateCapacity([]string{})
