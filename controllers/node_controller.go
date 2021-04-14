@@ -6,7 +6,6 @@ import (
 	"context"
 	corev1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/event"
@@ -26,78 +25,14 @@ type NodeReconciler struct {
 // Reconcile finalize Node
 func (r *NodeReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 
+	log.Infof("node %s is deleted.", req.Name)
 	// your logic here
-	node := &corev1.Node{}
-	err := r.Client.Get(ctx, req.NamespacedName, node)
-	switch {
-	case err == nil:
-	case apierrors.IsNotFound(err):
-		return ctrl.Result{}, nil
-	default:
-		return ctrl.Result{}, err
-	}
+	utils.UntilMaxRetry(func() error {
+		return r.ResourceReconcile(ctx)
 
-	if node.DeletionTimestamp == nil {
-		return ctrl.Result{}, nil
-	}
-
-	if err := r.doFinalize(ctx, node); err != nil {
-		log.Errorf("delete all pvc failed %s", err.Error())
-		go utils.UntilMaxRetry(func() error {
-			return r.ResourceReconcile(ctx)
-		}, 5, 300*time.Second)
-		return ctrl.Result{}, err
-	}
+	}, 6, 120*time.Second)
 
 	return ctrl.Result{}, nil
-}
-
-func (r *NodeReconciler) doFinalize(ctx context.Context, node *corev1.Node) error {
-	scs, err := r.targetStorageClasses(ctx)
-	if err != nil {
-		log.Errorf("unable to fetch StorageClass %s", err.Error())
-		return err
-	}
-
-	var pvcs corev1.PersistentVolumeClaimList
-	err = r.List(ctx, &pvcs, client.MatchingFields{utils.AnnSelectedNode: node.Name})
-	if err != nil {
-		log.Errorf("unable to fetch PersistentVolumeClaimList %s", err.Error())
-		return err
-	}
-
-	for _, pvc := range pvcs.Items {
-		if pvc.Spec.StorageClassName == nil {
-			continue
-		}
-		if !scs[*pvc.Spec.StorageClassName] {
-			continue
-		}
-
-		err = r.Delete(ctx, &pvc)
-		if err != nil {
-			log.Error(err.Error(), " unable to delete PVC name ", pvc.Name, " namespace ", pvc.Namespace)
-			return err
-		}
-		log.Info("deleted PVC name", pvc.Name, " namespace ", pvc.Namespace)
-	}
-	return nil
-}
-
-func (r *NodeReconciler) targetStorageClasses(ctx context.Context) (map[string]bool, error) {
-	var scl storagev1.StorageClassList
-	if err := r.List(ctx, &scl); err != nil {
-		return nil, err
-	}
-
-	targets := make(map[string]bool)
-	for _, sc := range scl.Items {
-		if sc.Provisioner != utils.CSIPluginName {
-			continue
-		}
-		targets[sc.Name] = true
-	}
-	return targets, nil
 }
 
 // SetupWithManager sets up Reconciler with Manager.
@@ -128,12 +63,10 @@ func (r *NodeReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Complete(r)
 }
 
-// 当pvc资源无法删除时，调用此方法将会执行延迟删除
-// 该延迟删除属于触发式，当服务启动时会执行检查，当出现删除资源失败时会触发
-// 该服务并不长驻，因为异常并不时常存在，若是常驻反而浪费cpu memory net等资源
-// 在延迟删除中也未能清理资源，只能借助于人工排查
+// 过滤所有node, 当pvc所选节点不存在时，将会被删除
 func (r *NodeReconciler) ResourceReconcile(ctx context.Context) error {
 
+	log.Info("filter pvc to delete ...")
 	// 获取所有Node
 	nl := new(corev1.NodeList)
 	err := r.List(ctx, nl)
@@ -178,6 +111,7 @@ func (r *NodeReconciler) ResourceReconcile(ctx context.Context) error {
 			continue
 		}
 
+		log.Infof("delete pvc %s namespace %s", pvc.Name, pvc.Namespace)
 		err = r.Delete(ctx, &pvc)
 		if err != nil {
 			log.Error(err.Error(), " unable to delete PVC name ", pvc.Name, " namespace ", pvc.Namespace)
@@ -186,4 +120,20 @@ func (r *NodeReconciler) ResourceReconcile(ctx context.Context) error {
 	}
 
 	return nil
+}
+
+func (r *NodeReconciler) targetStorageClasses(ctx context.Context) (map[string]bool, error) {
+	var scl storagev1.StorageClassList
+	if err := r.List(ctx, &scl); err != nil {
+		return nil, err
+	}
+
+	targets := make(map[string]bool)
+	for _, sc := range scl.Items {
+		if sc.Provisioner != utils.CSIPluginName {
+			continue
+		}
+		targets[sc.Name] = true
+	}
+	return targets, nil
 }
