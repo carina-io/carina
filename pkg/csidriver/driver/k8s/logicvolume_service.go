@@ -20,7 +20,7 @@ import (
 )
 
 type logicVolumeService interface {
-	CreateVolume(ctx context.Context, node, deviceGroup, name string, requestGb int64) (string, error)
+	CreateVolume(ctx context.Context, node, deviceGroup, name string, requestGb int64) (string, uint32, uint32, error)
 	DeleteVolume(ctx context.Context, volumeID string) error
 	ExpandVolume(ctx context.Context, volumeID string, requestGb int64) error
 	GetLogicVolume(ctx context.Context, volumeID string) (*carinav1.LogicVolume, error)
@@ -58,7 +58,7 @@ func NewLogicVolumeService(mgr manager.Manager) (*LogicVolumeService, error) {
 }
 
 // CreateVolume creates volume
-func (s *LogicVolumeService) CreateVolume(ctx context.Context, node, deviceGroup, name string, requestGb int64) (string, error) {
+func (s *LogicVolumeService) CreateVolume(ctx context.Context, node, deviceGroup, name string, requestGb int64) (string, uint32, uint32, error) {
 	log.Info("k8s.CreateVolume called name ", name, " node ", node, " size_gb ", requestGb)
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -83,12 +83,12 @@ func (s *LogicVolumeService) CreateVolume(ctx context.Context, node, deviceGroup
 	err := s.Get(ctx, client.ObjectKey{Name: name, Namespace: utils.LogicVolumeNamespace}, existingLV)
 	if err != nil {
 		if !apierrors.IsNotFound(err) {
-			return "", err
+			return "", 0, 0, err
 		}
 
 		err := s.Create(ctx, lv)
 		if err != nil {
-			return "", err
+			return "", 0, 0, err
 		}
 		log.Info("created LogicVolume CRD name ", name)
 	} else {
@@ -96,7 +96,7 @@ func (s *LogicVolumeService) CreateVolume(ctx context.Context, node, deviceGroup
 		// skip check of capabilities because (1) we allow both of two access types, and (2) we allow only one access mode
 		// for ease of comparison, sizes are compared strictly, not by compatibility of ranges
 		if !existingLV.IsCompatibleWith(lv) {
-			return "", status.Error(codes.AlreadyExists, "Incompatible LogicVolume already exists")
+			return "", 0, 0, status.Error(codes.AlreadyExists, "Incompatible LogicVolume already exists")
 		}
 		// compatible LV was found
 	}
@@ -105,7 +105,7 @@ func (s *LogicVolumeService) CreateVolume(ctx context.Context, node, deviceGroup
 		log.Info("waiting for setting 'status.volumeID' name ", name)
 		select {
 		case <-ctx.Done():
-			return "", ctx.Err()
+			return "", 0, 0, ctx.Err()
 		case <-time.After(1 * time.Second):
 		}
 
@@ -113,11 +113,11 @@ func (s *LogicVolumeService) CreateVolume(ctx context.Context, node, deviceGroup
 		err := s.Get(ctx, client.ObjectKey{Name: name, Namespace: utils.LogicVolumeNamespace}, &newLV)
 		if err != nil {
 			log.Error(err, " failed to get LogicVolume name ", name)
-			return "", err
+			return "", 0, 0, err
 		}
 		if newLV.Status.VolumeID != "" {
-			log.Info("end k8s.LogicVolume volume_id ", newLV.Status.VolumeID)
-			return newLV.Status.VolumeID, nil
+			log.Info("create complete k8s.LogicVolume volume_id ", newLV.Status.VolumeID)
+			return newLV.Status.VolumeID, newLV.Status.DeviceMajor, newLV.Status.DeviceMinor, nil
 		}
 		if newLV.Status.Code != codes.OK {
 			err := s.Delete(ctx, &newLV)
@@ -126,7 +126,7 @@ func (s *LogicVolumeService) CreateVolume(ctx context.Context, node, deviceGroup
 				log.Error(err, " failed to delete LogicVolume")
 			}
 
-			return "", status.Error(newLV.Status.Code, newLV.Status.Message)
+			return "", 0, 0, status.Error(newLV.Status.Code, newLV.Status.Message)
 		}
 	}
 }

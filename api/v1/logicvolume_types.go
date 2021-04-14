@@ -43,6 +43,8 @@ type LogicVolumeStatus struct {
 	Message     string             `json:"message,omitempty"`
 	CurrentSize *resource.Quantity `json:"currentSize,omitempty"`
 	Status      string             `json:"status,omitempty"`
+	DeviceMajor uint32             `json:"deviceMajor,omitempty"`
+	DeviceMinor uint32             `json:"deviceMinor,omitempty"`
 }
 
 // +kubebuilder:object:root=true
@@ -53,6 +55,8 @@ type LogicVolumeStatus struct {
 // +kubebuilder:printcolumn:name="GROUP",type="string",JSONPath=".spec.deviceGroup"
 // +kubebuilder:printcolumn:name="NODE",type="string",JSONPath=".spec.nodeName"
 // +kubebuilder:printcolumn:name="STATUS",type="string",JSONPath=".status.status"
+// +kubebuilder:printcolumn:name="MAJOR",type="integer",priority=1,JSONPath=".status.deviceMajor"
+// +kubebuilder:printcolumn:name="MINOR",type="integer",priority=1,JSONPath=".status.deviceMinor"
 
 // LogicVolume is the Schema for the logicvolumes API
 type LogicVolume struct {

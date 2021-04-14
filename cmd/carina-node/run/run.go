@@ -9,8 +9,10 @@ import (
 	"bocloud.com/cloudnative/carina/pkg/csidriver/runners"
 	deviceManager "bocloud.com/cloudnative/carina/pkg/devicemanager"
 	"bocloud.com/cloudnative/carina/pkg/deviceplugin"
+	"context"
 	"errors"
 	"google.golang.org/grpc"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
@@ -50,10 +52,28 @@ func subMain() error {
 		return err
 	}
 
+	// pre-cache objects
+	ctx := context.Background()
+	if _, err := mgr.GetCache().GetInformer(ctx, &corev1.Pod{}); err != nil {
+		return err
+	}
+
 	// 初始化磁盘管理服务
 	stopChan := make(chan struct{})
 	defer close(stopChan)
 	dm := deviceManager.NewDeviceManager(nodeName, stopChan)
+
+	podController := controllers.PodReconciler{
+		Client:   mgr.GetClient(),
+		NodeName: nodeName,
+		Executor: dm.Executor,
+		StopChan: stopChan,
+	}
+
+	if err := podController.SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller ", "controller", "podController")
+		return err
+	}
 
 	lvController := controllers.NewLogicVolumeReconciler(
 		mgr.GetClient(),

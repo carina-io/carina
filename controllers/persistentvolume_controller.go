@@ -62,7 +62,7 @@ func (r *PersistentVolumeReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	ticker1 := time.NewTicker(60 * time.Second)
 	go func(t *time.Ticker) {
 		defer ticker1.Stop()
-		after := time.After(200 * time.Second)
+		after := time.After(300 * time.Second)
 		for {
 			select {
 			case <-t.C:

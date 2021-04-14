@@ -26,10 +26,15 @@ const (
 	// pvc
 	// default size in GiB for volumes (PVC or inline ephemeral volumes) w/o capacity requests.
 	MinRequestSizeGb = 1
+	// This annotation is added to a PVC that has been triggered by scheduler to
+	// be dynamically provisioned. Its value is the name of the selected node.
+	AnnSelectedNode = "volume.kubernetes.io/selected-node"
 
 	// pv csi VolumeAttributes
-	VolumeDevicePath = "carina.storage.io/path"
-	VolumeDeviceNode = "carina.storage.io/node"
+	VolumeDevicePath  = "carina.storage.io/path"
+	VolumeDeviceNode  = "carina.storage.io/node"
+	VolumeDeviceMajor = "carina.storage.io/major"
+	VolumeDeviceMinor = "carina.storage.io/minor"
 
 	// topology
 	// TopologyZoneKey is the key of topology that represents zone name.
