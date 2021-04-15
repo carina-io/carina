@@ -61,7 +61,7 @@ func subMain() error {
 	// 初始化磁盘管理服务
 	stopChan := make(chan struct{})
 	defer close(stopChan)
-	dm := deviceManager.NewDeviceManager(nodeName, stopChan)
+	dm := deviceManager.NewDeviceManager(nodeName, mgr.GetCache(), stopChan)
 
 	podController := controllers.PodReconciler{
 		Client:   mgr.GetClient(),
@@ -114,8 +114,8 @@ func subMain() error {
 
 	// 启动磁盘检查
 	dm.DeviceCheckTask()
-	// 启动lvm卷健康检查
-	dm.LvmHealthCheck()
+	// 启动volume一致性检查
+	dm.VolumeConsistencyCheck()
 	// 启动设备插件
 	go deviceplugin.Run(dm.VolumeManager, stopChan)
 	setupLog.Info("starting manager")

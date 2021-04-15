@@ -4,6 +4,7 @@ import (
 	"bocloud.com/cloudnative/carina/pkg/configuration"
 	"bocloud.com/cloudnative/carina/pkg/devicemanager/device"
 	"bocloud.com/cloudnative/carina/pkg/devicemanager/lvmd"
+	"bocloud.com/cloudnative/carina/pkg/devicemanager/troubleshoot"
 	"bocloud.com/cloudnative/carina/pkg/devicemanager/types"
 	"bocloud.com/cloudnative/carina/pkg/devicemanager/volume"
 	"bocloud.com/cloudnative/carina/utils"
@@ -11,6 +12,7 @@ import (
 	"bocloud.com/cloudnative/carina/utils/log"
 	"bocloud.com/cloudnative/carina/utils/mutx"
 	"regexp"
+	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"strings"
 	"time"
 )
@@ -30,9 +32,11 @@ type DeviceManager struct {
 	// stop
 	stopChan <-chan struct{}
 	nodeName string
+	// 本地设备一致性检查
+	trouble *troubleshoot.Trouble
 }
 
-func NewDeviceManager(nodeName string, stopChan <-chan struct{}) *DeviceManager {
+func NewDeviceManager(nodeName string, cache cache.Cache, stopChan <-chan struct{}) *DeviceManager {
 	executor := &exec.CommandExecutor{}
 	mutex := mutx.NewGlobalLocks()
 	dm := DeviceManager{
@@ -48,6 +52,7 @@ func NewDeviceManager(nodeName string, stopChan <-chan struct{}) *DeviceManager 
 		stopChan: stopChan,
 		nodeName: nodeName,
 	}
+	dm.trouble = troubleshoot.NewTroubleObject(dm.VolumeManager, cache, nodeName)
 	return &dm
 }
 
@@ -269,18 +274,18 @@ func (dm *DeviceManager) DiscoverPv() (map[string][]string, error) {
 	return resp, nil
 }
 
-func (dm *DeviceManager) LvmHealthCheck() {
+func (dm *DeviceManager) VolumeConsistencyCheck() {
 
-	ticker1 := time.NewTicker(120 * time.Second)
+	ticker1 := time.NewTicker(600 * time.Second)
 	go func(t *time.Ticker) {
 		defer ticker1.Stop()
 		for {
 			select {
 			case <-t.C:
-				log.Info("volume health check...")
-				dm.VolumeManager.HealthCheck()
+				log.Info("volume consistency check...")
+				dm.trouble.CleanupOrphanVolume()
 			case <-dm.stopChan:
-				log.Info("stop volume health check...")
+				log.Info("stop volume consistency check...")
 				return
 			}
 		}
