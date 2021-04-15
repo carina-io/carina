@@ -70,7 +70,7 @@ func (t *Trouble) CleanupOrphanVolume() {
 	}
 
 	for _, v := range volumeList {
-		if strings.Contains(v.VGName, "carina") {
+		if !strings.Contains(v.VGName, "carina") {
 			log.Infof("skip volume %s", v.LVName)
 			continue
 		}

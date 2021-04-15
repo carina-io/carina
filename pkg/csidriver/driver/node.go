@@ -203,6 +203,7 @@ func (s *nodeService) nodePublishFilesystemVolume(req *csi.NodePublishVolumeRequ
 	}
 
 	if !mounted {
+		log.Infof("mount %s %s %s %s", device, req.GetTargetPath(), mountOption.FsType, strings.Join(mountOptions, ","))
 		if err := s.mounter.FormatAndMount(device, req.GetTargetPath(), mountOption.FsType, mountOptions); err != nil {
 			return nil, status.Errorf(codes.Internal, "mount failed: volume=%s, error=%v", req.GetVolumeId(), err)
 		}
