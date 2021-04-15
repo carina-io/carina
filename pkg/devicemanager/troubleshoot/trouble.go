@@ -17,7 +17,7 @@ type Trouble struct {
 	nodeName      string
 }
 
-func NewTroubleObject(volumeManager volume.LocalVolume, cache cache.Cache, nodeName string) *trouble {
+func NewTroubleObject(volumeManager volume.LocalVolume, cache cache.Cache, nodeName string) *Trouble {
 
 	err := cache.IndexField(context.Background(), &carinav1.LogicVolume{}, "nodeName", func(object client.Object) []string {
 		return []string{object.(*carinav1.LogicVolume).Spec.NodeName}
