@@ -85,7 +85,6 @@ func (s *nodeService) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	if !(isBlockVol || isFsVol) {
 		return nil, status.Errorf(codes.InvalidArgument, "no supported volume capability: %v", req.GetVolumeCapability())
 	}
-	//isInlineEphemeralVolumeReq := volumeContext[ephVolConKey] == "true"
 
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -97,6 +96,7 @@ func (s *nodeService) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	if err != nil {
 		return nil, err
 	}
+
 	lv, err = s.getLvFromContext(lvr.Spec.DeviceGroup, volumeID)
 	if err != nil {
 		return nil, err
