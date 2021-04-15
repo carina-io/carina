@@ -82,6 +82,15 @@ release:
     docker build -t antmoveh/carina:$(IMAGE_TAG) . ;\
     docker push antmoveh/carina:$(IMAGE_TAG)
 
+# Push the docker image
+local:
+	go build -ldflags="-X main.gitCommitID=`git rev-parse HEAD`" -gcflags '-N -l' -o bin/carina-node bocloud.com/cloudnative/carina/cmd/carina-node ;\
+	go build -ldflags="-X main.gitCommitID=`git rev-parse HEAD`" -gcflags '-N -l' -o bin/carina-controller bocloud.com/cloudnative/carina/cmd/carina-controller ;\
+	docker rmi docker.hub.com/carina/carina:latest 1>/dev/null 2>&1;\
+	docker build -f Dockerfile.local -t docker.hub.com/carina/carina:latest . ;\
+	docker push docker.hub.com/carina/carina:latest
+
+
 # find or download controller-gen
 # download controller-gen if necessary
 controller-gen:
