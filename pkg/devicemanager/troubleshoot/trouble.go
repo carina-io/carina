@@ -44,6 +44,7 @@ func (t *Trouble) CleanupOrphanVolume() {
 	}
 
 	// step.2 检查卷状态是否正常
+	log.Infof("step.2 check volume status")
 	for _, lv := range volumeList {
 		if lv.LVActive != "active" {
 			log.Warnf("lv %s current status %s", lv.LVName, lv.LVActive)
@@ -51,6 +52,7 @@ func (t *Trouble) CleanupOrphanVolume() {
 	}
 
 	// step.3 获取集群中logicVolume对象
+	log.Infof("step.3 get all cluster logicVolume")
 	lvList := &carinav1.LogicVolumeList{}
 	err = t.cache.List(context.Background(), lvList, client.MatchingFields{"nodeName": t.nodeName})
 	if err != nil {
@@ -59,6 +61,7 @@ func (t *Trouble) CleanupOrphanVolume() {
 	}
 
 	// step.4 对比本地volume与logicVolume是否一致， 远程没有的便删除本地的
+	log.Infof("step.4 cleanup orphan volume")
 	mapLvList := map[string]bool{}
 	for _, v := range lvList.Items {
 		mapLvList[v.Name] = true
@@ -67,6 +70,10 @@ func (t *Trouble) CleanupOrphanVolume() {
 	}
 
 	for _, v := range volumeList {
+		if strings.Contains(v.VGName, "carina") {
+			log.Infof("skip volume %s", v.LVName)
+			continue
+		}
 		if _, ok := mapLvList[v.LVName]; !ok {
 			log.Warnf("remove volume %s %s", v.VGName, v.LVName)
 			if strings.HasPrefix(v.LVName, "volume-") {
