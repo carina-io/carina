@@ -58,7 +58,7 @@ spec:
               add: ["SYS_ADMIN"]
             allowPrivilegeEscalation: true
           # for stable functionality replace canary with latest release version
-          image: docker.hub.com/carina/carina:latest
+          image: 192.168.56.101:5000/carina:latest
           command: ["carina-node"]
           args:
             - "--csi-address=$(ADDRESS)"

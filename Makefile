@@ -86,9 +86,9 @@ release:
 local:
 	go build -ldflags="-X main.gitCommitID=`git rev-parse HEAD`" -gcflags '-N -l' -o bin/carina-node bocloud.com/cloudnative/carina/cmd/carina-node ;\
 	go build -ldflags="-X main.gitCommitID=`git rev-parse HEAD`" -gcflags '-N -l' -o bin/carina-controller bocloud.com/cloudnative/carina/cmd/carina-controller ;\
-	docker rmi docker.hub.com/carina/carina:latest 1>/dev/null 2>&1;\
-	docker build -f Dockerfile.local -t docker.hub.com/carina/carina:latest . ;\
-	docker push docker.hub.com/carina/carina:latest
+	docker rmi 192.168.56.101:5000/carina:latest 1>/dev/null 2>&1;\
+	docker build -f Dockerfile.local -t 192.168.56.101:5000/carina:latest . ;\
+	docker push 192.168.56.101:5000/carina:latest
 
 
 # find or download controller-gen
