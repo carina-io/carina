@@ -178,8 +178,8 @@ func (dm *DeviceManager) DiscoverDisk() (map[string][]string, error) {
 			continue
 		}
 
-		if d.Readonly || d.Size < 10<<30 || d.Filesystem != "" || d.MountPoint != "" || d.State == "running" {
-			log.Infof("mismatched disk: %s filesystem:%s mountpoint:%s state:%s, readonly:%t, size:%d", d.Name, d.Filesystem, d.MountPoint, d.State, d.Readonly, d.Size)
+		if d.Readonly || d.Size < 10<<30 || d.Filesystem != "" || d.MountPoint != "" {
+			log.Infof("mismatched disk: %s filesystem:%s mountpoint:%s readonly:%t, size:%d", d.Name, d.Filesystem, d.MountPoint, d.Readonly, d.Size)
 			continue
 		}
 
