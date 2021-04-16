@@ -298,22 +298,32 @@ func (dm *DeviceManager) DeviceCheckTask() {
 	// 服务启动先检查一次
 	dm.AddAndRemoveDevice()
 
-	ticker1 := time.NewTicker(120 * time.Second)
+	monitorInterval := configuration.DiskScanInterval()
+	if monitorInterval == 0 {
+		monitorInterval = 300
+	}
+
+	ticker1 := time.NewTicker(time.Duration(monitorInterval) * time.Second)
 	go func(t *time.Ticker) {
 		defer ticker1.Stop()
 		for {
 			select {
 			case <-t.C:
 				if configuration.DiskScanInterval() == 0 {
-					time.Sleep(180 * time.Second)
+					ticker1.Reset(300 * time.Second)
 					log.Info("skip disk discovery...")
 					continue
 				}
-				time.Sleep(time.Duration(configuration.DiskScanInterval()-int64(120)) * time.Second)
-				log.Info("device monitor...")
+
+				if monitorInterval != configuration.DiskScanInterval() {
+					monitorInterval = configuration.DiskScanInterval()
+					ticker1.Reset(time.Duration(monitorInterval) * time.Second)
+				}
+
+				log.Info("device scan...")
 				dm.AddAndRemoveDevice()
 			case <-dm.stopChan:
-				log.Info("stop device monitor...")
+				log.Info("stop device scan...")
 				return
 			}
 		}
