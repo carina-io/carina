@@ -13,7 +13,7 @@ function install() {
   kubectl apply -f raw-block-pod.yaml
   kubectl apply -f sample.yaml
   kubectl apply -f deploymentspeedlimit.yaml
-  kubectl apply -f topostatefulsetspeedlimit.yaml
+  kubectl apply -f speedlimit.yaml
   sleep 10s
   echo "-------------------------------"
   echo "$ kubectl get pvc,pods -n $namespace"
@@ -22,7 +22,7 @@ function install() {
 
 function uninstall() {
   echo "uninstall..."
-  kubectl delete -f topostatefulsetspeedlimit.yaml
+  kubectl delete -f speedlimit.yaml
   kubectl delete -f deploymentspeedlimit.yaml
   kubectl delete -f sample.yaml
   kubectl delete -f deployment.yaml

@@ -59,6 +59,17 @@ func (r *PodReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 	if pod.DeletionTimestamp != nil {
 		return ctrl.Result{}, nil
 	}
+	// 等待容器启动成功在设置cgroup
+	for i := 0; i < 5; i++ {
+		if pod.Status.Phase == corev1.PodRunning {
+			break
+		}
+		time.Sleep(30 * time.Second)
+		err := r.Client.Get(ctx, req.NamespacedName, pod)
+		if err == nil {
+			return ctrl.Result{}, err
+		}
+	}
 
 	if err := r.SinglePodCGroupConfig(ctx, pod); err != nil {
 		return ctrl.Result{}, err
