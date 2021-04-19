@@ -57,12 +57,12 @@ func (r *PersistentVolumeReconciler) Reconcile(ctx context.Context, req ctrl.Req
 }
 
 // SetupWithManager sets up Reconciler with Manager.
-func (r *PersistentVolumeReconciler) SetupWithManager(mgr ctrl.Manager) error {
+func (r *PersistentVolumeReconciler) SetupWithManager(mgr ctrl.Manager, stopChan <-chan struct{}) error {
 
 	ticker1 := time.NewTicker(60 * time.Second)
 	go func(t *time.Ticker) {
 		defer ticker1.Stop()
-		after := time.After(300 * time.Second)
+		//after := time.After(300 * time.Second)
 		for {
 			select {
 			case <-t.C:
@@ -70,9 +70,12 @@ func (r *PersistentVolumeReconciler) SetupWithManager(mgr ctrl.Manager) error {
 				if err != nil {
 					log.Errorf("update node storage config map failed %s", err.Error())
 				}
-			case <-after:
-				log.Info("stop node storage config map update...")
+			case <-stopChan:
+				log.Info("graceful stop config map sync goroutine")
 				return
+				//case <-after:
+				//	log.Info("stop node storage config map update...")
+				//	return
 			}
 		}
 	}(ticker1)

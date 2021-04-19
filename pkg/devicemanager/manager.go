@@ -34,6 +34,8 @@ type DeviceManager struct {
 	nodeName string
 	// 本地设备一致性检查
 	trouble *troubleshoot.Trouble
+	// 配置变更即触发搜索本地磁盘逻辑
+	configModifyChan chan struct{}
 }
 
 func NewDeviceManager(nodeName string, cache cache.Cache, stopChan <-chan struct{}) *DeviceManager {
@@ -53,11 +55,18 @@ func NewDeviceManager(nodeName string, cache cache.Cache, stopChan <-chan struct
 		nodeName: nodeName,
 	}
 	dm.trouble = troubleshoot.NewTroubleObject(dm.VolumeManager, cache, nodeName)
+	// 注册监听配置变更
+	dm.configModifyChan = make(chan struct{}, 1)
+	configuration.RegisterListenerChan(dm.configModifyChan)
+
 	return &dm
 }
 
 // 定时巡检磁盘，是否有新磁盘加入
 func (dm *DeviceManager) AddAndRemoveDevice() {
+	// 如果修改了卷组，需要及时更新外部显示容量
+	isChangeVG := false
+
 	currentDiskSelector := configuration.DiskSelector()
 
 	newDisk, err := dm.DiscoverDisk()
@@ -108,6 +117,7 @@ func (dm *DeviceManager) AddAndRemoveDevice() {
 			if err := dm.VolumeManager.AddNewDiskToVg(pv, vg); err != nil {
 				log.Errorf("add new disk failed vg: %s, disk: %s, error: %v", vg, pv, err)
 			}
+			isChangeVG = true
 		}
 	}
 	time.Sleep(5 * time.Second)
@@ -132,11 +142,14 @@ func (dm *DeviceManager) AddAndRemoveDevice() {
 				if err := dm.VolumeManager.RemoveDiskInVg(pv.PVName, v.VGName); err != nil {
 					log.Errorf("remove disk %s error %v", pv.PVName, err)
 				}
+				isChangeVG = true
 			}
 		}
 	}
 	// 更新设备容量
-	dm.VolumeManager.NoticeUpdateCapacity([]string{})
+	if isChangeVG {
+		dm.VolumeManager.NoticeUpdateCapacity([]string{})
+	}
 }
 
 // 查找是否有符合条件的块设备加入
@@ -320,7 +333,11 @@ func (dm *DeviceManager) DeviceCheckTask() {
 					ticker1.Reset(time.Duration(monitorInterval) * time.Second)
 				}
 
-				log.Info("device scan...")
+				log.Infof("clock %d second device scan...", configuration.DiskScanInterval())
+				dm.AddAndRemoveDevice()
+
+			case <-dm.configModifyChan:
+				log.Info("config modify trigger disk scan...")
 				dm.AddAndRemoveDevice()
 			case <-dm.stopChan:
 				log.Info("stop device scan...")

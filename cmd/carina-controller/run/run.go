@@ -84,11 +84,14 @@ func subMain() error {
 		return err
 	}
 
+	stopChan := make(chan struct{})
+	defer close(stopChan)
+
 	pvcontroller := &controllers.PersistentVolumeReconciler{
 		Client:    mgr.GetClient(),
 		APIReader: mgr.GetAPIReader(),
 	}
-	if err := pvcontroller.SetupWithManager(mgr); err != nil {
+	if err := pvcontroller.SetupWithManager(mgr, stopChan); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "PersistentVolumeClaim")
 		return err
 	}
