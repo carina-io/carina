@@ -24,7 +24,8 @@ import (
 // PersistentVolumeClaimReconciler reconciles a PersistentVolumeClaim object
 type PersistentVolumeReconciler struct {
 	client.Client
-	APIReader client.Reader
+	APIReader      client.Reader
+	cacheConfigMap map[string]map[string]string
 }
 
 // +kubebuilder:rbac:groups="",resources=persistentvolumes,verbs=get;list;watch;update
@@ -59,6 +60,8 @@ func (r *PersistentVolumeReconciler) Reconcile(ctx context.Context, req ctrl.Req
 // SetupWithManager sets up Reconciler with Manager.
 func (r *PersistentVolumeReconciler) SetupWithManager(mgr ctrl.Manager, stopChan <-chan struct{}) error {
 
+	r.cacheConfigMap = make(map[string]map[string]string)
+
 	ticker1 := time.NewTicker(60 * time.Second)
 	go func(t *time.Ticker) {
 		defer ticker1.Stop()
@@ -66,7 +69,6 @@ func (r *PersistentVolumeReconciler) SetupWithManager(mgr ctrl.Manager, stopChan
 		for {
 			select {
 			case <-t.C:
-				log.Info("clock 60s sync config map carina-node-storage")
 				err := r.updateNodeConfigMap(context.Background())
 				if err != nil {
 					log.Errorf("update node storage config map failed %s", err.Error())
@@ -121,6 +123,11 @@ func (r *PersistentVolumeReconciler) updateNodeConfigMap(ctx context.Context) er
 			nodeDevice = append(nodeDevice, tmp)
 		}
 	}
+
+	if r.cacheHit(nodeDevice) {
+		return nil
+	}
+
 	byteJson, err := json.Marshal(nodeDevice)
 	if err != nil {
 		log.Errorf("carina-node-storage json marshal failed %s", err.Error())
@@ -159,5 +166,29 @@ func (r *PersistentVolumeReconciler) updateNodeConfigMap(ctx context.Context) er
 		log.Errorf("update config map carina-vg failed %s", err.Error())
 		return err
 	}
+	r.cacheRefresh(nodeDevice)
 	return nil
+}
+
+func (r *PersistentVolumeReconciler) cacheHit(nodeDevice []map[string]string) bool {
+
+	if len(r.cacheConfigMap) != len(nodeDevice) {
+		return false
+	}
+	for _, value := range nodeDevice {
+		if _, ok := r.cacheConfigMap[value["nodeName"]]; !ok {
+			return false
+		}
+
+		if !utils.MapEqualMap(value, r.cacheConfigMap[value["nodeName"]]) {
+			return false
+		}
+	}
+	return true
+}
+
+func (r *PersistentVolumeReconciler) cacheRefresh(nodeDevice []map[string]string) {
+	for _, value := range nodeDevice {
+		r.cacheConfigMap[value["nodeName"]] = value
+	}
 }

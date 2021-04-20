@@ -39,7 +39,7 @@ func NewTroubleObject(volumeManager volume.LocalVolume, cache cache.Cache, nodeN
 func (t *Trouble) CleanupOrphanVolume() {
 
 	// step.1 获取所有本地volume
-	log.Infof("% get all local logic volume", logPrefix)
+	log.Infof("%s get all local logic volume", logPrefix)
 	volumeList, err := t.volumeManager.VolumeList("", "")
 	if err != nil {
 		log.Errorf("% get all local volume failed %s", logPrefix, err.Error())
