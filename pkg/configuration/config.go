@@ -75,7 +75,7 @@ func DiskSelector() []string {
 	}
 	diskSelector := GlobalConfig.GetStringSlice("diskSelector")
 	if len(diskSelector) == 0 {
-		log.Warn("No device is initialized because there is no configuration")
+		log.Warn("No device is initialized because disk selector is no configuration")
 	}
 	return diskSelector
 }

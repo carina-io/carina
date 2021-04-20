@@ -66,6 +66,7 @@ func (r *PersistentVolumeReconciler) SetupWithManager(mgr ctrl.Manager, stopChan
 		for {
 			select {
 			case <-t.C:
+				log.Info("clock 60s sync config map carina-node-storage")
 				err := r.updateNodeConfigMap(context.Background())
 				if err != nil {
 					log.Errorf("update node storage config map failed %s", err.Error())
@@ -151,6 +152,7 @@ func (r *PersistentVolumeReconciler) updateNodeConfigMap(ctx context.Context) er
 		return err
 	}
 
+	log.Info("need modify config map carina-node-storage")
 	cm.Data = map[string]string{"node": string(byteJson)}
 	err = r.Update(ctx, cm)
 	if err != nil {

@@ -179,20 +179,15 @@ func (lv2 *Lvm2Implement) VGExtend(vg, pv string) error {
 */
 func (lv2 *Lvm2Implement) VGReduce(vg, pv string) error {
 
-	err := lv2.Executor.ExecuteCommand("pvmove", pv)
-	if err != nil {
+	output, err := lv2.Executor.ExecuteCommandWithOutput("pvmove", pv)
+	if err != nil && !strings.Contains(output, "No data to move") {
+		log.Error(output)
 		return err
 	}
 
-	//output, err := lv2.Executor.ExecuteCommandWithOutput("pvmove", pv)
-	//
-	//if err != nil && !strings.Contains(output, "No data to move") {
-	//	log.Error(output)
-	//	return err
-	//}
-
-	if output, err := lv2.Executor.ExecuteCommandWithOutput("vgreduce", vg, pv); err != nil {
-		log.Error(output)
+	log.Info("wait 1s to exec vgreduce ")
+	time.Sleep(1 * time.Second)
+	if err := lv2.Executor.ExecuteCommand("vgreduce", vg, pv); err != nil {
 		return err
 	}
 

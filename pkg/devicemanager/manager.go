@@ -68,6 +68,10 @@ func (dm *DeviceManager) AddAndRemoveDevice() {
 	isChangeVG := false
 
 	currentDiskSelector := configuration.DiskSelector()
+	if len(currentDiskSelector) == 0 {
+		log.Info("disk selector cannot not be empty, skip device scan")
+		return
+	}
 
 	newDisk, err := dm.DiscoverDisk()
 	if err != nil {
@@ -136,11 +140,13 @@ func (dm *DeviceManager) AddAndRemoveDevice() {
 		return
 	}
 
+	log.Info("local logic volume auto tuning")
 	for _, v := range ActuallyVg {
 		for _, pv := range v.PVS {
 			if !diskSelector.MatchString(pv.PVName) {
+				log.Infof("remove pv %s in vg %s", pv.PVName, v.VGName)
 				if err := dm.VolumeManager.RemoveDiskInVg(pv.PVName, v.VGName); err != nil {
-					log.Errorf("remove disk %s error %v", pv.PVName, err)
+					log.Errorf("remove pv %s error %v", pv.PVName, err)
 				}
 				isChangeVG = true
 			}
@@ -155,6 +161,19 @@ func (dm *DeviceManager) AddAndRemoveDevice() {
 // 查找是否有符合条件的块设备加入
 func (dm *DeviceManager) DiscoverDisk() (map[string][]string, error) {
 	blockClass := map[string][]string{}
+
+	dsList := configuration.DiskSelector()
+	if len(dsList) == 0 {
+		log.Info("disk selector cannot not be empty, skip device scan")
+		return blockClass, nil
+	}
+
+	diskSelector, err := regexp.Compile(strings.Join(dsList, "|"))
+	if err != nil {
+		log.Warnf("disk regex %s error %v ", strings.Join(dsList, "|"), err)
+		return blockClass, err
+	}
+
 	// 列出所有本地磁盘
 	localDisk, err := dm.DiskManager.ListDevicesDetail("")
 	if err != nil {
@@ -164,17 +183,6 @@ func (dm *DeviceManager) DiscoverDisk() (map[string][]string, error) {
 	if len(localDisk) == 0 {
 		log.Info("cannot find new device")
 		return blockClass, nil
-	}
-	dsList := configuration.DiskSelector()
-	if len(dsList) == 0 {
-		log.Info("no set disk selector")
-		return blockClass, nil
-	}
-
-	diskSelector, err := regexp.Compile(strings.Join(dsList, "|"))
-	if err != nil {
-		log.Warnf("disk regex %s error %v ", strings.Join(dsList, "|"), err)
-		return blockClass, err
 	}
 
 	parentDisk := map[string]int8{}
@@ -242,20 +250,20 @@ func (dm *DeviceManager) DiscoverDisk() (map[string][]string, error) {
 // 支持发现Pv，由于某些异常情况，只创建成功了PV,并未创建成功VG
 func (dm *DeviceManager) DiscoverPv() (map[string][]string, error) {
 	resp := map[string][]string{}
-	pvList, err := dm.VolumeManager.GetCurrentPvStruct()
-	if err != nil {
-		log.Errorf("get pv failed %s", err.Error())
-		return nil, err
-	}
 	dsList := configuration.DiskSelector()
 	if len(dsList) == 0 {
-		log.Info("no set disk selector")
+		log.Info("disk selector cannot not be empty, skip pv scan")
 		return resp, nil
 	}
 	diskSelector, err := regexp.Compile(strings.Join(dsList, "|"))
 	if err != nil {
 		log.Warnf("disk regex %s error %v ", strings.Join(dsList, "|"), err)
 		return resp, err
+	}
+	pvList, err := dm.VolumeManager.GetCurrentPvStruct()
+	if err != nil {
+		log.Errorf("get pv failed %s", err.Error())
+		return nil, err
 	}
 	for _, pv := range pvList {
 		if pv.VGName != "" {
@@ -306,7 +314,7 @@ func (dm *DeviceManager) VolumeConsistencyCheck() {
 }
 
 func (dm *DeviceManager) DeviceCheckTask() {
-	log.Info("start device monitor...")
+	log.Info("start device scan...")
 	dm.VolumeManager.RefreshLvmCache()
 	// 服务启动先检查一次
 	dm.AddAndRemoveDevice()
