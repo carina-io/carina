@@ -119,14 +119,21 @@ func (r *NodeReconciler) getNeedRebuildVolume(ctx context.Context) ([]client.Obj
 	}
 
 	for _, lv := range lvList.Items {
-		if _, ok := nodeStatus[lv.Spec.NodeName]; !ok {
-			volumeObjectList = append(volumeObjectList, client.ObjectKey{Namespace: lv.Spec.NameSpace, Name: lv.Spec.Pvc})
+		if v, ok := nodeStatus[lv.Spec.NodeName]; ok && v == 0 {
+			continue
 		}
-		if nodeStatus[lv.Spec.NodeName] == 1 {
-			volumeObjectList = append(volumeObjectList, client.ObjectKey{Namespace: lv.Spec.NameSpace, Name: lv.Spec.Pvc})
+
+		volumeObjectList = append(volumeObjectList, client.ObjectKey{Namespace: lv.Spec.NameSpace, Name: lv.Spec.Pvc})
+		if lv.Finalizers != nil && utils.ContainsString(lv.Finalizers, utils.LogicVolumeFinalizer) {
+			lv2 := lv.DeepCopy()
+			lv2.Finalizers = utils.SliceRemoveString(lv2.Finalizers, utils.LogicVolumeFinalizer)
+			patch := client.MergeFrom(&lv)
+			if err := r.Patch(ctx, lv2, patch); err != nil {
+				log.Error(err, " failed to remove finalizer name ", lv.Name)
+				return volumeObjectList, err
+			}
 		}
 	}
-
 	return volumeObjectList, nil
 }
 
@@ -136,7 +143,8 @@ func (r *NodeReconciler) rebuildVolume(ctx context.Context, volumeObjectList []c
 	for _, o := range volumeObjectList {
 		err := r.Client.Get(ctx, o, &pvc)
 		if err != nil {
-			log.Errorf("unable to fetch PersistentVolumeClaim %s %s %s", o.Namespace, o.Name, err.Error())
+			log.Warnf("unable to fetch PersistentVolumeClaim %s %s %s", o.Namespace, o.Name, err.Error())
+			continue
 		}
 
 		newPvc := corev1.PersistentVolumeClaim{
