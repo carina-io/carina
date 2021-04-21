@@ -21,6 +21,8 @@ type NodeReconciler struct {
 	client.Client
 	// stop
 	StopChan <-chan struct{}
+	// cacheLV
+	cacheNoDeleteLv map[string]uint8
 }
 
 // +kubebuilder:rbac:groups="",resources=nodes,verbs=get;list;watch;update;patch
@@ -41,8 +43,9 @@ func (r *NodeReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.
 
 // SetupWithManager sets up Reconciler with Manager.
 func (r *NodeReconciler) SetupWithManager(mgr ctrl.Manager) error {
-	ctx := context.Background()
+	r.cacheNoDeleteLv = make(map[string]uint8)
 
+	ctx := context.Background()
 	ticker1 := time.NewTicker(600 * time.Second)
 	go func(t *time.Ticker) {
 		defer ticker1.Stop()
@@ -89,17 +92,17 @@ func (r *NodeReconciler) resourceReconcile(ctx context.Context) error {
 	return nil
 }
 
-func (r *NodeReconciler) getNeedRebuildVolume(ctx context.Context) ([]client.ObjectKey, error) {
-	volumeObjectList := []client.ObjectKey{}
+func (r *NodeReconciler) getNeedRebuildVolume(ctx context.Context) (map[string]client.ObjectKey, error) {
 
-	log.Info("resource migration patrol ...")
+	volumeObjectMap := map[string]client.ObjectKey{}
+
 	lvList := new(carinav1.LogicVolumeList)
 	err := r.List(ctx, lvList)
 	if err != nil {
-		return volumeObjectList, err
+		return volumeObjectMap, err
 	}
 	if len(lvList.Items) == 0 {
-		return volumeObjectList, nil
+		return volumeObjectMap, nil
 	}
 
 	// 获取所有Node
@@ -107,7 +110,7 @@ func (r *NodeReconciler) getNeedRebuildVolume(ctx context.Context) ([]client.Obj
 	err = r.List(ctx, nl)
 	if err != nil {
 		log.Errorf("unable to fetch node list %s", err.Error())
-		return volumeObjectList, err
+		return volumeObjectMap, err
 	}
 	nodeStatus := map[string]uint8{}
 	for _, n := range nl.Items {
@@ -119,30 +122,34 @@ func (r *NodeReconciler) getNeedRebuildVolume(ctx context.Context) ([]client.Obj
 	}
 
 	for _, lv := range lvList.Items {
+		if _, ok := r.cacheNoDeleteLv[lv.Name]; ok {
+			continue
+		}
 		if v, ok := nodeStatus[lv.Spec.NodeName]; ok && v == 0 {
 			continue
 		}
 
-		volumeObjectList = append(volumeObjectList, client.ObjectKey{Namespace: lv.Spec.NameSpace, Name: lv.Spec.Pvc})
+		volumeObjectMap[lv.Name] = client.ObjectKey{Namespace: lv.Spec.NameSpace, Name: lv.Spec.Pvc}
 		if lv.Finalizers != nil && utils.ContainsString(lv.Finalizers, utils.LogicVolumeFinalizer) {
 			lv2 := lv.DeepCopy()
 			lv2.Finalizers = utils.SliceRemoveString(lv2.Finalizers, utils.LogicVolumeFinalizer)
 			patch := client.MergeFrom(&lv)
 			if err := r.Patch(ctx, lv2, patch); err != nil {
 				log.Error(err, " failed to remove finalizer name ", lv.Name)
-				return volumeObjectList, err
+				return volumeObjectMap, err
 			}
 		}
 	}
-	return volumeObjectList, nil
+	return volumeObjectMap, nil
 }
 
-func (r *NodeReconciler) rebuildVolume(ctx context.Context, volumeObjectList []client.ObjectKey) error {
+func (r *NodeReconciler) rebuildVolume(ctx context.Context, volumeObjectMap map[string]client.ObjectKey) error {
 
 	var pvc corev1.PersistentVolumeClaim
-	for _, o := range volumeObjectList {
+	for key, o := range volumeObjectMap {
 		err := r.Client.Get(ctx, o, &pvc)
 		if err != nil {
+			r.cacheNoDeleteLv[key] = 0
 			log.Warnf("unable to fetch PersistentVolumeClaim %s %s %s", o.Namespace, o.Name, err.Error())
 			continue
 		}
