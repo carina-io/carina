@@ -75,17 +75,18 @@ func subMain() error {
 	wh.Register("/pod/mutate", hook.PodMutator(mgr.GetClient(), dec))
 	//wh.Register("/pvc/mutate", hook.PVCMutator(mgr.GetClient(), dec))
 
+	stopChan := make(chan struct{})
+	defer close(stopChan)
+
 	// register controllers
 	nodecontroller := &controllers.NodeReconciler{
-		Client: mgr.GetClient(),
+		Client:   mgr.GetClient(),
+		StopChan: stopChan,
 	}
 	if err := nodecontroller.SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Node")
 		return err
 	}
-
-	stopChan := make(chan struct{})
-	defer close(stopChan)
 
 	pvcontroller := &controllers.PersistentVolumeReconciler{
 		Client:    mgr.GetClient(),

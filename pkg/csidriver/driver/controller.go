@@ -146,7 +146,7 @@ func (s controllerService) CreateVolume(ctx context.Context, req *csi.CreateVolu
 		deviceGroup = group
 	}
 
-	volumeID, deviceMajor, deviceMinor, err := s.lvService.CreateVolume(ctx, node, deviceGroup, name, requestGb)
+	volumeID, deviceMajor, deviceMinor, err := s.lvService.CreateVolume(ctx, namespace, pvcName, node, deviceGroup, name, requestGb)
 	if err != nil {
 		_, ok := status.FromError(err)
 		if !ok {
