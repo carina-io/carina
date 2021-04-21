@@ -58,7 +58,7 @@ type LogicVolumeStatus struct {
 // +kubebuilder:printcolumn:name="NODE",type="string",JSONPath=".spec.nodeName"
 // +kubebuilder:printcolumn:name="STATUS",type="string",JSONPath=".status.status"
 // +kubebuilder:printcolumn:name="NAMESPACE",type="string",priority=1,JSONPath=".spec.nameSpace"
-// +kubebuilder:printcolumn:name="PVC",type="string",priority=1,JSONPath=".status.pvc"
+// +kubebuilder:printcolumn:name="PVC",type="string",priority=1,JSONPath=".spec.pvc"
 
 // LogicVolume is the Schema for the logicvolumes API
 type LogicVolume struct {

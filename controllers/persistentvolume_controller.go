@@ -26,6 +26,7 @@ type PersistentVolumeReconciler struct {
 	client.Client
 	APIReader      client.Reader
 	cacheConfigMap map[string]map[string]string
+	lastEventTime  time.Time
 }
 
 // +kubebuilder:rbac:groups="",resources=persistentvolumes,verbs=get;list;watch;update
@@ -33,10 +34,17 @@ type PersistentVolumeReconciler struct {
 
 // Reconcile finalize PVC
 func (r *PersistentVolumeReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+
+	if time.Now().Sub(r.lastEventTime).Seconds() < 15 {
+		return ctrl.Result{}, nil
+	}
+
+	r.lastEventTime = time.Now()
+	time.Sleep(time.Duration(rand.Int63nRange(30, 60)) * time.Second)
+	r.lastEventTime = time.Now()
 	// your logic here
 	pv := &corev1.PersistentVolume{}
 	err := r.Get(ctx, req.NamespacedName, pv)
-
 	if err != nil {
 		if !apierrors.IsNotFound(err) {
 			log.Errorf("unable to fetch persistentvolume %s, %s", req.Name, err.Error())
@@ -47,8 +55,6 @@ func (r *PersistentVolumeReconciler) Reconcile(ctx context.Context, req ctrl.Req
 			return ctrl.Result{}, nil
 		}
 	}
-
-	time.Sleep(time.Duration(rand.Int63nRange(30, 60)) * time.Second)
 
 	err = r.updateNodeConfigMap(ctx)
 	if err != nil {
@@ -61,6 +67,7 @@ func (r *PersistentVolumeReconciler) Reconcile(ctx context.Context, req ctrl.Req
 func (r *PersistentVolumeReconciler) SetupWithManager(mgr ctrl.Manager, stopChan <-chan struct{}) error {
 
 	r.cacheConfigMap = make(map[string]map[string]string)
+	r.lastEventTime = time.Now()
 
 	ticker1 := time.NewTicker(60 * time.Second)
 	go func(t *time.Ticker) {

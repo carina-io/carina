@@ -5,11 +5,7 @@ import (
 	"bocloud.com/cloudnative/carina/utils"
 	"bocloud.com/cloudnative/carina/utils/log"
 	"context"
-	"fmt"
-	"github.com/onsi/gomega/format"
-	"google.golang.org/genproto/googleapis/cloud/functions/v1"
 	corev1 "k8s.io/api/core/v1"
-	storagev1 "k8s.io/api/storage/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/util/workqueue"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -29,7 +25,6 @@ type NodeReconciler struct {
 
 // +kubebuilder:rbac:groups="",resources=nodes,verbs=get;list;watch;update;patch
 // +kubebuilder:rbac:groups="",resources=persistentvolumeclaims,verbs=get;list;watch;delete
-// +kubebuilder:rbac:groups="storage.k8s.io",resources=storageclasses,verbs=get;list;watch
 // +kubebuilder:rbac:groups=carina.storage.io,resources=logicvolumes,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=carina.storage.io,resources=logicvolumes/status,verbs=get;update;patch
 
@@ -58,37 +53,17 @@ func (r *NodeReconciler) SetupWithManager(mgr ctrl.Manager) error {
 			case <-t.C:
 				_ = r.resourceReconcile(ctx)
 			case <-r.StopChan:
-				log.Info("stop device monitor...")
+				log.Info("stop node reconcile...")
 				return
 			}
 		}
 	}(ticker1)
 
 	pred := predicate.Funcs{
-		CreateFunc: func(e event.CreateEvent) bool {
-			if e.Object.GetObjectKind().GroupVersionKind().Kind != "Node" {
-				return false
-			}
-			return false
-		},
-		DeleteFunc: func(e event.DeleteEvent) bool {
-			if e.Object.GetObjectKind().GroupVersionKind().Kind != "Node" {
-				return false
-			}
-			return true
-		},
-		UpdateFunc: func(e event.UpdateEvent) bool {
-			if e.ObjectOld.GetObjectKind().GroupVersionKind().Kind != "Node" {
-				return false
-			}
-			return true
-		},
-		GenericFunc: func(e event.GenericEvent) bool {
-			if e.Object.GetObjectKind().GroupVersionKind().Kind != "Node" {
-				return false
-			}
-			return false
-		},
+		CreateFunc:  func(event.CreateEvent) bool { return false },
+		DeleteFunc:  func(event.DeleteEvent) bool { return true },
+		UpdateFunc:  func(event.UpdateEvent) bool { return false },
+		GenericFunc: func(event.GenericEvent) bool { return false },
 	}
 
 	return ctrl.NewControllerManagedBy(mgr).
@@ -101,6 +76,7 @@ func (r *NodeReconciler) SetupWithManager(mgr ctrl.Manager) error {
 }
 
 func (r *NodeReconciler) resourceReconcile(ctx context.Context) error {
+	log.Infof("logic volume resource reconcile ...")
 	o, err := r.getNeedRebuildVolume(ctx)
 	if err != nil {
 		log.Errorf("get need rebuild volume error %s", err.Error())
@@ -110,7 +86,9 @@ func (r *NodeReconciler) resourceReconcile(ctx context.Context) error {
 	err = r.rebuildVolume(ctx, o)
 	if err != nil {
 		log.Errorf("rebuild volume error %s", err.Error())
+		return err
 	}
+	return nil
 }
 
 func (r *NodeReconciler) getNeedRebuildVolume(ctx context.Context) ([]client.ObjectKey, error) {
@@ -118,7 +96,7 @@ func (r *NodeReconciler) getNeedRebuildVolume(ctx context.Context) ([]client.Obj
 
 	log.Info("rebuild resources filter ...")
 	lvList := new(carinav1.LogicVolumeList)
-	err := r.List(ctx, lvList, nil)
+	err := r.List(ctx, lvList)
 	if err != nil {
 		return volumeObjectList, err
 	}
@@ -144,10 +122,10 @@ func (r *NodeReconciler) getNeedRebuildVolume(ctx context.Context) ([]client.Obj
 
 	for _, lv := range lvList.Items {
 		if _, ok := nodeStatus[lv.Spec.NodeName]; !ok {
-			volumeObjectList = append(volumeObjectList, client.ObjectKey{Namespace: lv.Namespace, Name: lv.Name})
+			volumeObjectList = append(volumeObjectList, client.ObjectKey{Namespace: lv.Spec.NameSpace, Name: lv.Spec.Pvc})
 		}
 		if nodeStatus[lv.Spec.NodeName] == 1 {
-			volumeObjectList = append(volumeObjectList, client.ObjectKey{Namespace: lv.Namespace, Name: lv.Name})
+			volumeObjectList = append(volumeObjectList, client.ObjectKey{Namespace: lv.Spec.NameSpace, Name: lv.Spec.Pvc})
 		}
 	}
 
@@ -181,9 +159,19 @@ func (r *NodeReconciler) rebuildVolume(ctx context.Context, volumeObjectList []c
 		}
 
 		log.Infof("rebuild pvc %s %s", o.Namespace, o.Name)
-		err = r.Update(ctx, &newPvc)
+		err = r.Delete(ctx, &newPvc)
 		if err != nil {
-			log.Errorf("update pvc %s %s error %s", o.Namespace, o.Name, err.Error())
+			log.Errorf("delete pvc %s %s error %s", o.Namespace, o.Name, err.Error())
+		}
+		data, err := newPvc.Marshal()
+		log.Info(data)
+		err = r.Create(ctx, &newPvc)
+		if err != nil {
+			data, err := newPvc.Marshal()
+			if err != nil {
+				log.Errorf("lose of pvc %s %s", pvc.Namespace, pvc.Name)
+			}
+			log.Errorf("create pvc failed %s", data)
 		}
 	}
 
