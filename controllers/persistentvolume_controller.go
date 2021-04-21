@@ -195,6 +195,7 @@ func (r *PersistentVolumeReconciler) cacheHit(nodeDevice []map[string]string) bo
 }
 
 func (r *PersistentVolumeReconciler) cacheRefresh(nodeDevice []map[string]string) {
+	r.cacheConfigMap = make(map[string]map[string]string)
 	for _, value := range nodeDevice {
 		r.cacheConfigMap[value["nodeName"]] = value
 	}

@@ -92,7 +92,7 @@ func (r *NodeReconciler) resourceReconcile(ctx context.Context) error {
 func (r *NodeReconciler) getNeedRebuildVolume(ctx context.Context) ([]client.ObjectKey, error) {
 	volumeObjectList := []client.ObjectKey{}
 
-	log.Info("rebuild resources filter ...")
+	log.Info("resource migration patrol ...")
 	lvList := new(carinav1.LogicVolumeList)
 	err := r.List(ctx, lvList)
 	if err != nil {
