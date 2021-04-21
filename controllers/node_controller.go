@@ -33,10 +33,8 @@ func (r *NodeReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.
 
 	log.Infof("node %s reconcile manager...", req.Name)
 	// your logic here
-	utils.UntilMaxRetry(func() error {
-		return r.resourceReconcile(ctx)
 
-	}, 6, 120*time.Second)
+	go r.resourceReconcile(ctx)
 
 	return ctrl.Result{}, nil
 }
@@ -142,7 +140,6 @@ func (r *NodeReconciler) rebuildVolume(ctx context.Context, volumeObjectList []c
 		}
 
 		newPvc := corev1.PersistentVolumeClaim{
-			TypeMeta: metav1.TypeMeta{},
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      o.Name,
 				Namespace: o.Namespace,
@@ -158,22 +155,23 @@ func (r *NodeReconciler) rebuildVolume(ctx context.Context, volumeObjectList []c
 			Status: corev1.PersistentVolumeClaimStatus{},
 		}
 
-		log.Infof("rebuild pvc %s %s", o.Namespace, o.Name)
+		log.Infof("rebuild pvc namespace: %s name: %s", o.Namespace, o.Name)
 		err = r.Delete(ctx, &newPvc)
 		if err != nil {
 			log.Errorf("delete pvc %s %s error %s", o.Namespace, o.Name, err.Error())
 		}
-		data, err := newPvc.Marshal()
-		log.Info(data)
-		err = r.Create(ctx, &newPvc)
+
+		err = utils.UntilMaxRetry(func() error {
+			return r.Create(ctx, &newPvc)
+		}, 12, 10*time.Second)
 		if err != nil {
-			data, err := newPvc.Marshal()
-			if err != nil {
-				log.Errorf("lose of pvc %s %s", pvc.Namespace, pvc.Name)
-			}
-			log.Errorf("create pvc failed %s", data)
+			log.Warnf("create pvc failed namespace: %s, name %s, storageClass %s, volumeMode %s, resources: %d, dataSource: %s",
+				newPvc.Namespace, newPvc.Name, *(newPvc.Spec.StorageClassName), *(newPvc.Spec.VolumeMode),
+				newPvc.Spec.Resources.Requests.Storage().Value(),
+			)
+			log.Errorf("retry ten times create pvc error %s, please check", err.Error())
+			return err
 		}
 	}
-
 	return nil
 }
