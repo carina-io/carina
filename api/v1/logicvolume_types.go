@@ -32,6 +32,8 @@ type LogicVolumeSpec struct {
 	NodeName    string            `json:"nodeName"`
 	Size        resource.Quantity `json:"size"`
 	DeviceGroup string            `json:"deviceGroup"`
+	Pvc         string            `json:"pvc"`
+	NameSpace   string            `json:"nameSpace"`
 }
 
 // LogicVolumeStatus defines the observed state of LogicVolume
@@ -55,8 +57,8 @@ type LogicVolumeStatus struct {
 // +kubebuilder:printcolumn:name="GROUP",type="string",JSONPath=".spec.deviceGroup"
 // +kubebuilder:printcolumn:name="NODE",type="string",JSONPath=".spec.nodeName"
 // +kubebuilder:printcolumn:name="STATUS",type="string",JSONPath=".status.status"
-// +kubebuilder:printcolumn:name="MAJOR",type="integer",priority=1,JSONPath=".status.deviceMajor"
-// +kubebuilder:printcolumn:name="MINOR",type="integer",priority=1,JSONPath=".status.deviceMinor"
+// +kubebuilder:printcolumn:name="NAMESPACE",type="string",priority=1,JSONPath=".spec.nameSpace"
+// +kubebuilder:printcolumn:name="PVC",type="string",priority=1,JSONPath=".spec.pvc"
 
 // LogicVolume is the Schema for the logicvolumes API
 type LogicVolume struct {

@@ -1,6 +1,7 @@
 package filesystem
 
 import (
+	"bocloud.com/cloudnative/carina/utils/log"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -81,6 +82,7 @@ func DetectFilesystem(device string) (string, error) {
 	f.Sync()
 	f.Close()
 
+	log.Infof("%s -c /dev/null -o export %s", blkidCmd, device)
 	out, err := exec.Command(blkidCmd, "-c", "/dev/null", "-o", "export", device).CombinedOutput()
 	if err != nil {
 		if exitErr, ok := err.(*exec.ExitError); ok {
@@ -91,6 +93,7 @@ func DetectFilesystem(device string) (string, error) {
 		}
 		return "", fmt.Errorf("blkid failed: output=%s, device=%s, error=%v", string(out), device, err)
 	}
+	log.Info(string(out))
 
 	for _, line := range strings.Split(string(out), "\n") {
 		if strings.HasPrefix(line, "TYPE=") {

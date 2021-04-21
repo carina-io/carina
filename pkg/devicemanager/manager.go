@@ -4,6 +4,7 @@ import (
 	"bocloud.com/cloudnative/carina/pkg/configuration"
 	"bocloud.com/cloudnative/carina/pkg/devicemanager/device"
 	"bocloud.com/cloudnative/carina/pkg/devicemanager/lvmd"
+	"bocloud.com/cloudnative/carina/pkg/devicemanager/troubleshoot"
 	"bocloud.com/cloudnative/carina/pkg/devicemanager/types"
 	"bocloud.com/cloudnative/carina/pkg/devicemanager/volume"
 	"bocloud.com/cloudnative/carina/utils"
@@ -11,6 +12,7 @@ import (
 	"bocloud.com/cloudnative/carina/utils/log"
 	"bocloud.com/cloudnative/carina/utils/mutx"
 	"regexp"
+	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"strings"
 	"time"
 )
@@ -30,11 +32,13 @@ type DeviceManager struct {
 	// stop
 	stopChan <-chan struct{}
 	nodeName string
-	// 磁盘选择器
-	diskSelector []string
+	// 本地设备一致性检查
+	trouble *troubleshoot.Trouble
+	// 配置变更即触发搜索本地磁盘逻辑
+	configModifyChan chan struct{}
 }
 
-func NewDeviceManager(nodeName string, stopChan <-chan struct{}) *DeviceManager {
+func NewDeviceManager(nodeName string, cache cache.Cache, stopChan <-chan struct{}) *DeviceManager {
 	executor := &exec.CommandExecutor{}
 	mutex := mutx.NewGlobalLocks()
 	dm := DeviceManager{
@@ -50,16 +54,22 @@ func NewDeviceManager(nodeName string, stopChan <-chan struct{}) *DeviceManager 
 		stopChan: stopChan,
 		nodeName: nodeName,
 	}
+	dm.trouble = troubleshoot.NewTroubleObject(dm.VolumeManager, cache, nodeName)
+	// 注册监听配置变更
+	dm.configModifyChan = make(chan struct{}, 1)
+	configuration.RegisterListenerChan(dm.configModifyChan)
+
 	return &dm
 }
 
 // 定时巡检磁盘，是否有新磁盘加入
 func (dm *DeviceManager) AddAndRemoveDevice() {
-	// 判断配置是否更改，若是没有更改没必要扫描磁盘
-	noErrorFlag := true
+	// 如果修改了卷组，需要及时更新外部显示容量
+	isChangeVG := false
+
 	currentDiskSelector := configuration.DiskSelector()
-	if utils.SliceEqualSlice(dm.diskSelector, currentDiskSelector) {
-		log.Info("no change disk selector")
+	if len(currentDiskSelector) == 0 {
+		log.Info("disk selector cannot not be empty, skip device scan")
 		return
 	}
 
@@ -110,8 +120,8 @@ func (dm *DeviceManager) AddAndRemoveDevice() {
 		for _, pv := range pvs {
 			if err := dm.VolumeManager.AddNewDiskToVg(pv, vg); err != nil {
 				log.Errorf("add new disk failed vg: %s, disk: %s, error: %v", vg, pv, err)
-				noErrorFlag = false
 			}
+			isChangeVG = true
 		}
 	}
 	time.Sleep(5 * time.Second)
@@ -130,26 +140,40 @@ func (dm *DeviceManager) AddAndRemoveDevice() {
 		return
 	}
 
+	log.Info("local logic volume auto tuning")
 	for _, v := range ActuallyVg {
 		for _, pv := range v.PVS {
 			if !diskSelector.MatchString(pv.PVName) {
+				log.Infof("remove pv %s in vg %s", pv.PVName, v.VGName)
 				if err := dm.VolumeManager.RemoveDiskInVg(pv.PVName, v.VGName); err != nil {
-					log.Errorf("remove disk %s error %v", pv.PVName, err)
-					noErrorFlag = false
+					log.Errorf("remove pv %s error %v", pv.PVName, err)
 				}
+				isChangeVG = true
 			}
 		}
 	}
-	if noErrorFlag {
-		dm.diskSelector = currentDiskSelector
-	}
 	// 更新设备容量
-	dm.VolumeManager.NoticeUpdateCapacity([]string{})
+	if isChangeVG {
+		dm.VolumeManager.NoticeUpdateCapacity([]string{})
+	}
 }
 
 // 查找是否有符合条件的块设备加入
 func (dm *DeviceManager) DiscoverDisk() (map[string][]string, error) {
 	blockClass := map[string][]string{}
+
+	dsList := configuration.DiskSelector()
+	if len(dsList) == 0 {
+		log.Info("disk selector cannot not be empty, skip device scan")
+		return blockClass, nil
+	}
+
+	diskSelector, err := regexp.Compile(strings.Join(dsList, "|"))
+	if err != nil {
+		log.Warnf("disk regex %s error %v ", strings.Join(dsList, "|"), err)
+		return blockClass, err
+	}
+
 	// 列出所有本地磁盘
 	localDisk, err := dm.DiskManager.ListDevicesDetail("")
 	if err != nil {
@@ -159,17 +183,6 @@ func (dm *DeviceManager) DiscoverDisk() (map[string][]string, error) {
 	if len(localDisk) == 0 {
 		log.Info("cannot find new device")
 		return blockClass, nil
-	}
-	dsList := configuration.DiskSelector()
-	if len(dsList) == 0 {
-		log.Info("no set disk selector")
-		return blockClass, nil
-	}
-
-	diskSelector, err := regexp.Compile(strings.Join(dsList, "|"))
-	if err != nil {
-		log.Warnf("disk regex %s error %v ", strings.Join(dsList, "|"), err)
-		return blockClass, err
 	}
 
 	parentDisk := map[string]int8{}
@@ -186,8 +199,8 @@ func (dm *DeviceManager) DiscoverDisk() (map[string][]string, error) {
 			continue
 		}
 
-		if d.Readonly || d.Size < 10<<30 || d.Filesystem != "" || d.MountPoint != "" || d.State == "running" {
-			log.Infof("mismatched disk: %s filesystem:%s mountpoint:%s state:%s, readonly:%t, size:%d", d.Name, d.Filesystem, d.MountPoint, d.State, d.Readonly, d.Size)
+		if d.Readonly || d.Size < 10<<30 || d.Filesystem != "" || d.MountPoint != "" {
+			log.Infof("mismatched disk: %s filesystem:%s mountpoint:%s readonly:%t, size:%d", d.Name, d.Filesystem, d.MountPoint, d.Readonly, d.Size)
 			continue
 		}
 
@@ -237,20 +250,20 @@ func (dm *DeviceManager) DiscoverDisk() (map[string][]string, error) {
 // 支持发现Pv，由于某些异常情况，只创建成功了PV,并未创建成功VG
 func (dm *DeviceManager) DiscoverPv() (map[string][]string, error) {
 	resp := map[string][]string{}
-	pvList, err := dm.VolumeManager.GetCurrentPvStruct()
-	if err != nil {
-		log.Errorf("get pv failed %s", err.Error())
-		return nil, err
-	}
 	dsList := configuration.DiskSelector()
 	if len(dsList) == 0 {
-		log.Info("no set disk selector")
+		log.Info("disk selector cannot not be empty, skip pv scan")
 		return resp, nil
 	}
 	diskSelector, err := regexp.Compile(strings.Join(dsList, "|"))
 	if err != nil {
 		log.Warnf("disk regex %s error %v ", strings.Join(dsList, "|"), err)
 		return resp, err
+	}
+	pvList, err := dm.VolumeManager.GetCurrentPvStruct()
+	if err != nil {
+		log.Errorf("get pv failed %s", err.Error())
+		return nil, err
 	}
 	for _, pv := range pvList {
 		if pv.VGName != "" {
@@ -282,18 +295,18 @@ func (dm *DeviceManager) DiscoverPv() (map[string][]string, error) {
 	return resp, nil
 }
 
-func (dm *DeviceManager) LvmHealthCheck() {
+func (dm *DeviceManager) VolumeConsistencyCheck() {
 
-	ticker1 := time.NewTicker(120 * time.Second)
+	ticker1 := time.NewTicker(600 * time.Second)
 	go func(t *time.Ticker) {
 		defer ticker1.Stop()
 		for {
 			select {
 			case <-t.C:
-				log.Info("volume health check...")
-				dm.VolumeManager.HealthCheck()
+				log.Info("volume consistency check...")
+				dm.trouble.CleanupOrphanVolume()
 			case <-dm.stopChan:
-				log.Info("stop volume health check...")
+				log.Info("stop volume consistency check...")
 				return
 			}
 		}
@@ -301,27 +314,41 @@ func (dm *DeviceManager) LvmHealthCheck() {
 }
 
 func (dm *DeviceManager) DeviceCheckTask() {
-	log.Info("start device monitor...")
+	log.Info("start device scan...")
 	dm.VolumeManager.RefreshLvmCache()
 	// 服务启动先检查一次
 	dm.AddAndRemoveDevice()
 
-	ticker1 := time.NewTicker(120 * time.Second)
+	monitorInterval := configuration.DiskScanInterval()
+	if monitorInterval == 0 {
+		monitorInterval = 300
+	}
+
+	ticker1 := time.NewTicker(time.Duration(monitorInterval) * time.Second)
 	go func(t *time.Ticker) {
 		defer ticker1.Stop()
 		for {
 			select {
 			case <-t.C:
 				if configuration.DiskScanInterval() == 0 {
-					time.Sleep(180 * time.Second)
+					ticker1.Reset(300 * time.Second)
 					log.Info("skip disk discovery...")
 					continue
 				}
-				time.Sleep(time.Duration(configuration.DiskScanInterval()-int64(120)) * time.Second)
-				log.Info("device monitor...")
+
+				if monitorInterval != configuration.DiskScanInterval() {
+					monitorInterval = configuration.DiskScanInterval()
+					ticker1.Reset(time.Duration(monitorInterval) * time.Second)
+				}
+
+				log.Infof("clock %d second device scan...", configuration.DiskScanInterval())
+				dm.AddAndRemoveDevice()
+
+			case <-dm.configModifyChan:
+				log.Info("config modify trigger disk scan...")
 				dm.AddAndRemoveDevice()
 			case <-dm.stopChan:
-				log.Info("stop device monitor...")
+				log.Info("stop device scan...")
 				return
 			}
 		}

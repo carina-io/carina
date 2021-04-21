@@ -83,3 +83,18 @@ func TestSliceEqualSlice(t *testing.T) {
 		a.Equal(SliceEqualSlice(e.src, e.dst), e.result)
 	}
 }
+
+func TestMapEqualMap(t *testing.T) {
+	table := []struct {
+		src    map[string]string
+		dst    map[string]string
+		result bool
+	}{
+		{src: map[string]string{"a": "b"}, dst: map[string]string{"a": "b"}, result: true},
+		{src: map[string]string{}, dst: map[string]string{"c": "d", "a": "1"}, result: false},
+	}
+	a := assert.New(t)
+	for _, e := range table {
+		a.Equal(MapEqualMap(e.src, e.dst), e.result)
+	}
+}

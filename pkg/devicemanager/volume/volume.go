@@ -40,7 +40,7 @@ func (v *LocalVolumeImplement) CreateVolume(lvName, vgName string, size, ratio u
 		return errors.New("cannot find device group info")
 	}
 
-	if vgInfo.VGFree-size < utils.DefaultReservedSpace {
+	if vgInfo.VGFree-size < utils.DefaultReservedSpace-1 {
 		log.Warnf("%s don't have enough space, reserved 10 g", vgName)
 		return errors.New("don't have enough space")
 	}
@@ -81,7 +81,11 @@ func (v *LocalVolumeImplement) DeleteVolume(lvName, vgName string) error {
 	defer v.Mutex.Release(VOLUMEMUTEX)
 	// ToDO: 需要检查pool中是否有快照,存在快照无法删除Volume
 
-	name := LVVolume + lvName
+	name := lvName
+	if !strings.HasPrefix(lvName, LVVolume) {
+		name = LVVolume + lvName
+	}
+
 	lvInfo, err := v.Lv.LVDisplay(name, vgName)
 	if err != nil && strings.Contains(err.Error(), "not found") {
 		log.Warnf("volume %s/%s not exist", vgName, lvName)
@@ -121,7 +125,7 @@ func (v *LocalVolumeImplement) ResizeVolume(lvName, vgName string, size, ratio u
 		return errors.New("cannot find device group info")
 	}
 
-	if vgInfo.VGFree-size < utils.DefaultReservedSpace {
+	if vgInfo.VGFree-size < utils.DefaultReservedSpace-1 {
 		log.Warnf("%s don't have enough space, reserved 10 g", vgName)
 		return errors.New("don't have enough space")
 	}
@@ -362,14 +366,6 @@ func (v *LocalVolumeImplement) AddNewDiskToVg(disk, vgName string) error {
 		}
 	}
 
-	// 刷新缓存
-	//if err := v.Lv.PVScan(""); err != nil {
-	//	log.Warnf(" error during pvscan: %v", err)
-	//}
-	//
-	//if err := v.Lv.VGScan(""); err != nil {
-	//	log.Warnf("error during vgscan: %v", err)
-	//}
 	return nil
 }
 func (v *LocalVolumeImplement) RemoveDiskInVg(disk, vgName string) error {
@@ -415,8 +411,8 @@ func (v *LocalVolumeImplement) RemoveDiskInVg(disk, vgName string) error {
 		// 当vg卷下只有一个pv时，需要检查是否还存在lv
 		if vgInfo.PVCount == 1 {
 			if vgInfo.LVCount > 0 || vgInfo.SnapCount > 0 {
-				log.Warnf("cannot remove the disk %s because there are still lv volumes", disk)
-				return errors.New("still lv volumes")
+				log.Warnf("cannot remove the disk %s because there are still have logic volumes", disk)
+				return errors.New("still have logical volumes")
 			}
 			err = v.Lv.VGRemove(vgName)
 			if err != nil {
@@ -442,16 +438,6 @@ func (v *LocalVolumeImplement) RemoveDiskInVg(disk, vgName string) error {
 			}
 		}
 	}
-
-	// 刷新缓存
-	//if err := v.Lv.PVScan(""); err != nil {
-	//	log.Warnf(" error during pvscan: %v", err)
-	//}
-	//
-	//if err := v.Lv.VGScan(""); err != nil {
-	//	log.Warnf("error during vgscan: %v", err)
-	//}
-
 	return nil
 }
 
@@ -503,7 +489,7 @@ func (v *LocalVolumeImplement) RefreshLvmCache() {
 
 func (v *LocalVolumeImplement) NoticeUpdateCapacity(vgName []string) {
 
-	// 如果更新不成功，chan会一直阻塞，5s无法更新完成则输出超时日志
+	// 如果更新不成功，chan会一直阻塞，10s无法更新完成则输出超时日志
 
 	c1 := make(chan byte, 1)
 	go func() {

@@ -1,14 +1,16 @@
 package controllers
 
 import (
+	carinav1 "bocloud.com/cloudnative/carina/api/v1"
 	"bocloud.com/cloudnative/carina/utils"
 	"bocloud.com/cloudnative/carina/utils/log"
 	"context"
 	corev1 "k8s.io/api/core/v1"
-	storagev1 "k8s.io/api/storage/v1"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/util/workqueue"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"time"
@@ -17,173 +19,174 @@ import (
 // NodeReconciler reconciles a Node object
 type NodeReconciler struct {
 	client.Client
+	// stop
+	StopChan <-chan struct{}
+	// cacheLV
+	cacheNoDeleteLv map[string]uint8
 }
 
 // +kubebuilder:rbac:groups="",resources=nodes,verbs=get;list;watch;update;patch
 // +kubebuilder:rbac:groups="",resources=persistentvolumeclaims,verbs=get;list;watch;delete
-// +kubebuilder:rbac:groups="storage.k8s.io",resources=storageclasses,verbs=get;list;watch
+// +kubebuilder:rbac:groups=carina.storage.io,resources=logicvolumes,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=carina.storage.io,resources=logicvolumes/status,verbs=get;update;patch
 
 // Reconcile finalize Node
 func (r *NodeReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 
+	log.Infof("node %s reconcile manager...", req.Name)
 	// your logic here
-	node := &corev1.Node{}
-	err := r.Client.Get(ctx, req.NamespacedName, node)
-	switch {
-	case err == nil:
-	case apierrors.IsNotFound(err):
-		return ctrl.Result{}, nil
-	default:
-		return ctrl.Result{}, err
-	}
 
-	if node.DeletionTimestamp == nil {
-		return ctrl.Result{}, nil
-	}
-
-	if err := r.doFinalize(ctx, node); err != nil {
-		log.Errorf("delete all pvc failed %s", err.Error())
-		go utils.UntilMaxRetry(func() error {
-			return r.ResourceReconcile(ctx)
-		}, 5, 300*time.Second)
-		return ctrl.Result{}, err
-	}
+	go r.resourceReconcile(ctx)
 
 	return ctrl.Result{}, nil
 }
 
-func (r *NodeReconciler) doFinalize(ctx context.Context, node *corev1.Node) error {
-	scs, err := r.targetStorageClasses(ctx)
-	if err != nil {
-		log.Errorf("unable to fetch StorageClass %s", err.Error())
-		return err
-	}
-
-	var pvcs corev1.PersistentVolumeClaimList
-	err = r.List(ctx, &pvcs, client.MatchingFields{utils.AnnSelectedNode: node.Name})
-	if err != nil {
-		log.Errorf("unable to fetch PersistentVolumeClaimList %s", err.Error())
-		return err
-	}
-
-	for _, pvc := range pvcs.Items {
-		if pvc.Spec.StorageClassName == nil {
-			continue
-		}
-		if !scs[*pvc.Spec.StorageClassName] {
-			continue
-		}
-
-		err = r.Delete(ctx, &pvc)
-		if err != nil {
-			log.Error(err.Error(), " unable to delete PVC name ", pvc.Name, " namespace ", pvc.Namespace)
-			return err
-		}
-		log.Info("deleted PVC name", pvc.Name, " namespace ", pvc.Namespace)
-	}
-	return nil
-}
-
-func (r *NodeReconciler) targetStorageClasses(ctx context.Context) (map[string]bool, error) {
-	var scl storagev1.StorageClassList
-	if err := r.List(ctx, &scl); err != nil {
-		return nil, err
-	}
-
-	targets := make(map[string]bool)
-	for _, sc := range scl.Items {
-		if sc.Provisioner != utils.CSIPluginName {
-			continue
-		}
-		targets[sc.Name] = true
-	}
-	return targets, nil
-}
-
 // SetupWithManager sets up Reconciler with Manager.
 func (r *NodeReconciler) SetupWithManager(mgr ctrl.Manager) error {
+	r.cacheNoDeleteLv = make(map[string]uint8)
+
 	ctx := context.Background()
-	err := mgr.GetFieldIndexer().IndexField(ctx, &corev1.PersistentVolumeClaim{}, utils.AnnSelectedNode, func(o client.Object) []string {
-		return []string{o.(*corev1.PersistentVolumeClaim).Annotations[utils.AnnSelectedNode]}
-	})
-	if err != nil {
-		return err
-	}
+	ticker1 := time.NewTicker(600 * time.Second)
+	go func(t *time.Ticker) {
+		defer ticker1.Stop()
+		for {
+			select {
+			case <-t.C:
+				_ = r.resourceReconcile(ctx)
+			case <-r.StopChan:
+				log.Info("stop node reconcile...")
+				return
+			}
+		}
+	}(ticker1)
+
 	pred := predicate.Funcs{
-		CreateFunc:  func(event.CreateEvent) bool { return true },
-		DeleteFunc:  func(event.DeleteEvent) bool { return false },
-		UpdateFunc:  func(event.UpdateEvent) bool { return true },
+		CreateFunc:  func(event.CreateEvent) bool { return false },
+		DeleteFunc:  func(event.DeleteEvent) bool { return true },
+		UpdateFunc:  func(event.UpdateEvent) bool { return false },
 		GenericFunc: func(event.GenericEvent) bool { return false },
 	}
 
-	go utils.UntilMaxRetry(func() error {
-		time.Sleep(300 * time.Second)
-		return r.ResourceReconcile(ctx)
-
-	}, 2, 120*time.Second)
-
 	return ctrl.NewControllerManagedBy(mgr).
 		WithEventFilter(pred).
+		WithOptions(controller.Options{
+			RateLimiter: workqueue.NewItemFastSlowRateLimiter(10*time.Second, 60*time.Second, 5),
+		}).
 		For(&corev1.Node{}).
 		Complete(r)
 }
 
-// 当pvc资源无法删除时，调用此方法将会执行延迟删除
-// 该延迟删除属于触发式，当服务启动时会执行检查，当出现删除资源失败时会触发
-// 该服务并不长驻，因为异常并不时常存在，若是常驻反而浪费cpu memory net等资源
-// 在延迟删除中也未能清理资源，只能借助于人工排查
-func (r *NodeReconciler) ResourceReconcile(ctx context.Context) error {
+func (r *NodeReconciler) resourceReconcile(ctx context.Context) error {
+	log.Infof("logic volume resource reconcile ...")
+	o, err := r.getNeedRebuildVolume(ctx)
+	if err != nil {
+		log.Errorf("get need rebuild volume error %s", err.Error())
+		return err
+	}
+
+	err = r.rebuildVolume(ctx, o)
+	if err != nil {
+		log.Errorf("rebuild volume error %s", err.Error())
+		return err
+	}
+	return nil
+}
+
+func (r *NodeReconciler) getNeedRebuildVolume(ctx context.Context) (map[string]client.ObjectKey, error) {
+
+	volumeObjectMap := map[string]client.ObjectKey{}
+
+	lvList := new(carinav1.LogicVolumeList)
+	err := r.List(ctx, lvList)
+	if err != nil {
+		return volumeObjectMap, err
+	}
+	if len(lvList.Items) == 0 {
+		return volumeObjectMap, nil
+	}
 
 	// 获取所有Node
 	nl := new(corev1.NodeList)
-	err := r.List(ctx, nl)
+	err = r.List(ctx, nl)
 	if err != nil {
 		log.Errorf("unable to fetch node list %s", err.Error())
-		return err
+		return volumeObjectMap, err
 	}
-
-	nodeList := []string{}
+	nodeStatus := map[string]uint8{}
 	for _, n := range nl.Items {
 		if n.DeletionTimestamp != nil || n.Status.Phase == corev1.NodeTerminated {
+			nodeStatus[n.Name] = 1
 			continue
 		}
-		nodeList = append(nodeList, n.Name)
+		nodeStatus[n.Name] = 0
 	}
 
-	scs, err := r.targetStorageClasses(ctx)
-	if err != nil {
-		log.Errorf("unable to fetch StorageClass %s", err.Error())
-		return err
+	for _, lv := range lvList.Items {
+		if _, ok := r.cacheNoDeleteLv[lv.Name]; ok {
+			continue
+		}
+		if v, ok := nodeStatus[lv.Spec.NodeName]; ok && v == 0 {
+			continue
+		}
+
+		volumeObjectMap[lv.Name] = client.ObjectKey{Namespace: lv.Spec.NameSpace, Name: lv.Spec.Pvc}
+		if lv.Finalizers != nil && utils.ContainsString(lv.Finalizers, utils.LogicVolumeFinalizer) {
+			lv2 := lv.DeepCopy()
+			lv2.Finalizers = utils.SliceRemoveString(lv2.Finalizers, utils.LogicVolumeFinalizer)
+			patch := client.MergeFrom(&lv)
+			if err := r.Patch(ctx, lv2, patch); err != nil {
+				log.Error(err, " failed to remove finalizer name ", lv.Name)
+				return volumeObjectMap, err
+			}
+		}
 	}
+	return volumeObjectMap, nil
+}
 
-	var pvcs corev1.PersistentVolumeClaimList
-	err = r.List(ctx, &pvcs)
-	if err != nil {
-		log.Errorf("unable to fetch PersistentVolumeClaimList %s", err.Error())
-		return err
-	}
+func (r *NodeReconciler) rebuildVolume(ctx context.Context, volumeObjectMap map[string]client.ObjectKey) error {
 
-	for _, pvc := range pvcs.Items {
-		if pvc.Spec.StorageClassName == nil {
-			continue
-		}
-		if !scs[*pvc.Spec.StorageClassName] {
-			continue
-		}
-
-		if utils.ContainsString(nodeList, pvc.Annotations[utils.AnnSelectedNode]) {
-			continue
-		}
-		if pvc.DeletionTimestamp != nil {
-			continue
-		}
-
-		err = r.Delete(ctx, &pvc)
+	var pvc corev1.PersistentVolumeClaim
+	for key, o := range volumeObjectMap {
+		err := r.Client.Get(ctx, o, &pvc)
 		if err != nil {
-			log.Error(err.Error(), " unable to delete PVC name ", pvc.Name, " namespace ", pvc.Namespace)
+			r.cacheNoDeleteLv[key] = 0
+			log.Warnf("unable to fetch PersistentVolumeClaim %s %s %s", o.Namespace, o.Name, err.Error())
+			continue
+		}
+
+		newPvc := corev1.PersistentVolumeClaim{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      o.Name,
+				Namespace: o.Namespace,
+			},
+			Spec: corev1.PersistentVolumeClaimSpec{
+				AccessModes:      pvc.Spec.AccessModes,
+				Selector:         pvc.Spec.Selector,
+				Resources:        pvc.Spec.Resources,
+				StorageClassName: pvc.Spec.StorageClassName,
+				VolumeMode:       pvc.Spec.VolumeMode,
+				DataSource:       pvc.Spec.DataSource,
+			},
+			Status: corev1.PersistentVolumeClaimStatus{},
+		}
+
+		log.Infof("rebuild pvc namespace: %s name: %s", o.Namespace, o.Name)
+		err = r.Delete(ctx, &newPvc)
+		if err != nil {
+			log.Errorf("delete pvc %s %s error %s", o.Namespace, o.Name, err.Error())
+		}
+
+		err = utils.UntilMaxRetry(func() error {
+			return r.Create(ctx, &newPvc)
+		}, 12, 10*time.Second)
+		if err != nil {
+			log.Warnf("create pvc failed namespace: %s, name %s, storageClass %s, volumeMode %s, resources: %d, dataSource: %s",
+				newPvc.Namespace, newPvc.Name, *(newPvc.Spec.StorageClassName), *(newPvc.Spec.VolumeMode),
+				newPvc.Spec.Resources.Requests.Storage().Value(),
+			)
+			log.Errorf("retry ten times create pvc error %s, please check", err.Error())
 			return err
 		}
 	}
-
 	return nil
 }

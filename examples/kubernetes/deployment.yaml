@@ -18,7 +18,8 @@ spec:
     spec:
       containers:
         - name: web-server
-          image: docker.io/library/nginx:latest
+          image: nginx:latest
+          imagePullPolicy: "IfNotPresent"
           volumeMounts:
             - name: mypvc
               mountPath: /var/lib/www/html

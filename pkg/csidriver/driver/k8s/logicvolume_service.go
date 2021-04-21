@@ -20,7 +20,7 @@ import (
 )
 
 type logicVolumeService interface {
-	CreateVolume(ctx context.Context, node, deviceGroup, name string, requestGb int64) (string, uint32, uint32, error)
+	CreateVolume(ctx context.Context, namespace, pvc, node, deviceGroup, name string, requestGb int64) (string, uint32, uint32, error)
 	DeleteVolume(ctx context.Context, volumeID string) error
 	ExpandVolume(ctx context.Context, volumeID string, requestGb int64) error
 	GetLogicVolume(ctx context.Context, volumeID string) (*carinav1.LogicVolume, error)
@@ -58,7 +58,7 @@ func NewLogicVolumeService(mgr manager.Manager) (*LogicVolumeService, error) {
 }
 
 // CreateVolume creates volume
-func (s *LogicVolumeService) CreateVolume(ctx context.Context, node, deviceGroup, name string, requestGb int64) (string, uint32, uint32, error) {
+func (s *LogicVolumeService) CreateVolume(ctx context.Context, namespace, pvc, node, deviceGroup, name string, requestGb int64) (string, uint32, uint32, error) {
 	log.Info("k8s.CreateVolume called name ", name, " node ", node, " size_gb ", requestGb)
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -76,6 +76,8 @@ func (s *LogicVolumeService) CreateVolume(ctx context.Context, node, deviceGroup
 			NodeName:    node,
 			DeviceGroup: deviceGroup,
 			Size:        *resource.NewQuantity(requestGb<<30, resource.BinarySI),
+			NameSpace:   namespace,
+			Pvc:         pvc,
 		},
 	}
 

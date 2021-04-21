@@ -8,8 +8,10 @@ import (
 	"errors"
 	"fmt"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/util/rand"
 	"sort"
 	"strings"
+	"time"
 
 	corev1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -53,6 +55,9 @@ func (s NodeService) getNodes(ctx context.Context) (*corev1.NodeList, error) {
 }
 
 func (s NodeService) SelectVolumeNode(ctx context.Context, requestGb int64, deviceGroup string, requirement *csi.TopologyRequirement) (string, string, map[string]string, error) {
+	// 在并发场景下，兼顾调度效率与调度公平，将pv分配到不同时间段
+	time.Sleep(time.Duration(rand.Int63nRange(1, 30)) * time.Second)
+
 	var nodeName, selectDeviceGroup string
 	segments := map[string]string{}
 	nl, err := s.getNodes(ctx)
