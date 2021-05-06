@@ -122,11 +122,13 @@ func (r *NodeReconciler) getNeedRebuildVolume(ctx context.Context) (map[string]c
 	}
 
 	for _, lv := range lvList.Items {
-		if _, ok := r.cacheNoDeleteLv[lv.Name]; ok {
-			continue
-		}
-		if v, ok := nodeStatus[lv.Spec.NodeName]; ok && v == 0 {
-			continue
+		if lv.Status.Status == "Success" {
+			if _, ok := r.cacheNoDeleteLv[lv.Name]; ok {
+				continue
+			}
+			if v, ok := nodeStatus[lv.Spec.NodeName]; ok && v == 0 {
+				continue
+			}
 		}
 
 		volumeObjectMap[lv.Name] = client.ObjectKey{Namespace: lv.Spec.NameSpace, Name: lv.Spec.Pvc}
