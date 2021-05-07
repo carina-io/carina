@@ -47,4 +47,6 @@ type Lvm2 interface {
 
 	// 启动必要的lvm2服务
 	StartLvm2() error
+	// 清理unknown设备
+	RemoveUnknownDevice(vg string) error
 }

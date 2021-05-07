@@ -456,17 +456,8 @@ func (v *LocalVolumeImplement) HealthCheck() {
 		case <-ctx.Done():
 			log.Info("volume health check timeout.")
 		default:
-			lvInfo, err := v.Lv.LVS("")
-			if err != nil {
-				log.Errorf("get all lv info failed %s", err.Error())
-				return
-			}
-
-			for _, lv := range lvInfo {
-				if lv.LVActive != "active" {
-					log.Warnf("lv %s current status %s", lv.LVName, lv.LVActive)
-				}
-			}
+			_ = v.Lv.RemoveUnknownDevice(utils.DeviceVGHDD)
+			_ = v.Lv.RemoveUnknownDevice(utils.DeviceVGSSD)
 			return
 		}
 	}
