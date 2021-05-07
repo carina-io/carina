@@ -37,7 +37,7 @@ func NewTroubleObject(volumeManager volume.LocalVolume, cache cache.Cache, nodeN
 }
 
 func (t *Trouble) CleanupOrphanVolume() {
-	t.volumeManager.HealthCheck()
+	//t.volumeManager.HealthCheck()
 
 	// step.1 获取所有本地volume
 	log.Infof("%s get all local logic volume", logPrefix)

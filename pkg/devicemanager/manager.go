@@ -143,6 +143,11 @@ func (dm *DeviceManager) AddAndRemoveDevice() {
 	log.Info("local logic volume auto tuning")
 	for _, v := range ActuallyVg {
 		for _, pv := range v.PVS {
+			if strings.Contains(pv.PVName, "unknown") {
+				_ = dm.LvmManager.RemoveUnknownDevice(pv.VGName)
+				isChangeVG = true
+				continue
+			}
 			if !diskSelector.MatchString(pv.PVName) {
 				log.Infof("remove pv %s in vg %s", pv.PVName, v.VGName)
 				if err := dm.VolumeManager.RemoveDiskInVg(pv.PVName, v.VGName); err != nil {
