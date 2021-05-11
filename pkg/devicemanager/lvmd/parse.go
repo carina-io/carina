@@ -100,7 +100,7 @@ func parseLvs(lvsString string) []types.LvInfo {
 			case "LVM2_LV_TAGS":
 				tmp.LVTags = k[1]
 			case "LVM2_DATA_PERCENT":
-				tmp.DataPercent = k[1]
+				tmp.DataPercent, _ = strconv.ParseFloat(k[1], 64)
 			case "LVM2_LV_ATTR":
 				tmp.LVAttr = k[1]
 			case "LVM2_LV_ACTIVE":

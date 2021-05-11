@@ -5,7 +5,7 @@ metadata:
   name: csi-carina-provisioner
   namespace: kube-system
   labels:
-    class: carina
+    app: csi-carina-provisioner
 spec:
   selector:
     matchLabels:

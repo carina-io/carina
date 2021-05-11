@@ -10,6 +10,7 @@ require (
 	github.com/natefinch/lumberjack v2.0.0+incompatible
 	github.com/onsi/ginkgo v1.15.1
 	github.com/onsi/gomega v1.10.5
+	github.com/prometheus/client_golang v1.7.1
 	github.com/spf13/cobra v1.1.3
 	github.com/spf13/viper v1.7.1
 	github.com/stretchr/testify v1.6.1

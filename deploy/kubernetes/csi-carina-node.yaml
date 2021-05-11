@@ -5,7 +5,7 @@ metadata:
   name: csi-carina-node
   namespace: kube-system
   labels:
-    class: carina
+    app: csi-carina-node
 spec:
   selector:
     matchLabels:
@@ -136,3 +136,23 @@ spec:
         - name: config
           configMap:
             name: carina-csi-config
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: csi-carina-node
+  name: carina-node
+  namespace: kube-system
+spec:
+  ports:
+    - name: metrics
+      port: 80
+      protocol: TCP
+      targetPort: 8080
+      nodePort: 31343
+  selector:
+    app: csi-carina-node
+  sessionAffinity: None
+  type: NodePort
