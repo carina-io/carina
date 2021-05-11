@@ -146,3 +146,7 @@ spec:
       protocol: TCP
       port: 8080
       targetPort: 8080
+    - name: http
+      protocol: TCP
+      port: 8089
+      targetPort: 8089

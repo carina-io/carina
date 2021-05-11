@@ -136,6 +136,10 @@ func subMain() error {
 		return err
 	}
 
+	// Http Server
+	e := newHttpServer(mgr.GetCache(), stopChan)
+	go e.start()
+
 	setupLog.Info("starting manager")
 	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
 		setupLog.Error(err, "problem running manager")

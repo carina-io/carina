@@ -5,7 +5,7 @@ metadata:
   name: csi-carina-provisioner
   namespace: kube-system
   labels:
-    class: carina
+    app: csi-carina-provisioner
 spec:
   selector:
     matchLabels:
@@ -138,6 +138,15 @@ spec:
   selector:
     app: csi-carina-provisioner
   ports:
-    - protocol: TCP
+    - name: webhook
+      protocol: TCP
       port: 443
       targetPort: 8443
+    - name: metrics
+      protocol: TCP
+      port: 8080
+      targetPort: 8080
+    - name: http
+      protocol: TCP
+      port: 8089
+      targetPort: 8089
