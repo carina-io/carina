@@ -109,7 +109,9 @@ func parseLvs(lvsString string) []types.LvInfo {
 				log.Warnf("undefined field %s=%s", k[0], k[1])
 			}
 		}
-		resp = append(resp, tmp)
+		if strings.HasPrefix(tmp.LVName, "volume") || strings.HasPrefix(tmp.LVName, "thin") || strings.HasPrefix(tmp.LVName, "snap") {
+			resp = append(resp, tmp)
+		}
 	}
 	return resp
 }

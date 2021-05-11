@@ -12,12 +12,12 @@ var stopChan chan struct{}
 
 func init() {
 	stopChan = make(chan struct{})
-	dm = deviceManager.NewDeviceManager("localhost", stopChan)
+
+	//dm = deviceManager.NewDeviceManager("localhost", c, stopChan)
 }
 
 func Start(c echo.Context) error {
 	dm.DeviceCheckTask()
-	dm.LvmHealthCheck()
 	return c.JSON(http.StatusOK, "")
 }
 

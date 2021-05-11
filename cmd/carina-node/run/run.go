@@ -118,6 +118,9 @@ func subMain() error {
 	dm.VolumeConsistencyCheck()
 	// 启动设备插件
 	go deviceplugin.Run(dm.VolumeManager, stopChan)
+	// http server
+	e := newHttpServer(dm.VolumeManager, stopChan)
+	go e.start()
 	setupLog.Info("starting manager")
 	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
 		setupLog.Error(err, "problem running manager")

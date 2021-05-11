@@ -148,11 +148,14 @@ metadata:
 spec:
   ports:
     - name: metrics
-      port: 80
+      port: 8080
       protocol: TCP
       targetPort: 8080
-      nodePort: 31343
+    - name: http
+      port: 8089
+      protocol: TCP
+      targetPort: 8089
   selector:
     app: csi-carina-node
   sessionAffinity: None
-  type: NodePort
+  type: ClusterIP

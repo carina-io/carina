@@ -138,6 +138,11 @@ spec:
   selector:
     app: csi-carina-provisioner
   ports:
-    - protocol: TCP
+    - name: webhook
+      protocol: TCP
       port: 443
       targetPort: 8443
+    - name: metrics
+      protocol: TCP
+      port: 8080
+      targetPort: 8080
