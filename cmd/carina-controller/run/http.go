@@ -1,12 +1,14 @@
 package run
 
 import (
-	"bocloud.com/cloudnative/carina/pkg/configuration"
+	"bocloud.com/cloudnative/carina/pkg/devicemanager/types"
 	"bocloud.com/cloudnative/carina/utils/log"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/labstack/echo/v4"
+	"io/ioutil"
 	corev1 "k8s.io/api/core/v1"
 	"net/http"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
@@ -20,7 +22,7 @@ type carinaNode struct {
 }
 
 var (
-	c cache.Cache
+	kCache cache.Cache
 )
 
 type eHttpServer struct {
@@ -29,7 +31,7 @@ type eHttpServer struct {
 }
 
 func newHttpServer(c cache.Cache, stopChan <-chan struct{}) *eHttpServer {
-	c = c
+	kCache = c
 	e := echo.New()
 	e.GET("/devicegroup", vgList)
 	e.GET("/volume", volumeList)
@@ -44,7 +46,7 @@ func (h *eHttpServer) start() {
 	for {
 		select {
 		case <-h.stopChan:
-			c = nil
+			kCache = nil
 			_ = h.e.Close()
 		default:
 
@@ -58,18 +60,29 @@ func vgList(c echo.Context) error {
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, err.Error())
 	}
+	result := map[string][]types.VgGroup{}
 	for _, ep := range endpoints {
 		resp, err := http.Get(fmt.Sprintf("http://%s:%d/devicegroup", ep.Ip, ep.Port))
 		if err != nil {
 			log.Infof("error %s", err.Error())
-		}
-		if resp != nil && resp.StatusCode != http.StatusOK {
 			continue
 		}
-		return c.JSON(http.StatusOK, resp)
-
+		defer resp.Body.Close()
+		if resp.StatusCode != http.StatusOK {
+			continue
+		}
+		body, err := ioutil.ReadAll(resp.Body)
+		if err != nil {
+			continue
+		}
+		r := []types.VgGroup{}
+		err = json.Unmarshal(body, &r)
+		if err != nil {
+			return c.JSON(http.StatusInternalServerError, err.Error())
+		}
+		result[ep.NodeName] = r
 	}
-	return c.JSON(http.StatusOK, "ok")
+	return c.JSON(http.StatusOK, result)
 }
 
 func volumeList(c echo.Context) error {
@@ -77,24 +90,36 @@ func volumeList(c echo.Context) error {
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, err.Error())
 	}
+	result := map[string][]types.LvInfo{}
 	for _, ep := range endpoints {
 		resp, err := http.Get(fmt.Sprintf("http://%s:%d/volume", ep.Ip, ep.Port))
 		if err != nil {
 			log.Infof("error %s", err.Error())
-		}
-		if resp != nil && resp.StatusCode != http.StatusOK {
 			continue
 		}
-		return c.JSON(http.StatusOK, resp)
+		defer resp.Body.Close()
+		if resp.StatusCode != http.StatusOK {
+			continue
+		}
+		body, err := ioutil.ReadAll(resp.Body)
+		if err != nil {
+			continue
+		}
+		r := []types.LvInfo{}
+		err = json.Unmarshal(body, &r)
+		if err != nil {
+			return c.JSON(http.StatusInternalServerError, err.Error())
+		}
+		result[ep.NodeName] = r
 	}
 
-	return c.JSON(http.StatusOK, "ok")
+	return c.JSON(http.StatusOK, result)
 }
 
 func getEndpoints() ([]carinaNode, error) {
 	result := []carinaNode{}
 	endpoints := corev1.Endpoints{}
-	err := c.Get(context.Background(), client.ObjectKey{configuration.RuntimeNamespace(), "carina-node"}, &endpoints)
+	err := kCache.Get(context.Background(), client.ObjectKey{"kube-system", "carina-node"}, &endpoints)
 	if err != nil {
 		return result, err
 	}
