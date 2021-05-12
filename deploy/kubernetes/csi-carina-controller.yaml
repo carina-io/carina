@@ -142,6 +142,8 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
+  labels:
+    app: csi-carina-provisioner
   name: carina-controller
   namespace: kube-system
 spec:
