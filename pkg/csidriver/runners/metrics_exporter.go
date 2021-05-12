@@ -111,7 +111,7 @@ func (m *metricsExporter) Start(ctx context.Context) error {
 		}
 	}()
 
-	ticker := time.Tick(1 * time.Minute)
+	ticker := time.Tick(10 * time.Minute)
 	for range ticker {
 		vgList, err := m.volume.GetCurrentVgStruct()
 		if err != nil {

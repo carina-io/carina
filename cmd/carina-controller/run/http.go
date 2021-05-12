@@ -51,7 +51,7 @@ func (h *eHttpServer) start() {
 		default:
 
 		}
-		h.e.Logger.Fatal(h.e.Start(":8089"))
+		h.e.Logger.Fatal(h.e.Start(config.httpAddr))
 	}
 }
 

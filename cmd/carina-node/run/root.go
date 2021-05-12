@@ -13,6 +13,7 @@ import (
 var config struct {
 	csiSocket   string
 	metricsAddr string
+	httpAddr    string
 	zapOpts     zap.Options
 }
 
@@ -45,6 +46,7 @@ func init() {
 	fs := rootCmd.Flags()
 	fs.StringVar(&config.csiSocket, "csi-address", utils.DefaultCSISocket, "UNIX domain socket filename for CSI")
 	fs.StringVar(&config.metricsAddr, "metrics-addr", ":8080", "Listen address for metrics")
+	fs.StringVar(&config.httpAddr, "http-addr", ":8089", "Listen address for http")
 
 	goflags := flag.NewFlagSet("klog", flag.ExitOnError)
 	klog.InitFlags(goflags)

@@ -92,6 +92,9 @@ spec:
           args:
             - "--csi-address=$(ADDRESS)"
             - "--cert-dir=/certs"
+            - "--metrics-addr=:8080"
+            - "--webhook-addr=:8443"
+            - "--http-addr=:8089"
           env:
             - name: POD_IP
               valueFrom:
@@ -107,6 +110,13 @@ spec:
                   fieldPath: metadata.namespace
             - name: ADDRESS
               value: /csi/csi-provisioner.sock
+          ports:
+            - containerPort: 8080
+              name: metrics
+            - containerPort: 8089
+              name: http
+            - containerPort: 8443
+              name: webhook
           imagePullPolicy: "Always"
           volumeMounts:
             - name: socket-dir
