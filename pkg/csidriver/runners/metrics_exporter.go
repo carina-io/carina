@@ -2,13 +2,11 @@ package runners
 
 import (
 	"bocloud.com/cloudnative/carina/pkg/devicemanager/volume"
-	"bocloud.com/cloudnative/carina/utils/log"
 	"context"
 	"strings"
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/metrics"
 )
@@ -30,7 +28,6 @@ type VolumeMetrics struct {
 }
 
 type metricsExporter struct {
-	client.Client
 	nodeName         string
 	volume           volume.LocalVolume
 	vgFreeBytes      *prometheus.GaugeVec
@@ -43,7 +40,7 @@ var _ manager.LeaderElectionRunnable = &metricsExporter{}
 
 // NewMetricsExporter creates controller-runtime's manager.Runnable to run
 // a metrics exporter for a node.
-func NewMetricsExporter(mgr manager.Manager, nodeName string, volume volume.LocalVolume) manager.Runnable {
+func NewMetricsExporter(nodeName string, volume volume.LocalVolume) manager.Runnable {
 	vgFreeBytes := prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Namespace:   metricsNamespace,
 		Subsystem:   "devicegroup",
@@ -82,7 +79,6 @@ func NewMetricsExporter(mgr manager.Manager, nodeName string, volume volume.Loca
 	metrics.Registry.MustRegister(volumeUsedBytes)
 
 	return &metricsExporter{
-		Client:           mgr.GetClient(),
 		nodeName:         nodeName,
 		volume:           volume,
 		vgFreeBytes:      vgFreeBytes,
@@ -114,35 +110,30 @@ func (m *metricsExporter) Start(ctx context.Context) error {
 	ticker := time.Tick(10 * time.Minute)
 	for range ticker {
 		vgList, err := m.volume.GetCurrentVgStruct()
-		if err != nil {
-			log.Errorf("get vg list failed %s", err.Error())
-			continue
-		}
-
-		for _, vg := range vgList {
-			metricsCh <- DeviceMetrics{
-				FreeBytes:   vg.VGFree,
-				TotalBytes:  vg.VGSize,
-				DeviceGroup: vg.VGName,
+		if err == nil && len(vgList) > 0 {
+			for _, vg := range vgList {
+				metricsCh <- DeviceMetrics{
+					FreeBytes:   vg.VGFree,
+					TotalBytes:  vg.VGSize,
+					DeviceGroup: vg.VGName,
+				}
 			}
 		}
+
 		volumeList, err := m.volume.VolumeList("", "")
-		if err != nil {
-			log.Errorf("get volume list failed %s", err.Error())
-			continue
-		}
-		for _, v := range volumeList {
-			if !strings.HasPrefix(v.LVName, "volume") {
-				continue
-			}
-			volumeCh <- VolumeMetrics{
-				Volume:     v.LVName,
-				TotalBytes: v.LVSize,
-				UsedBytes:  float64(v.LVSize) * v.DataPercent / 100,
-			}
 
+		if err == nil && len(volumeList) > 0 {
+			for _, v := range volumeList {
+				if !strings.HasPrefix(v.LVName, "volume") {
+					continue
+				}
+				volumeCh <- VolumeMetrics{
+					Volume:     v.LVName,
+					TotalBytes: v.LVSize,
+					UsedBytes:  float64(v.LVSize) * v.DataPercent / 100,
+				}
+			}
 		}
-
 	}
 	return nil
 }
