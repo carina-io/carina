@@ -51,6 +51,9 @@ func (r *PersistentVolumeReconciler) Reconcile(ctx context.Context, req ctrl.Req
 			return ctrl.Result{}, err
 		}
 	} else {
+		if pv.Spec.CSI == nil {
+			return ctrl.Result{}, nil
+		}
 		if pv.Spec.CSI.Driver != utils.CSIPluginName {
 			return ctrl.Result{}, nil
 		}
