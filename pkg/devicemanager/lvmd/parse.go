@@ -100,7 +100,7 @@ func parseLvs(lvsString string) []types.LvInfo {
 			case "LVM2_LV_TAGS":
 				tmp.LVTags = k[1]
 			case "LVM2_DATA_PERCENT":
-				tmp.DataPercent = k[1]
+				tmp.DataPercent, _ = strconv.ParseFloat(k[1], 64)
 			case "LVM2_LV_ATTR":
 				tmp.LVAttr = k[1]
 			case "LVM2_LV_ACTIVE":
@@ -109,7 +109,9 @@ func parseLvs(lvsString string) []types.LvInfo {
 				log.Warnf("undefined field %s=%s", k[0], k[1])
 			}
 		}
-		resp = append(resp, tmp)
+		if strings.HasPrefix(tmp.LVName, "volume") || strings.HasPrefix(tmp.LVName, "thin") || strings.HasPrefix(tmp.LVName, "snap") {
+			resp = append(resp, tmp)
+		}
 	}
 	return resp
 }

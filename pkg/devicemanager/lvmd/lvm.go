@@ -328,3 +328,7 @@ func (lv2 *Lvm2Implement) StartLvm2() error {
 	}
 	return nil
 }
+
+func (lv2 *Lvm2Implement) RemoveUnknownDevice(vg string) error {
+	return lv2.Executor.ExecuteCommand("vgreduce", "--removemissing", vg)
+}

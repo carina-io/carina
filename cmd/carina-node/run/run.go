@@ -92,10 +92,10 @@ func subMain() error {
 	// Add metrics exporter to manager.
 	// Note that grpc.ClientConn can be shared with multiple stubs/services.
 	// https://github.com/grpc/grpc-go/tree/master/examples/features/multiplex
-	//if err := mgr.Add(runners.NewMetricsExporter(conn, mgr, nodeName)); err != nil {
-	//	return err
-	//}
-	//
+	if err := mgr.Add(runners.NewMetricsExporter(nodeName, dm.VolumeManager)); err != nil {
+		return err
+	}
+
 	// Add gRPC server to manager.
 	s, err := k8s.NewLogicVolumeService(mgr)
 	if err != nil {
@@ -118,6 +118,9 @@ func subMain() error {
 	dm.VolumeConsistencyCheck()
 	// 启动设备插件
 	go deviceplugin.Run(dm.VolumeManager, stopChan)
+	// http server
+	e := newHttpServer(dm.VolumeManager, stopChan)
+	go e.start()
 	setupLog.Info("starting manager")
 	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
 		setupLog.Error(err, "problem running manager")

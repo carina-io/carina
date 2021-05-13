@@ -5,7 +5,7 @@ metadata:
   name: csi-carina-node
   namespace: kube-system
   labels:
-    class: carina
+    app: csi-carina-node
 spec:
   selector:
     matchLabels:
@@ -62,6 +62,8 @@ spec:
           command: ["carina-node"]
           args:
             - "--csi-address=$(ADDRESS)"
+            - "--metrics-addr=:8080"
+            - "--http-addr=:8089"
           env:
             - name: POD_IP
               valueFrom:
@@ -73,6 +75,11 @@ spec:
                   fieldPath: spec.nodeName
             - name: ADDRESS
               value: /csi/csi.sock
+          ports:
+            - containerPort: 8080
+              name: metrics
+            - containerPort: 8089
+              name: http
           imagePullPolicy: "Always"
           volumeMounts:
             - name: socket-dir
@@ -136,3 +143,26 @@ spec:
         - name: config
           configMap:
             name: carina-csi-config
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: csi-carina-node
+  name: carina-node
+  namespace: kube-system
+spec:
+  ports:
+    - name: metrics
+      port: 8080
+      protocol: TCP
+      targetPort: 8080
+    - name: http
+      port: 8089
+      protocol: TCP
+      targetPort: 8089
+  selector:
+    app: csi-carina-node
+  sessionAffinity: None
+  type: ClusterIP

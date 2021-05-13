@@ -25,18 +25,18 @@ type PVInfo struct {
 
 // lv详细信息
 type LvInfo struct {
-	LVName        string `json:"lvName"`
-	VGName        string `json:"vgName"`
-	LVPath        string `json:"lvPath"`
-	LVSize        uint64 `json:"lvSize"`
-	LVKernelMajor uint32 `json:"lvKernelMajor"`
-	LVKernelMinor uint32 `json:"lvKernelMinor"`
-	Origin        string `json:"origin"`
-	OriginSize    uint64 `json:"originSize"`
-	PoolLV        string `json:"poolLv"`
-	ThinCount     uint64 `json:"thinCount"`
-	LVTags        string `json:"lvTags"`
-	DataPercent   string `json:"dataPercent"`
-	LVAttr        string `json:"lvAttr"`
-	LVActive      string `json:"lvActive"`
+	LVName        string  `json:"lvName"`
+	VGName        string  `json:"vgName"`
+	LVPath        string  `json:"lvPath"`
+	LVSize        uint64  `json:"lvSize"`
+	LVKernelMajor uint32  `json:"lvKernelMajor"`
+	LVKernelMinor uint32  `json:"lvKernelMinor"`
+	Origin        string  `json:"origin"`
+	OriginSize    uint64  `json:"originSize"`
+	PoolLV        string  `json:"poolLv"`
+	ThinCount     uint64  `json:"thinCount"`
+	LVTags        string  `json:"lvTags"`
+	DataPercent   float64 `json:"dataPercent"`
+	LVAttr        string  `json:"lvAttr"`
+	LVActive      string  `json:"lvActive"`
 }
