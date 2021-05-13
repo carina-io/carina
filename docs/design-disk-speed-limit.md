@@ -12,7 +12,7 @@
 
 #### 具体实现
 
-- 通过在pod添加annontation设置cgroup，示例如下
+- 通过在pod添加annotations设置cgroup，示例如下
 
   ```yaml
   ---
