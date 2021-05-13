@@ -18,6 +18,7 @@
 
 - 节点volume必须有对应的logicvolume，任何节点多余的volume称为孤儿volume，需要清理
 - logicvolume必须有对应的pv，任何多余的logicvolume需要被清理
+- 当节点被删除时，在这个节点的上的所有volume将在其他节点重建
 
 #### 功能实现
 
