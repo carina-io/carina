@@ -359,3 +359,22 @@ func (dm *DeviceManager) DeviceCheckTask() {
 		}
 	}(ticker1)
 }
+
+func validateVg(src []types.VgGroup, dst []types.VgGroup) bool {
+	if len(src) != len(dst) {
+		return true
+	}
+	dstMap := map[string]uint64{}
+	for _, d := range dst {
+		dstMap[d.VGName] = d.VGSize
+	}
+
+	for _, s := range src {
+		if v, ok := dstMap[s.VGName]; !ok {
+			return true
+		} else if s.VGSize != v {
+			return true
+		}
+	}
+	return false
+}
