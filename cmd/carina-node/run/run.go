@@ -9,8 +9,10 @@ import (
 	"bocloud.com/cloudnative/carina/pkg/csidriver/runners"
 	deviceManager "bocloud.com/cloudnative/carina/pkg/devicemanager"
 	"bocloud.com/cloudnative/carina/pkg/deviceplugin"
+	"context"
 	"errors"
 	"google.golang.org/grpc"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
@@ -50,10 +52,28 @@ func subMain() error {
 		return err
 	}
 
+	// pre-cache objects
+	ctx := context.Background()
+	if _, err := mgr.GetCache().GetInformer(ctx, &corev1.Pod{}); err != nil {
+		return err
+	}
+
 	// 初始化磁盘管理服务
 	stopChan := make(chan struct{})
 	defer close(stopChan)
-	dm := deviceManager.NewDeviceManager(nodeName, stopChan)
+	dm := deviceManager.NewDeviceManager(nodeName, mgr.GetCache(), stopChan)
+
+	podController := controllers.PodReconciler{
+		Client:   mgr.GetClient(),
+		NodeName: nodeName,
+		Executor: dm.Executor,
+		StopChan: stopChan,
+	}
+
+	if err := podController.SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller ", "controller", "podController")
+		return err
+	}
 
 	lvController := controllers.NewLogicVolumeReconciler(
 		mgr.GetClient(),
@@ -72,10 +92,10 @@ func subMain() error {
 	// Add metrics exporter to manager.
 	// Note that grpc.ClientConn can be shared with multiple stubs/services.
 	// https://github.com/grpc/grpc-go/tree/master/examples/features/multiplex
-	//if err := mgr.Add(runners.NewMetricsExporter(conn, mgr, nodeName)); err != nil {
-	//	return err
-	//}
-	//
+	if err := mgr.Add(runners.NewMetricsExporter(nodeName, dm.VolumeManager)); err != nil {
+		return err
+	}
+
 	// Add gRPC server to manager.
 	s, err := k8s.NewLogicVolumeService(mgr)
 	if err != nil {
@@ -94,10 +114,13 @@ func subMain() error {
 
 	// 启动磁盘检查
 	dm.DeviceCheckTask()
-	// 启动lvm卷健康检查
-	dm.LvmHealthCheck()
+	// 启动volume一致性检查
+	dm.VolumeConsistencyCheck()
 	// 启动设备插件
 	go deviceplugin.Run(dm.VolumeManager, stopChan)
+	// http server
+	e := newHttpServer(dm.VolumeManager, stopChan)
+	go e.start()
 	setupLog.Info("starting manager")
 	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
 		setupLog.Error(err, "problem running manager")

@@ -25,4 +25,4 @@ RUN chmod +x /usr/bin/carina-node && chmod +x /usr/bin/carina-controller
 COPY --from=builder /workspace/bocloud.com/cloudnative/carina/Shanghai /etc/localtime
 RUN echo 'Asia/Shanghai' > /etc/timezone
 
-CMD ["http-server"]
+CMD ["echo carina-node carina-controller"]

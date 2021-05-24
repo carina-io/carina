@@ -18,6 +18,7 @@ const (
 )
 
 var TestAssistDiskSelector []string
+var configModifyNotice []chan<- struct{}
 
 // 提供给其他应用获取服务数据
 // 这个configMap理论上应该由Node Server更新，为了实现简单改为有Control Server更新，遍历所有Node信息更新configmap
@@ -53,7 +54,15 @@ func dynamicConfig() {
 	GlobalConfig.WatchConfig()
 	GlobalConfig.OnConfigChange(func(event fsnotify.Event) {
 		log.Infof("Detect config change: %s", event.String())
+		for _, c := range configModifyNotice {
+			log.Info("produce config modify event")
+			c <- struct{}{}
+		}
 	})
+}
+
+func RegisterListenerChan(c chan<- struct{}) {
+	configModifyNotice = append(configModifyNotice, c)
 }
 
 // 支持正则表达式
@@ -66,7 +75,7 @@ func DiskSelector() []string {
 	}
 	diskSelector := GlobalConfig.GetStringSlice("diskSelector")
 	if len(diskSelector) == 0 {
-		log.Warn("No device is initialized because there is no configuration")
+		log.Warn("No device is initialized because disk selector is no configuration")
 	}
 	return diskSelector
 }

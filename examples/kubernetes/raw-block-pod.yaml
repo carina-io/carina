@@ -11,6 +11,7 @@ spec:
         capabilities:
           add: ["SYS_RAWIO"]
       image: centos:latest
+      imagePullPolicy: "IfNotPresent"
       command: ["/bin/sleep", "infinity"]
       volumeDevices:
         - name: data

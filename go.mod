@@ -10,6 +10,7 @@ require (
 	github.com/natefinch/lumberjack v2.0.0+incompatible
 	github.com/onsi/ginkgo v1.15.1
 	github.com/onsi/gomega v1.10.5
+	github.com/prometheus/client_golang v1.7.1
 	github.com/spf13/cobra v1.1.3
 	github.com/spf13/viper v1.7.1
 	github.com/stretchr/testify v1.6.1
@@ -17,6 +18,7 @@ require (
 	golang.org/x/net v0.0.0-20210226172049-e18ecbb05110
 	golang.org/x/sys v0.0.0-20210309074719-68d13333faf2
 	golang.org/x/tools v0.1.0 // indirect
+	google.golang.org/genproto v0.0.0-20201110150050-8816d57aaa9a
 	google.golang.org/grpc v1.36.0
 	google.golang.org/protobuf v1.25.0
 	k8s.io/api v0.20.4
@@ -25,5 +27,5 @@ require (
 	k8s.io/klog/v2 v2.5.0
 	k8s.io/mount-utils v0.20.4
 	k8s.io/utils v0.0.0-20210111153108-fddb29f9d009
-	sigs.k8s.io/controller-runtime v0.8.2
+	sigs.k8s.io/controller-runtime v0.8.3
 )

@@ -137,7 +137,7 @@ func (r *LogicVolumeReconciler) removeLVIfExists(ctx context.Context, lv *carina
 	// so checking existence of LV to ensure its idempotence
 	err := utils.UntilMaxRetry(func() error {
 		return r.volume.DeleteVolume(lv.Name, lv.Spec.DeviceGroup)
-	}, 10, 12)
+	}, 10, 12*time.Second)
 	if err != nil {
 		log.Error(err, " failed to remove LV name ", lv.Name, " uid ", lv.Spec.DeviceGroup)
 	}
@@ -157,7 +157,7 @@ func (r *LogicVolumeReconciler) createLV(ctx context.Context, lv *carinav1.Logic
 
 	err := utils.UntilMaxRetry(func() error {
 		return r.volume.CreateVolume(lv.Name, lv.Spec.DeviceGroup, uint64(reqBytes), 1)
-	}, 5, 12)
+	}, 5, 12*time.Second)
 
 	if err != nil {
 		lv.Status.Code = codes.Internal
@@ -170,6 +170,12 @@ func (r *LogicVolumeReconciler) createLV(ctx context.Context, lv *carinav1.Logic
 		lv.Status.Code = codes.OK
 		lv.Status.Message = ""
 		lv.Status.Status = "Success"
+
+		lvInfo, _ := r.volume.VolumeInfo(lv.Status.VolumeID, lv.Spec.DeviceGroup)
+		if lvInfo != nil {
+			lv.Status.DeviceMajor = lvInfo.LVKernelMajor
+			lv.Status.DeviceMinor = lvInfo.LVKernelMinor
+		}
 		r.Recorder.Event(lv, corev1.EventTypeNormal, "CreateVolumeSuccess", fmt.Sprintf("create volume success node: %s, time: %s", r.nodeName, time.Now().Format("2006-01-02T15:04:05.000Z")))
 	}
 
@@ -178,7 +184,6 @@ func (r *LogicVolumeReconciler) createLV(ctx context.Context, lv *carinav1.Logic
 			// err2 is logged but not returned because err is more important
 			log.Error(err2, " failed to update status name ", lv.Name, " uid ", lv.UID)
 		}
-
 		return err
 	}
 
@@ -208,7 +213,7 @@ func (r *LogicVolumeReconciler) expandLV(ctx context.Context, lv *carinav1.Logic
 
 	err := utils.UntilMaxRetry(func() error {
 		return r.volume.ResizeVolume(lv.Name, lv.Spec.DeviceGroup, uint64(reqBytes), 1)
-	}, 10, 12)
+	}, 10, 12*time.Second)
 	if err != nil {
 		lv.Status.Code = codes.Internal
 		lv.Status.Message = err.Error()

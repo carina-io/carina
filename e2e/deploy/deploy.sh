@@ -39,11 +39,14 @@ function uninstall() {
   kubectl delete -f csi-node-rbac.yaml
   kubectl delete -f csi-carina-node.yaml
   kubectl delete -f carina-scheduler.yaml
-  kubectl delete -f crd.yaml
 
   kubectl delete csr carina-controller.kube-system
   kubectl delete configmap carina-node-storage -n kube-system
   kubectl label namespace kube-system carina.storage.io/webhook-
+
+  if [ `kubectl get lv | wc -l` == 0 ]; then
+    kubectl delete -f crd.yaml
+  fi
 }
 
 operator=${1:-'install'}

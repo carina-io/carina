@@ -63,6 +63,18 @@ func SliceEqualSlice(src, dst []string) bool {
 	return true
 }
 
+func MapEqualMap(src, dst map[string]string) bool {
+	if len(src) != len(dst) {
+		return false
+	}
+	for key, value := range src {
+		if v, ok := dst[key]; !ok || value != v {
+			return false
+		}
+	}
+	return true
+}
+
 func FileExists(path string) bool {
 	_, err := os.Stat(path) //os.Stat获取文件信息
 	if err != nil {

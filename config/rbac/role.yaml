@@ -13,12 +13,15 @@ rules:
   verbs:
   - get
   - list
+  - patch
+  - update
   - watch
 - apiGroups:
   - ""
   resources:
   - persistentvolumeclaims
   verbs:
+  - delete
   - get
   - list
   - watch
@@ -27,6 +30,7 @@ rules:
   resources:
   - persistentvolumes
   verbs:
+  - delete
   - get
   - list
   - update
@@ -39,6 +43,8 @@ rules:
   - delete
   - get
   - list
+  - patch
+  - update
   - watch
 - apiGroups:
   - carina.storage.io

@@ -18,6 +18,7 @@ spec:
       containers:
         - name: mysqlpod
           image: mysql:5.7
+          imagePullPolicy: "IfNotPresent"
           env:
             - name: MYSQL_ROOT_PASSWORD
               value: "123456"

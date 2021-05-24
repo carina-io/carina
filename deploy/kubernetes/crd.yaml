@@ -29,6 +29,14 @@ spec:
     - jsonPath: .status.status
       name: STATUS
       type: string
+    - jsonPath: .spec.nameSpace
+      name: NAMESPACE
+      priority: 1
+      type: string
+    - jsonPath: .spec.pvc
+      name: PVC
+      priority: 1
+      type: string
     name: v1
     schema:
       openAPIV3Schema:
@@ -47,8 +55,12 @@ spec:
             properties:
               deviceGroup:
                 type: string
+              nameSpace:
+                type: string
               nodeName:
                 description: 'INSERT ADDITIONAL SPEC FIELDS - desired state of cluster Important: Run "make" to regenerate code after modifying this file'
+                type: string
+              pvc:
                 type: string
               size:
                 anyOf:
@@ -58,7 +70,9 @@ spec:
                 x-kubernetes-int-or-string: true
             required:
             - deviceGroup
+            - nameSpace
             - nodeName
+            - pvc
             - size
             type: object
           status:
@@ -74,6 +88,12 @@ spec:
                 - type: string
                 pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
                 x-kubernetes-int-or-string: true
+              deviceMajor:
+                format: int32
+                type: integer
+              deviceMinor:
+                format: int32
+                type: integer
               message:
                 type: string
               status:
