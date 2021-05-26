@@ -17,7 +17,7 @@ webhooks:
         namespace: kube-system
         path: /pod/mutate
         port: 443
-    failurePolicy: Fail
+    failurePolicy: Ignore
     matchPolicy: Exact
     objectSelector: {}
     reinvocationPolicy: Never
