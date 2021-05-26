@@ -27,6 +27,10 @@ func (lv2 *Lvm2Implement) PVRemove(dev string) error {
 	return lv2.Executor.ExecuteCommand("pvremove", dev)
 }
 
+func (lv2 *Lvm2Implement) PVResize(dev string) error {
+	return lv2.Executor.ExecuteCommand("pvresize", dev)
+}
+
 // 示例输出
 // pvs --noheadings --separator=, --units=b --nosuffix --unbuffered --nameprefixes
 // LVM2_PV_NAME='/dev/loop2',LVM2_VG_NAME='lvmvg',LVM2_PV_FMT='lvm2',LVM2_PV_ATTR='a--',LVM2_PV_SIZE='16101933056',LVM2_PV_FREE='16101933056'

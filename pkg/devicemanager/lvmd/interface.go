@@ -7,6 +7,7 @@ type Lvm2 interface {
 	PVCheck(dev string) (string, error)
 	PVCreate(dev string) error
 	PVRemove(dev string) error
+	PVResize(dev string) error
 	// 列出pv列表
 	PVS() ([]types.PVInfo, error)
 	// 扫盲pv加入cache,在服务启动时执行
