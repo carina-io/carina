@@ -132,6 +132,11 @@ func (r *NodeReconciler) getNeedRebuildVolume(ctx context.Context) (map[string]c
 		_, ok := pvMap[lv.Name]
 		if lv.Status.Status != "" && !ok {
 			if lv.Finalizers != nil && utils.ContainsString(lv.Finalizers, utils.LogicVolumeFinalizer) {
+				log.Infof("remove logic volume %s", lv.Name)
+				if err = r.Delete(ctx, &lv); err != nil {
+					log.Errorf(" failed to remove logic volume %s", err.Error())
+					return volumeObjectMap, err
+				}
 				lv2 := lv.DeepCopy()
 				lv2.Finalizers = utils.SliceRemoveString(lv2.Finalizers, utils.LogicVolumeFinalizer)
 				patch := client.MergeFrom(&lv)
@@ -140,6 +145,7 @@ func (r *NodeReconciler) getNeedRebuildVolume(ctx context.Context) (map[string]c
 					return volumeObjectMap, err
 				}
 			}
+			continue
 		}
 
 		// 重建逻辑
