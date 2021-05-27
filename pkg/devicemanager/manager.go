@@ -274,9 +274,11 @@ func (dm *DeviceManager) DiscoverPv() (map[string][]string, error) {
 	}
 	for _, pv := range pvList {
 		// 重新配置pv容量大小
-		err := dm.LvmManager.PVResize(pv.PVName)
-		if err != nil {
-			log.Errorf("resize %s error", pv.PVName)
+		if strings.Contains(pv.VGName, "carina") {
+			err := dm.LvmManager.PVResize(pv.PVName)
+			if err != nil {
+				log.Errorf("resize %s error", pv.PVName)
+			}
 		}
 		if pv.VGName != "" {
 			continue

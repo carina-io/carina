@@ -125,7 +125,7 @@ func (v *LocalVolumeImplement) ResizeVolume(lvName, vgName string, size, ratio u
 		return errors.New("cannot find device group info")
 	}
 
-	if vgInfo.VGFree-size < utils.DefaultReservedSpace-1 {
+	if vgInfo.VGFree-size < utils.DefaultReservedSpace/2 {
 		log.Warnf("%s don't have enough space, reserved 10 g", vgName)
 		return errors.New("don't have enough space")
 	}
