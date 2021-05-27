@@ -112,21 +112,48 @@ func (r *NodeReconciler) getNeedRebuildVolume(ctx context.Context) (map[string]c
 		log.Errorf("unable to fetch node list %s", err.Error())
 		return volumeObjectMap, err
 	}
-	nodeStatus := map[string]uint8{}
+	nodeStatus := map[string]string{}
 	for _, n := range nl.Items {
 		if n.DeletionTimestamp != nil || n.Status.Phase == corev1.NodeTerminated {
-			nodeStatus[n.Name] = 1
+			nodeStatus[n.Name] = "abnormal"
 			continue
 		}
-		nodeStatus[n.Name] = 0
+		nodeStatus[n.Name] = "normal"
+	}
+
+	pvMap, err := r.pvMap(ctx)
+	if err != nil {
+		log.Errorf("unable to fetch pv list %s", err.Error())
+		return volumeObjectMap, err
 	}
 
 	for _, lv := range lvList.Items {
+		// 删除没有对应lv的logic volume
+		_, ok := pvMap[lv.Name]
+		if lv.Status.Status != "" && !ok {
+			if lv.Finalizers != nil && utils.ContainsString(lv.Finalizers, utils.LogicVolumeFinalizer) {
+				log.Infof("remove logic volume %s", lv.Name)
+				if err = r.Delete(ctx, &lv); err != nil {
+					log.Errorf(" failed to remove logic volume %s", err.Error())
+					return volumeObjectMap, err
+				}
+				lv2 := lv.DeepCopy()
+				lv2.Finalizers = utils.SliceRemoveString(lv2.Finalizers, utils.LogicVolumeFinalizer)
+				patch := client.MergeFrom(&lv)
+				if err := r.Patch(ctx, lv2, patch); err != nil {
+					log.Error(err, " failed to remove finalizer name ", lv.Name)
+					return volumeObjectMap, err
+				}
+			}
+			continue
+		}
+
+		// 重建逻辑
 		if lv.Status.Status == "Success" {
 			if _, ok := r.cacheNoDeleteLv[lv.Name]; ok {
 				continue
 			}
-			if v, ok := nodeStatus[lv.Spec.NodeName]; ok && v == 0 {
+			if v, ok := nodeStatus[lv.Spec.NodeName]; ok && v == "normal" {
 				continue
 			}
 		}
@@ -191,4 +218,17 @@ func (r *NodeReconciler) rebuildVolume(ctx context.Context, volumeObjectMap map[
 		}
 	}
 	return nil
+}
+
+func (r *NodeReconciler) pvMap(ctx context.Context) (map[string]uint8, error) {
+	result := map[string]uint8{}
+	pvList := new(corev1.PersistentVolumeList)
+	err := r.List(ctx, pvList)
+	if err != nil {
+		return result, err
+	}
+	for _, pv := range pvList.Items {
+		result[pv.Name] = 0
+	}
+	return result, nil
 }
