@@ -64,14 +64,19 @@ func NewDeviceManager(nodeName string, cache cache.Cache, stopChan <-chan struct
 
 // 定时巡检磁盘，是否有新磁盘加入
 func (dm *DeviceManager) AddAndRemoveDevice() {
-	// 如果修改了卷组，需要及时更新外部显示容量
-	isChangeVG := false
 
 	currentDiskSelector := configuration.DiskSelector()
 	if len(currentDiskSelector) == 0 {
-		log.Info("disk selector cannot not be empty, skip device scan")
+		log.Info("disk selector cannot be empty, skip device scan")
 		return
 	}
+
+	ActuallyVg, err := dm.VolumeManager.GetCurrentVgStruct()
+	if err != nil {
+		log.Error("get current vg struct failed: " + err.Error())
+		return
+	}
+	changeBefore := ActuallyVg
 
 	newDisk, err := dm.DiscoverDisk()
 	if err != nil {
@@ -96,11 +101,6 @@ func (dm *DeviceManager) AddAndRemoveDevice() {
 		}
 	}
 
-	ActuallyVg, err := dm.VolumeManager.GetCurrentVgStruct()
-	if err != nil {
-		log.Error("get current vg struct failed: " + err.Error())
-		return
-	}
 	// 需要新增的磁盘, 处理成容易比较的数据
 	needAddPv := newDisk
 	ActuallyVgMap := map[string][]string{}
@@ -121,7 +121,6 @@ func (dm *DeviceManager) AddAndRemoveDevice() {
 			if err := dm.VolumeManager.AddNewDiskToVg(pv, vg); err != nil {
 				log.Errorf("add new disk failed vg: %s, disk: %s, error: %v", vg, pv, err)
 			}
-			isChangeVG = true
 		}
 	}
 	time.Sleep(5 * time.Second)
@@ -145,7 +144,6 @@ func (dm *DeviceManager) AddAndRemoveDevice() {
 		for _, pv := range v.PVS {
 			if strings.Contains(pv.PVName, "unknown") {
 				_ = dm.LvmManager.RemoveUnknownDevice(pv.VGName)
-				isChangeVG = true
 				continue
 			}
 			if !diskSelector.MatchString(pv.PVName) {
@@ -153,12 +151,16 @@ func (dm *DeviceManager) AddAndRemoveDevice() {
 				if err := dm.VolumeManager.RemoveDiskInVg(pv.PVName, v.VGName); err != nil {
 					log.Errorf("remove pv %s error %v", pv.PVName, err)
 				}
-				isChangeVG = true
 			}
 		}
 	}
-	// 更新设备容量
-	if isChangeVG {
+
+	changeAfter, err := dm.VolumeManager.GetCurrentVgStruct()
+	if err != nil {
+		log.Error("get current vg struct failed: " + err.Error())
+		return
+	}
+	if validateVg(changeBefore, changeAfter) {
 		dm.VolumeManager.NoticeUpdateCapacity([]string{})
 	}
 }
@@ -271,6 +273,13 @@ func (dm *DeviceManager) DiscoverPv() (map[string][]string, error) {
 		return nil, err
 	}
 	for _, pv := range pvList {
+		// 重新配置pv容量大小
+		if strings.Contains(pv.VGName, "carina") {
+			err := dm.LvmManager.PVResize(pv.PVName)
+			if err != nil {
+				log.Errorf("resize %s error", pv.PVName)
+			}
+		}
 		if pv.VGName != "" {
 			continue
 		}
@@ -358,4 +367,23 @@ func (dm *DeviceManager) DeviceCheckTask() {
 			}
 		}
 	}(ticker1)
+}
+
+func validateVg(src []types.VgGroup, dst []types.VgGroup) bool {
+	if len(src) != len(dst) {
+		return true
+	}
+	dstMap := map[string]uint64{}
+	for _, d := range dst {
+		dstMap[d.VGName] = d.VGSize
+	}
+
+	for _, s := range src {
+		if v, ok := dstMap[s.VGName]; !ok {
+			return true
+		} else if s.VGSize != v {
+			return true
+		}
+	}
+	return false
 }

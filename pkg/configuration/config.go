@@ -55,7 +55,7 @@ func dynamicConfig() {
 	GlobalConfig.OnConfigChange(func(event fsnotify.Event) {
 		log.Infof("Detect config change: %s", event.String())
 		for _, c := range configModifyNotice {
-			log.Info("produce config modify event")
+			log.Info("generates the configuration change event")
 			c <- struct{}{}
 		}
 	})

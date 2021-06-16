@@ -63,7 +63,7 @@ func (t *Trouble) CleanupOrphanVolume() {
 		return
 	}
 
-	// step.4 对比本地volume与logicVolume是否一致， 远程没有的便删除本地的
+	// step.4 对比本地volume与logicVolume是否一致， 集群中没有的便删除本地的
 	log.Infof("%s cleanup orphan volume", logPrefix)
 	mapLvList := map[string]bool{}
 	for _, v := range lvList.Items {

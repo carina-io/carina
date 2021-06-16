@@ -44,6 +44,10 @@ function uninstall() {
   kubectl delete configmap carina-node-storage -n kube-system
   kubectl label namespace kube-system carina.storage.io/webhook-
 
+  for z in `kubectl get nodes | awk 'NR!=1 {print $1}'`; do
+    kubectl label node $z topology.carina.storage.io/node-
+  done
+
   if [ `kubectl get lv | wc -l` == 0 ]; then
     kubectl delete -f crd.yaml
   fi
