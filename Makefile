@@ -10,6 +10,7 @@ IMG ?= controller:latest
 # Produce CRDs that work back to Kubernetes 1.11 (no version conversion)
 CRD_OPTIONS ?= "crd:trivialVersions=true"
 
+IMAGE_REPOSITORY=registry.cn-hangzhou.aliyuncs.com
 IMAGE_TAG ?= latest
 
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
@@ -78,9 +79,9 @@ docker-push:
 
 # Push the docker image
 release:
-	docker rmi antmoveh/carina:$(IMAGE_TAG) 2>&1 1>/dev/null;\
-    docker build -t antmoveh/carina:$(IMAGE_TAG) . ;\
-    docker push antmoveh/carina:$(IMAGE_TAG)
+	docker rmi $(IMAGE_REPOSITORY)/antmoveh/carina:$(IMAGE_TAG) 2>&1 1>/dev/null;\
+    docker build -t $(IMAGE_REPOSITORY)/antmoveh/carina:$(IMAGE_TAG) . ;\
+    docker push $(IMAGE_REPOSITORY)/antmoveh/carina:$(IMAGE_TAG)
 
 # Push the docker image
 local:
