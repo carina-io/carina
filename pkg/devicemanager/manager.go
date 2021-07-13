@@ -201,7 +201,7 @@ func (dm *DeviceManager) DiscoverDisk() (map[string][]string, error) {
 		if strings.Contains(d.Name, types.KEYWORD) {
 			continue
 		}
-		// 如果是其他磁盘对Parent直接跳过
+		// 如果是其他磁盘Parent直接跳过
 		if _, ok := parentDisk[d.Name]; ok {
 			continue
 		}
@@ -213,7 +213,7 @@ func (dm *DeviceManager) DiscoverDisk() (map[string][]string, error) {
 
 		// 过滤不支持的磁盘类型
 		diskTypeCheck := true
-		for _, t := range []string{types.LVMType, types.PartType, types.CryptType, types.MultiPath, "rom"} {
+		for _, t := range []string{types.LVMType, types.CryptType, types.MultiPath, "rom"} {
 			if strings.Contains(d.Type, t) {
 				diskTypeCheck = false
 				break
