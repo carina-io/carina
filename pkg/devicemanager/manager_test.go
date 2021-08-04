@@ -1,7 +1,7 @@
 package deviceManager
 
 import (
-	"bocloud.com/cloudnative/carina/pkg/configuration"
+	"github.com/bocloud/carina/pkg/configuration"
 	"bytes"
 	"fmt"
 	"os"

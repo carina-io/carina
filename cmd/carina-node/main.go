@@ -1,8 +1,8 @@
 package main
 
 import (
-	"bocloud.com/cloudnative/carina/cmd/carina-node/run"
-	"bocloud.com/cloudnative/carina/utils/log"
+	"github.com/bocloud/carina/cmd/carina-node/run"
+	"github.com/bocloud/carina/utils/log"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 	"os"
 )

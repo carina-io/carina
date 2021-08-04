@@ -1,11 +1,11 @@
 package driver
 
 import (
-	"bocloud.com/cloudnative/carina/pkg/csidriver/csi"
-	"bocloud.com/cloudnative/carina/pkg/csidriver/driver/k8s"
-	"bocloud.com/cloudnative/carina/utils"
-	"bocloud.com/cloudnative/carina/utils/log"
-	"bocloud.com/cloudnative/carina/utils/mutx"
+	"github.com/bocloud/carina/pkg/csidriver/csi"
+	"github.com/bocloud/carina/pkg/csidriver/driver/k8s"
+	"github.com/bocloud/carina/utils"
+	"github.com/bocloud/carina/utils/log"
+	"github.com/bocloud/carina/utils/mutx"
 	"context"
 	"errors"
 	"fmt"

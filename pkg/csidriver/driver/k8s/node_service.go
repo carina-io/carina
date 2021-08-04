@@ -1,9 +1,9 @@
 package k8s
 
 import (
-	"bocloud.com/cloudnative/carina/pkg/configuration"
-	"bocloud.com/cloudnative/carina/pkg/csidriver/csi"
-	"bocloud.com/cloudnative/carina/utils"
+	"github.com/bocloud/carina/pkg/configuration"
+	"github.com/bocloud/carina/pkg/csidriver/csi"
+	"github.com/bocloud/carina/utils"
 	"context"
 	"errors"
 	"fmt"

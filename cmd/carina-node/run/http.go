@@ -1,7 +1,7 @@
 package run
 
 import (
-	"bocloud.com/cloudnative/carina/pkg/devicemanager/volume"
+	"github.com/bocloud/carina/pkg/devicemanager/volume"
 	"github.com/labstack/echo/v4"
 	"net/http"
 )

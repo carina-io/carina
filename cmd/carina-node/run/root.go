@@ -1,7 +1,7 @@
 package run
 
 import (
-	"bocloud.com/cloudnative/carina/utils"
+	"github.com/bocloud/carina/utils"
 	"flag"
 	"fmt"
 	"github.com/spf13/cobra"

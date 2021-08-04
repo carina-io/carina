@@ -3,7 +3,7 @@ package main
 import (
 	"math/rand"
 	"os"
-	"bocloud.com/cloudnative/carina/scheduler/schedulerplugin/localstorage"
+	"github.com/bocloud/carina/scheduler/schedulerplugin/localstorage"
 	"time"
 
 	"k8s.io/component-base/logs"

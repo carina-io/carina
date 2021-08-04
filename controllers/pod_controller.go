@@ -1,9 +1,9 @@
 package controllers
 
 import (
-	"bocloud.com/cloudnative/carina/utils"
-	"bocloud.com/cloudnative/carina/utils/exec"
-	"bocloud.com/cloudnative/carina/utils/log"
+	"github.com/bocloud/carina/utils"
+	"github.com/bocloud/carina/utils/exec"
+	"github.com/bocloud/carina/utils/log"
 	"bufio"
 	"context"
 	"fmt"

@@ -1,7 +1,7 @@
 package runners
 
 import (
-	"bocloud.com/cloudnative/carina/pkg/devicemanager/volume"
+	"github.com/bocloud/carina/pkg/devicemanager/volume"
 	"context"
 	"strings"
 	"time"

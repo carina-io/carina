@@ -1,9 +1,9 @@
 package controllers
 
 import (
-	carinav1 "bocloud.com/cloudnative/carina/api/v1"
-	"bocloud.com/cloudnative/carina/utils"
-	"bocloud.com/cloudnative/carina/utils/log"
+	carinav1 "github.com/bocloud/carina/api/v1"
+	"github.com/bocloud/carina/utils"
+	"github.com/bocloud/carina/utils/log"
 	"context"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"

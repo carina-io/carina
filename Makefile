@@ -4,6 +4,7 @@ K8S_VERSION=1.20.4
 KUBEBUILDER_VERSION = 2.3.1
 KUSTOMIZE_VERSION= 3.8.9
 PROTOC_VERSION=3.15.0
+DATE=$(shell date '+%Y%m%d%H%M%S')
 
 # Image URL to use all building/pushing image targets
 IMG ?= controller:latest
@@ -11,7 +12,7 @@ IMG ?= controller:latest
 CRD_OPTIONS ?= "crd:trivialVersions=true"
 
 IMAGE_REPOSITORY=registry.cn-hangzhou.aliyuncs.com
-IMAGE_TAG ?= latest
+VERSION ?= latest
 
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
 ifeq (,$(shell go env GOBIN))
@@ -79,14 +80,14 @@ docker-push:
 
 # Push the docker image
 release:
-	docker rmi $(IMAGE_REPOSITORY)/antmoveh/carina:$(IMAGE_TAG) 2>&1 1>/dev/null;\
-    docker build -t $(IMAGE_REPOSITORY)/antmoveh/carina:$(IMAGE_TAG) . ;\
-    docker push $(IMAGE_REPOSITORY)/antmoveh/carina:$(IMAGE_TAG)
+	docker rmi $(IMAGE_REPOSITORY)/antmoveh/carina:$(VERSION)-$(DATE) 2>&1 1>/dev/null;\
+    docker build -t $(IMAGE_REPOSITORY)/antmoveh/carina:$(VERSION)-$(DATE) . ;\
+    docker push $(IMAGE_REPOSITORY)/antmoveh/carina:$(VERSION)-$(DATE)
 
 # Push the docker image
 local:
-	go build -ldflags="-X main.gitCommitID=`git rev-parse HEAD`" -gcflags '-N -l' -o bin/carina-node bocloud.com/cloudnative/carina/cmd/carina-node ;\
-	go build -ldflags="-X main.gitCommitID=`git rev-parse HEAD`" -gcflags '-N -l' -o bin/carina-controller bocloud.com/cloudnative/carina/cmd/carina-controller ;\
+	go build -ldflags="-X main.gitCommitID=`git rev-parse HEAD`" -gcflags '-N -l' -o bin/carina-node github.com/bocloud/carina/cmd/carina-node ;\
+	go build -ldflags="-X main.gitCommitID=`git rev-parse HEAD`" -gcflags '-N -l' -o bin/carina-controller github.com/bocloud/carina/cmd/carina-controller ;\
 	docker rmi 192.168.56.101:5000/carina:latest 1>/dev/null 2>&1;\
 	docker build -f Dockerfile.local -t 192.168.56.101:5000/carina:latest . ;\
 	docker push 192.168.56.101:5000/carina:latest

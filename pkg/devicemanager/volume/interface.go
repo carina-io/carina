@@ -1,7 +1,7 @@
 package volume
 
 import (
-	"bocloud.com/cloudnative/carina/pkg/devicemanager/types"
+	"github.com/bocloud/carina/pkg/devicemanager/types"
 )
 
 const (

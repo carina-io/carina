@@ -1,13 +1,13 @@
 package driver
 
 import (
-	"bocloud.com/cloudnative/carina/pkg/csidriver/csi"
-	"bocloud.com/cloudnative/carina/pkg/csidriver/driver/k8s"
-	"bocloud.com/cloudnative/carina/pkg/csidriver/filesystem"
-	"bocloud.com/cloudnative/carina/pkg/devicemanager/types"
-	"bocloud.com/cloudnative/carina/pkg/devicemanager/volume"
-	"bocloud.com/cloudnative/carina/utils"
-	"bocloud.com/cloudnative/carina/utils/log"
+	"github.com/bocloud/carina/pkg/csidriver/csi"
+	"github.com/bocloud/carina/pkg/csidriver/driver/k8s"
+	"github.com/bocloud/carina/pkg/csidriver/filesystem"
+	"github.com/bocloud/carina/pkg/devicemanager/types"
+	"github.com/bocloud/carina/pkg/devicemanager/volume"
+	"github.com/bocloud/carina/utils"
+	"github.com/bocloud/carina/utils/log"
 	"context"
 	"errors"
 	"io"

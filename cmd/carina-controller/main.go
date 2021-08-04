@@ -1,8 +1,8 @@
 package main
 
 import (
-	"bocloud.com/cloudnative/carina/cmd/carina-controller/run"
-	"bocloud.com/cloudnative/carina/utils/log"
+	"github.com/bocloud/carina/cmd/carina-controller/run"
+	"github.com/bocloud/carina/utils/log"
 )
 
 var gitCommitID = "dev"

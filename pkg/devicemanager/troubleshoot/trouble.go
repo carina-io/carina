@@ -1,9 +1,9 @@
 package troubleshoot
 
 import (
-	carinav1 "bocloud.com/cloudnative/carina/api/v1"
-	"bocloud.com/cloudnative/carina/pkg/devicemanager/volume"
-	"bocloud.com/cloudnative/carina/utils/log"
+	carinav1 "github.com/bocloud/carina/api/v1"
+	"github.com/bocloud/carina/pkg/devicemanager/volume"
+	"github.com/bocloud/carina/utils/log"
 	"context"
 	"fmt"
 	"sigs.k8s.io/controller-runtime/pkg/cache"

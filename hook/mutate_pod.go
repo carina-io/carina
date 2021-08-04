@@ -1,8 +1,8 @@
 package hook
 
 import (
-	"bocloud.com/cloudnative/carina/utils"
-	"bocloud.com/cloudnative/carina/utils/log"
+	"github.com/bocloud/carina/utils"
+	"github.com/bocloud/carina/utils/log"
 	"context"
 	"encoding/json"
 	corev1 "k8s.io/api/core/v1"

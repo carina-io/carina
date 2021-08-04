@@ -1,7 +1,7 @@
 package runners
 
 import (
-	"bocloud.com/cloudnative/carina/utils"
+	"github.com/bocloud/carina/utils"
 	"context"
 	"net"
 	"os"

@@ -1,7 +1,7 @@
 package server
 
 import (
-	deviceManager "bocloud.com/cloudnative/carina/pkg/devicemanager"
+	deviceManager "github.com/bocloud/carina/pkg/devicemanager"
 	"github.com/labstack/echo/v4"
 	"net/http"
 	"strconv"

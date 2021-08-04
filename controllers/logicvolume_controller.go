@@ -17,9 +17,9 @@ limitations under the License.
 package controllers
 
 import (
-	"bocloud.com/cloudnative/carina/pkg/devicemanager/volume"
-	"bocloud.com/cloudnative/carina/utils"
-	"bocloud.com/cloudnative/carina/utils/log"
+	"github.com/bocloud/carina/pkg/devicemanager/volume"
+	"github.com/bocloud/carina/utils"
+	"github.com/bocloud/carina/utils/log"
 	"context"
 	"fmt"
 	"google.golang.org/grpc/codes"
@@ -33,7 +33,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"time"
 
-	carinav1 "bocloud.com/cloudnative/carina/api/v1"
+	carinav1 "github.com/bocloud/carina/api/v1"
 )
 
 // LogicVolumeReconciler reconciles a LogicVolume object

@@ -1,7 +1,7 @@
 package e2e
 
 import (
-	"bocloud.com/cloudnative/carina/utils/log"
+	"github.com/bocloud/carina/utils/log"
 	"encoding/json"
 	"fmt"
 	. "github.com/onsi/ginkgo"

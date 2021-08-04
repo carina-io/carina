@@ -6,7 +6,7 @@ https://github.com/kubernetes/kubernetes/blob/v1.19.7/pkg/util/resizefs/resizefs
 package filesystem
 
 import (
-	"bocloud.com/cloudnative/carina/utils/log"
+	"github.com/bocloud/carina/utils/log"
 	"fmt"
 	"k8s.io/mount-utils"
 )

@@ -1,8 +1,8 @@
 package run
 
 import (
-	"bocloud.com/cloudnative/carina/pkg/devicemanager/types"
-	"bocloud.com/cloudnative/carina/utils/log"
+	"github.com/bocloud/carina/pkg/devicemanager/types"
+	"github.com/bocloud/carina/utils/log"
 	"context"
 	"encoding/json"
 	"errors"

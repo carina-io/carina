@@ -1,11 +1,11 @@
 package deviceplugin
 
 import (
-	"bocloud.com/cloudnative/carina/pkg/devicemanager/types"
-	"bocloud.com/cloudnative/carina/pkg/devicemanager/volume"
-	"bocloud.com/cloudnative/carina/pkg/deviceplugin/v1beta1"
-	"bocloud.com/cloudnative/carina/utils"
-	"bocloud.com/cloudnative/carina/utils/log"
+	"github.com/bocloud/carina/pkg/devicemanager/types"
+	"github.com/bocloud/carina/pkg/devicemanager/volume"
+	"github.com/bocloud/carina/pkg/deviceplugin/v1beta1"
+	"github.com/bocloud/carina/utils"
+	"github.com/bocloud/carina/utils/log"
 	"fmt"
 	"net"
 	"os"

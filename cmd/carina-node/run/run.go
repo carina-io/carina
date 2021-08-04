@@ -1,14 +1,14 @@
 package run
 
 import (
-	carinav1 "bocloud.com/cloudnative/carina/api/v1"
-	"bocloud.com/cloudnative/carina/controllers"
-	"bocloud.com/cloudnative/carina/pkg/csidriver/csi"
-	"bocloud.com/cloudnative/carina/pkg/csidriver/driver"
-	"bocloud.com/cloudnative/carina/pkg/csidriver/driver/k8s"
-	"bocloud.com/cloudnative/carina/pkg/csidriver/runners"
-	deviceManager "bocloud.com/cloudnative/carina/pkg/devicemanager"
-	"bocloud.com/cloudnative/carina/pkg/deviceplugin"
+	carinav1 "github.com/bocloud/carina/api/v1"
+	"github.com/bocloud/carina/controllers"
+	"github.com/bocloud/carina/pkg/csidriver/csi"
+	"github.com/bocloud/carina/pkg/csidriver/driver"
+	"github.com/bocloud/carina/pkg/csidriver/driver/k8s"
+	"github.com/bocloud/carina/pkg/csidriver/runners"
+	deviceManager "github.com/bocloud/carina/pkg/devicemanager"
+	"github.com/bocloud/carina/pkg/deviceplugin"
 	"context"
 	"errors"
 	"google.golang.org/grpc"
