@@ -1,8 +1,8 @@
 # Build the manager binary
-FROM golang:1.15-buster AS builder
+FROM golang:1.16.6-buster AS builder
 
 ENV GO111MODULE=on CGO_ENABLED=0 GOOS=linux GOARCH=amd64 GOPROXY=https://goproxy.cn,direct
-ENV WORKSPACE=/workspace/bocloud.com/cloudnative/carina
+ENV WORKSPACE=/workspace/github.com/bocloud/carina
 
 WORKDIR $WORKSPACE
 ADD . .
@@ -17,12 +17,12 @@ FROM antmoveh/centos-lvm2:v4
 # copy binary file
 COPY --from=builder /tmp/carina-node /usr/bin/
 COPY --from=builder /tmp/carina-controller /usr/bin/
-COPY --from=builder /workspace/bocloud.com/cloudnative/carina/debug/config.json /etc/carina/
+COPY --from=builder /workspace/github.com/bocloud/carina/debug/config.json /etc/carina/
 
 RUN chmod +x /usr/bin/carina-node && chmod +x /usr/bin/carina-controller
 
 # Update time zone to Asia-Shanghai
-COPY --from=builder /workspace/bocloud.com/cloudnative/carina/Shanghai /etc/localtime
+COPY --from=builder /workspace/github.com/bocloud/carina/Shanghai /etc/localtime
 RUN echo 'Asia/Shanghai' > /etc/timezone
 
 CMD ["echo carina-node carina-controller"]

@@ -1,6 +1,6 @@
-module bocloud.com/cloudnative/carina
+module github.com/bocloud/carina
 
-go 1.15
+go 1.16
 
 require (
 	github.com/fsnotify/fsnotify v1.4.9

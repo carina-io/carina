@@ -1,5 +1,7 @@
 
-IMAGE_TAG ?= latest
+IMAGE_REPOSITORY=registry.cn-hangzhou.aliyuncs.com
+VERSION ?= latest
+DATE=$(shell date '+%Y%m%d%H%M%S')
 
 # Run tests
 test:
@@ -18,6 +20,6 @@ docker-push:
 
 # Push the docker image
 release:
-	docker rmi antmoveh/scheduler:$(IMAGE_TAG) 2>&1 1>/dev/null;\
-    docker build -t antmoveh/scheduler:$(IMAGE_TAG) . ;\
-    docker push antmoveh/scheduler:$(IMAGE_TAG)
+	docker rmi $(IMAGE_REPOSITORY)/antmoveh/scheduler:$(VERSION)-$(DATE) 2>&1 1>/dev/null;\
+    docker build -t $(IMAGE_REPOSITORY)/antmoveh/scheduler:$(VERSION)-$(DATE) . ;\
+    docker push $(IMAGE_REPOSITORY)/antmoveh/scheduler:$(VERSION)-$(DATE)

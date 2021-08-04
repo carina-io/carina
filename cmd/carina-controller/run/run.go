@@ -1,17 +1,32 @@
+/*
+   Copyright @ 2021 fushaosong <fushaosong@beyondlet.com>.
+
+   Licensed under the Apache License, Version 2.0 (the "License");
+   you may not use this file except in compliance with the License.
+   You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+   Unless required by applicable law or agreed to in writing, software
+   distributed under the License is distributed on an "AS IS" BASIS,
+   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   See the License for the specific language governing permissions and
+   limitations under the License.
+*/
 package run
 
 import (
-	carinav1 "bocloud.com/cloudnative/carina/api/v1"
-	"bocloud.com/cloudnative/carina/controllers"
-	"bocloud.com/cloudnative/carina/hook"
-	"bocloud.com/cloudnative/carina/pkg/configuration"
-	"bocloud.com/cloudnative/carina/pkg/csidriver/csi"
-	"bocloud.com/cloudnative/carina/pkg/csidriver/driver"
-	"bocloud.com/cloudnative/carina/pkg/csidriver/driver/k8s"
-	"bocloud.com/cloudnative/carina/pkg/csidriver/runners"
-	"bocloud.com/cloudnative/carina/utils"
 	"context"
 	"fmt"
+	carinav1 "github.com/bocloud/carina/api/v1"
+	"github.com/bocloud/carina/controllers"
+	"github.com/bocloud/carina/hook"
+	"github.com/bocloud/carina/pkg/configuration"
+	"github.com/bocloud/carina/pkg/csidriver/csi"
+	"github.com/bocloud/carina/pkg/csidriver/driver"
+	"github.com/bocloud/carina/pkg/csidriver/driver/k8s"
+	"github.com/bocloud/carina/pkg/csidriver/runners"
+	"github.com/bocloud/carina/utils"
 	"google.golang.org/grpc"
 	corev1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"

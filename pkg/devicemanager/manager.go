@@ -1,16 +1,31 @@
+/*
+   Copyright @ 2021 fushaosong <fushaosong@beyondlet.com>.
+
+   Licensed under the Apache License, Version 2.0 (the "License");
+   you may not use this file except in compliance with the License.
+   You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+   Unless required by applicable law or agreed to in writing, software
+   distributed under the License is distributed on an "AS IS" BASIS,
+   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   See the License for the specific language governing permissions and
+   limitations under the License.
+*/
 package deviceManager
 
 import (
-	"bocloud.com/cloudnative/carina/pkg/configuration"
-	"bocloud.com/cloudnative/carina/pkg/devicemanager/device"
-	"bocloud.com/cloudnative/carina/pkg/devicemanager/lvmd"
-	"bocloud.com/cloudnative/carina/pkg/devicemanager/troubleshoot"
-	"bocloud.com/cloudnative/carina/pkg/devicemanager/types"
-	"bocloud.com/cloudnative/carina/pkg/devicemanager/volume"
-	"bocloud.com/cloudnative/carina/utils"
-	"bocloud.com/cloudnative/carina/utils/exec"
-	"bocloud.com/cloudnative/carina/utils/log"
-	"bocloud.com/cloudnative/carina/utils/mutx"
+	"github.com/bocloud/carina/pkg/configuration"
+	"github.com/bocloud/carina/pkg/devicemanager/device"
+	"github.com/bocloud/carina/pkg/devicemanager/lvmd"
+	"github.com/bocloud/carina/pkg/devicemanager/troubleshoot"
+	"github.com/bocloud/carina/pkg/devicemanager/types"
+	"github.com/bocloud/carina/pkg/devicemanager/volume"
+	"github.com/bocloud/carina/utils"
+	"github.com/bocloud/carina/utils/exec"
+	"github.com/bocloud/carina/utils/log"
+	"github.com/bocloud/carina/utils/mutx"
 	"regexp"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"strings"
