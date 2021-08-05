@@ -16,18 +16,20 @@
 package driver
 
 import (
+	"context"
+	"errors"
+	"fmt"
 	"github.com/bocloud/carina/pkg/csidriver/csi"
 	"github.com/bocloud/carina/pkg/csidriver/driver/k8s"
 	"github.com/bocloud/carina/utils"
 	"github.com/bocloud/carina/utils/log"
 	"github.com/bocloud/carina/utils/mutx"
-	"context"
-	"errors"
-	"fmt"
+	"strconv"
 	"strings"
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 // NewControllerService returns a new ControllerServer.
@@ -127,6 +129,13 @@ func (s controllerService) CreateVolume(ctx context.Context, req *csi.CreateVolu
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "can not find pvc %s %s", namespace, name)
 	}
+
+	// if bcache type, need create two lvm volume
+	cacheDiskRatio := req.GetParameters()[utils.VolumeCacheDiskRatio]
+	if cacheDiskRatio != "" && cacheDiskRatio != "0" {
+		return s.CreateBcacheVolume(ctx, req, node, requestGb)
+	}
+
 	// sc parameter未设置device group
 	if node != "" && deviceGroup == "" {
 		group, err := s.nodeService.SelectDeviceGroup(ctx, requestGb, node)
@@ -161,7 +170,7 @@ func (s controllerService) CreateVolume(ctx context.Context, req *csi.CreateVolu
 		deviceGroup = group
 	}
 
-	volumeID, deviceMajor, deviceMinor, err := s.lvService.CreateVolume(ctx, namespace, pvcName, node, deviceGroup, name, requestGb)
+	volumeID, deviceMajor, deviceMinor, err := s.lvService.CreateVolume(ctx, namespace, pvcName, node, deviceGroup, name, requestGb, metav1.OwnerReference{})
 	if err != nil {
 		_, ok := status.FromError(err)
 		if !ok {
@@ -389,4 +398,151 @@ func convertRequestCapacity(requestBytes, limitBytes int64) (int64, error) {
 		return utils.MinRequestSizeGb, nil
 	}
 	return (requestBytes-1)>>30 + 1, nil
+}
+
+func (s controllerService) CreateBcacheVolume(ctx context.Context, req *csi.CreateVolumeRequest, node string, requestGb int64) (*csi.CreateVolumeResponse, error) {
+	source := req.GetVolumeContentSource()
+	name := req.GetName()
+	if name == "" {
+		return nil, status.Error(codes.InvalidArgument, "invalid name")
+	}
+	name = strings.ToLower(name)
+	requirements := req.GetAccessibilityRequirements()
+
+	backendDiskType := req.GetParameters()[utils.VolumeBackendDiskType]
+	cacheDiskType := req.GetParameters()[utils.VolumeCacheDiskType]
+	cacheDiskRatio := req.GetParameters()[utils.VolumeCacheDiskRatio]
+	cachepolicy := req.GetParameters()[utils.VolumeCachePolicy]
+
+	if backendDiskType == "" {
+		return nil, status.Errorf(codes.FailedPrecondition, "%s %s, can not be empty", utils.VolumeBackendDiskType, backendDiskType)
+	}
+
+	if cacheDiskType == "" {
+		return nil, status.Errorf(codes.FailedPrecondition, "%s %s, can not be empty", utils.VolumeCacheDiskType, cacheDiskType)
+	}
+
+	backendDiskType = strings.ToLower(backendDiskType)
+	if backendDiskType != "" {
+		if !strings.HasPrefix(backendDiskType, "carina-vg-") {
+			backendDiskType = fmt.Sprintf("carina-vg-%s", backendDiskType)
+		}
+	}
+
+	cacheDiskType = strings.ToLower(cacheDiskType)
+	if cacheDiskType != "" {
+		if !strings.HasPrefix(cacheDiskType, "carina-vg-") {
+			cacheDiskType = fmt.Sprintf("carina-vg-%s", cacheDiskType)
+		}
+	}
+
+	if !utils.ContainsString([]string{"writethrough", "writeback", "writearound"}, cachepolicy) {
+		cachepolicy = "writethrough"
+	}
+
+	ratio, err := strconv.ParseInt(cacheDiskRatio, 10, 64)
+	if err != nil {
+		return nil, status.Errorf(codes.FailedPrecondition, "carina.storage.io/cache-disk-ratio %s, Should be in 1-100", cacheDiskRatio)
+	}
+	if ratio < 1 || ratio >= 100 {
+		return nil, status.Errorf(codes.FailedPrecondition, "carina.storage.io/cache-disk-ratio %s, Should be in 1-100", cacheDiskRatio)
+	}
+
+	cacheRequestGb := requestGb / ratio
+	backendRequestGb := requestGb - cacheRequestGb
+
+	if cacheRequestGb <= 0 || backendRequestGb <= 0 {
+		return nil, status.Errorf(codes.FailedPrecondition, "pvc request capacity and cache ratio are inappropriate")
+	}
+
+	backendVolumeName := name
+	cacheVolumeName := "cache-" + name[5:]
+	pvcName := req.Parameters["csi.storage.k8s.io/pvc/name"]
+	namespace := req.Parameters["csi.storage.k8s.io/pvc/namespace"]
+	segments := map[string]string{}
+
+	if node == "" {
+		// xxxx
+		log.Info("decide node because accessibility_requirements not found")
+		nodeName, segmentsTmp, err := s.nodeService.SelectMultiVolumeNode(ctx, backendDiskType, cacheDiskType, backendRequestGb, cacheRequestGb, requirements)
+		if err != nil {
+			return nil, status.Errorf(codes.Internal, "failed to get max capacity node %v", err)
+		}
+		if nodeName == "" {
+			return nil, status.Error(codes.Internal, "can not find any node")
+		}
+		node = nodeName
+		segments = segmentsTmp
+	}
+
+	backendDiskVolumeID, backendDiskDeviceMajor, backendDiskDeviceMinor, err := s.lvService.CreateVolume(ctx, namespace, pvcName, node, backendDiskType, backendVolumeName, backendRequestGb, metav1.OwnerReference{})
+	if err != nil {
+		s, ok := status.FromError(err)
+		if s.Code() != codes.AlreadyExists {
+			if !ok {
+				return nil, status.Error(codes.Internal, err.Error())
+			}
+			return nil, err
+		}
+	}
+
+	lv, err := s.lvService.GetLogicVolume(ctx, backendDiskVolumeID)
+	if err != nil {
+		if err == k8s.ErrVolumeNotFound {
+			return nil, status.Errorf(codes.NotFound, "LogicalVolume for volume id %s is not found", backendDiskVolumeID)
+		}
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+
+	controller := true
+	blockOwnerDeletion := true
+	owner := metav1.OwnerReference{
+		APIVersion:         lv.APIVersion,
+		Kind:               lv.Kind,
+		Name:               lv.Name,
+		UID:                lv.UID,
+		Controller:         &controller,
+		BlockOwnerDeletion: &blockOwnerDeletion,
+	}
+
+	cacheDiskVolumeID, cacheDiskDeviceMajor, cacheDiskDeviceMinor, err := s.lvService.CreateVolume(ctx, namespace, pvcName, node, cacheDiskType, cacheVolumeName, cacheRequestGb, owner)
+	if err != nil {
+		_, ok := status.FromError(err)
+		if !ok {
+			return nil, status.Error(codes.Internal, err.Error())
+		}
+		return nil, err
+	}
+
+	// pv csi VolumeAttributes
+	volumeContext := req.GetParameters()
+	volumeContext[utils.DeviceDiskKey] = backendDiskType
+	volumeContext[utils.VolumeDevicePath] = fmt.Sprintf("/dev/%s/volume-%s", backendDiskType, backendVolumeName)
+	volumeContext[utils.VolumeDeviceNode] = node
+	volumeContext[utils.VolumeDeviceMajor] = fmt.Sprintf("%d", backendDiskDeviceMajor)
+	volumeContext[utils.VolumeDeviceMinor] = fmt.Sprintf("%d", backendDiskDeviceMinor)
+	volumeContext[utils.VolumeCacheDiskType] = cacheDiskType
+	volumeContext[utils.VolumeCacheDevicePath] = fmt.Sprintf("/dev/%s/volume-%s", cacheDiskType, cacheVolumeName)
+	volumeContext[utils.VolumeCacheDeviceMajor] = fmt.Sprintf("%d", cacheDiskDeviceMajor)
+	volumeContext[utils.VolumeCacheDeviceMinor] = fmt.Sprintf("%d", cacheDiskDeviceMinor)
+	volumeContext[utils.VolumeCachePolicy] = cachepolicy
+	volumeContext[utils.VolumeCacheDiskRatio] = cacheDiskRatio
+	volumeContext["carina.storage.io/cache-volume-id"] = cacheDiskVolumeID
+
+	// pv nodeAffinity
+	segments[utils.TopologyNodeKey] = node
+
+	return &csi.CreateVolumeResponse{
+		Volume: &csi.Volume{
+			CapacityBytes: requestGb << 30,
+			VolumeId:      backendDiskVolumeID,
+			VolumeContext: volumeContext,
+			ContentSource: source,
+			AccessibleTopology: []*csi.Topology{
+				{
+					Segments: segments,
+				},
+			},
+		},
+	}, nil
 }

@@ -16,12 +16,12 @@
 package k8s
 
 import (
-	carinav1 "github.com/bocloud/carina/api/v1"
-	"github.com/bocloud/carina/utils"
-	"github.com/bocloud/carina/utils/log"
 	"context"
 	"errors"
 	"fmt"
+	carinav1 "github.com/bocloud/carina/api/v1"
+	"github.com/bocloud/carina/utils"
+	"github.com/bocloud/carina/utils/log"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sync"
 	"time"
@@ -35,7 +35,7 @@ import (
 )
 
 type logicVolumeService interface {
-	CreateVolume(ctx context.Context, namespace, pvc, node, deviceGroup, name string, requestGb int64) (string, uint32, uint32, error)
+	CreateVolume(ctx context.Context, namespace, pvc, node, deviceGroup, name string, requestGb int64, owner metav1.OwnerReference) (string, uint32, uint32, error)
 	DeleteVolume(ctx context.Context, volumeID string) error
 	ExpandVolume(ctx context.Context, volumeID string, requestGb int64) error
 	GetLogicVolume(ctx context.Context, volumeID string) (*carinav1.LogicVolume, error)
@@ -73,7 +73,7 @@ func NewLogicVolumeService(mgr manager.Manager) (*LogicVolumeService, error) {
 }
 
 // CreateVolume creates volume
-func (s *LogicVolumeService) CreateVolume(ctx context.Context, namespace, pvc, node, deviceGroup, name string, requestGb int64) (string, uint32, uint32, error) {
+func (s *LogicVolumeService) CreateVolume(ctx context.Context, namespace, pvc, node, deviceGroup, name string, requestGb int64, owner metav1.OwnerReference) (string, uint32, uint32, error) {
 	log.Info("k8s.CreateVolume called name ", name, " node ", node, " size_gb ", requestGb)
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -84,8 +84,9 @@ func (s *LogicVolumeService) CreateVolume(ctx context.Context, namespace, pvc, n
 			APIVersion: "carina.storage.io/v1",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      name,
-			Namespace: utils.LogicVolumeNamespace,
+			Name:            name,
+			Namespace:       utils.LogicVolumeNamespace,
+			OwnerReferences: []metav1.OwnerReference{owner},
 		},
 		Spec: carinav1.LogicVolumeSpec{
 			NodeName:    node,
