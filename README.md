@@ -5,6 +5,10 @@
 - 项目状态：开发测试中
 - CSI Version: 1.3.0
 
+#### Carina architecture
+
+![carina-arch](docs/img/carina.png)
+
 #### 支持的环境
 
 - Kubernetes：1.20 1.19 1.18
