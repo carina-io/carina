@@ -530,7 +530,6 @@ func (v *LocalVolumeImplement) RegisterNoticeServer(vgName string, notice chan s
 }
 
 // bcache
-
 func (v *LocalVolumeImplement) CreateBcache(dev, cacheDev string) (string, error) {
 	err := v.Bcache.CreateBcache(dev, cacheDev)
 	if err != nil {
@@ -541,15 +540,16 @@ func (v *LocalVolumeImplement) CreateBcache(dev, cacheDev string) (string, error
 	if err != nil {
 		return "", err
 	}
-	path, err := v.Bcache.GetDeviceBcache(dev)
+	deviceInfo, err := v.Bcache.GetDeviceBcache(dev)
 	if err != nil {
 		return "", err
 	}
 
-	return path, nil
+	return deviceInfo.DevicePath, nil
 }
 
 func (v *LocalVolumeImplement) DeleteBcache(dev, cacheDev string) error {
+
 	err := v.Bcache.RemoveBcache(dev, cacheDev)
 
 	if err != nil {
@@ -557,6 +557,7 @@ func (v *LocalVolumeImplement) DeleteBcache(dev, cacheDev string) error {
 	}
 	return nil
 }
+
 func (v *LocalVolumeImplement) BcacheDeviceInfo(dev string) (*types.BcacheDeviceInfo, error) {
 	bcacheInfo, err := v.Bcache.ShowDevice(dev)
 	if err != nil {
@@ -570,6 +571,7 @@ func (v *LocalVolumeImplement) BcacheDeviceInfo(dev string) (*types.BcacheDevice
 	}
 	bcacheInfo.KernelMajor = deviceInfo.KernelMajor
 	bcacheInfo.KernelMinor = deviceInfo.KernelMinor
+	bcacheInfo.Name = deviceInfo.Name
 
 	return bcacheInfo, nil
 }

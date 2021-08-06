@@ -16,6 +16,7 @@
 package bcache
 
 import (
+	"fmt"
 	"github.com/bocloud/carina/pkg/devicemanager/types"
 	"github.com/bocloud/carina/utils/exec"
 )
@@ -29,6 +30,23 @@ func (bi *BcacheImplement) CreateBcache(dev, cacheDev string) error {
 }
 
 func (bi *BcacheImplement) RemoveBcache(dev, cacheDev string) error {
+
+	// bcacheInfo, err := bi.ShowDevice(cacheDev)
+	// if err != nil {
+	// 	return err
+	// }
+	//
+	// deviceInfo, err := bi.GetDeviceBcache(dev)
+	// if err != nil {
+	// 	return err
+	// }
+
+	p := fmt.Sprintf("/sys/block/bcache0/bcache/detach")
+
+	err := bi.Executor.ExecuteCommand("echo", "1", ">", p)
+	if err != nil {
+		return err
+	}
 
 	return nil
 
