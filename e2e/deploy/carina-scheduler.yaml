@@ -115,7 +115,7 @@ spec:
       priorityClassName: system-cluster-critical
       containers:
         - name: carina-scheduler
-          image: antmoveh/scheduler:latest
+          image: 192.168.56.101:5000/scheduler:latest
           imagePullPolicy: "Always"
           command: ["carina-scheduler"]
           args:

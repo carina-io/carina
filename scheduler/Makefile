@@ -12,11 +12,10 @@ docker-build: test
 	docker build . -t ${IMG}
 
 # Push the docker image
-docker-push:
-# 	docker push ${IMG}
-	docker rmi docker.hub.com/carina/scheduler:latest 1>/dev/null 2>&1;\
-    docker build -t docker.hub.com/carina/scheduler:latest . ;\
-    docker push docker.hub.com/carina/scheduler:latest
+latest:
+	docker rmi $(IMAGE_REPOSITORY)/antmoveh/scheduler:latest 2>&1 1>/dev/null;\
+    docker build -t $(IMAGE_REPOSITORY)/antmoveh/scheduler:latest . ;\
+    docker push $(IMAGE_REPOSITORY)/antmoveh/scheduler:latest
 
 # Push the docker image
 release:
