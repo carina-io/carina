@@ -34,8 +34,12 @@ func (bi *BcacheImplement) RemoveBcache(dev, cacheDev string) error {
 
 }
 
-func (bi *BcacheImplement) GetDeviceBcache(dev string) (string, error) {
-	return "", nil
+func (bi *BcacheImplement) GetDeviceBcache(dev string) (*types.BcacheDeviceInfo, error) {
+	deviceInfo, err := bi.Executor.ExecuteCommandWithOutput("lsblk", "--all", "--noheadings", "--list", "--output", "KNAME, KNAME,MAJ:MIN", dev)
+	if err != nil {
+		return nil, err
+	}
+	return parseDevice(deviceInfo), nil
 }
 
 func (bi *BcacheImplement) RegisterDevice(dev ...string) error {

@@ -135,3 +135,32 @@ func CloneVolume(c echo.Context) error {
 	}
 	return c.JSON(http.StatusOK, "")
 }
+
+func CreateBcache(c echo.Context) error {
+	dev := c.FormValue("dev")
+	cacheDev := c.FormValue("cache_dev")
+	devicePath, err := dm.VolumeManager.CreateBcache(dev, cacheDev)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, err)
+	}
+	return c.JSON(http.StatusOK, devicePath)
+}
+
+func DeleteBcache(c echo.Context) error {
+	dev := c.FormValue("dev")
+	cacheDev := c.FormValue("cache_dev")
+	err := dm.VolumeManager.DeleteVolume(dev, cacheDev)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, err)
+	}
+	return c.JSON(http.StatusOK, "")
+}
+
+func GetBcache(c echo.Context) error {
+	dev := c.FormValue("dev")
+	info, err := dm.VolumeManager.BcacheDeviceInfo(dev)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, err)
+	}
+	return c.JSON(http.StatusOK, info)
+}

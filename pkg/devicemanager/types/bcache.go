@@ -29,7 +29,7 @@ type BcacheDeviceInfo struct {
 	DataCacheState   string `json:"data_cache_state"`
 	CsetUuid         string `json:"cset_uuid"`
 
-	DevicePath    string `json:"device_path"`
-	LVKernelMajor uint32 `json:"lvKernelMajor"`
-	LVKernelMinor uint32 `json:"lvKernelMinor"`
+	DevicePath  string `json:"device_path"`
+	KernelMajor uint32 `json:"lvKernelMajor"`
+	KernelMinor uint32 `json:"lvKernelMinor"`
 }

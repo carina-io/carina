@@ -20,3 +20,8 @@ import "github.com/bocloud/carina/pkg/devicemanager/types"
 func parseBcache(bcacheInfo string) *types.BcacheDeviceInfo {
 	return &types.BcacheDeviceInfo{}
 }
+
+func parseDevice(deviceInfo string) *types.BcacheDeviceInfo {
+	return &types.BcacheDeviceInfo{}
+
+}

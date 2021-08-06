@@ -549,7 +549,7 @@ func (v *LocalVolumeImplement) CreateBcache(dev, cacheDev string) (string, error
 	return path, nil
 }
 
-func (v *LocalVolumeImplement) RemoveBcache(dev, cacheDev string) error {
+func (v *LocalVolumeImplement) DeleteBcache(dev, cacheDev string) error {
 	err := v.Bcache.RemoveBcache(dev, cacheDev)
 
 	if err != nil {
@@ -563,6 +563,13 @@ func (v *LocalVolumeImplement) BcacheDeviceInfo(dev string) (*types.BcacheDevice
 		return nil, err
 	}
 	bcacheInfo.DevicePath = dev
+
+	deviceInfo, err := v.Bcache.GetDeviceBcache(dev)
+	if err != nil {
+		return nil, err
+	}
+	bcacheInfo.KernelMajor = deviceInfo.KernelMajor
+	bcacheInfo.KernelMinor = deviceInfo.KernelMinor
 
 	return bcacheInfo, nil
 }

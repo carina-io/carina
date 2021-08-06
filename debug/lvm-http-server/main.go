@@ -36,5 +36,9 @@ func main() {
 	e.POST("/volume/snapshot/restore", server2.RestoreSnapshot)
 	e.POST("/volume/clone", server2.CloneVolume)
 
+	e.POST("/volume/bcache/create", server2.CreateBcache)
+	e.DELETE("/volume/bcache/delete", server2.DeleteBcache)
+	e.GET("/volume/bcache", server2.GetBcache)
+
 	e.Logger.Fatal(e.Start(":8080"))
 }

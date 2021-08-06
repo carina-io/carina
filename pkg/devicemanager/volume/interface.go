@@ -57,6 +57,6 @@ type LocalVolume interface {
 
 	// bcache
 	CreateBcache(dev, cacheDev string) (string, error)
-	RemoveBcache(dev, cacheDev string) error
+	DeleteBcache(dev, cacheDev string) error
 	BcacheDeviceInfo(dev string) (*types.BcacheDeviceInfo, error)
 }

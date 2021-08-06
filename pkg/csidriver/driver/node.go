@@ -549,6 +549,10 @@ func (s *nodeService) nodePublishBcacheVolume(ctx context.Context, req *csi.Node
 	backendDevice := volumeContext[utils.VolumeDevicePath]
 	cacheDevice := volumeContext[utils.VolumeCacheDevicePath]
 
+	if backendDevice == "" || cacheDevice == "" {
+		return nil, status.Errorf(codes.FailedPrecondition, "carina.storage.io/path %s carina.storage.io/cache/path %s, can not be empty", backendDevice, cacheDevice)
+	}
+
 	devicePath, err := s.volumeManager.CreateBcache(backendDevice, cacheDevice)
 	if err != nil {
 		return nil, err
@@ -579,7 +583,7 @@ func (s *nodeService) nodePublishBcacheBlockVolume(req *csi.NodePublishVolumeReq
 	err := filesystem.Stat(target, &stat)
 	switch err {
 	case nil:
-		if stat.Rdev == unix.Mkdev(cacheDeviceInfo.LVKernelMajor, cacheDeviceInfo.LVKernelMinor) && stat.Mode&devicePermission == devicePermission {
+		if stat.Rdev == unix.Mkdev(cacheDeviceInfo.KernelMajor, cacheDeviceInfo.KernelMinor) && stat.Mode&devicePermission == devicePermission {
 			return &csi.NodePublishVolumeResponse{}, nil
 		}
 		if err := os.Remove(target); err != nil {
@@ -595,7 +599,7 @@ func (s *nodeService) nodePublishBcacheBlockVolume(req *csi.NodePublishVolumeReq
 		return nil, status.Errorf(codes.Internal, "mkdir failed: target=%s, error=%v", path.Dir(target), err)
 	}
 
-	devno := unix.Mkdev(cacheDeviceInfo.LVKernelMajor, cacheDeviceInfo.LVKernelMinor)
+	devno := unix.Mkdev(cacheDeviceInfo.KernelMajor, cacheDeviceInfo.KernelMinor)
 	if err := filesystem.Mknod(target, devicePermission, int(devno)); err != nil {
 		return nil, status.Errorf(codes.Internal, "mknod failed for %s: error=%v", target, err)
 	}

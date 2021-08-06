@@ -25,7 +25,7 @@ type Bcache interface {
 	RemoveBcache(dev, cacheDev string) error
 
 	//
-	GetDeviceBcache(dev string) (string, error)
+	GetDeviceBcache(dev string) (*types.BcacheDeviceInfo, error)
 	RegisterDevice(dev ...string) error
 	ShowDevice(dev string) (*types.BcacheDeviceInfo, error)
 }
