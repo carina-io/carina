@@ -15,7 +15,10 @@
 */
 package bcache
 
-import "github.com/bocloud/carina/utils/exec"
+import (
+	"github.com/bocloud/carina/pkg/devicemanager/types"
+	"github.com/bocloud/carina/utils/exec"
+)
 
 type BcacheImplement struct {
 	Executor exec.Executor
@@ -31,14 +34,24 @@ func (bi *BcacheImplement) RemoveBcache(dev, cacheDev string) error {
 
 }
 
-func (bi *BcacheImplement) GetDeviceBcache(dev string) error {
+func (bi *BcacheImplement) GetDeviceBcache(dev string) (string, error) {
+	return "", nil
+}
+
+func (bi *BcacheImplement) RegisterDevice(dev ...string) error {
+	for _, d := range dev {
+		err := bi.Executor.ExecuteCommand("bcache-register", d)
+		if err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
-func (bi *BcacheImplement) RegisterDevice(dev string) error {
-	return bi.Executor.ExecuteCommand("bcache-register", dev)
-}
-
-func (bi *BcacheImplement) ShowDevice(dev string) error {
-	return bi.Executor.ExecuteCommand("bcache-super-show", dev)
+func (bi *BcacheImplement) ShowDevice(dev string) (*types.BcacheDeviceInfo, error) {
+	bcacheInfo, err := bi.Executor.ExecuteCommandWithOutput("bcache-super-show", dev)
+	if err != nil {
+		return nil, err
+	}
+	return parseBcache(bcacheInfo), nil
 }

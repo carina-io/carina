@@ -16,6 +16,8 @@
 package driver
 
 import (
+	"context"
+	"errors"
 	"github.com/bocloud/carina/pkg/csidriver/csi"
 	"github.com/bocloud/carina/pkg/csidriver/driver/k8s"
 	"github.com/bocloud/carina/pkg/csidriver/filesystem"
@@ -23,8 +25,6 @@ import (
 	"github.com/bocloud/carina/pkg/devicemanager/volume"
 	"github.com/bocloud/carina/utils"
 	"github.com/bocloud/carina/utils/log"
-	"context"
-	"errors"
 	"io"
 	"os"
 	"path"
@@ -103,6 +103,11 @@ func (s *nodeService) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 
 	s.mu.Lock()
 	defer s.mu.Unlock()
+
+	cacheVolumeId := volumeContext[utils.VolumeCacheId]
+	if cacheVolumeId != "" {
+		return s.nodePublishBcacheVolume(ctx, req)
+	}
 
 	var lv *types.LvInfo
 	var err error
@@ -535,4 +540,129 @@ func (s *nodeService) getLvFromContext(deviceGroup, volumeID string) (*types.LvI
 	}
 
 	return nil, errors.New("not found")
+}
+
+func (s *nodeService) nodePublishBcacheVolume(ctx context.Context, req *csi.NodePublishVolumeRequest) (*csi.NodePublishVolumeResponse, error) {
+
+	volumeContext := req.GetVolumeContext()
+
+	backendDevice := volumeContext[utils.VolumeDevicePath]
+	cacheDevice := volumeContext[utils.VolumeCacheDevicePath]
+
+	devicePath, err := s.volumeManager.CreateBcache(backendDevice, cacheDevice)
+	if err != nil {
+		return nil, err
+	}
+	cacheDeviceInfo, err := s.volumeManager.BcacheDeviceInfo(devicePath)
+	if err != nil {
+		return nil, err
+	}
+
+	isBlockVol := req.GetVolumeCapability().GetBlock() != nil
+	isFsVol := req.GetVolumeCapability().GetMount() != nil
+	if isBlockVol {
+		_, err = s.nodePublishBcacheBlockVolume(req, cacheDeviceInfo)
+	} else if isFsVol {
+		_, err = s.nodePublishBcacheFilesystemVolume(req, cacheDeviceInfo)
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	return &csi.NodePublishVolumeResponse{}, nil
+}
+
+func (s *nodeService) nodePublishBcacheBlockVolume(req *csi.NodePublishVolumeRequest, cacheDeviceInfo *types.BcacheDeviceInfo) (*csi.NodePublishVolumeResponse, error) {
+	// Find lv and create a block device with it
+	var stat unix.Stat_t
+	target := req.GetTargetPath()
+	err := filesystem.Stat(target, &stat)
+	switch err {
+	case nil:
+		if stat.Rdev == unix.Mkdev(cacheDeviceInfo.LVKernelMajor, cacheDeviceInfo.LVKernelMinor) && stat.Mode&devicePermission == devicePermission {
+			return &csi.NodePublishVolumeResponse{}, nil
+		}
+		if err := os.Remove(target); err != nil {
+			return nil, status.Errorf(codes.Internal, "failed to remove %s", target)
+		}
+	case unix.ENOENT:
+	default:
+		return nil, status.Errorf(codes.Internal, "failed to stat: %v", err)
+	}
+
+	err = os.MkdirAll(path.Dir(target), 0755)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "mkdir failed: target=%s, error=%v", path.Dir(target), err)
+	}
+
+	devno := unix.Mkdev(cacheDeviceInfo.LVKernelMajor, cacheDeviceInfo.LVKernelMinor)
+	if err := filesystem.Mknod(target, devicePermission, int(devno)); err != nil {
+		return nil, status.Errorf(codes.Internal, "mknod failed for %s: error=%v", target, err)
+	}
+
+	log.Info("NodePublishVolume(block) succeeded",
+		" volume_id ", req.GetVolumeId(),
+		" target_path ", target)
+	return &csi.NodePublishVolumeResponse{}, nil
+}
+
+func (s *nodeService) nodePublishBcacheFilesystemVolume(req *csi.NodePublishVolumeRequest, cacheDeviceInfo *types.BcacheDeviceInfo) (*csi.NodePublishVolumeResponse, error) {
+	// Check request
+	mountOption := req.GetVolumeCapability().GetMount()
+	if mountOption.FsType == "" {
+		mountOption.FsType = "ext4"
+	}
+	accessMode := req.GetVolumeCapability().GetAccessMode().GetMode()
+	if accessMode != csi.VolumeCapability_AccessMode_SINGLE_NODE_WRITER {
+		modeName := csi.VolumeCapability_AccessMode_Mode_name[int32(accessMode)]
+		return nil, status.Errorf(codes.FailedPrecondition, "unsupported access mode: %s", modeName)
+	}
+
+	var mountOptions []string
+	if req.GetReadonly() {
+		mountOptions = append(mountOptions, "ro")
+	}
+
+	for _, m := range mountOption.MountFlags {
+		if m == "rw" && req.GetReadonly() {
+			return nil, status.Error(codes.InvalidArgument, "mount option \"rw\" is specified even though read only mode is specified")
+		}
+		mountOptions = append(mountOptions, m)
+	}
+
+	err := os.MkdirAll(req.GetTargetPath(), 0755)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "mkdir failed: target=%s, error=%v", req.GetTargetPath(), err)
+	}
+
+	fsType, err := filesystem.DetectFilesystem(cacheDeviceInfo.DevicePath)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "filesystem check failed: volume=%s, error=%v", req.GetVolumeId(), err)
+	}
+
+	if fsType != "" && fsType != mountOption.FsType {
+		return nil, status.Errorf(codes.Internal, "target device is already formatted with different filesystem: volume=%s, current=%s, new:%s", req.GetVolumeId(), fsType, mountOption.FsType)
+	}
+
+	mounted, err := filesystem.IsMounted(cacheDeviceInfo.DevicePath, req.GetTargetPath())
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "mount check failed: target=%s, error=%v", req.GetTargetPath(), err)
+	}
+
+	if !mounted {
+		log.Infof("mount %s %s %s %s", cacheDeviceInfo.DevicePath, req.GetTargetPath(), mountOption.FsType, strings.Join(mountOptions, ","))
+		if err := s.mounter.FormatAndMount(cacheDeviceInfo.DevicePath, req.GetTargetPath(), mountOption.FsType, mountOptions); err != nil {
+			return nil, status.Errorf(codes.Internal, "mount failed: volume=%s, error=%v", req.GetVolumeId(), err)
+		}
+		if err := os.Chmod(req.GetTargetPath(), 0777|os.ModeSetgid); err != nil {
+			return nil, status.Errorf(codes.Internal, "chmod 2777 failed: target=%s, error=%v", req.GetTargetPath(), err)
+		}
+	}
+
+	log.Info("NodePublishVolume(fs) succeeded",
+		" volume_id ", req.GetVolumeId(),
+		" target_path ", req.GetTargetPath(),
+		" fstype ", mountOption.FsType)
+
+	return &csi.NodePublishVolumeResponse{}, nil
 }

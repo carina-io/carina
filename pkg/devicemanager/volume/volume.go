@@ -16,14 +16,15 @@
 package volume
 
 import (
+	"context"
+	"errors"
+	"fmt"
+	"github.com/bocloud/carina/pkg/devicemanager/bcache"
 	"github.com/bocloud/carina/pkg/devicemanager/lvmd"
 	"github.com/bocloud/carina/pkg/devicemanager/types"
 	"github.com/bocloud/carina/utils"
 	"github.com/bocloud/carina/utils/log"
 	"github.com/bocloud/carina/utils/mutx"
-	"context"
-	"errors"
-	"fmt"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"strings"
@@ -34,6 +35,7 @@ const VOLUMEMUTEX = "VolumeMutex"
 
 type LocalVolumeImplement struct {
 	Lv              lvmd.Lvm2
+	Bcache          bcache.Bcache
 	Mutex           *mutx.GlobalLocks
 	NoticeServerMap map[string]chan struct{}
 }
@@ -525,4 +527,42 @@ func (v *LocalVolumeImplement) NoticeUpdateCapacity(vgName []string) {
 
 func (v *LocalVolumeImplement) RegisterNoticeServer(vgName string, notice chan struct{}) {
 	v.NoticeServerMap[vgName] = notice
+}
+
+// bcache
+
+func (v *LocalVolumeImplement) CreateBcache(dev, cacheDev string) (string, error) {
+	err := v.Bcache.CreateBcache(dev, cacheDev)
+	if err != nil {
+		log.Errorf("create bcache failed device %s cache device %s error %s", dev, cacheDev, err.Error())
+		return "", err
+	}
+	err = v.Bcache.RegisterDevice(dev, cacheDev)
+	if err != nil {
+		return "", err
+	}
+	path, err := v.Bcache.GetDeviceBcache(dev)
+	if err != nil {
+		return "", err
+	}
+
+	return path, nil
+}
+
+func (v *LocalVolumeImplement) RemoveBcache(dev, cacheDev string) error {
+	err := v.Bcache.RemoveBcache(dev, cacheDev)
+
+	if err != nil {
+		return err
+	}
+	return nil
+}
+func (v *LocalVolumeImplement) BcacheDeviceInfo(dev string) (*types.BcacheDeviceInfo, error) {
+	bcacheInfo, err := v.Bcache.ShowDevice(dev)
+	if err != nil {
+		return nil, err
+	}
+	bcacheInfo.DevicePath = dev
+
+	return bcacheInfo, nil
 }

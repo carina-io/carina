@@ -527,7 +527,7 @@ func (s controllerService) CreateBcacheVolume(ctx context.Context, req *csi.Crea
 	volumeContext[utils.VolumeCacheDeviceMinor] = fmt.Sprintf("%d", cacheDiskDeviceMinor)
 	volumeContext[utils.VolumeCachePolicy] = cachepolicy
 	volumeContext[utils.VolumeCacheDiskRatio] = cacheDiskRatio
-	volumeContext["carina.storage.io/cache-volume-id"] = cacheDiskVolumeID
+	volumeContext[utils.VolumeCacheId] = cacheDiskVolumeID
 
 	// pv nodeAffinity
 	segments[utils.TopologyNodeKey] = node

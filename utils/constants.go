@@ -61,6 +61,7 @@ const (
 	VolumeCacheDevicePath  = "carina.storage.io/cache/path"
 	VolumeCacheDeviceMajor = "carina.storage.io/cache/major"
 	VolumeCacheDeviceMinor = "carina.storage.io/cache/minor"
+	VolumeCacheId          = "carina.storage.io/cache-volume-id"
 
 	// topology
 	// TopologyZoneKey is the key of topology that represents zone name.

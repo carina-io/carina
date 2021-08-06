@@ -15,13 +15,17 @@
 */
 package bcache
 
+import (
+	"github.com/bocloud/carina/pkg/devicemanager/types"
+)
+
 type Bcache interface {
 	// create bcache
 	CreateBcache(dev, cacheDev string) error
 	RemoveBcache(dev, cacheDev string) error
 
 	//
-	GetDeviceBcache(dev string) error
-	RegisterDevice(dev string) error
-	ShowDevice(dev string) error
+	GetDeviceBcache(dev string) (string, error)
+	RegisterDevice(dev ...string) error
+	ShowDevice(dev string) (*types.BcacheDeviceInfo, error)
 }

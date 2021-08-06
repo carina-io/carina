@@ -17,6 +17,7 @@ package deviceManager
 
 import (
 	"github.com/bocloud/carina/pkg/configuration"
+	"github.com/bocloud/carina/pkg/devicemanager/bcache"
 	"github.com/bocloud/carina/pkg/devicemanager/device"
 	"github.com/bocloud/carina/pkg/devicemanager/lvmd"
 	"github.com/bocloud/carina/pkg/devicemanager/troubleshoot"
@@ -44,6 +45,8 @@ type DeviceManager struct {
 	LvmManager lvmd.Lvm2
 	// Volume 操作
 	VolumeManager volume.LocalVolume
+	// bcache
+	Bcache bcache.Bcache
 	// stop
 	stopChan <-chan struct{}
 	nodeName string
@@ -64,8 +67,10 @@ func NewDeviceManager(nodeName string, cache cache.Cache, stopChan <-chan struct
 		VolumeManager: &volume.LocalVolumeImplement{
 			Mutex:           mutex,
 			Lv:              &lvmd.Lvm2Implement{Executor: executor},
+			Bcache:          &bcache.BcacheImplement{Executor: executor},
 			NoticeServerMap: make(map[string]chan struct{}),
 		},
+		Bcache:   &bcache.BcacheImplement{Executor: executor},
 		stopChan: stopChan,
 		nodeName: nodeName,
 	}

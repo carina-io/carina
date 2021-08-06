@@ -14,3 +14,9 @@
    limitations under the License.
 */
 package bcache
+
+import "github.com/bocloud/carina/pkg/devicemanager/types"
+
+func parseBcache(bcacheInfo string) *types.BcacheDeviceInfo {
+	return &types.BcacheDeviceInfo{}
+}

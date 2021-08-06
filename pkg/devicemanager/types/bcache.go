@@ -14,3 +14,22 @@
    limitations under the License.
 */
 package types
+
+// bcache
+type BcacheDeviceInfo struct {
+	Magic            string `json:"magic"`
+	FirstSector      string `json:"first_sector"`
+	Csum             string `json:"csum"`
+	Label            string `json:"label"`
+	Uuid             string `json:"uuid"`
+	SectorsPerBlock  string `json:"sectors_per_block"`
+	SectorsPerBucket string `json:"sectors_per_bucket"`
+	DataFirstSector  string `json:"data_first_sector"`
+	DataCacheMode    string `json:"data_cache_mode"`
+	DataCacheState   string `json:"data_cache_state"`
+	CsetUuid         string `json:"cset_uuid"`
+
+	DevicePath    string `json:"device_path"`
+	LVKernelMajor uint32 `json:"lvKernelMajor"`
+	LVKernelMinor uint32 `json:"lvKernelMinor"`
+}
