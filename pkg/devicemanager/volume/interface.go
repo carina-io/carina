@@ -16,7 +16,6 @@
 package volume
 
 import (
-	"github.com/aws/aws-sdk-go/service/accessanalyzer"
 	"github.com/bocloud/carina/pkg/devicemanager/types"
 )
 
@@ -56,7 +55,7 @@ type LocalVolume interface {
 	RegisterNoticeServer(vgName string, notice chan struct{})
 
 	// bcache
-	CreateBcache(dev, cacheDev string) (string, error)
+	CreateBcache(dev, cacheDev string, block, bucket string, cacheMode string) (string, error)
 	DeleteBcache(dev, cacheDev string) error
 	BcacheDeviceInfo(dev string) (*types.BcacheDeviceInfo, error)
 }

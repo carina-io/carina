@@ -16,11 +16,11 @@
 package troubleshoot
 
 import (
+	"context"
+	"fmt"
 	carinav1 "github.com/bocloud/carina/api/v1"
 	"github.com/bocloud/carina/pkg/devicemanager/volume"
 	"github.com/bocloud/carina/utils/log"
-	"context"
-	"fmt"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"strings"
@@ -35,6 +35,10 @@ type Trouble struct {
 const logPrefix = "clean orphan volume:"
 
 func NewTroubleObject(volumeManager volume.LocalVolume, cache cache.Cache, nodeName string) *Trouble {
+
+	if cache == nil {
+		return nil
+	}
 
 	err := cache.IndexField(context.Background(), &carinav1.LogicVolume{}, "nodeName", func(object client.Object) []string {
 		return []string{object.(*carinav1.LogicVolume).Spec.NodeName}

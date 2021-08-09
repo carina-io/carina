@@ -25,25 +25,42 @@ type BcacheImplement struct {
 	Executor exec.Executor
 }
 
-func (bi *BcacheImplement) CreateBcache(dev, cacheDev string) error {
-	return bi.Executor.ExecuteCommand("make-bcache", "-B", dev, "-C", cacheDev)
+func (bi *BcacheImplement) CreateBcache(dev, cacheDev string, block, bucket string) error {
+	_ = bi.Executor.ExecuteCommand("wipefs", "-af", dev)
+	_ = bi.Executor.ExecuteCommand("wipefs", "-af", cacheDev)
+
+	if block != "" && bucket != "" {
+		return bi.Executor.ExecuteCommand("make-bcache", "--block", block, "--bucket", bucket, "-B", dev, "-C", cacheDev, "--wipe-bcache")
+	}
+
+	return bi.Executor.ExecuteCommand("make-bcache", "-B", dev, "-C", cacheDev, "--wipe-bcache")
 }
 
-func (bi *BcacheImplement) RemoveBcache(dev, cacheDev string) error {
+func (bi *BcacheImplement) RemoveBcache(bcacheInfo *types.BcacheDeviceInfo) error {
 
-	// bcacheInfo, err := bi.ShowDevice(cacheDev)
-	// if err != nil {
-	// 	return err
-	// }
-	//
-	// deviceInfo, err := bi.GetDeviceBcache(dev)
-	// if err != nil {
-	// 	return err
-	// }
+	var err error
+	var cmd string
 
-	p := fmt.Sprintf("/sys/block/bcache0/bcache/detach")
+	// remove cache device
+	cmd = fmt.Sprintf("echo %s > /sys/block/%s/bcache/detach", bcacheInfo.CsetUuid, bcacheInfo.Name)
+	err = bi.Executor.ExecuteCommand("/bin/sh", "-c", cmd)
+	if err != nil {
+		return err
+	}
 
-	err := bi.Executor.ExecuteCommand("echo", "1", ">", p)
+	cmd = fmt.Sprintf("echo 1 > /sys/fs/bcache/%s/unregister", bcacheInfo.CsetUuid)
+	// unregister cache device
+	err = bi.Executor.ExecuteCommand("/bin/sh", "-c", cmd)
+	if err != nil {
+		return err
+	}
+
+	// umount /dev/
+	_ = bi.Executor.ExecuteCommand("umount", fmt.Sprintf("/dev/%s", bcacheInfo.Name))
+
+	// stop backend device
+	cmd = fmt.Sprintf("echo 1 < /sys/block/%s/bcache/stop", bcacheInfo.Name)
+	err = bi.Executor.ExecuteCommand("/bin/sh", "-c", cmd)
 	if err != nil {
 		return err
 	}
@@ -52,8 +69,9 @@ func (bi *BcacheImplement) RemoveBcache(dev, cacheDev string) error {
 
 }
 
+// lsblk --pairs --noheadings --output KNAME,MAJ:MIN /dev/hdd/pvc-test-v1
 func (bi *BcacheImplement) GetDeviceBcache(dev string) (*types.BcacheDeviceInfo, error) {
-	deviceInfo, err := bi.Executor.ExecuteCommandWithOutput("lsblk", "--all", "--noheadings", "--list", "--output", "KNAME, KNAME,MAJ:MIN", dev)
+	deviceInfo, err := bi.Executor.ExecuteCommandWithOutput("lsblk", "--pairs", "--noheadings", "--output", "KNAME,MAJ:MIN", dev)
 	if err != nil {
 		return nil, err
 	}
@@ -76,4 +94,8 @@ func (bi *BcacheImplement) ShowDevice(dev string) (*types.BcacheDeviceInfo, erro
 		return nil, err
 	}
 	return parseBcache(bcacheInfo), nil
+}
+
+func (bi *BcacheImplement) SetCacheMode(bcache string, cachePolicy string) error {
+	return bi.Executor.ExecuteCommand("echo", cachePolicy, ">", fmt.Sprintf("/sys/block/%s/bcache/cache_mode", bcache))
 }

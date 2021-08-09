@@ -28,7 +28,7 @@ var stopChan chan struct{}
 func init() {
 	stopChan = make(chan struct{})
 
-	//dm = deviceManager.NewDeviceManager("localhost", c, stopChan)
+	dm = deviceManager.NewDeviceManager("localhost", nil, stopChan)
 }
 
 func Start(c echo.Context) error {
@@ -139,7 +139,10 @@ func CloneVolume(c echo.Context) error {
 func CreateBcache(c echo.Context) error {
 	dev := c.FormValue("dev")
 	cacheDev := c.FormValue("cache_dev")
-	devicePath, err := dm.VolumeManager.CreateBcache(dev, cacheDev)
+	block := c.FormValue("block")
+	bucket := c.FormValue("bucket")
+	mode := c.FormValue("mode")
+	devicePath, err := dm.VolumeManager.CreateBcache(dev, cacheDev, block, bucket, mode)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, err)
 	}
@@ -149,7 +152,7 @@ func CreateBcache(c echo.Context) error {
 func DeleteBcache(c echo.Context) error {
 	dev := c.FormValue("dev")
 	cacheDev := c.FormValue("cache_dev")
-	err := dm.VolumeManager.DeleteVolume(dev, cacheDev)
+	err := dm.VolumeManager.DeleteBcache(dev, cacheDev)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, err)
 	}

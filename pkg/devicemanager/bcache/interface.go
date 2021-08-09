@@ -21,11 +21,13 @@ import (
 
 type Bcache interface {
 	// create bcache
-	CreateBcache(dev, cacheDev string) error
-	RemoveBcache(dev, cacheDev string) error
+	CreateBcache(dev, cacheDev string, block, bucket string) error
+	RemoveBcache(bcacheInfo *types.BcacheDeviceInfo) error
 
 	//
 	GetDeviceBcache(dev string) (*types.BcacheDeviceInfo, error)
 	RegisterDevice(dev ...string) error
 	ShowDevice(dev string) (*types.BcacheDeviceInfo, error)
+
+	SetCacheMode(bcache string, cachePolicy string) error
 }

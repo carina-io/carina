@@ -530,19 +530,26 @@ func (v *LocalVolumeImplement) RegisterNoticeServer(vgName string, notice chan s
 }
 
 // bcache
-func (v *LocalVolumeImplement) CreateBcache(dev, cacheDev string) (string, error) {
-	err := v.Bcache.CreateBcache(dev, cacheDev)
+func (v *LocalVolumeImplement) CreateBcache(dev, cacheDev string, block, bucket string, cachePolicy string) (string, error) {
+	err := v.Bcache.CreateBcache(dev, cacheDev, block, bucket)
 	if err != nil {
 		log.Errorf("create bcache failed device %s cache device %s error %s", dev, cacheDev, err.Error())
 		return "", err
 	}
 	err = v.Bcache.RegisterDevice(dev, cacheDev)
 	if err != nil {
+		log.Errorf("register bcache failed device %s cache device %s error %s", dev, cacheDev, err.Error())
 		return "", err
 	}
 	deviceInfo, err := v.Bcache.GetDeviceBcache(dev)
 	if err != nil {
+		log.Errorf("get bcache device %s error %s", dev, cacheDev, err.Error())
 		return "", err
+	}
+
+	err = v.Bcache.SetCacheMode(deviceInfo.Name, cachePolicy)
+	if err != nil {
+		log.Errorf("set cache mode failed %s %s", deviceInfo.Name, err.Error())
 	}
 
 	return deviceInfo.DevicePath, nil
@@ -550,9 +557,22 @@ func (v *LocalVolumeImplement) CreateBcache(dev, cacheDev string) (string, error
 
 func (v *LocalVolumeImplement) DeleteBcache(dev, cacheDev string) error {
 
-	err := v.Bcache.RemoveBcache(dev, cacheDev)
+	deviceInfo, err := v.BcacheDeviceInfo(dev)
+	if err != nil {
+		log.Errorf("get device info error %s %s", dev, err.Error())
+		return err
+	}
+
+	cd, err := v.Bcache.GetDeviceBcache(cacheDev)
+	if err != nil {
+		log.Errorf("get device info error %s %s", cacheDev, err.Error())
+		return err
+	}
+	deviceInfo.DmCache = cd.DmDevice
+	err = v.Bcache.RemoveBcache(deviceInfo)
 
 	if err != nil {
+		log.Errorf("delete cache device failed %s", err.Error())
 		return err
 	}
 	return nil
@@ -567,11 +587,14 @@ func (v *LocalVolumeImplement) BcacheDeviceInfo(dev string) (*types.BcacheDevice
 
 	deviceInfo, err := v.Bcache.GetDeviceBcache(dev)
 	if err != nil {
+		log.Errorf("get device info error %s %s", dev, err.Error())
 		return nil, err
 	}
 	bcacheInfo.KernelMajor = deviceInfo.KernelMajor
 	bcacheInfo.KernelMinor = deviceInfo.KernelMinor
 	bcacheInfo.Name = deviceInfo.Name
+	bcacheInfo.BcachePath = deviceInfo.BcachePath
+	bcacheInfo.DmDevice = deviceInfo.DmDevice
 
 	return bcacheInfo, nil
 }

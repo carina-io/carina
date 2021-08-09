@@ -548,12 +548,15 @@ func (s *nodeService) nodePublishBcacheVolume(ctx context.Context, req *csi.Node
 
 	backendDevice := volumeContext[utils.VolumeDevicePath]
 	cacheDevice := volumeContext[utils.VolumeCacheDevicePath]
+	block := volumeContext[utils.VolumeCacheBlock]
+	bucket := volumeContext[utils.VolumeCacheBucket]
+	cachePolicy := volumeContext[utils.VolumeCachePolicy]
 
 	if backendDevice == "" || cacheDevice == "" {
 		return nil, status.Errorf(codes.FailedPrecondition, "carina.storage.io/path %s carina.storage.io/cache/path %s, can not be empty", backendDevice, cacheDevice)
 	}
 
-	devicePath, err := s.volumeManager.CreateBcache(backendDevice, cacheDevice)
+	devicePath, err := s.volumeManager.CreateBcache(backendDevice, cacheDevice, block, bucket, cachePolicy)
 	if err != nil {
 		return nil, err
 	}
