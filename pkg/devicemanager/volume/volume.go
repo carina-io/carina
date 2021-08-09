@@ -562,13 +562,6 @@ func (v *LocalVolumeImplement) DeleteBcache(dev, cacheDev string) error {
 		log.Errorf("get device info error %s %s", dev, err.Error())
 		return err
 	}
-
-	cd, err := v.Bcache.GetDeviceBcache(cacheDev)
-	if err != nil {
-		log.Errorf("get device info error %s %s", cacheDev, err.Error())
-		return err
-	}
-	deviceInfo.DmCache = cd.DmDevice
 	err = v.Bcache.RemoveBcache(deviceInfo)
 
 	if err != nil {
@@ -594,7 +587,6 @@ func (v *LocalVolumeImplement) BcacheDeviceInfo(dev string) (*types.BcacheDevice
 	bcacheInfo.KernelMinor = deviceInfo.KernelMinor
 	bcacheInfo.Name = deviceInfo.Name
 	bcacheInfo.BcachePath = deviceInfo.BcachePath
-	bcacheInfo.DmDevice = deviceInfo.DmDevice
 
 	return bcacheInfo, nil
 }

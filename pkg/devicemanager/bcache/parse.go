@@ -89,25 +89,12 @@ KNAME="bcache0" MAJ:MIN="251:0"
 func parseDevice(deviceInfo string) *types.BcacheDeviceInfo {
 	resp := &types.BcacheDeviceInfo{}
 	if deviceInfo == "" {
+		log.Error("the device information is empty")
 		return resp
 	}
 	deviceInfo = strings.ReplaceAll(deviceInfo, "\"", "")
 	cacheDeviceList := strings.Split(deviceInfo, "\n")
 	for _, cacheDevice := range cacheDeviceList {
-		if strings.Contains(cacheDevice, "dm") {
-			cds := strings.Split(cacheDevice, " ")
-			for _, cd := range cds {
-				k := strings.Split(cd, "=")
-				switch k[0] {
-				case "KNAME":
-					resp.DmDevice = k[1]
-				default:
-					log.Infof("ignore filed %s-%s", k[0], k[1])
-				}
-			}
-			continue
-		}
-
 		cds := strings.Split(cacheDevice, " ")
 		for _, cd := range cds {
 			k := strings.Split(cd, "=")

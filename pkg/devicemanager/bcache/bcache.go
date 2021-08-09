@@ -48,25 +48,21 @@ func (bi *BcacheImplement) RemoveBcache(bcacheInfo *types.BcacheDeviceInfo) erro
 		return err
 	}
 
-	cmd = fmt.Sprintf("echo 1 > /sys/fs/bcache/%s/unregister", bcacheInfo.CsetUuid)
 	// unregister cache device
-	err = bi.Executor.ExecuteCommand("/bin/sh", "-c", cmd)
-	if err != nil {
-		return err
-	}
+	cmd = fmt.Sprintf("echo 1 > /sys/fs/bcache/%s/unregister", bcacheInfo.CsetUuid)
+	_ = bi.Executor.ExecuteCommand("/bin/sh", "-c", cmd)
 
 	// umount /dev/
 	_ = bi.Executor.ExecuteCommand("umount", fmt.Sprintf("/dev/%s", bcacheInfo.Name))
 
 	// stop backend device
-	cmd = fmt.Sprintf("echo 1 < /sys/block/%s/bcache/stop", bcacheInfo.Name)
+	cmd = fmt.Sprintf("echo 1 > /sys/block/%s/bcache/stop", bcacheInfo.Name)
 	err = bi.Executor.ExecuteCommand("/bin/sh", "-c", cmd)
 	if err != nil {
 		return err
 	}
 
 	return nil
-
 }
 
 // lsblk --pairs --noheadings --output KNAME,MAJ:MIN /dev/hdd/pvc-test-v1
