@@ -55,7 +55,7 @@ type LocalVolume interface {
 	RegisterNoticeServer(vgName string, notice chan struct{})
 
 	// bcache
-	CreateBcache(dev, cacheDev string, block, bucket string, cacheMode string) (string, error)
+	CreateBcache(dev, cacheDev string, block, bucket string, cacheMode string) (*types.BcacheDeviceInfo, error)
 	DeleteBcache(dev, cacheDev string) error
 	BcacheDeviceInfo(dev string) (*types.BcacheDeviceInfo, error)
 }

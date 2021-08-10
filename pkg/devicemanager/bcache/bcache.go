@@ -85,7 +85,7 @@ func (bi *BcacheImplement) RegisterDevice(dev ...string) error {
 }
 
 func (bi *BcacheImplement) ShowDevice(dev string) (*types.BcacheDeviceInfo, error) {
-	bcacheInfo, err := bi.Executor.ExecuteCommandWithOutput("bcache-super-show", dev)
+	bcacheInfo, err := bi.Executor.ExecuteCommandWithOutput("bcache-super-show", "-f", dev)
 	if err != nil {
 		return nil, err
 	}
@@ -93,5 +93,6 @@ func (bi *BcacheImplement) ShowDevice(dev string) (*types.BcacheDeviceInfo, erro
 }
 
 func (bi *BcacheImplement) SetCacheMode(bcache string, cachePolicy string) error {
-	return bi.Executor.ExecuteCommand("echo", cachePolicy, ">", fmt.Sprintf("/sys/block/%s/bcache/cache_mode", bcache))
+	cmd := fmt.Sprintf("echo %s > /sys/block/%s/bcache/cache_mode", cachePolicy, bcache)
+	return bi.Executor.ExecuteCommand("/bin/sh", "-c", cmd)
 }

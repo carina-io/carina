@@ -532,29 +532,30 @@ func (v *LocalVolumeImplement) RegisterNoticeServer(vgName string, notice chan s
 }
 
 // bcache
-func (v *LocalVolumeImplement) CreateBcache(dev, cacheDev string, block, bucket string, cachePolicy string) (string, error) {
+func (v *LocalVolumeImplement) CreateBcache(dev, cacheDev string, block, bucket string, cachePolicy string) (*types.BcacheDeviceInfo, error) {
 	err := v.Bcache.CreateBcache(dev, cacheDev, block, bucket)
 	if err != nil {
 		log.Errorf("create bcache failed device %s cache device %s error %s", dev, cacheDev, err.Error())
-		return "", err
+		return nil, err
 	}
 	err = v.Bcache.RegisterDevice(dev, cacheDev)
 	if err != nil {
 		log.Errorf("register bcache failed device %s cache device %s error %s", dev, cacheDev, err.Error())
-		return "", err
+		return nil, err
 	}
 	deviceInfo, err := v.Bcache.GetDeviceBcache(dev)
 	if err != nil {
 		log.Errorf("get bcache device %s error %s", dev, cacheDev, err.Error())
-		return "", err
+		return nil, err
 	}
 
 	err = v.Bcache.SetCacheMode(deviceInfo.Name, cachePolicy)
 	if err != nil {
 		log.Errorf("set cache mode failed %s %s", deviceInfo.Name, err.Error())
+		return nil, err
 	}
 
-	return deviceInfo.DevicePath, nil
+	return deviceInfo, nil
 }
 
 func (v *LocalVolumeImplement) DeleteBcache(dev, cacheDev string) error {

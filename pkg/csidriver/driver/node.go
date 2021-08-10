@@ -556,11 +556,7 @@ func (s *nodeService) nodePublishBcacheVolume(ctx context.Context, req *csi.Node
 		return nil, status.Errorf(codes.FailedPrecondition, "carina.storage.io/path %s carina.storage.io/cache/path %s, can not be empty", backendDevice, cacheDevice)
 	}
 
-	devicePath, err := s.volumeManager.CreateBcache(backendDevice, cacheDevice, block, bucket, cachePolicy)
-	if err != nil {
-		return nil, err
-	}
-	cacheDeviceInfo, err := s.volumeManager.BcacheDeviceInfo(devicePath)
+	cacheDeviceInfo, err := s.volumeManager.CreateBcache(backendDevice, cacheDevice, block, bucket, cachePolicy)
 	if err != nil {
 		return nil, err
 	}
@@ -642,7 +638,7 @@ func (s *nodeService) nodePublishBcacheFilesystemVolume(req *csi.NodePublishVolu
 		return nil, status.Errorf(codes.Internal, "mkdir failed: target=%s, error=%v", req.GetTargetPath(), err)
 	}
 
-	fsType, err := filesystem.DetectFilesystem(cacheDeviceInfo.DevicePath)
+	fsType, err := filesystem.DetectFilesystem(cacheDeviceInfo.BcachePath)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "filesystem check failed: volume=%s, error=%v", req.GetVolumeId(), err)
 	}
@@ -651,14 +647,14 @@ func (s *nodeService) nodePublishBcacheFilesystemVolume(req *csi.NodePublishVolu
 		return nil, status.Errorf(codes.Internal, "target device is already formatted with different filesystem: volume=%s, current=%s, new:%s", req.GetVolumeId(), fsType, mountOption.FsType)
 	}
 
-	mounted, err := filesystem.IsMounted(cacheDeviceInfo.DevicePath, req.GetTargetPath())
+	mounted, err := filesystem.IsMounted(cacheDeviceInfo.BcachePath, req.GetTargetPath())
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "mount check failed: target=%s, error=%v", req.GetTargetPath(), err)
 	}
 
 	if !mounted {
-		log.Infof("mount %s %s %s %s", cacheDeviceInfo.DevicePath, req.GetTargetPath(), mountOption.FsType, strings.Join(mountOptions, ","))
-		if err := s.mounter.FormatAndMount(cacheDeviceInfo.DevicePath, req.GetTargetPath(), mountOption.FsType, mountOptions); err != nil {
+		log.Infof("mount %s %s %s %s", cacheDeviceInfo.BcachePath, req.GetTargetPath(), mountOption.FsType, strings.Join(mountOptions, ","))
+		if err := s.mounter.FormatAndMount(cacheDeviceInfo.BcachePath, req.GetTargetPath(), mountOption.FsType, mountOptions); err != nil {
 			return nil, status.Errorf(codes.Internal, "mount failed: volume=%s, error=%v", req.GetVolumeId(), err)
 		}
 		if err := os.Chmod(req.GetTargetPath(), 0777|os.ModeSetgid); err != nil {
