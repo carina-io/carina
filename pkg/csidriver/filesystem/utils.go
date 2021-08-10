@@ -16,8 +16,8 @@
 package filesystem
 
 import (
-	"github.com/bocloud/carina/utils/log"
 	"fmt"
+	"github.com/bocloud/carina/utils/log"
 	"io/ioutil"
 	"os"
 	"os/exec"

@@ -84,9 +84,8 @@ func (s *LogicVolumeService) CreateVolume(ctx context.Context, namespace, pvc, n
 			APIVersion: "carina.storage.io/v1",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:            name,
-			Namespace:       utils.LogicVolumeNamespace,
-			OwnerReferences: []metav1.OwnerReference{owner},
+			Name:      name,
+			Namespace: utils.LogicVolumeNamespace,
 		},
 		Spec: carinav1.LogicVolumeSpec{
 			NodeName:    node,
@@ -95,6 +94,10 @@ func (s *LogicVolumeService) CreateVolume(ctx context.Context, namespace, pvc, n
 			NameSpace:   namespace,
 			Pvc:         pvc,
 		},
+	}
+
+	if owner.Name != "" {
+		lv.OwnerReferences = []metav1.OwnerReference{owner}
 	}
 
 	existingLV := new(carinav1.LogicVolume)

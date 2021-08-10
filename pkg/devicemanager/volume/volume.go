@@ -112,6 +112,8 @@ func (v *LocalVolumeImplement) DeleteVolume(lvName, vgName string) error {
 		log.Errorf("get volume failed %s/%s %s", vgName, lvName, err.Error())
 		return err
 	}
+	// delete bcache device if exists
+	_ = v.DeleteBcache(fmt.Sprintf("/dev/%s/%s", vgName, name), "")
 	thinName := lvInfo.PoolLV
 	if err := v.Lv.LVRemove(name, vgName); err != nil {
 		return err

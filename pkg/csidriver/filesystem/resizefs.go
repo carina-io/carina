@@ -17,8 +17,8 @@
 package filesystem
 
 import (
-	"github.com/bocloud/carina/utils/log"
 	"fmt"
+	"github.com/bocloud/carina/utils/log"
 	"k8s.io/mount-utils"
 )
 

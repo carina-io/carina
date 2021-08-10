@@ -16,10 +16,10 @@
 package device
 
 import (
+	"fmt"
 	"github.com/bocloud/carina/pkg/devicemanager/types"
 	"github.com/bocloud/carina/utils/exec"
 	"github.com/bocloud/carina/utils/log"
-	"fmt"
 	"os"
 	"strconv"
 	"strings"

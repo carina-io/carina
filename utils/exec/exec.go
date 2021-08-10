@@ -18,9 +18,9 @@ package exec
 import (
 	"bufio"
 	"bytes"
-	"github.com/bocloud/carina/utils/log"
 	"context"
 	"fmt"
+	"github.com/bocloud/carina/utils/log"
 	"io"
 	"io/ioutil"
 	"os"

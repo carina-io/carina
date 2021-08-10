@@ -16,9 +16,9 @@
 package e2e
 
 import (
-	"github.com/bocloud/carina/utils/log"
 	"encoding/json"
 	"fmt"
+	"github.com/bocloud/carina/utils/log"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"

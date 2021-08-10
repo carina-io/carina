@@ -448,15 +448,15 @@ func (s controllerService) CreateBcacheVolume(ctx context.Context, req *csi.Crea
 		return nil, status.Errorf(codes.FailedPrecondition, "carina.storage.io/cache-disk-ratio %s, Should be in 1-100", cacheDiskRatio)
 	}
 
-	cacheRequestGb := requestGb / ratio
-	backendRequestGb := requestGb - cacheRequestGb
+	cacheRequestGb := requestGb * ratio / 100
+	backendRequestGb := requestGb
 
 	if cacheRequestGb <= 0 || backendRequestGb <= 0 {
-		return nil, status.Errorf(codes.FailedPrecondition, "pvc request capacity and cache ratio are inappropriate")
+		return nil, status.Errorf(codes.FailedPrecondition, "pvc request capacity and cache ratio are inappropriate, cacheRequestGb is %d", cacheRequestGb)
 	}
 
 	backendVolumeName := name
-	cacheVolumeName := "cache-" + name[5:]
+	cacheVolumeName := "cache-" + name[6:]
 	pvcName := req.Parameters["csi.storage.k8s.io/pvc/name"]
 	namespace := req.Parameters["csi.storage.k8s.io/pvc/namespace"]
 	segments := map[string]string{}

@@ -10,9 +10,9 @@ parameters:
   # disk group
   carina.storage.io/backend-disk-type: hdd
   carina.storage.io/cache-disk-type: ssd
-  // 1-100 Cache Capacity Ratio
-  carina.storage.io/cache-disk-ratio: 10
-  // writethrough/writeback/writearound
+  # 1-100 Cache Capacity Ratio
+  carina.storage.io/cache-disk-ratio: "50"
+  # writethrough/writeback/writearound
   carina.storage.io/cache-policy: writethrough
 reclaimPolicy: Delete
 allowVolumeExpansion: true

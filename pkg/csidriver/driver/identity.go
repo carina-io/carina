@@ -16,10 +16,10 @@
 package driver
 
 import (
+	"context"
 	"github.com/bocloud/carina/pkg/csidriver/csi"
 	"github.com/bocloud/carina/utils"
 	"github.com/bocloud/carina/utils/log"
-	"context"
 	"github.com/golang/protobuf/ptypes/wrappers"
 )
 
