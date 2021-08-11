@@ -143,7 +143,11 @@ func (r *NodeReconciler) getNeedRebuildVolume(ctx context.Context) (map[string]c
 	}
 
 	for _, lv := range lvList.Items {
-		// 删除没有对应lv的logic volume
+		// bcache logicvolume not be remove
+		if len(lv.OwnerReferences) > 0 {
+			continue
+		}
+		// 删除没有对应pv的logic volume
 		_, ok := pvMap[lv.Name]
 		if lv.Status.Status != "" && !ok {
 			if lv.Finalizers != nil && utils.ContainsString(lv.Finalizers, utils.LogicVolumeFinalizer) {

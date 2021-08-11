@@ -231,6 +231,10 @@ func (dm *DeviceManager) DiscoverDisk() (map[string][]string, error) {
 			continue
 		}
 
+		if strings.Contains(d.Name, "cache") {
+			continue
+		}
+
 		// 过滤不支持的磁盘类型
 		diskTypeCheck := true
 		for _, t := range []string{types.LVMType, types.CryptType, types.MultiPath, "rom"} {

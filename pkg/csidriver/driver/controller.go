@@ -26,6 +26,7 @@ import (
 	"github.com/bocloud/carina/utils/mutx"
 	"strconv"
 	"strings"
+	"time"
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -170,7 +171,7 @@ func (s controllerService) CreateVolume(ctx context.Context, req *csi.CreateVolu
 		deviceGroup = group
 	}
 
-	volumeID, deviceMajor, deviceMinor, err := s.lvService.CreateVolume(ctx, namespace, pvcName, node, deviceGroup, name, requestGb, metav1.OwnerReference{})
+	volumeID, deviceMajor, deviceMinor, err := s.lvService.CreateVolume(ctx, namespace, pvcName, node, deviceGroup, name, requestGb, metav1.OwnerReference{}, map[string]string{})
 	if err != nil {
 		_, ok := status.FromError(err)
 		if !ok {
@@ -374,6 +375,34 @@ func (s controllerService) ControllerExpandVolume(ctx context.Context, req *csi.
 		}
 		return nil, err
 	}
+
+	// if bcache enable
+	cacheDiskRatio := lv.Annotations[utils.VolumeCacheDiskRatio]
+	if cacheDiskRatio != "" {
+		go func() {
+			timeCtx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
+			defer cancel()
+
+			ratio, err := strconv.ParseInt(cacheDiskRatio, 10, 64)
+			if err != nil {
+				log.Errorf("carina.storage.io/cache-disk-ratio %s, Should be in 1-100", cacheDiskRatio)
+			}
+			if ratio < 1 || ratio >= 100 {
+				log.Errorf("carina.storage.io/cache-disk-ratio %s, Should be in 1-100", cacheDiskRatio)
+			}
+			cacheVolumeName := "volume-cache-" + lv.Name[6:]
+			cacheRequestGb := requestGb * ratio / 100
+
+			err = s.lvService.ExpandVolume(timeCtx, cacheVolumeName, cacheRequestGb)
+			if err != nil {
+				_, ok := status.FromError(err)
+				if !ok {
+					log.Errorf("cache expand failed %s", err.Error())
+				}
+			}
+		}()
+	}
+
 	return &csi.ControllerExpandVolumeResponse{
 		CapacityBytes:         requestGb << 30,
 		NodeExpansionRequired: true,
@@ -475,7 +504,11 @@ func (s controllerService) CreateBcacheVolume(ctx context.Context, req *csi.Crea
 		segments = segmentsTmp
 	}
 
-	backendDiskVolumeID, backendDiskDeviceMajor, backendDiskDeviceMinor, err := s.lvService.CreateVolume(ctx, namespace, pvcName, node, backendDiskType, backendVolumeName, backendRequestGb, metav1.OwnerReference{})
+	annotation := map[string]string{
+		utils.VolumeCacheDiskRatio: cacheDiskRatio,
+	}
+
+	backendDiskVolumeID, backendDiskDeviceMajor, backendDiskDeviceMinor, err := s.lvService.CreateVolume(ctx, namespace, pvcName, node, backendDiskType, backendVolumeName, backendRequestGb, metav1.OwnerReference{}, annotation)
 	if err != nil {
 		s, ok := status.FromError(err)
 		if s.Code() != codes.AlreadyExists {
@@ -505,7 +538,7 @@ func (s controllerService) CreateBcacheVolume(ctx context.Context, req *csi.Crea
 		BlockOwnerDeletion: &blockOwnerDeletion,
 	}
 
-	cacheDiskVolumeID, cacheDiskDeviceMajor, cacheDiskDeviceMinor, err := s.lvService.CreateVolume(ctx, namespace, pvcName, node, cacheDiskType, cacheVolumeName, cacheRequestGb, owner)
+	cacheDiskVolumeID, cacheDiskDeviceMajor, cacheDiskDeviceMinor, err := s.lvService.CreateVolume(ctx, namespace, pvcName, node, cacheDiskType, cacheVolumeName, cacheRequestGb, owner, annotation)
 	if err != nil {
 		_, ok := status.FromError(err)
 		if !ok {

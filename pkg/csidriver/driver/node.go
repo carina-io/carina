@@ -284,9 +284,20 @@ func (s *nodeService) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 	defer s.mu.Unlock()
 
 	device := filepath.Join(DeviceDirectory, volID)
+	backendDevice := ""
+
+	bcacheDevice, err := s.getBcacheDevice(volID)
+	if err == nil && bcacheDevice != nil {
+		device = bcacheDevice.BcachePath
+		backendDevice = bcacheDevice.DevicePath
+		log.Infof("bcache volume cache device %s backend device %s", device, backendDevice)
+	}
 
 	info, err := os.Stat(target)
 	if os.IsNotExist(err) {
+		if backendDevice != "" {
+			_ = s.volumeManager.DeleteBcache(backendDevice, "")
+		}
 		// target_path does not exist, but device for mount-type PV may still exist.
 		_ = os.Remove(device)
 		return &csi.NodeUnpublishVolumeResponse{}, nil
@@ -296,13 +307,23 @@ func (s *nodeService) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 
 	// remove device file if target_path is device, unmount target_path otherwise
 	if info.IsDir() {
-		unpublishResp, err := s.nodeUnpublishFilesystemVolume(req, device)
-		if err != nil {
-			return unpublishResp, err
+		if backendDevice != "" {
+			unpublishResp, err := s.nodeUnpublishBFileSystemCacheVolume(req, device, backendDevice)
+			if err != nil {
+				return unpublishResp, err
+			}
+		} else {
+			unpublishResp, err := s.nodeUnpublishFilesystemVolume(req, device)
+			if err != nil {
+				return unpublishResp, err
+			}
 		}
 		return &csi.NodeUnpublishVolumeResponse{}, nil
 	}
-	return s.nodeUnpublishBlockVolume(req)
+	if backendDevice != "" {
+		return s.nodeUnpublishBlockCacheVolume(req, device, backendDevice)
+	}
+	return s.nodeUnpublishBlockVolume(req, device)
 }
 
 func (s *nodeService) nodeUnpublishFilesystemVolume(req *csi.NodeUnpublishVolumeRequest, device string) (*csi.NodeUnpublishVolumeResponse, error) {
@@ -323,16 +344,56 @@ func (s *nodeService) nodeUnpublishFilesystemVolume(req *csi.NodeUnpublishVolume
 	if err != nil && !os.IsNotExist(err) {
 		return nil, status.Errorf(codes.Internal, "remove device failed for %s: error=%v", device, err)
 	}
-
 	log.Info("NodeUnpublishVolume(fs) is succeeded",
 		" volume_id ", req.GetVolumeId(),
 		" target_path ", target)
 	return &csi.NodeUnpublishVolumeResponse{}, nil
 }
 
-func (s *nodeService) nodeUnpublishBlockVolume(req *csi.NodeUnpublishVolumeRequest) (*csi.NodeUnpublishVolumeResponse, error) {
+func (s *nodeService) nodeUnpublishBlockVolume(req *csi.NodeUnpublishVolumeRequest, device string) (*csi.NodeUnpublishVolumeResponse, error) {
 	if err := os.Remove(req.GetTargetPath()); err != nil {
 		return nil, status.Errorf(codes.Internal, "remove failed for %s: error=%v", req.GetTargetPath(), err)
+	}
+
+	log.Info("NodeUnpublishVolume(block) is succeeded",
+		" volume_id ", req.GetVolumeId(),
+		" target_path ", req.GetTargetPath())
+	return &csi.NodeUnpublishVolumeResponse{}, nil
+}
+
+func (s *nodeService) nodeUnpublishBFileSystemCacheVolume(req *csi.NodeUnpublishVolumeRequest, device, backendDevice string) (*csi.NodeUnpublishVolumeResponse, error) {
+	target := req.GetTargetPath()
+	mounted, err := filesystem.IsMounted(device, target)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "mount check failed: target=%s, error=%v", target, err)
+	}
+	if mounted {
+		if err := s.mounter.Unmount(target); err != nil {
+			return nil, status.Errorf(codes.Internal, "unmount failed for %s: error=%v", target, err)
+		}
+	}
+	if err := os.RemoveAll(target); err != nil {
+		return nil, status.Errorf(codes.Internal, "remove dir failed for %s: error=%v", target, err)
+	}
+	// delete bcache device
+	err = s.volumeManager.DeleteBcache(backendDevice, "")
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "remove device failed for %s: error=%v", device, err)
+	}
+	log.Info("NodeUnpublishVolume(fs) is succeeded",
+		" volume_id ", req.GetVolumeId(),
+		" target_path ", target)
+	return &csi.NodeUnpublishVolumeResponse{}, nil
+}
+
+func (s *nodeService) nodeUnpublishBlockCacheVolume(req *csi.NodeUnpublishVolumeRequest, device, backendDevice string) (*csi.NodeUnpublishVolumeResponse, error) {
+	if err := os.Remove(req.GetTargetPath()); err != nil {
+		return nil, status.Errorf(codes.Internal, "remove failed for %s: error=%v", req.GetTargetPath(), err)
+	}
+	// delete bcache device
+	err := s.volumeManager.DeleteBcache(backendDevice, "")
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "remove device failed for %s: error=%v", device, err)
 	}
 	log.Info("NodeUnpublishVolume(block) is succeeded",
 		" volume_id ", req.GetVolumeId(),
@@ -542,6 +603,22 @@ func (s *nodeService) getLvFromContext(deviceGroup, volumeID string) (*types.LvI
 	return nil, errors.New("not found")
 }
 
+func (s *nodeService) getBcacheDevice(volumeID string) (*types.BcacheDeviceInfo, error) {
+
+	for _, d := range []string{utils.DeviceVGHDD, utils.DeviceVGSSD} {
+		devicePath := filepath.Join("/dev", d, volumeID)
+		_, err := os.Stat(devicePath)
+		if err == nil {
+			info, err := s.volumeManager.BcacheDeviceInfo(devicePath)
+			if err != nil {
+				return nil, err
+			}
+			return info, nil
+		}
+	}
+	return nil, errors.New("not found")
+}
+
 func (s *nodeService) nodePublishBcacheVolume(ctx context.Context, req *csi.NodePublishVolumeRequest) (*csi.NodePublishVolumeResponse, error) {
 
 	volumeContext := req.GetVolumeContext()
@@ -659,6 +736,11 @@ func (s *nodeService) nodePublishBcacheFilesystemVolume(req *csi.NodePublishVolu
 		}
 		if err := os.Chmod(req.GetTargetPath(), 0777|os.ModeSetgid); err != nil {
 			return nil, status.Errorf(codes.Internal, "chmod 2777 failed: target=%s, error=%v", req.GetTargetPath(), err)
+		}
+
+		r := filesystem.NewResizeFs(&s.mounter)
+		if _, err := r.Resize(cacheDeviceInfo.BcachePath, req.GetTargetPath()); err != nil {
+			return nil, status.Errorf(codes.Internal, "failed to resize filesystem %s (mounted at: %s): %v", cacheDeviceInfo.BcachePath, req.GetTargetPath(), err)
 		}
 	}
 
