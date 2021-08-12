@@ -19,14 +19,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/bocloud/carina/scheduler/configuration"
+	"github.com/bocloud/carina/scheduler/utils"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	lcorev1 "k8s.io/client-go/listers/core/v1"
 	lstoragev1 "k8s.io/client-go/listers/storage/v1"
 	"k8s.io/klog/v2"
 	"k8s.io/kubernetes/pkg/scheduler/framework"
-	"github.com/bocloud/carina/scheduler/configuration"
-	"github.com/bocloud/carina/scheduler/utils"
 	"sort"
 	"strconv"
 	"strings"
@@ -123,8 +123,8 @@ func (ls *LocalStorage) Filter(ctx context.Context, cycleState *framework.CycleS
 			}
 			requestTotalGb := (requestTotalBytes-1)>>30 + 1
 			// add cache device request
-			if v,ok := cacheDeviceRequest[key]; ok {
-				requestTotalGb += (v-1)>>30 +1
+			if value, ok := cacheDeviceRequest[key]; ok {
+				requestTotalGb += (value-1)>>30 + 1
 			}
 			if requestTotalGb > capacityMap[key] {
 				klog.V(3).Infof("mismatch pod: %v, node: %v, request: %d, capacity: %d", pod.Name, node.Node().Name, requestTotalGb, capacityMap[key])
@@ -132,6 +132,16 @@ func (ls *LocalStorage) Filter(ctx context.Context, cycleState *framework.CycleS
 			}
 		}
 	}
+
+	// check cache device request
+	for key, value := range cacheDeviceRequest {
+		requestTotalGb := (value-1)>>30 + 1
+		if requestTotalGb > capacityMap[key] {
+			klog.V(3).Infof("mismatch pod: %v, node: %v, request: %d, capacity: %d", pod.Name, node.Node().Name, requestTotalGb, capacityMap[key])
+			return framework.NewStatus(framework.UnschedulableAndUnresolvable, "node cache storage resource insufficient")
+		}
+	}
+
 	klog.V(3).Infof("filter success pod: %v, node: %v", pod.Name, node.Node().Name)
 	return framework.NewStatus(framework.Success, "")
 }
@@ -258,6 +268,7 @@ func (ls *LocalStorage) getLocalStoragePvc(pod *v1.Pod) (map[string][]*v1.Persis
 
 		cacheGroup := sc.Parameters[utils.VolumeCacheDiskType]
 		if cacheGroup != "" {
+			cacheGroup = utils.DeviceCapacityKeyPrefix + "carina-vg-" + cacheGroup
 			cacheDiskRatio := sc.Parameters[utils.VolumeCacheDiskRatio]
 			ratio, err := strconv.ParseInt(cacheDiskRatio, 10, 64)
 			if err != nil {
@@ -273,8 +284,8 @@ func (ls *LocalStorage) getLocalStoragePvc(pod *v1.Pod) (map[string][]*v1.Persis
 		if deviceGroup == "" {
 			// sc中未设置device group
 			deviceGroup = undefined
-		} else if !strings.HasPrefix(deviceGroup, utils.DeviceCapacityKeyPrefix) {
-			deviceGroup = utils.DeviceCapacityKeyPrefix + deviceGroup
+		} else {
+			deviceGroup = utils.DeviceCapacityKeyPrefix + "carina-vg-" + deviceGroup
 		}
 		localPvc[deviceGroup] = append(localPvc[deviceGroup], pvc)
 	}

@@ -19,7 +19,7 @@ const (
 	// PluginName is the name of the CSI plugin.
 	CSIPluginName = "carina.storage.io"
 	// storage class disk group
-	DeviceDiskKey = "carina.storage.io/disk"
+	DeviceDiskKey = "carina.storage.io/disk-type"
 	// pv csi VolumeAttributes
 	VolumeDeviceNode = "carina.storage.io/node"
 	// device plugin
