@@ -24,4 +24,10 @@ const (
 	VolumeDeviceNode = "carina.storage.io/node"
 	// device plugin
 	DeviceCapacityKeyPrefix = "carina.storage.io/"
+
+	// bcahce scheduler
+	VolumeBackendDiskType = "carina.storage.io/backend-disk-type"
+	VolumeCacheDiskType   = "carina.storage.io/cache-disk-type"
+	// value: 1-100 Cache Capacity Ratio
+	VolumeCacheDiskRatio = "carina.storage.io/cache-disk-ratio"
 )

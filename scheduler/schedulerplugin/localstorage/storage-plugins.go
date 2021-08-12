@@ -28,6 +28,7 @@ import (
 	"github.com/bocloud/carina/scheduler/configuration"
 	"github.com/bocloud/carina/scheduler/utils"
 	"sort"
+	"strconv"
 	"strings"
 )
 
@@ -67,7 +68,7 @@ func (ls *LocalStorage) Filter(ctx context.Context, cycleState *framework.CycleS
 
 	klog.V(3).Infof("filter pod: %v, node: %v", pod.Name, node.Node().Name)
 
-	pvcMap, nodeName, err := ls.getLocalStoragePvc(pod)
+	pvcMap, nodeName, cacheDeviceRequest, err := ls.getLocalStoragePvc(pod)
 	if err != nil {
 		klog.V(3).ErrorS(err, "get pvc sc failed pod: %v, node: %v", pod.Name, node.Node().Name)
 		return framework.NewStatus(framework.Error, "get pv/sc resource error")
@@ -120,7 +121,8 @@ func (ls *LocalStorage) Filter(ctx context.Context, cycleState *framework.CycleS
 				requestTotalBytes += pv.Spec.Resources.Requests.Storage().Value()
 			}
 			requestTotalGb := (requestTotalBytes-1)>>30 + 1
-			if requestTotalGb > capacityMap[key] {
+			// add cache device request
+			if requestTotalGb+cacheDeviceRequest[key] > capacityMap[key] {
 				klog.V(3).Infof("mismatch pod: %v, node: %v", pod.Name, node.Node().Name)
 				return framework.NewStatus(framework.UnschedulableAndUnresolvable, "node storage resource insufficient")
 			}
@@ -133,7 +135,7 @@ func (ls *LocalStorage) Filter(ctx context.Context, cycleState *framework.CycleS
 // 对节点进行打分（相当于旧版本的 priorities）
 func (ls *LocalStorage) Score(ctx context.Context, state *framework.CycleState, pod *v1.Pod, nodeName string) (int64, *framework.Status) {
 	klog.V(3).Infof("score pod: %v, node: %v", pod.Name, nodeName)
-	pvcMap, node, _ := ls.getLocalStoragePvc(pod)
+	pvcMap, node, _, _ := ls.getLocalStoragePvc(pod)
 	if node == nodeName {
 		return 10, framework.NewStatus(framework.Success)
 	}
@@ -203,9 +205,10 @@ func (ls *LocalStorage) ScoreExtensions() framework.ScoreExtensions {
 	return nil
 }
 
-func (ls *LocalStorage) getLocalStoragePvc(pod *v1.Pod) (map[string][]*v1.PersistentVolumeClaim, string, error) {
+func (ls *LocalStorage) getLocalStoragePvc(pod *v1.Pod) (map[string][]*v1.PersistentVolumeClaim, string, map[string]int64, error) {
 	nodeName := ""
 	localPvc := map[string][]*v1.PersistentVolumeClaim{}
+	cacheDeviceRequest := map[string]int64{}
 	for _, vol := range pod.Spec.Volumes {
 		if vol.PersistentVolumeClaim == nil {
 			continue
@@ -214,7 +217,7 @@ func (ls *LocalStorage) getLocalStoragePvc(pod *v1.Pod) (map[string][]*v1.Persis
 
 		pvc, err := ls.pvcLister.PersistentVolumeClaims(pod.Namespace).Get(pvcName)
 		if err != nil {
-			return localPvc, nodeName, err
+			return localPvc, nodeName, cacheDeviceRequest, err
 		}
 
 		if pvc.Spec.StorageClassName == nil {
@@ -223,7 +226,7 @@ func (ls *LocalStorage) getLocalStoragePvc(pod *v1.Pod) (map[string][]*v1.Persis
 
 		sc, err := ls.scLister.Get(*pvc.Spec.StorageClassName)
 		if err != nil {
-			return localPvc, nodeName, err
+			return localPvc, nodeName, cacheDeviceRequest, err
 		}
 		if sc.Provisioner != utils.CSIPluginName {
 			continue
@@ -233,17 +236,36 @@ func (ls *LocalStorage) getLocalStoragePvc(pod *v1.Pod) (map[string][]*v1.Persis
 		if pvc.Status.Phase == v1.ClaimBound {
 			pv, err := ls.pvLister.Get(pvc.Spec.VolumeName)
 			if err != nil {
-				return localPvc, nodeName, err
+				return localPvc, nodeName, cacheDeviceRequest, err
 			}
 			if nodeName == "" {
 				nodeName = pv.Spec.CSI.VolumeAttributes[utils.VolumeDeviceNode]
 			} else if nodeName != pv.Spec.CSI.VolumeAttributes[utils.VolumeDeviceNode] {
-				return localPvc, nodeName, errors.New("pvc node clash")
+				return localPvc, nodeName, cacheDeviceRequest, errors.New("pvc node clash")
 			}
 			continue
 		}
 
 		deviceGroup := sc.Parameters[utils.DeviceDiskKey]
+		// if bcache device
+		if deviceGroup == "" {
+			deviceGroup = sc.Parameters[utils.VolumeBackendDiskType]
+		}
+
+		cacheGroup := sc.Parameters[utils.VolumeCacheDiskType]
+		if cacheGroup != "" {
+			cacheDiskRatio := sc.Parameters[utils.VolumeCacheDiskRatio]
+			ratio, err := strconv.ParseInt(cacheDiskRatio, 10, 64)
+			if err != nil {
+				return localPvc, nodeName, cacheDeviceRequest, errors.New("carina.storage.io/cache-disk-ratio, Should be in 1-100")
+			}
+			if ratio < 1 || ratio >= 100 {
+				return localPvc, nodeName, cacheDeviceRequest, errors.New("carina.storage.io/cache-disk-ratio, Should be in 1-100")
+			}
+			cacheRequestGb := pvc.Spec.Resources.Requests.Storage().Value()>>30 * ratio / 100
+			cacheDeviceRequest[cacheGroup] += cacheRequestGb
+		}
+
 		if deviceGroup == "" {
 			// sc中未设置device group
 			deviceGroup = undefined
@@ -252,7 +274,7 @@ func (ls *LocalStorage) getLocalStoragePvc(pod *v1.Pod) (map[string][]*v1.Persis
 		}
 		localPvc[deviceGroup] = append(localPvc[deviceGroup], pvc)
 	}
-	return localPvc, nodeName, nil
+	return localPvc, nodeName, cacheDeviceRequest, nil
 }
 
 // 在所有容量列表中，找到最低满足的值，并减去请求容量
