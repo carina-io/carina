@@ -21,6 +21,13 @@ COPY --from=builder /workspace/github.com/bocloud/carina/debug/config.json /etc/
 
 RUN chmod +x /usr/bin/carina-node && chmod +x /usr/bin/carina-controller
 
+# add bcache-tools
+COPY --from=builder /workspace/github.com/bocloud/carina/bcache-tools/bcache-register /usr/bin/
+COPY --from=builder /workspace/github.com/bocloud/carina/bcache-tools/bcache-super-show /usr/bin/
+COPY --from=builder /workspace/github.com/bocloud/carina/bcache-tools/make-bcache /usr/bin/
+COPY --from=builder /workspace/github.com/bocloud/carina/bcache-tools/probe-bcache /usr/bin/
+RUN chmod +x /usr/bin/bcache-register /usr/bin/bcache-register /usr/bin/bcache-register /usr/bin/bcache-register
+
 # Update time zone to Asia-Shanghai
 COPY --from=builder /workspace/github.com/bocloud/carina/Shanghai /etc/localtime
 RUN echo 'Asia/Shanghai' > /etc/timezone

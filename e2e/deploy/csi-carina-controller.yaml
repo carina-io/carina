@@ -19,7 +19,7 @@ spec:
       serviceAccount: carina-csi-controller
       containers:
         - name: csi-provisioner
-          image: antmoveh/csi-provisioner:v2.1.0
+          image: registry.cn-hangzhou.aliyuncs.com/antmoveh/csi-provisioner:v2.1.0
           args:
             - "--csi-address=$(ADDRESS)"
             - "--v=5"
@@ -36,7 +36,7 @@ spec:
             - name: socket-dir
               mountPath: /csi
         - name: csi-resizer
-          image: antmoveh/csi-resizer:v1.1.0
+          image: registry.cn-hangzhou.aliyuncs.com/antmoveh/csi-resizer:v1.1.0
           args:
             - "--csi-address=$(ADDRESS)"
             - "--v=5"
@@ -68,7 +68,7 @@ spec:
 #            - name: socket-dir
 #              mountPath: /csi
         - name: csi-carina-attacher
-          image: antmoveh/csi-attacher:v3.1.0
+          image: registry.cn-hangzhou.aliyuncs.com/antmoveh/csi-attacher:v3.1.0
           args:
             - "--v=5"
             - "--csi-address=$(ADDRESS)"
@@ -87,7 +87,7 @@ spec:
             capabilities:
               add: ["SYS_ADMIN"]
           # for stable functionality replace canary with latest release version
-          image: antmoveh/carina:latest
+          image: 192.168.56.101:5000/carina:latest
           command: ["carina-controller"]
           args:
             - "--csi-address=$(ADDRESS)"
@@ -142,6 +142,8 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
+  labels:
+    app: csi-carina-provisioner
   name: carina-controller
   namespace: kube-system
 spec:

@@ -1,5 +1,5 @@
 /*
-   Copyright @ 2021 fushaosong <fushaosong@beyondlet.com>.
+   Copyright @ 2021 bocloud <fushaosong@beyondcent.com>.
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -16,12 +16,12 @@
 package k8s
 
 import (
-	"github.com/bocloud/carina/pkg/configuration"
-	"github.com/bocloud/carina/pkg/csidriver/csi"
-	"github.com/bocloud/carina/utils"
 	"context"
 	"errors"
 	"fmt"
+	"github.com/bocloud/carina/pkg/configuration"
+	"github.com/bocloud/carina/pkg/csidriver/csi"
+	"github.com/bocloud/carina/utils"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/rand"
 	"sort"
@@ -45,6 +45,9 @@ type nodeService interface {
 	SelectDeviceGroup(ctx context.Context, request int64, nodeName string) (string, error)
 	// sc WaitForConsumer
 	HaveSelectedNode(ctx context.Context, namespace, name string) (string, error)
+
+	// multi volume node select
+	SelectMultiVolumeNode(ctx context.Context, backendDeviceGroup, cacheDeviceGroup string, backendRequestGb, cacheRequestGb int64, requirement *csi.TopologyRequirement) (string, map[string]string, error)
 }
 
 // ErrNodeNotFound represents the error that node is not found.
@@ -261,4 +264,99 @@ func (s NodeService) HaveSelectedNode(ctx context.Context, namespace, name strin
 	}
 
 	return node, nil
+}
+
+func (s NodeService) SelectMultiVolumeNode(ctx context.Context, backendDeviceGroup, cacheDeviceGroup string, backendRequestGb, cacheRequestGb int64, requirement *csi.TopologyRequirement) (string, map[string]string, error) {
+	// 在并发场景下，兼顾调度效率与调度公平，将pv分配到不同时间段
+	time.Sleep(time.Duration(rand.Int63nRange(1, 30)) * time.Second)
+
+	var nodeName string
+	segments := map[string]string{}
+	nl, err := s.getNodes(ctx)
+	if err != nil {
+		return "", segments, err
+	}
+
+	type paris struct {
+		Key   string
+		Value int64
+	}
+
+	preselectNode := []paris{}
+
+	for _, node := range nl.Items {
+
+		// topology selector
+		// 若是sc配置了allowedTopologies，在此过滤出符合条件的node
+		if requirement != nil {
+			topologySelector := false
+			for _, topo := range requirement.GetRequisite() {
+				selector := labels.SelectorFromSet(topo.GetSegments())
+				if selector.Matches(labels.Set(node.Labels)) {
+					topologySelector = true
+					break
+				}
+			}
+			// 如果没有通过topology selector则节点不可用
+			if !topologySelector {
+				continue
+			}
+		}
+
+		// capacity selector
+		// 注册设备时有特殊前缀的，若是sc指定了设备组则过滤出所有节点上符合条件的设备组
+		backendFilter := int64(0)
+		cacheFileter := int64(0)
+		for key, value := range node.Status.Allocatable {
+
+			if strings.HasPrefix(string(key), utils.DeviceCapacityKeyPrefix) {
+				if strings.Contains(string(key), backendDeviceGroup) {
+					if value.Value() >= backendRequestGb {
+						backendFilter = value.Value()
+					}
+				}
+				if strings.Contains(string(key), cacheDeviceGroup) {
+					if value.Value() >= cacheRequestGb {
+						cacheFileter = value.Value()
+					}
+				}
+			}
+		}
+
+		if backendFilter > 0 && cacheFileter >= 0 {
+			preselectNode = append(preselectNode, paris{
+				Key:   node.Name,
+				Value: backendFilter,
+			})
+		}
+	}
+	if len(preselectNode) < 1 {
+		return "", segments, ErrNodeNotFound
+	}
+
+	sort.Slice(preselectNode, func(i, j int) bool {
+		return preselectNode[i].Value < preselectNode[j].Value
+	})
+
+	// 根据配置文件中设置算法进行节点选择
+	if configuration.SchedulerStrategy() == configuration.SchedulerBinpack {
+		nodeName = preselectNode[0].Key
+	} else if configuration.SchedulerStrategy() == configuration.SchedulerSpradout {
+		nodeName = preselectNode[len(preselectNode)-1].Key
+	} else {
+		return "", segments, errors.New(fmt.Sprintf("no support scheduler strategy %s", configuration.SchedulerStrategy()))
+	}
+
+	// 获取选择节点的label
+	for _, node := range nl.Items {
+		if node.Name == nodeName {
+			for _, topo := range requirement.GetRequisite() {
+				for k, _ := range topo.GetSegments() {
+					segments[k] = node.Labels[k]
+				}
+			}
+		}
+	}
+
+	return nodeName, segments, nil
 }

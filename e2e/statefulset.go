@@ -1,5 +1,5 @@
 /*
-   Copyright @ 2021 fushaosong <fushaosong@beyondlet.com>.
+   Copyright @ 2021 bocloud <fushaosong@beyondcent.com>.
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -16,9 +16,9 @@
 package e2e
 
 import (
-	"github.com/bocloud/carina/utils/log"
 	"encoding/json"
 	"fmt"
+	"github.com/bocloud/carina/utils/log"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"

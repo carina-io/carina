@@ -1,5 +1,5 @@
 /*
-   Copyright @ 2021 fushaosong <fushaosong@beyondlet.com>.
+  Copyright @ 2021 bocloud <fushaosong@beyondcent.com>.
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -17,6 +17,7 @@ package deviceManager
 
 import (
 	"github.com/bocloud/carina/pkg/configuration"
+	"github.com/bocloud/carina/pkg/devicemanager/bcache"
 	"github.com/bocloud/carina/pkg/devicemanager/device"
 	"github.com/bocloud/carina/pkg/devicemanager/lvmd"
 	"github.com/bocloud/carina/pkg/devicemanager/troubleshoot"
@@ -44,6 +45,8 @@ type DeviceManager struct {
 	LvmManager lvmd.Lvm2
 	// Volume 操作
 	VolumeManager volume.LocalVolume
+	// bcache
+	Bcache bcache.Bcache
 	// stop
 	stopChan <-chan struct{}
 	nodeName string
@@ -64,8 +67,10 @@ func NewDeviceManager(nodeName string, cache cache.Cache, stopChan <-chan struct
 		VolumeManager: &volume.LocalVolumeImplement{
 			Mutex:           mutex,
 			Lv:              &lvmd.Lvm2Implement{Executor: executor},
+			Bcache:          &bcache.BcacheImplement{Executor: executor},
 			NoticeServerMap: make(map[string]chan struct{}),
 		},
+		Bcache:   &bcache.BcacheImplement{Executor: executor},
 		stopChan: stopChan,
 		nodeName: nodeName,
 	}
@@ -223,6 +228,10 @@ func (dm *DeviceManager) DiscoverDisk() (map[string][]string, error) {
 
 		if d.Readonly || d.Size < 10<<30 || d.Filesystem != "" || d.MountPoint != "" {
 			log.Infof("mismatched disk: %s filesystem:%s mountpoint:%s readonly:%t, size:%d", d.Name, d.Filesystem, d.MountPoint, d.Readonly, d.Size)
+			continue
+		}
+
+		if strings.Contains(d.Name, "cache") {
 			continue
 		}
 

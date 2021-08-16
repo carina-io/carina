@@ -72,11 +72,12 @@ docker-build: test
 	docker build . -t ${IMG}
 
 # Push the docker image
-docker-push:
-# 	docker push ${IMG}
-	docker rmi docker.hub.com/carina/carina:latest 1>/dev/null 2>&1;\
-    docker build -t docker.hub.com/carina/carina:latest . ;\
-    docker push docker.hub.com/carina/carina:latest
+latest:
+	go build -ldflags="-X main.gitCommitID=`git rev-parse HEAD`" -gcflags '-N -l' -o bin/carina-node github.com/bocloud/carina/cmd/carina-node ;\
+	go build -ldflags="-X main.gitCommitID=`git rev-parse HEAD`" -gcflags '-N -l' -o bin/carina-controller github.com/bocloud/carina/cmd/carina-controller ;\
+	docker rmi $(IMAGE_REPOSITORY)/antmoveh/carina:latest 1>/dev/null 2>&1;\
+	docker build -f Dockerfile.local -t $(IMAGE_REPOSITORY)/antmoveh/carina:latest . ;\
+	docker push $(IMAGE_REPOSITORY)/antmoveh/carina:latest
 
 # Push the docker image
 release:

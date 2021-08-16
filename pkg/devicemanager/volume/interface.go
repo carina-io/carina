@@ -1,5 +1,5 @@
 /*
-   Copyright @ 2021 fushaosong <fushaosong@beyondlet.com>.
+   Copyright @ 2021 bocloud <fushaosong@beyondcent.com>.
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -53,4 +53,9 @@ type LocalVolume interface {
 	NoticeUpdateCapacity(vgName []string)
 	// 注册通知服务，因为多个vg组，每个组需要不同的channel
 	RegisterNoticeServer(vgName string, notice chan struct{})
+
+	// bcache
+	CreateBcache(dev, cacheDev string, block, bucket string, cacheMode string) (*types.BcacheDeviceInfo, error)
+	DeleteBcache(dev, cacheDev string) error
+	BcacheDeviceInfo(dev string) (*types.BcacheDeviceInfo, error)
 }

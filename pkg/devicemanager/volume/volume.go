@@ -1,5 +1,5 @@
 /*
-   Copyright @ 2021 fushaosong <fushaosong@beyondlet.com>.
+  Copyright @ 2021 bocloud <fushaosong@beyondcent.com>.
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -16,14 +16,15 @@
 package volume
 
 import (
+	"context"
+	"errors"
+	"fmt"
+	"github.com/bocloud/carina/pkg/devicemanager/bcache"
 	"github.com/bocloud/carina/pkg/devicemanager/lvmd"
 	"github.com/bocloud/carina/pkg/devicemanager/types"
 	"github.com/bocloud/carina/utils"
 	"github.com/bocloud/carina/utils/log"
 	"github.com/bocloud/carina/utils/mutx"
-	"context"
-	"errors"
-	"fmt"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"strings"
@@ -34,6 +35,7 @@ const VOLUMEMUTEX = "VolumeMutex"
 
 type LocalVolumeImplement struct {
 	Lv              lvmd.Lvm2
+	Bcache          bcache.Bcache
 	Mutex           *mutx.GlobalLocks
 	NoticeServerMap map[string]chan struct{}
 }
@@ -110,6 +112,8 @@ func (v *LocalVolumeImplement) DeleteVolume(lvName, vgName string) error {
 		log.Errorf("get volume failed %s/%s %s", vgName, lvName, err.Error())
 		return err
 	}
+	// delete bcache device if exists
+	_ = v.DeleteBcache(fmt.Sprintf("/dev/%s/%s", vgName, name), "")
 	thinName := lvInfo.PoolLV
 	if err := v.Lv.LVRemove(name, vgName); err != nil {
 		return err
@@ -525,4 +529,67 @@ func (v *LocalVolumeImplement) NoticeUpdateCapacity(vgName []string) {
 
 func (v *LocalVolumeImplement) RegisterNoticeServer(vgName string, notice chan struct{}) {
 	v.NoticeServerMap[vgName] = notice
+}
+
+// bcache
+func (v *LocalVolumeImplement) CreateBcache(dev, cacheDev string, block, bucket string, cachePolicy string) (*types.BcacheDeviceInfo, error) {
+	err := v.Bcache.CreateBcache(dev, cacheDev, block, bucket)
+	if err != nil {
+		log.Errorf("create bcache failed device %s cache device %s error %s", dev, cacheDev, err.Error())
+		return nil, err
+	}
+	err = v.Bcache.RegisterDevice(dev, cacheDev)
+	if err != nil {
+		log.Errorf("register bcache failed device %s cache device %s error %s", dev, cacheDev, err.Error())
+		return nil, err
+	}
+	deviceInfo, err := v.Bcache.GetDeviceBcache(dev)
+	if err != nil {
+		log.Errorf("get bcache device %s error %s", dev, cacheDev, err.Error())
+		return nil, err
+	}
+
+	err = v.Bcache.SetCacheMode(deviceInfo.Name, cachePolicy)
+	if err != nil {
+		log.Errorf("set cache mode failed %s %s", deviceInfo.Name, err.Error())
+		return nil, err
+	}
+
+	return deviceInfo, nil
+}
+
+func (v *LocalVolumeImplement) DeleteBcache(dev, cacheDev string) error {
+
+	deviceInfo, err := v.BcacheDeviceInfo(dev)
+	if err != nil {
+		log.Errorf("get device info error %s %s", dev, err.Error())
+		return err
+	}
+	err = v.Bcache.RemoveBcache(deviceInfo)
+
+	if err != nil {
+		log.Errorf("delete cache device failed %s", err.Error())
+		return err
+	}
+	return nil
+}
+
+func (v *LocalVolumeImplement) BcacheDeviceInfo(dev string) (*types.BcacheDeviceInfo, error) {
+	bcacheInfo, err := v.Bcache.ShowDevice(dev)
+	if err != nil {
+		return nil, err
+	}
+	bcacheInfo.DevicePath = dev
+
+	deviceInfo, err := v.Bcache.GetDeviceBcache(dev)
+	if err != nil {
+		log.Errorf("get device info error %s %s", dev, err.Error())
+		return nil, err
+	}
+	bcacheInfo.KernelMajor = deviceInfo.KernelMajor
+	bcacheInfo.KernelMinor = deviceInfo.KernelMinor
+	bcacheInfo.Name = deviceInfo.Name
+	bcacheInfo.BcachePath = deviceInfo.BcachePath
+
+	return bcacheInfo, nil
 }

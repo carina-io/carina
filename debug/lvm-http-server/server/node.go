@@ -1,5 +1,5 @@
 /*
-   Copyright @ 2021 fushaosong <fushaosong@beyondlet.com>.
+   Copyright @ 2021 bocloud <fushaosong@beyondcent.com>.
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -28,7 +28,7 @@ var stopChan chan struct{}
 func init() {
 	stopChan = make(chan struct{})
 
-	//dm = deviceManager.NewDeviceManager("localhost", c, stopChan)
+	dm = deviceManager.NewDeviceManager("localhost", nil, stopChan)
 }
 
 func Start(c echo.Context) error {
@@ -134,4 +134,36 @@ func CloneVolume(c echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, err)
 	}
 	return c.JSON(http.StatusOK, "")
+}
+
+func CreateBcache(c echo.Context) error {
+	dev := c.FormValue("dev")
+	cacheDev := c.FormValue("cache_dev")
+	block := c.FormValue("block")
+	bucket := c.FormValue("bucket")
+	mode := c.FormValue("mode")
+	devicePath, err := dm.VolumeManager.CreateBcache(dev, cacheDev, block, bucket, mode)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, err)
+	}
+	return c.JSON(http.StatusOK, devicePath)
+}
+
+func DeleteBcache(c echo.Context) error {
+	dev := c.FormValue("dev")
+	cacheDev := c.FormValue("cache_dev")
+	err := dm.VolumeManager.DeleteBcache(dev, cacheDev)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, err)
+	}
+	return c.JSON(http.StatusOK, "")
+}
+
+func GetBcache(c echo.Context) error {
+	dev := c.FormValue("dev")
+	info, err := dm.VolumeManager.BcacheDeviceInfo(dev)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, err)
+	}
+	return c.JSON(http.StatusOK, info)
 }

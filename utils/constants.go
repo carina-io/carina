@@ -1,5 +1,5 @@
 /*
-   Copyright @ 2021 fushaosong <fushaosong@beyondlet.com>.
+   Copyright @ 2021 bocloud <fushaosong@beyondcent.com>.
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -38,6 +38,13 @@ const (
 	// k8s default key Device FileSystem eg. xfs ext4
 	DeviceFileSystem = "csi.storage.k8s.io/fstype"
 
+	VolumeBackendDiskType = "carina.storage.io/backend-disk-type"
+	VolumeCacheDiskType   = "carina.storage.io/cache-disk-type"
+	// value: 1-100 Cache Capacity Ratio
+	VolumeCacheDiskRatio = "carina.storage.io/cache-disk-ratio"
+	// value: writethrough|writeback|writearound
+	VolumeCachePolicy = "carina.storage.io/cache-policy"
+
 	// pvc
 	// default size in GiB for volumes (PVC or inline ephemeral volumes) w/o capacity requests.
 	MinRequestSizeGb = 1
@@ -50,6 +57,13 @@ const (
 	VolumeDeviceNode  = "carina.storage.io/node"
 	VolumeDeviceMajor = "carina.storage.io/major"
 	VolumeDeviceMinor = "carina.storage.io/minor"
+
+	VolumeCacheDevicePath  = "carina.storage.io/cache/path"
+	VolumeCacheDeviceMajor = "carina.storage.io/cache/major"
+	VolumeCacheDeviceMinor = "carina.storage.io/cache/minor"
+	VolumeCacheId          = "carina.storage.io/cache-volume-id"
+	VolumeCacheBlock       = "carina.storage.io/cache/block"
+	VolumeCacheBucket      = "carina.storage.io/cache/bucket"
 
 	// topology
 	// TopologyZoneKey is the key of topology that represents zone name.

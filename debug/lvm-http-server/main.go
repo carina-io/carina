@@ -1,5 +1,5 @@
 /*
-   Copyright @ 2021 fushaosong <fushaosong@beyondlet.com>.
+   Copyright @ 2021 bocloud <fushaosong@beyondcent.com>.
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -35,6 +35,10 @@ func main() {
 	e.DELETE("/volume/snapshot/delete", server2.DeleteSnapshot)
 	e.POST("/volume/snapshot/restore", server2.RestoreSnapshot)
 	e.POST("/volume/clone", server2.CloneVolume)
+
+	e.POST("/volume/bcache/create", server2.CreateBcache)
+	e.DELETE("/volume/bcache/delete", server2.DeleteBcache)
+	e.GET("/volume/bcache", server2.GetBcache)
 
 	e.Logger.Fatal(e.Start(":8080"))
 }
