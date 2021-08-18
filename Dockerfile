@@ -12,7 +12,7 @@ RUN echo Commit: `git log --pretty='%s%b%B' -n 1`
 RUN cd $WORKSPACE/cmd/carina-node && go build -ldflags="-X main.gitCommitID=`git rev-parse HEAD`" -gcflags '-N -l' -o /tmp/carina-node .
 RUN cd $WORKSPACE/cmd/carina-controller && go build -ldflags="-X main.gitCommitID=`git rev-parse HEAD`" -gcflags '-N -l' -o /tmp/carina-controller .
 
-FROM antmoveh/centos-lvm2:v4
+FROM registry.cn-hangzhou.aliyuncs.com/antmoveh/centos-lvm2:runtime-202104
 
 # copy binary file
 COPY --from=builder /tmp/carina-node /usr/bin/
