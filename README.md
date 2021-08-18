@@ -42,7 +42,7 @@ Carina是为数据库而生的本地存储方案，编排管理本地磁盘并�
 
 ### 快速开始
 
-- [部署](docs/manual/install.md)步骤
+- 快速部署
 ```shell
 $ cd deploy/kubernetes
 # 安装
@@ -50,6 +50,7 @@ $ ./deploy.sh
 # 卸载
 $ ./deploy.sh uninstall
 ```
+- [部署文档](docs/manual/install.md)
 - 详细部署及使用参考[使用手册](docs/user-guide.md)
 
 ### 开发指南
@@ -83,3 +84,4 @@ $ ./deploy.sh uninstall
 - [topolvm](https://github.com/topolvm/topolvm)
 - [官方csi-driver-host-path](https://github.com/kubernetes-csi/csi-driver-host-path)
 - [local-path-provisioner](https://github.com/rancher/local-path-provisioner)
+- [openebs](https://openebs.io/)
