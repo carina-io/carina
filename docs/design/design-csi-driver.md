@@ -30,7 +30,7 @@
 
   - Kubelet调用Node grpc服务，完成volume卷操作
 
-  ![csi-本地存储-节点服务](img/csi-node-server.png)
+  ![csi-本地存储-节点服务](../img/csi-node-server.png)
 
 
 

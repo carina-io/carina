@@ -1,5 +1,5 @@
 
-FROM antmoveh/centos-lvm2:v4
+FROM registry.cn-hangzhou.aliyuncs.com/antmoveh/centos-lvm2:runtime-202104
 
 # copy binary file
 COPY bin/carina-node /usr/bin/

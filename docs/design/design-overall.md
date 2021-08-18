@@ -52,7 +52,7 @@
   pod-->pvc: kubelet调用节点服务
   pvc-->pod: pv挂载到指定节点
   ```
-  ![csi-本地存储-运行流程](img/csi-overall-flow.png)
+  ![csi-本地存储-运行流程](../img/csi-overall-flow.png)
   
 - 整体运行架构
   - 控制服务和扩展调度服务只有一个实例提供服务，节点服务以DS部署在每个节点均提供服务
@@ -60,7 +60,7 @@
   - 节点服务更新node.status.capacity配额资源，调度服务与控制服务获取扩展资源进行pv调度
   - Schedule进行节点评分与选择，调度完成更新pvc annotation表示该pvc有消费者了
 
-  ![csi-本地存储-整体架构](img/csi-overall.png)
+  ![csi-本地存储-整体架构](../img/csi-overall.png)
 
   
 

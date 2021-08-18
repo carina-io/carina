@@ -25,4 +25,4 @@
 - carina-node启动定时任务，获取集群所有指向本节点的logicvolume，然后与本地volume进行对比，将本地孤儿volume进行清理
 - carina-controller启动定时任务，获取logicvolume，然后获取对应的pv，对于没有pv的logicvolume则删除
 
-  ![csi-troubleshoot](img/csi-troubleshoot.png)
+  ![csi-troubleshoot](../img/csi-troubleshoot.png)
