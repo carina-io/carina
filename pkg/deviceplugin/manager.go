@@ -16,10 +16,10 @@
 package deviceplugin
 
 import (
-	"github.com/bocloud/carina/pkg/devicemanager/volume"
-	"github.com/bocloud/carina/pkg/deviceplugin/v1beta1"
-	"github.com/bocloud/carina/utils"
-	"github.com/bocloud/carina/utils/log"
+	"github.com/carina-io/carina/pkg/devicemanager/volume"
+	"github.com/carina-io/carina/pkg/deviceplugin/v1beta1"
+	"github.com/carina-io/carina/utils"
+	"github.com/carina-io/carina/utils/log"
 	"github.com/fsnotify/fsnotify"
 	"os"
 	// 依赖冲突，把整个proto目录挪移过来

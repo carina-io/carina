@@ -16,7 +16,7 @@
 package main
 
 import (
-	server2 "github.com/bocloud/carina/debug/lvm-http-server/server"
+	server2 "github.com/carina-io/carina/debug/lvm-http-server/server"
 	"github.com/labstack/echo/v4"
 )
 

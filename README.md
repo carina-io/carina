@@ -1,4 +1,4 @@
-![carina](docs/img/carina.jpg)
+![carina](docs/img/carina.png)
 ### Carina
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://github.com/BoCloud/carina/blob/master/LICENSE)
 

@@ -18,7 +18,7 @@ package run
 import (
 	"flag"
 	"fmt"
-	"github.com/bocloud/carina/utils"
+	"github.com/carina-io/carina/utils"
 	"github.com/spf13/cobra"
 	"k8s.io/klog/v2"
 	"os"

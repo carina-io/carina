@@ -17,9 +17,9 @@ package controllers
 
 import (
 	"context"
-	carinav1 "github.com/bocloud/carina/api/v1"
-	"github.com/bocloud/carina/utils"
-	"github.com/bocloud/carina/utils/log"
+	carinav1 "github.com/carina-io/carina/api/v1"
+	"github.com/carina-io/carina/utils"
+	"github.com/carina-io/carina/utils/log"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/util/workqueue"

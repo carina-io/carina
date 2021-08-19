@@ -18,7 +18,7 @@ package deviceManager
 import (
 	"bytes"
 	"fmt"
-	"github.com/bocloud/carina/pkg/configuration"
+	"github.com/carina-io/carina/pkg/configuration"
 	"os"
 	"os/exec"
 	"strings"

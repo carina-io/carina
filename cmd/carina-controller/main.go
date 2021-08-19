@@ -16,8 +16,8 @@
 package main
 
 import (
-	"github.com/bocloud/carina/cmd/carina-controller/run"
-	"github.com/bocloud/carina/utils/log"
+	"github.com/carina-io/carina/cmd/carina-controller/run"
+	"github.com/carina-io/carina/utils/log"
 )
 
 var gitCommitID = "dev"

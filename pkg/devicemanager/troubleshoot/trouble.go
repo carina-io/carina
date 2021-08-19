@@ -18,9 +18,9 @@ package troubleshoot
 import (
 	"context"
 	"fmt"
-	carinav1 "github.com/bocloud/carina/api/v1"
-	"github.com/bocloud/carina/pkg/devicemanager/volume"
-	"github.com/bocloud/carina/utils/log"
+	carinav1 "github.com/carina-io/carina/api/v1"
+	"github.com/carina-io/carina/pkg/devicemanager/volume"
+	"github.com/carina-io/carina/utils/log"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"strings"

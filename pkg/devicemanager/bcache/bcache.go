@@ -17,8 +17,8 @@ package bcache
 
 import (
 	"fmt"
-	"github.com/bocloud/carina/pkg/devicemanager/types"
-	"github.com/bocloud/carina/utils/exec"
+	"github.com/carina-io/carina/pkg/devicemanager/types"
+	"github.com/carina-io/carina/utils/exec"
 )
 
 type BcacheImplement struct {

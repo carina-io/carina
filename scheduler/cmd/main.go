@@ -18,7 +18,7 @@ package main
 import (
 	"math/rand"
 	"os"
-	"github.com/bocloud/carina/scheduler/schedulerplugin/localstorage"
+	"github.com/carina-io/carina/scheduler/schedulerplugin/localstorage"
 	"time"
 
 	"k8s.io/component-base/logs"

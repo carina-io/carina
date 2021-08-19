@@ -17,7 +17,7 @@ package runners
 
 import (
 	"context"
-	"github.com/bocloud/carina/utils"
+	"github.com/carina-io/carina/utils"
 	"net"
 	"os"
 

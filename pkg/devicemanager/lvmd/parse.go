@@ -16,8 +16,8 @@
 package lvmd
 
 import (
-	"github.com/bocloud/carina/pkg/devicemanager/types"
-	"github.com/bocloud/carina/utils/log"
+	"github.com/carina-io/carina/pkg/devicemanager/types"
+	"github.com/carina-io/carina/utils/log"
 	"strconv"
 	"strings"
 )

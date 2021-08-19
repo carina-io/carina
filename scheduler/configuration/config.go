@@ -19,7 +19,7 @@ import (
 	"github.com/fsnotify/fsnotify"
 	"github.com/spf13/viper"
 	"os"
-	"github.com/bocloud/carina/scheduler/utils"
+	"github.com/carina-io/carina/scheduler/utils"
 	"strings"
 )
 

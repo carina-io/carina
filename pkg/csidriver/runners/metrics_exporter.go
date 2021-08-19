@@ -17,7 +17,7 @@ package runners
 
 import (
 	"context"
-	"github.com/bocloud/carina/pkg/devicemanager/volume"
+	"github.com/carina-io/carina/pkg/devicemanager/volume"
 	"strings"
 	"time"
 

@@ -19,9 +19,9 @@ package controllers
 import (
 	"context"
 	"fmt"
-	"github.com/bocloud/carina/pkg/devicemanager/volume"
-	"github.com/bocloud/carina/utils"
-	"github.com/bocloud/carina/utils/log"
+	"github.com/carina-io/carina/pkg/devicemanager/volume"
+	"github.com/carina-io/carina/utils"
+	"github.com/carina-io/carina/utils/log"
 	"google.golang.org/grpc/codes"
 	corev1 "k8s.io/api/core/v1"
 	apierrs "k8s.io/apimachinery/pkg/api/errors"
@@ -33,7 +33,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"time"
 
-	carinav1 "github.com/bocloud/carina/api/v1"
+	carinav1 "github.com/carina-io/carina/api/v1"
 )
 
 // LogicVolumeReconciler reconciles a LogicVolume object

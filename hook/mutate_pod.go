@@ -18,8 +18,8 @@ package hook
 import (
 	"context"
 	"encoding/json"
-	"github.com/bocloud/carina/utils"
-	"github.com/bocloud/carina/utils/log"
+	"github.com/carina-io/carina/utils"
+	"github.com/carina-io/carina/utils/log"
 	corev1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
 	apierrs "k8s.io/apimachinery/pkg/api/errors"

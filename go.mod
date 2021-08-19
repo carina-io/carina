@@ -1,4 +1,4 @@
-module github.com/bocloud/carina
+module github.com/carina-io/carina
 
 go 1.16
 

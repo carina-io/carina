@@ -17,9 +17,9 @@ package driver
 
 import (
 	"context"
-	"github.com/bocloud/carina/pkg/csidriver/csi"
-	"github.com/bocloud/carina/utils"
-	"github.com/bocloud/carina/utils/log"
+	"github.com/carina-io/carina/pkg/csidriver/csi"
+	"github.com/carina-io/carina/utils"
+	"github.com/carina-io/carina/utils/log"
 	"github.com/golang/protobuf/ptypes/wrappers"
 )
 

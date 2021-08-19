@@ -16,8 +16,8 @@
 package main
 
 import (
-	"github.com/bocloud/carina/cmd/carina-node/run"
-	"github.com/bocloud/carina/utils/log"
+	"github.com/carina-io/carina/cmd/carina-node/run"
+	"github.com/carina-io/carina/utils/log"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 	"os"
 )

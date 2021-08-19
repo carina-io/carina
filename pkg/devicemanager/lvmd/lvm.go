@@ -18,10 +18,10 @@ package lvmd
 import (
 	"errors"
 	"fmt"
-	"github.com/bocloud/carina/pkg/devicemanager/types"
-	"github.com/bocloud/carina/utils"
-	"github.com/bocloud/carina/utils/exec"
-	"github.com/bocloud/carina/utils/log"
+	"github.com/carina-io/carina/pkg/devicemanager/types"
+	"github.com/carina-io/carina/utils"
+	"github.com/carina-io/carina/utils/exec"
+	"github.com/carina-io/carina/utils/log"
 	"strings"
 	"time"
 )

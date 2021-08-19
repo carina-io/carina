@@ -16,8 +16,8 @@
 package configuration
 
 import (
-	"github.com/bocloud/carina/utils"
-	"github.com/bocloud/carina/utils/log"
+	"github.com/carina-io/carina/utils"
+	"github.com/carina-io/carina/utils/log"
 	"github.com/fsnotify/fsnotify"
 	"github.com/spf13/viper"
 	"os"

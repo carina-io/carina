@@ -73,8 +73,8 @@ docker-build: test
 
 # Push the docker image
 latest:
-	go build -ldflags="-X main.gitCommitID=`git rev-parse HEAD`" -gcflags '-N -l' -o bin/carina-node github.com/bocloud/carina/cmd/carina-node ;\
-	go build -ldflags="-X main.gitCommitID=`git rev-parse HEAD`" -gcflags '-N -l' -o bin/carina-controller github.com/bocloud/carina/cmd/carina-controller ;\
+	go build -ldflags="-X main.gitCommitID=`git rev-parse HEAD`" -gcflags '-N -l' -o bin/carina-node github.com/carina-io/carina/cmd/carina-node ;\
+	go build -ldflags="-X main.gitCommitID=`git rev-parse HEAD`" -gcflags '-N -l' -o bin/carina-controller github.com/carina-io/carina/cmd/carina-controller ;\
 	docker rmi $(IMAGE_REPOSITORY)/antmoveh/carina:latest 1>/dev/null 2>&1;\
 	docker build -f Dockerfile.local -t $(IMAGE_REPOSITORY)/antmoveh/carina:latest . ;\
 	docker push $(IMAGE_REPOSITORY)/antmoveh/carina:latest
@@ -87,8 +87,8 @@ release:
 
 # Push the docker image
 local:
-	go build -ldflags="-X main.gitCommitID=`git rev-parse HEAD`" -gcflags '-N -l' -o bin/carina-node github.com/bocloud/carina/cmd/carina-node ;\
-	go build -ldflags="-X main.gitCommitID=`git rev-parse HEAD`" -gcflags '-N -l' -o bin/carina-controller github.com/bocloud/carina/cmd/carina-controller ;\
+	go build -ldflags="-X main.gitCommitID=`git rev-parse HEAD`" -gcflags '-N -l' -o bin/carina-node github.com/carina-io/carina/cmd/carina-node ;\
+	go build -ldflags="-X main.gitCommitID=`git rev-parse HEAD`" -gcflags '-N -l' -o bin/carina-controller github.com/carina-io/carina/cmd/carina-controller ;\
 	docker rmi 192.168.56.101:5000/carina:latest 1>/dev/null 2>&1;\
 	docker build -f Dockerfile.local -t 192.168.56.101:5000/carina:latest . ;\
 	docker push 192.168.56.101:5000/carina:latest

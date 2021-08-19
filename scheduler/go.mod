@@ -1,4 +1,4 @@
-module github.com/bocloud/carina/scheduler
+module github.com/carina-io/carina/scheduler
 
 go 1.16
 

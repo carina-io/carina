@@ -20,7 +20,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"github.com/bocloud/carina/utils/log"
+	"github.com/carina-io/carina/utils/log"
 	"io"
 	"io/ioutil"
 	"os"

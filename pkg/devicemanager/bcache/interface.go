@@ -16,7 +16,7 @@
 package bcache
 
 import (
-	"github.com/bocloud/carina/pkg/devicemanager/types"
+	"github.com/carina-io/carina/pkg/devicemanager/types"
 )
 
 type Bcache interface {
