@@ -1,7 +1,6 @@
 ![carina](docs/img/carina.jpg)
 # Carina
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://github.com/carina-io/carina/blob/main/LICENSE)
-<img src="https://user-images.githubusercontent.com/88021699/130191822-50112078-fad9-4516-b76b-8b7566d1bfc3.jpg" width="50%">
 
 [中文文档](README-CN.md)
 
