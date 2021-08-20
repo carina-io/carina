@@ -37,7 +37,6 @@ Carina 是一款基于 Kubernetes CSI 标准实现的存储插件，用户可以
 - [磁盘限速](docs/manual/disk-speed-limit.md)
 - [指标监控](docs/manual/metrics.md)
 - [API](docs/manual/api.md)
-- [FAQ](docs/manual/FAQ.md)
 
 
 # 快速开始
@@ -69,8 +68,8 @@ $ ./deploy.sh uninstall
 | 块存储     | 不支持                     | 视驱动程序而定                              | 支持                                       | 支持                                                         |
 | 文件系统   | 不支持格式化               | 视驱动程序而定                              | 支持ext4/xfs等                             | 支持ext4/xfs等                                               |
 | 宽带       | 差/中等                    | 中等                                        | 高                                         | 高                                                           |
-| IOPS       | 差/中等                    | 高                                          | 中等                                       | 低                                                           |
-| 延迟       | 差/中等                    | 低                                          | 差                                         | 支持                                                         |
+| IOPS       | 差/中等                    | 高                                          | 中等                                       | 高                                                           |
+| 延迟       | 差/中等                    | 低                                          | 差                                         | 低                                                         |
 | CSI支持    | 支持                       | 支持                                        | 支持                                       | 支持                                                         |
 | 快照       | 不支持                     | 视驱动程序而定                              | 支持                                       | 待支持                                                       |
 | 克隆       | 不支持                     | 视驱动程序而定                              | 支持                                       | 待支持                                                       |
@@ -82,12 +81,15 @@ $ ./deploy.sh uninstall
 | 其他特性   | 容器迁移后数据跟随         | 容器迁移后数据跟随                          | 支持对象存储，容器迁移后数据跟随           | 支持binpack/spreadout等调度策略<br>针对有状态容器，支持原地重启、重建<br>容器迁移后，数据不能跟随，需要应用层面实现数据恢复 |
 
 
-### 同类型存储项目
+# 同类型存储项目
 
 - [topolvm](https://github.com/topolvm/topolvm)
 - [官方csi-driver-host-path](https://github.com/kubernetes-csi/csi-driver-host-path)
 - [local-path-provisioner](https://github.com/rancher/local-path-provisioner)
 - [openebs](https://openebs.io/)
 
+# FAQ
+- [FAQ](docs/manual/FAQ.md)
+
 # License
-Carina is under the Apache 2.0 license. See the [LICENSE](https://github.com/FabEdge/fabedge/blob/main/LICENSE) file for details.  
+Carina is under the Apache 2.0 license. See the [LICENSE](https://github.com/FabEdge/fabedge/blob/main/LICENSE) file for details.
