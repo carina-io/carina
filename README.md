@@ -2,7 +2,7 @@
 # Carina
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://github.com/carina-io/carina/blob/main/LICENSE)
 
-[中文文档](README-CN.md)
+> English | [中文](README_zh.md)
 
 ## Background
 
