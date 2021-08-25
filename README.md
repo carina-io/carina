@@ -1,4 +1,5 @@
-![carina](docs/img/carina.jpg)
+<img src="https://user-images.githubusercontent.com/88021699/130732359-4e7686a9-3010-4142-971d-b65498d9c911.jpg" width="50%">
+
 # Carina
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://github.com/carina-io/carina/blob/main/LICENSE)
 
