@@ -6,7 +6,7 @@
 
 ## Background
 
-Storage systems are complex! There are more and more kubernetes native storage systems nowadays and stateful applications are shifting into cloud native world, for example, modern databases and middlewares. However, modern databases and storage systems both try to solve some common problems in their own way. For example, they both deal with data replications and consistency. This introduces a giant waste of both capacity and performance and needs more mantainness effort. And besides that, database systems strive to be more peformant, eliminating every possible latency, which is unavoidable for modern distributed storage systems. Enters carina.
+Storage systems are complex! There are more and more kubernetes native storage systems nowadays and stateful applications are shifting into cloud native world, for example, modern databases and middlewares. However, both modern databases and its storage providers try to solve some common problems in their own way. For example, they both deal with data replications and consistency. This introduces a giant waste of both capacity and performance and needs more mantainness effort. And besides that, stateful applications strive to be more peformant, eliminating every possible latency, which is unavoidable for modern distributed storage systems. Enters carina.
 
 Carina is a standard kubernetes CSI plugin. Users can use standard kubernetes storage resources like storageclass/PVC/PV to request storage media. Its key features includes:
 
@@ -20,9 +20,9 @@ Carina is a standard kubernetes CSI plugin. Users can use standard kubernetes st
 
 
 
-# Support Environments
+# Running Environments
 
-- Kubernetes：1.20 1.19 1.18
+- Kubernetes：>=1.18 (*least verified version)
 - Node OS：Linux
 - Filesystems：ext4，xfs
 
@@ -58,7 +58,7 @@ It has three componets: carina-scheduler, carina-controller and carina-node.
 
 # Quickstart
 
-- deployment
+- Install
 ```shell
 $ cd deploy/kubernetes
 # install
