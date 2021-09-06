@@ -56,7 +56,7 @@ func dynamicConfig() {
 	})
 }
 
-// pv调度策略binpac/spradout，默认为binpac
+// pv调度策略binpack/spradout，默认为binpack
 func SchedulerStrategy() string {
 	schedulerStrategy := GlobalConfig.GetString("schedulerStrategy")
 	if utils.ContainsString([]string{SchedulerBinpack, SchedulerSpradout}, strings.ToLower(schedulerStrategy)) {

@@ -20,6 +20,7 @@ import (
 	"github.com/carina-io/carina/pkg/devicemanager/bcache"
 	"github.com/carina-io/carina/pkg/devicemanager/device"
 	"github.com/carina-io/carina/pkg/devicemanager/lvmd"
+	"github.com/carina-io/carina/pkg/devicemanager/raid"
 	"github.com/carina-io/carina/pkg/devicemanager/troubleshoot"
 	"github.com/carina-io/carina/pkg/devicemanager/types"
 	"github.com/carina-io/carina/pkg/devicemanager/volume"
@@ -47,6 +48,8 @@ type DeviceManager struct {
 	VolumeManager volume.LocalVolume
 	// bcache
 	Bcache bcache.Bcache
+	// raid
+	raid raid.Raid
 	// stop
 	stopChan <-chan struct{}
 	nodeName string
@@ -71,6 +74,7 @@ func NewDeviceManager(nodeName string, cache cache.Cache, stopChan <-chan struct
 			NoticeServerMap: make(map[string]chan struct{}),
 		},
 		Bcache:   &bcache.BcacheImplement{Executor: executor},
+		raid:     &raid.StorcliImplement{Executor: executor},
 		stopChan: stopChan,
 		nodeName: nodeName,
 	}
@@ -410,4 +414,56 @@ func validateVg(src []types.VgGroup, dst []types.VgGroup) bool {
 		}
 	}
 	return false
+}
+
+// raid
+func (dm *DeviceManager) RaidManagerTask() {
+	log.Info("start raid manager...")
+
+	// 服务启动先检查一次
+	dm.RaidManager()
+
+	monitorInterval := configuration.DiskScanInterval()
+	if monitorInterval == 0 {
+		monitorInterval = 300
+	}
+
+	ticker1 := time.NewTicker(time.Duration(monitorInterval) * time.Second)
+	go func(t *time.Ticker) {
+		defer ticker1.Stop()
+		for {
+			select {
+			case <-t.C:
+				if configuration.DiskScanInterval() == 0 {
+					ticker1.Reset(300 * time.Second)
+					log.Info("skip raid manager task ...")
+					continue
+				}
+
+				if monitorInterval != configuration.DiskScanInterval() {
+					monitorInterval = configuration.DiskScanInterval()
+					ticker1.Reset(time.Duration(monitorInterval) * time.Second)
+				}
+
+				log.Infof("clock %d second raid manager task...", configuration.DiskScanInterval())
+				dm.RaidManager()
+
+			// case <-dm.configModifyChan:
+			// 	log.Info("config modify trigger raid manager task...")
+			// 	dm.RaidManager()
+			case <-dm.stopChan:
+				log.Info("stop raid manager task...")
+				return
+			}
+		}
+	}(ticker1)
+}
+
+func (dm *DeviceManager) RaidManager() {
+	raidInfo, err := dm.raid.GetRaidInfo()
+	if err != nil {
+		log.Errorf("get raid info error %v", err)
+		return
+	}
+	log.Info(raidInfo.Controllers[0].CommandStatus.Status)
 }

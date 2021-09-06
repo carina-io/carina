@@ -21,6 +21,7 @@ import (
 	"github.com/fsnotify/fsnotify"
 	"github.com/spf13/viper"
 	"os"
+	"strconv"
 	"strings"
 )
 
@@ -132,4 +133,45 @@ func RuntimeNamespace() string {
 		namespace = "default"
 	}
 	return namespace
+}
+
+type RaidConfig struct {
+	// null means off
+	Raid bool `json:"raid"`
+	// raid 0 1 5 10 ...
+	SSDRaidLevel int `json:"ssd_raid_level"`
+	HDDRaidLevel int `json:"hdd_raid_level"`
+	// default 8
+	Stripe int `json:"stripe"`
+}
+
+// raid config
+func GetRaidConfig() RaidConfig {
+	raidConfig := GlobalConfig.GetStringMapString("raid")
+	t := RaidConfig{}
+	// 	If the string is empty, RAID is disabled
+	if raidConfig["raid"] == "" {
+		t.Raid = false
+	} else {
+		t.Raid = true
+	}
+
+	ssdRaidLevel, err := strconv.Atoi(raidConfig["ssdRaidLevel"])
+	if err != nil {
+		ssdRaidLevel = -1
+	}
+	t.SSDRaidLevel = ssdRaidLevel
+
+	hddRaidLevel, err := strconv.Atoi(raidConfig["hddRaidLevel"])
+	if err != nil {
+		hddRaidLevel = -1
+	}
+	t.HDDRaidLevel = hddRaidLevel
+
+	stripe, err := strconv.Atoi(raidConfig["stripe"])
+	if err != nil {
+		stripe = 8
+	}
+	t.Stripe = stripe
+	return t
 }
