@@ -107,5 +107,10 @@ $ ./deploy.sh uninstall
 - [csi-driver-host-path](https://github.com/kubernetes-csi/csi-driver-host-path)
 - [local-path-provisioner](https://github.com/rancher/local-path-provisioner)
 
+# Community
+- 微信用户扫码进入社区交流群
+
+![carina-wx](docs/img/carina-wx.png)
+
 # License
 Carina is under the Apache 2.0 license. See the [LICENSE](https://github.com/FabEdge/fabedge/blob/main/LICENSE) file for details.

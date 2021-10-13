@@ -96,5 +96,10 @@ $ ./deploy.sh uninstall
 # FAQ
 - [FAQ](docs/manual/FAQ.md)
 
+# 社区
+- 微信用户扫码进入社区交流群
+
+![carina-wx](docs/img/carina-wx.png)
+
 # License
 Carina is under the Apache 2.0 license. See the [LICENSE](https://github.com/FabEdge/fabedge/blob/main/LICENSE) file for details.
