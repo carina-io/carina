@@ -79,7 +79,8 @@ operator=${1:-'install'}
 if [ "uninstall" == $operator ]
 then
   uninstall
-elif ["signature" == $operator ]
+elif [ "signature" == $operator ]
+then
   signature
 else
   install
