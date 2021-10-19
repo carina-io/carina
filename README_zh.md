@@ -49,8 +49,9 @@ Carina 是一款基于 Kubernetes CSI 标准实现的存储插件，用户可以
 - 快速部署
 ```shell
 $ cd deploy/kubernetes
-# 安装
+# 安装，如果k8s>=1.22，可以使用命令 `./deploy.sh signature` 安装
 $ ./deploy.sh
+
 # 卸载
 $ ./deploy.sh uninstall
 ```

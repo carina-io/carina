@@ -25,6 +25,27 @@ function install() {
   kubectl get pods -n kube-system |grep carina
 }
 
+function signature() {
+  echo "install..."
+  kubectl label namespace kube-system carina.storage.io/webhook=ignore
+  rm -rf mutatingwebhooks.yaml && cp mutatingwebhooks.yaml.signature mutatingwebhooks.yaml
+
+  kubectl apply -f crd.yaml
+  kubectl apply -f csi-config-map.yaml
+  kubectl apply -f mutatingwebhooks.yaml
+  kubectl apply -f csi-controller-psp.yaml
+  kubectl apply -f csi-controller-rbac.yaml
+  kubectl apply -f csi-carina-controller.yaml
+  kubectl apply -f csi-node-psp.yaml
+  kubectl apply -f csi-node-rbac.yaml
+  kubectl apply -f csi-carina-node.yaml
+  kubectl apply -f carina-scheduler.yaml
+  sleep 3s
+  echo "-------------------------------"
+  echo "$ kubectl get pods -n kube-system |grep carina"
+  kubectl get pods -n kube-system |grep carina
+}
+
 
 function uninstall() {
   echo "uninstall..."
@@ -58,6 +79,8 @@ operator=${1:-'install'}
 if [ "uninstall" == $operator ]
 then
   uninstall
+elif ["signature" == $operator ]
+  signature
 else
   install
 fi

@@ -62,7 +62,7 @@ It has three componets: carina-scheduler, carina-controller and carina-node.
 - Install
 ```shell
 $ cd deploy/kubernetes
-# install
+# install, if k8s>=1.22, you can use the './deploy.sh signature 'command to install it
 $ ./deploy.sh
 # uninstall
 $ ./deploy.sh uninstall
