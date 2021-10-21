@@ -15,6 +15,9 @@ Carina 是一款基于 Kubernetes CSI 标准实现的存储插件，用户可以
 - Node OS：Linux
 - Filesystems：ext4，xfs
 
+- 如果kubelet以容器化方式运行，需要挂载主机/dev目录
+- 集群每个节点存在1..N块裸盘，支持SSD和HDD磁盘（可使用命令lsblk --output NAME,ROTA查看磁盘类型，ROTA=1为HDD磁盘 ROTA=0为SSD磁盘）
+- 节点单块裸盘容量需要大于10G
 
 # 总体架构
 

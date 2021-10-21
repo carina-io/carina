@@ -27,6 +27,10 @@ Carina is a standard kubernetes CSI plugin. Users can use standard kubernetes st
 - Node OS：Linux
 - Filesystems：ext4，xfs
 
+- If Kubelet is running in containerized mode, you need to mount the host /dev directory
+- Each node in the cluster has 1..N Bare disks, supporting SSDS and HDDS. (You can run the LSBLK --output NAME,ROTA command to view the disk type. If ROTA=1 is HDD,ROTA =0 is SSD.)
+- The capacity of a raw disk must be greater than 10 GB
+
 # Carina architecture
 
 Carina is built for cloudnative stateful applications with raw disk performance and ops-free maintainess. Carina can scan local disks and classify them by disk types， for example, one node can have 10 HDDs and 2 SSDs. Carina then will group them into different disk pools and user can request different disk type by using different storage class. For data HA, carina now leverages STORCLI to build RAID groups.
