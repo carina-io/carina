@@ -9,7 +9,7 @@
 
 - Kubernetes 集群（已验证版本1.18.2，1.19.4， 1.20.4）
 - 如果kubelet以容器化方式运行，需要挂载主机`/dev`目录
-- Linux Kernal >= 3.10.0-1160.11.1.el7.x86_64
+- Linux Kernal 3.10.0-1160.11.1.el7.x86_64 (在此版本进行的测试，低于此版本也是可以的)
 - 集群每个节点存在1..N块裸盘，支持SSD和HDD磁盘（可使用命令`lsblk --output NAME,ROTA`查看磁盘类型，ROTA=1为HDD磁盘 ROTA=0为SSD磁盘）
 
 ##### 2.2 执行部署
