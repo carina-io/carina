@@ -80,6 +80,13 @@ spec:
               name: metrics
             - containerPort: 8089
               name: http
+          resources:
+            requests:
+              memory: "64Mi"
+              cpu: "300m"
+            limits:
+              memory: "128Mi"
+              cpu: "750m"
           imagePullPolicy: "Always"
           volumeMounts:
             - name: socket-dir

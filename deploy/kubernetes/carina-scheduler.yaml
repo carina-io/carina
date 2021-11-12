@@ -123,7 +123,11 @@ spec:
             - --v=3
           resources:
             requests:
-              cpu: "50m"
+              memory: "64Mi"
+              cpu: "100m"
+            limits:
+              memory: "128Mi"
+              cpu: "300m"
           volumeMounts:
             - name: scheduler-config
               mountPath: /etc/kube/

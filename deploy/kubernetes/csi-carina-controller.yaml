@@ -117,6 +117,13 @@ spec:
               name: http
             - containerPort: 8443
               name: webhook
+          resources:
+            requests:
+              memory: "64Mi"
+              cpu: "300m"
+            limits:
+              memory: "128Mi"
+              cpu: "750m"
           imagePullPolicy: "Always"
           volumeMounts:
             - name: socket-dir
