@@ -35,7 +35,7 @@ the carina scheduler will bind it the the-notready-node again. This works fine i
 and the newly created pod will reuse the local volume again. But if the node is indeed failed, we should
 reschedule the pod to give it another change, although the newly borned pod will have an empty volume.
 
-This will fix #14.
+This will fix [#14](https://github.com/carina-io/carina/issues/14).
 
 
 ### Helm install
@@ -48,7 +48,7 @@ Use helm chart for ease of installation、uninstallation、upgrade。
 Currently, carina groups disks with its type. However, some workloads may prefer using spereated disks
  against others. For now the capacity and allocatable resoucres will remain the same. 
 
- This will fix #10.
+ This will fix [#10](https://github.com/carina-io/carina/issues/10).
 
 ## v0.10.0
 
