@@ -81,24 +81,24 @@ $ ./deploy.sh uninstall
 
 # Typical storage providers
 
-|            | NFS/NAS                    | SAN                                         | Ceph                                       | Carina                                                       |
-| ---------- | -------------------------- | ------------------------------------------- | ------------------------------------------ | ------------------------------------------------------------ |
-| typical usage   | general storage  | high performance block device  |  extremly scalability  | high performance block device for cloudnative applications |
-| filesystem   | yes                       | yes                                        | yes                                       | yes                                                         |
-| filesystem type   | NFS               | driver specific                              | ext4/xfs                             | ext4/xfs                                               |
-| block     | no                     | yes                              | yes                                       | yes                                                         |
-| bandwidth       | standard                    | standard                                        | high                                         | high                                                           |
-| IOPS       | standard                    | high                                          | standard                                       | high                                                           |
-| latency       | standard                    | low                                         | standard                                         | low                                                         |
-| CSI support    | yes                       | yes                                       | yes                                       | yes                                                         |
-| snapshot       | no                     | driver specific                              | yes                                       | not yet, comming soon                                                      |
-| clone       | no                     | driver specific                              | yes                                       | not yet, comming soon                                                       |
-| quota       | no                     | yes                                        | yes                                       | yes                                                        |
-| resizing       | yes                       | driver specific                                       | yes                                       | yes                                                         |
-| data HA | RAID or NAS appliacne          | yes                                       | yes                                       | RAID                                                     |
-| ease of maintainess   |   driver specific                         | multiple drivers for multiple SAN | high maintainess effort                     | ops-free                                                           |
-| budget      | high for NAS | high           | high | low, using the extra disks in existing kubernetes cluster                             |
-| others   | data migrates with pods         | data migrates with pods                          | data migrates with pods          | data doesn't migrate with pods <br> inplace rebulid if pod fails |
+|            | NFS/NAS | SAN | Ceph | Carina |
+| ---------- | --------| ----| -----| -------|
+| typical usage | general storage   | high performance block device  |  extremly scalability  | high performance block device for cloudnative applications |
+| filesystem | yes    | yes  | yes  | yes    |
+| filesystem type | NFS | driver specific  | ext4/xfs | ext4/xfs |
+| block | no | yes | yes | yes |
+| bandwidth | standard | standard | high | high |
+| IOPS | standard | high | standard | high |
+| latency | standard | low | standard | low |
+| CSI support| yes | yes | yes | yes |
+| snapshot | no | driver specific| yes | yes|
+| clone | no | driver specific | yes | not yet, comming soon |
+| quota| no | yes | yes | yes |
+| resizing | yes | driver specific | yes | yes |
+| data HA | RAID or NAS appliacne | yes | yes | RAID |
+| ease of maintainess |   driver specific | multiple drivers for multiple SAN | high maintainess effort | ops-free |
+| budget | high for NAS | high | high | low, using the extra disks in existing kubernetes cluster |
+| others | data migrates with pods | data migrates with pods | data migrates with pods |binpack or spreadout scheduling policy <br> data doesn't migrate with pods  <br>  inplace rebulid if pod fails <br> pod recreate inplace |
 
 
 # FAQ
