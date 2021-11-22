@@ -98,7 +98,7 @@ $ ./deploy.sh uninstall
 | data HA | RAID or NAS appliacne | yes | yes | RAID |
 | ease of maintainess |   driver specific | multiple drivers for multiple SAN | high maintainess effort | ops-free |
 | budget | high for NAS | high | high | low, using the extra disks in existing kubernetes cluster |
-| others | data migrates with pods | data migrates with pods | data migrates with pods |binpack or spreadout scheduling policy <br> data doesn't migrate with pods  <br>  inplace rebulid if pod fails <br> pod recreate inplace |
+| others | data migrates with pods | data migrates with pods | data migrates with pods |* binpack or spreadout scheduling policy <br> * data doesn't migrate with pods  <br> * inplace rebulid if pod fails |
 
 
 # FAQ
