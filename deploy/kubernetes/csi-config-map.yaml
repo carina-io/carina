@@ -9,7 +9,7 @@ metadata:
 data:
   config.json: |-
     {
-      "diskSelector": ["loop+", "vd+"],
+      "diskSelector": ["loop*", "vd*"],
       "diskScanInterval": "300",
       "diskGroupPolicy": "type",
       "schedulerStrategy": "spradout"
