@@ -1,0 +1,45 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}-controller
+  namespace: {{ .Release.Namespace }}
+{{ include "carina.labels" . | indent 2 }}
+spec:
+  selector:
+    app: csi-carina-provisioner
+  ports:
+    - name: webhook
+      protocol: TCP
+      port: 443
+      targetPort: {{ .Values.controller.webhookPort }}
+    - name: metrics
+      protocol: TCP
+      port: 8080
+      targetPort: {{ .Values.controller.metricsPort }}
+    - name: http
+      protocol: TCP
+      port: 8089
+      targetPort: {{ .Values.controller.httpPort }}
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}-node
+  namespace: {{ .Release.Namespace }}
+{{ include "carina-node.labels" . | indent 2 }}
+spec:
+  selector:
+    app: csi-carina-node
+  sessionAffinity: None
+  type: ClusterIP   
+  ports:
+    - name: metrics
+      port: 8080
+      protocol: TCP
+      targetPort: {{ .Values.node.metricsPort }}
+    - name: http
+      port: 8089
+      protocol: TCP
+      targetPort: {{ .Values.node.httpPort }}
+     
