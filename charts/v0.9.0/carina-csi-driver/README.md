@@ -8,7 +8,7 @@
 ### add the Helm chart repository
 
 ```console
-helm repo add carina-csi-driver https://raw.githubusercontent.com/zhangkai8048/carina/main/charts
+helm repo add carina-csi-driver https://raw.githubusercontent.com/carina-io/carina/main/charts
 ```
 
 ### search for all available chart versions
@@ -20,7 +20,7 @@ helm search repo -l carina-csi-driver
 ### update the repository
 
 ```console
-helm repo update carina-csi-driver
+helm repo update
 ```
 
 ---
@@ -30,7 +30,7 @@ helm repo update carina-csi-driver
 ### install a specific version
 
 ```console
-helm install carina-csi-driver carina-csi-driver/ --namespace kube-system --version v0.9.0
+helm install carina-csi-driver carina-csi-driver/carina-csi-driver --namespace kube-system --version v0.9.0
 ```
 
 ### uninstall CSI driver
