@@ -1,0 +1,15 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: carina-csi-config
+  namespace: {{ .Release.Namespace }}
+{{ include "carina-node.labels" . | indent 2 }}
+data:
+  config.json: |-
+    {
+      "diskSelector": ["loop+", "vd+"],
+      "diskScanInterval": "300",
+      "diskGroupPolicy": "type",
+      "schedulerStrategy": "spradout"
+    }
