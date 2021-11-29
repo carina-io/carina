@@ -1,6 +1,7 @@
 <img src="https://user-images.githubusercontent.com/88021699/130732359-4e7686a9-3010-4142-971d-b65498d9c911.jpg" width="50%">
 
 # Carina
+
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://github.com/carina-io/carina/blob/main/LICENSE)
 
 > English | [中文](README_zh.md)
@@ -15,21 +16,19 @@ Carina is a standard kubernetes CSI plugin. Users can use standard kubernetes st
 * Using local disks and partition them into different groups based on disk type, user can provison different type of disks using different storage class.
 * Scaning physical disks and building a RAID as required. If disk fails, just plugin a new one and it's done.
 * Node capacity and performance aware, so scheduling pods more smartly.
-*  Extremly low overhead. Carina sit besides the core data path and provide raw disk performance to applications.
+* Extremly low overhead. Carina sit besides the core data path and provide raw disk performance to applications.
 * Auto tiering. Admins can configure carina to combine the large-capacity-but-low-performant disk and small-capacity-but-high-performant disks as one storageclass, so user can benifit both from capacity and performance.
 * If nodes fails, carina will automatically detach the local volume from pods thus pods can be rescheduled.
 
-
-
 # Running Environments
 
-- Kubernetes：>=1.18 (*least verified version)
-- Node OS：Linux
-- Filesystems：ext4，xfs
+* Kubernetes：>=1.18 (*least verified version)
+* Node OS：Linux
+* Filesystems：ext4，xfs
 
-- If Kubelet is running in containerized mode, you need to mount the host /dev directory
-- Each node in the cluster has 1..N Bare disks, supporting SSDS and HDDS. (You can run the LSBLK --output NAME,ROTA command to view the disk type. If ROTA=1 is HDD,ROTA =0 is SSD.)
-- The capacity of a raw disk must be greater than 10 GB
+* If Kubelet is running in containerized mode, you need to mount the host /dev directory
+* Each node in the cluster has 1..N Bare disks, supporting SSDS and HDDS. (You can run the LSBLK --output NAME,ROTA command to view the disk type. If ROTA=1 is HDD,ROTA =0 is SSD.)
+* The capacity of a raw disk must be greater than 10 GB
 
 # Carina architecture
 
@@ -41,29 +40,30 @@ Carina is built for cloudnative stateful applications with raw disk performance 
 
 It has three componets: carina-scheduler, carina-controller and carina-node.
 
-- carina-scheduler is an kubernetes scheduler plugin, sorting nodes based on the requested PV size、node's free disk space and node IO perf stats. By default, carina-scheduler supports binpack and spreadout policies.
-- carina-controller is the controll plane of carina, which watches PVC resources and maintain the internal logivalVolume object.
-- carina-node is an agent which runs on each node. It manage local disks using LVM.
+* carina-scheduler is an kubernetes scheduler plugin, sorting nodes based on the requested PV size、node's free disk space and node IO perf stats. By default, carina-scheduler supports binpack and spreadout policies.
+* carina-controller is the controll plane of carina, which watches PVC resources and maintain the internal logivalVolume object.
+* carina-node is an agent which runs on each node. It manage local disks using LVM.
 
 # Features
 
-- [disk management](docs/manual/disk-manager.md)
-- [device registration](docs/manual/device-register.md)
-- [volume mode: filesystem](docs/manual/pvc-xfs.md)
-- [volume mode: block](docs/manual/pvc-device.md)
-- [PVC resizing](docs/manual/pvc-expand.md)
-- [scheduing based on capacity](docs/manual/capacity-scheduler.md)
-- [volume tooplogy](docs/manual/topology.md)
-- [PVC autotiering](docs/manual/pvc-bcache.md)
-- [RAID management](docs/manual/raid-manager.md)
-- [failover](docs/manual/failover.md)
-- [io throttling](docs/manual/disk-speed-limit.md)
-- [metrics](docs/manual/metrics.md)
-- [API](docs/manual/api.md)
+* [disk management](docs/manual/disk-manager.md)
+* [device registration](docs/manual/device-register.md)
+* [volume mode: filesystem](docs/manual/pvc-xfs.md)
+* [volume mode: block](docs/manual/pvc-device.md)
+* [PVC resizing](docs/manual/pvc-expand.md)
+* [scheduing based on capacity](docs/manual/capacity-scheduler.md)
+* [volume tooplogy](docs/manual/topology.md)
+* [PVC autotiering](docs/manual/pvc-bcache.md)
+* [RAID management](docs/manual/raid-manager.md)
+* [failover](docs/manual/failover.md)
+* [io throttling](docs/manual/disk-speed-limit.md)
+* [metrics](docs/manual/metrics.md)
+* [API](docs/manual/api.md)
 
 # Quickstart
 
-- Install
+* Install by shell
+
 ```shell
 $ cd deploy/kubernetes
 # install, if k8s>=1.22, you can use the './deploy.sh signature 'command to install it
@@ -71,13 +71,24 @@ $ ./deploy.sh
 # uninstall
 $ ./deploy.sh uninstall
 ```
-- [deployment guide](docs/manual/install.md)
-- [user guide](docs/user-guide.md)
+
+Install by helm3
+
+```bash
+helm repo add carina-csi-driver https://raw.githubusercontent.com/carina-io/carina/main/charts
+
+helm search repo -l carina-csi-driver
+
+helm install carina-csi-driver carina-csi-driver/carina-csi-driver --namespace kube-system --version v0.9.0
+```
+
+* [deployment guide](docs/manual/install.md)
+* [user guide](docs/user-guide.md)
 
 # Contribution Guide
 
-- [development guide](docs/manual/development.md)
-- [build local runtime](docs/manual/runtime-container.md)
+* [development guide](docs/manual/development.md)
+* [build local runtime](docs/manual/runtime-container.md)
 
 # Typical storage providers
 
@@ -98,23 +109,25 @@ $ ./deploy.sh uninstall
 | data HA | RAID or NAS appliacne | yes | yes | RAID |
 | ease of maintainess |   driver specific | multiple drivers for multiple SAN | high maintainess effort | ops-free |
 | budget | high for NAS | high | high | low, using the extra disks in existing kubernetes cluster |
-| others | data migrates with pods | data migrates with pods | data migrates with pods |* binpack or spreadout scheduling policy <br> * data doesn't migrate with pods  <br> * inplace rebulid if pod fails |
-
+| others | data migrates with pods | data migrates with pods | data migrates with pods |*binpack or spreadout scheduling policy <br>* data doesn't migrate with pods  <br> * inplace rebulid if pod fails |
 
 # FAQ
+
 - [FAQ](docs/manual/FAQ.md)
 
 # Similar projects
 
-- [openebs](https://openebs.io/)
-- [topolvm](https://github.com/topolvm/topolvm)
-- [csi-driver-host-path](https://github.com/kubernetes-csi/csi-driver-host-path)
-- [local-path-provisioner](https://github.com/rancher/local-path-provisioner)
+* [openebs](https://openebs.io/)
+* [topolvm](https://github.com/topolvm/topolvm)
+* [csi-driver-host-path](https://github.com/kubernetes-csi/csi-driver-host-path)
+* [local-path-provisioner](https://github.com/rancher/local-path-provisioner)
 
 # Community
+
 - 微信用户扫码进入社区交流群
 
 ![carina-wx](docs/img/carina-wx.png)
 
 # License
+
 Carina is under the Apache 2.0 license. See the [LICENSE](https://github.com/FabEdge/fabedge/blob/main/LICENSE) file for details.

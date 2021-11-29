@@ -50,6 +50,9 @@ Carina 是一款基于 Kubernetes CSI 标准实现的存储插件，用户可以
 # 快速开始
 
 - 快速部署
+
+## 使用shell
+
 ```shell
 $ cd deploy/kubernetes
 # 安装，如果k8s>=1.22，可以使用命令 `./deploy.sh signature` 安装
@@ -58,9 +61,19 @@ $ ./deploy.sh
 # 卸载
 $ ./deploy.sh uninstall
 ```
+
+## 使用helm3
+
+```bash
+helm repo add carina-csi-driver https://raw.githubusercontent.com/carina-io/carina/main/charts
+
+helm search repo -l carina-csi-driver
+
+helm install carina-csi-driver carina-csi-driver/carina-csi-driver --namespace kube-system --version v0.9.0
+```
+
 - [部署文档](docs/manual/install.md)
 - 详细部署及使用参考[使用手册](docs/user-guide.md)
-
 
 # 开发指南
 
