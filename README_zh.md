@@ -80,6 +80,10 @@ helm install carina-csi-driver carina-csi-driver/carina-csi-driver --namespace k
 - [开发文档](docs/manual/development.md)
 - [构建运行时容器](docs/manual/runtime-container.md)
 
+# 路线图
+
+* [路线图](docs/roadmap/roadmap.md)
+
 
 # 常见存储方案对比
 

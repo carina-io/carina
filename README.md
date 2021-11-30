@@ -90,6 +90,10 @@ helm install carina-csi-driver carina-csi-driver/carina-csi-driver --namespace k
 * [development guide](docs/manual/development.md)
 * [build local runtime](docs/manual/runtime-container.md)
 
+# Roadmap
+
+* [roadmap](docs/roadmap/roadmap.md)
+
 # Typical storage providers
 
 |            | NFS/NAS | SAN | Ceph | Carina |
