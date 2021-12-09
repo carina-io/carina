@@ -5,9 +5,9 @@
 image:
   baseRepo: registry.cn-hangzhou.aliyuncs.com/antmoveh
   carina:
-    repository: /carina
+    repository: registry.cn-hangzhou.aliyuncs.com/antmoveh/carina
     tag: v0.9-20210804141609
-    pullPolicy: IfNotPresent
+    pullPolicy: Always
   csiProvisioner:
     repository: /csi-provisioner
     tag: v2.1.0
@@ -115,14 +115,7 @@ node:
   hostNetwork: true # this setting could be disabled if perfProfile is `none`
   maxUnavailable: 1
   podLabels: {}
-  nodeAffinity:
-    requiredDuringSchedulingIgnoredDuringExecution:
-      nodeSelectorTerms:
-        - matchExpressions:
-            - key: type
-              operator: NotIn
-              values:
-                - virtual-kubelet
+  nodeAffinity: {}
   resources:
     livenessProbe:
       limits:
@@ -159,6 +152,7 @@ serviceMonitor:
   enable: false 
 
 certs:
+  create: true
   securityContext:
     enabled: true
     runAsUser: 65534
@@ -170,7 +164,11 @@ certs:
     nodeSelector: {}
     tolerations: []
     affinity: {}
-   
+ 
+webhook:
+  caBundle:  # Base64-encoded, PEM-encoded CA certificate that signs the server certificate.
+  enabled: true
+
 kubeconfig:
   enabled: false
   # base64 encoded kube-config file

@@ -5,7 +5,7 @@ metadata:
   annotations:
     "helm.sh/hook": pre-install
     "helm.sh/hook-weight": "2"
-    "helm.sh/hook-delete-policy": hook-succeeded
+    "helm.sh/hook-delete-policy": hook-succeeded,before-hook-creation
   name: {{ .Release.Name  }}-certs
   labels:
       app.kubernetes.io/instance: {{ .Release.Name }}
@@ -45,10 +45,10 @@ spec:
           configMap:
             defaultMode: 493
             name: {{ .Release.Name }}-cert-config
-{{- if .Values.kubeconfig.enabled }}
+{{- if and .Values.kubeconfig.enabled .Values.kubeconfig.secret}}
         - name: kubeconfig
           secret:
-            secretName: {{ .Release.Name }}-kubeconfig             
+            secretName: {{ .Release.Name }}-kubeconfig  
 {{- end }}
       containers:
       - name: main
@@ -58,18 +58,19 @@ spec:
         imagePullPolicy: {{ .Values.certs.imagePullPolicy }}
         env:
         - name: HOME
-          value: /  
+          value: /tmp 
+        workingDir: /tmp   
         command:
         - '/bin/sh'
         - '-xc'
         - > 
-          ls /init/  &&  /init/on-start.sh --service {{ .Release.Name }}-controller --namespace {{ .Release.Namespace }}  --secret mutatingwebhook
+          /init/on-start.sh --service {{ .Release.Name }}-controller --namespace {{ .Release.Namespace }}  --secret mutatingwebhook
         volumeMounts:
           - name: init
             mountPath: /init
 {{- if .Values.kubeconfig.enabled }}            
           - name: kubeconfig
-            mountPath: /root/.kube/
+            mountPath: /root/.kube
             readOnly: true  
 {{- end }}
 {{- end }}
@@ -79,9 +80,8 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   annotations:
-    "helm.sh/hook": pre-install,post-delete
+    "helm.sh/hook": pre-install
     "helm.sh/hook-weight": "1"
-    "helm.sh/hook-delete-policy": hook-succeeded
   name: {{ .Release.Name }}-cert-config
   namespace: {{ .Release.Namespace }}
 {{ include "carina-node.labels" . | indent 2 }}
