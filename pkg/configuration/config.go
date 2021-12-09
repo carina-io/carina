@@ -28,7 +28,7 @@ import (
 const (
 	configPath        = "/etc/carina/"
 	SchedulerBinpack  = "binpack"
-	SchedulerSpradout = "spradout"
+	SchedulerSpradout = "spreadout"
 	diskGroupType     = "type"
 )
 

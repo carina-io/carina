@@ -170,7 +170,7 @@ spec:
           }
         - name: config
           configMap:
-            name: {{ .Release.Name }}-csi-config
+            name: carina-csi-config
         - name: certs
           secret:
             secretName: mutatingwebhook
