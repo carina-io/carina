@@ -25,7 +25,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/util/workqueue"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -285,7 +284,7 @@ func (r *NodeReconciler) clearPod(ctx context.Context,nodeName string) error {
 			pod := &corev1.Pod{}
 			vo := &storagev1.VolumeAttachment{}
 			err = r.Get(ctx, p, pod)
-			if err != nil && !apierrors.IsNotFound(err) {
+			if err != nil && !errors.IsNotFound(err) {
 				return  err
 			}
 			err = r.killPod(ctx, pod)
@@ -293,7 +292,7 @@ func (r *NodeReconciler) clearPod(ctx context.Context,nodeName string) error {
 				return err
 			}
 			err = r.Get(ctx, p, vo)
-			if err != nil && !apierrors.IsNotFound(err){
+			if err != nil && !errors.IsNotFound(err){
 				return err
 			}
 			err = r.forceDetach(ctx, vo)
