@@ -81,9 +81,7 @@ latest:
 
 # Push the docker image
 release:
-	docker rmi $(IMAGE_REPOSITORY)/antmoveh/carina:$(VERSION)-$(DATE) 2>&1 1>/dev/null;\
-    docker build -t $(IMAGE_REPOSITORY)/antmoveh/carina:$(VERSION)-$(DATE) . ;\
-    docker push $(IMAGE_REPOSITORY)/antmoveh/carina:$(VERSION)-$(DATE)
+	docker buildx build -t $(IMAGE_REPOSITORY)/antmoveh/carina:$(VERSION)-$(DATE) --platform=linux/arm64,linux/amd64 . --push
 
 # Push the docker image
 local:

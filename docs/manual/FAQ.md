@@ -50,4 +50,23 @@
    loop0     0
   ```
 
+- ⑧关于宿主机bcache
+  - bcache是linux内核模块，有些低版本操作系统内核并没有开启bcahce，可使用如下方法关闭carina对于bcache的支持
+
+  ```shell
+  # 检查服务器是否支持bcache模块，如果支持情况如下
+  $ modprobe bcache
+  $ lsmod | grep bcache
+  bcache                233472  0
+  crc64                  16384  1 bcache
+  # 当服务器不支持bcache时，需要删除deploy/kubernetes/csi-carina-node.yaml关于bcache内容
+  # init-container中删除bcache的内核加载
+  # csi-carina-node中删除关于bcahce的目录挂载
+  - name: host-bcache
+    mountPath: /sys/fs/bcache
+    
+  - name: host-bcache
+    hostPath:
+      path: /sys/fs/bcache            
+  ```
   
