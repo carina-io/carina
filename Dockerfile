@@ -1,7 +1,7 @@
 # Build the manager binary
 FROM golang:1.16.6-buster AS builder
 
-ENV GO111MODULE=on CGO_ENABLED=0 GOOS=linux GOARCH=amd64 GOPROXY=https://goproxy.cn,direct
+ENV GO111MODULE=on CGO_ENABLED=0 GOOS=linux GOPROXY=https://goproxy.cn,direct
 ENV WORKSPACE=/workspace/github.com/carina-io/carina
 
 WORKDIR $WORKSPACE
@@ -12,7 +12,7 @@ RUN echo Commit: `git log --pretty='%s%b%B' -n 1`
 RUN cd $WORKSPACE/cmd/carina-node && go build -ldflags="-X main.gitCommitID=`git rev-parse HEAD`" -gcflags '-N -l' -o /tmp/carina-node .
 RUN cd $WORKSPACE/cmd/carina-controller && go build -ldflags="-X main.gitCommitID=`git rev-parse HEAD`" -gcflags '-N -l' -o /tmp/carina-controller .
 
-FROM registry.cn-hangzhou.aliyuncs.com/antmoveh/centos-lvm2:runtime-202104
+FROM registry.cn-hangzhou.aliyuncs.com/antmoveh/centos-mutilarch-lvm2:runtime-202112
 
 # copy binary file
 COPY --from=builder /tmp/carina-node /usr/bin/
