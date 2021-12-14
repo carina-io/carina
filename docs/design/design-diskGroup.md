@@ -40,10 +40,12 @@ diskSelectors:
       - sd[b-f]
       - sd[m-o]
     policy: LVM
+    nodeLabel: node-label
   - name: group2
     re:
       - sd[h-g]
     policy: RAW
+    nodeLabel: node-label
 ```
 
 #### diskSelector
@@ -102,7 +104,10 @@ parameters, which are all required, not optional.
   ```
   carina.io/exclusivly-disk-claim: true
   ```
+* nodeLabel
 
+  The configuration takes effect on all nodes. If the configuration is empty, 
+   the configuration takes effect on all nodes
 
 #### diskGroupPolicy
 
@@ -144,8 +149,7 @@ diskSelectors:
 
 ### Migrating from v0.9.0 or below
 
-When carina starts, it still can recognize the old confmap setting, But it will
-rewrite the configmap to new formattion.
+When carina starts, Old volumes can still be identified
 
 #### The old configmap setting
 
@@ -162,16 +166,26 @@ data:
 
 #### The new configmap setting
 
-```yaml
-diskSelectors:
-  - name: hdd ## if there are HDDs
-    re:
-      - loop*
-      - vd*
-    policy: LVM
-  - name: ssd ## if there are SSDs
-    re:
-      - loop*
-      - vd*
-    policy: LVM
+```
+data:
+  config.json: |-
+    {
+      "diskSelector": [
+        {
+          "name": hdd ## if there are HDDs
+          "re": ["loop*", "vd*"]
+          "policy": "LVM"
+          "nodeLabel": "node-label"
+        },
+        {
+          "name": ssd
+          "re": ["loop*", "vd*"]
+          "policy": "LVM"
+          "nodeLabel": "node-label"
+        }
+      ],
+      "diskScanInterval": "300",
+      "schedulerStrategy": "spreadout"    
+    }
+
 ```
