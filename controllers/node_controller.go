@@ -37,10 +37,12 @@ import (
 )
 
 type nodeStatusType string
+
 const (
-	Abnormal  nodeStatusType = "abnormal" 
-	Normal    nodeStatusType = "normal" 
+	Abnormal nodeStatusType = "abnormal"
+	Normal   nodeStatusType = "normal"
 )
+
 // NodeReconciler reconciles a Node object
 type NodeReconciler struct {
 	client.Client
@@ -91,12 +93,12 @@ func (r *NodeReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		UpdateFunc:  func(event.UpdateEvent) bool { return false },
 		GenericFunc: func(event.GenericEvent) bool { return false },
 	}
-    
+
 	podFilter := predicate.Funcs{
 		CreateFunc:  func(event.CreateEvent) bool { return false },
 		UpdateFunc:  func(event.UpdateEvent) bool { return false },
 		GenericFunc: func(event.GenericEvent) bool { return false },
-		DeleteFunc:  func(e event.DeleteEvent) bool { 
+		DeleteFunc: func(e event.DeleteEvent) bool {
 			return e.Object.(*corev1.Pod).Spec.SchedulerName == utils.CSIPluginName
 		},
 	}
@@ -140,8 +142,7 @@ func (r *NodeReconciler) getNeedRebuildVolume(ctx context.Context) (map[string]c
 		return volumeObjectMap, nil
 	}
 
-	 
-	nodeStatus,err := r.nodeStatusList(ctx)
+	nodeStatus, err := r.nodeStatusList(ctx)
 	if err != nil {
 		return volumeObjectMap, err
 	}
@@ -176,21 +177,21 @@ func (r *NodeReconciler) getNeedRebuildVolume(ctx context.Context) (map[string]c
 			}
 			continue
 		}
-		err :=  r. clearPod(ctx,lv.Spec.NodeName)
+		err := r.clearPod(ctx, lv.Spec.NodeName)
 		if err != nil {
-			log.Errorf("unable to clear pod in not ready node:%s  err:%s",lv.Spec.NodeName, err.Error())
+			log.Errorf("unable to clear pod in not ready node:%s  err:%s", lv.Spec.NodeName, err.Error())
 			return volumeObjectMap, err
 		}
 		// 重建逻辑
-		
+
 		if _, ok := r.cacheNoDeleteLv[lv.Name]; ok {
 			continue
 		}
 		if v, ok := nodeStatus[lv.Spec.NodeName]; ok && v == "normal" {
 			continue
 		}
-		
-		log.Info("Namespace: ", lv.Spec.NameSpace, " Name: ", lv.Spec.Pvc, " Status: ", lv.Status.Status)	
+
+		log.Info("Namespace: ", lv.Spec.NameSpace, " Name: ", lv.Spec.Pvc, " Status: ", lv.Status.Status)
 		volumeObjectMap[lv.Name] = client.ObjectKey{Namespace: lv.Spec.NameSpace, Name: lv.Spec.Pvc}
 		if lv.Finalizers != nil && utils.ContainsString(lv.Finalizers, utils.LogicVolumeFinalizer) {
 			lv2 := lv.DeepCopy()
@@ -266,17 +267,15 @@ func (r *NodeReconciler) pvMap(ctx context.Context) (map[string]uint8, error) {
 	return result, nil
 }
 
-
-
 //when pvc is use by pod,delete pvc will not success,so you need to kill pod force,unattach volume
-func (r *NodeReconciler) clearPod(ctx context.Context,nodeName string) error {
+func (r *NodeReconciler) clearPod(ctx context.Context, nodeName string) error {
 	podMap, err := r.podMap(ctx)
 	if err != nil {
 		log.Errorf("unable to fetch pod list %s", err.Error())
-		return  err
+		return err
 	}
-	log.Infof("podmap list: %s,node: %s", podMap,nodeName)	
-    if len(podMap)==0{
+	log.Infof("podmap list: %s,node: %s", podMap, nodeName)
+	if len(podMap) == 0 {
 		return nil
 	}
 	if poddelete, ok := podMap[nodeName]; ok {
@@ -285,14 +284,14 @@ func (r *NodeReconciler) clearPod(ctx context.Context,nodeName string) error {
 			vo := &storagev1.VolumeAttachment{}
 			err = r.Get(ctx, p, pod)
 			if err != nil && !errors.IsNotFound(err) {
-				return  err
+				return err
 			}
 			err = r.killPod(ctx, pod)
 			if err != nil {
 				return err
 			}
 			err = r.Get(ctx, p, vo)
-			if err != nil && !errors.IsNotFound(err){
+			if err != nil && !errors.IsNotFound(err) {
 				return err
 			}
 			err = r.forceDetach(ctx, vo)
@@ -302,12 +301,12 @@ func (r *NodeReconciler) clearPod(ctx context.Context,nodeName string) error {
 		}
 	}
 
-	return  nil
+	return nil
 }
 
 //when node id  delete and notready will be mark abnormal
-func (r *NodeReconciler) nodeStatusList(ctx context.Context) (map[string]nodeStatusType,  error) {
-	nodeList:= map[string]nodeStatusType{}
+func (r *NodeReconciler) nodeStatusList(ctx context.Context) (map[string]nodeStatusType, error) {
+	nodeList := map[string]nodeStatusType{}
 	nl := new(corev1.NodeList)
 	err := r.List(ctx, nl)
 	if err != nil {
@@ -328,7 +327,7 @@ func (r *NodeReconciler) nodeStatusList(ctx context.Context) (map[string]nodeSta
 		}
 		nodeList[n.Name] = Normal
 	}
-	return nodeList,nil
+	return nodeList, nil
 
 }
 
@@ -340,19 +339,24 @@ func (r *NodeReconciler) podMap(ctx context.Context) (map[string][]client.Object
 	if err != nil {
 		return result, err
 	}
-	nodeStatus,err := r.nodeStatusList(ctx)
+	nodeStatus, err := r.nodeStatusList(ctx)
 	if err != nil {
 		return result, err
-	}	
-	
+	}
+
 	for _, pod := range podList.Items {
 		//skip ready node
-		if _, ok := nodeStatus[pod.Spec.NodeName]; !ok{
+		if _, ok := nodeStatus[pod.Spec.NodeName]; !ok {
+			continue
+		}
+		// check annotation carina.io/rebuild-node-notready: true
+		if _, ok := pod.Annotations["carina.io/rebuild-node-notready"]; !ok || pod.Annotations["carina.io/rebuild-node-notready"] == "false" {
 			continue
 		}
 		//select carina-csi build pod in notready node
 		var podInAbnormalNode bool = false
 		for _, vol := range pod.Spec.Volumes {
+
 			if vol.PersistentVolumeClaim == nil {
 				continue
 			}
@@ -379,6 +383,7 @@ func (r *NodeReconciler) podMap(ctx context.Context) (map[string][]client.Object
 	}
 	return result, nil
 }
+
 //kill pod force
 func (r *NodeReconciler) killPod(ctx context.Context, pod *corev1.Pod) error {
 	noGracePeriod := int64(0)

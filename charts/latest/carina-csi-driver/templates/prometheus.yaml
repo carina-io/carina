@@ -1,0 +1,21 @@
+{{- if .Values.serviceMonitor.enable -}}
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  labels:
+    app: csi-carina-provisioner
+    release: prometheus-operator
+  name: {{ .Release.Name }}-prometheus
+  namespace: {{ .Release.Namespace }}
+spec:
+  endpoints:
+    - bearerTokenFile: /var/run/secrets/kubernetes.io/serviceaccount/token
+      port: metrics
+  jobLabel: carina
+  namespaceSelector:
+    matchNames:
+      - {{ .Release.Namespace }}
+  selector:
+    matchLabels:
+      app: csi-carina-provisioner
+{{- end }}      

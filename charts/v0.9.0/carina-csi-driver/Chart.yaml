@@ -8,7 +8,9 @@ maintainers:
     - name: bocloud
       email: support@beyondcent.com
       url: http://www.bocloud.com.cn
-
+dependencies:
+  - name: carina-scheduler
+    version: "0.1.0"
 
 home: https://github.com/carina-io/carina.git
 icon: https://user-images.githubusercontent.com/88021699/130191822-50112078-fad9-4516-b76b-8b7566d1bfc3.jpg

@@ -1,0 +1,5 @@
+The Carina Scheduler  is getting deployed to your cluster.
+
+To check Carina Scheduler pods status, please run:
+
+  kubectl --namespace={{ .Release.Namespace }} get pods --selector="release={{ .Release.Name }}" --watch

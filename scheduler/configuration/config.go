@@ -16,11 +16,12 @@
 package configuration
 
 import (
+	"os"
+	"strings"
+
+	"github.com/carina-io/carina/scheduler/utils"
 	"github.com/fsnotify/fsnotify"
 	"github.com/spf13/viper"
-	"os"
-	"github.com/carina-io/carina/scheduler/utils"
-	"strings"
 )
 
 // 配置文件路径

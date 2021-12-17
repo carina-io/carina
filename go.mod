@@ -3,10 +3,12 @@ module github.com/carina-io/carina
 go 1.16
 
 require (
+	github.com/c2h5oh/datasize v0.0.0-20200825124411-48ed595a09d2 // indirect
 	github.com/fsnotify/fsnotify v1.4.9
 	github.com/gogo/protobuf v1.3.2
 	github.com/golang/protobuf v1.4.3
 	github.com/labstack/echo/v4 v4.2.0
+	github.com/mitchellh/mapstructure v1.1.2 // indirect
 	github.com/natefinch/lumberjack v2.0.0+incompatible
 	github.com/onsi/ginkgo v1.15.1
 	github.com/onsi/gomega v1.10.5
