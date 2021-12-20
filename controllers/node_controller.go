@@ -34,6 +34,16 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/source"
+<<<<<<< HEAD
+=======
+)
+
+type nodeStatusType string
+
+const (
+	Abnormal nodeStatusType = "abnormal"
+	Normal   nodeStatusType = "normal"
+>>>>>>> develop/v0.9.0
 )
 
 type nodeStatusType string
@@ -97,6 +107,15 @@ func (r *NodeReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		UpdateFunc:  func(event.UpdateEvent) bool { return false },
 		GenericFunc: func(event.GenericEvent) bool { return false },
 		DeleteFunc:  func(e event.DeleteEvent) bool { 
+			return e.Object.(*corev1.Pod).Spec.SchedulerName == utils.CSIPluginName
+		},
+	}
+
+	podFilter := predicate.Funcs{
+		CreateFunc:  func(event.CreateEvent) bool { return false },
+		UpdateFunc:  func(event.UpdateEvent) bool { return false },
+		GenericFunc: func(event.GenericEvent) bool { return false },
+		DeleteFunc: func(e event.DeleteEvent) bool {
 			return e.Object.(*corev1.Pod).Spec.SchedulerName == utils.CSIPluginName
 		},
 	}

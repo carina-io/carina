@@ -11,7 +11,7 @@ image:
   baseRepo: registry.cn-hangzhou.aliyuncs.com/antmoveh
   carina:
     repository: registry.cn-hangzhou.aliyuncs.com/antmoveh/carina
-    tag: 0.9.1-20211220115225
+    tag: v0.9.1-20211217165406
     pullPolicy: IfNotPresent
   csiProvisioner:
     repository: /csi-provisioner

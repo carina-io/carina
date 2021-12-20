@@ -204,5 +204,5 @@ spec:
             path: /run/mount
         - name: config
           configMap:
-            name: carina-csi-config
+            name: {{ .Release.Name }}-csi-config
 
