@@ -17,7 +17,7 @@ data:
         },
          {
           "name": "hdd2", 
-          "re": ["loop*", "ad*"],
+          "re": ["loop*", "vd*"],
           "policy": "LVM",
           "nodeLabel": "kubernetes.io/hostname"
         },
