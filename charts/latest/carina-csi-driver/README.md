@@ -20,7 +20,11 @@ helm search repo -l carina-csi-driver
 ### update the repository
 
 ```console
+<<<<<<< HEAD
 helm repo update 
+=======
+helm repo update
+>>>>>>> 2759e6d... add disk support mutil vg group
 ```
 
 ---

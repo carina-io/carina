@@ -18,12 +18,13 @@ package lvmd
 import (
 	"errors"
 	"fmt"
+	"strings"
+	"time"
+
 	"github.com/carina-io/carina/pkg/devicemanager/types"
 	"github.com/carina-io/carina/utils"
 	"github.com/carina-io/carina/utils/exec"
 	"github.com/carina-io/carina/utils/log"
-	"strings"
-	"time"
 )
 
 type Lvm2Implement struct {
@@ -350,4 +351,8 @@ func (lv2 *Lvm2Implement) StartLvm2() error {
 
 func (lv2 *Lvm2Implement) RemoveUnknownDevice(vg string) error {
 	return lv2.Executor.ExecuteCommand("vgreduce", "--removemissing", vg)
+}
+
+func (lv2 *Lvm2Implement) PartProbe() error {
+	return lv2.Executor.ExecuteCommand("bash", "-c", "partprobe")
 }

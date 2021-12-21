@@ -1,0 +1,180 @@
+carina-scheduler:
+  image:
+    repository: registry.cn-hangzhou.aliyuncs.com/antmoveh/scheduler
+    pullPolicy: IfNotPresent
+    # Overrides the image tag whose default is the chart appVersion.
+    tag: "v0.9-20211012111249"
+# Default values for carina-csi-driver.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+image:
+  baseRepo: registry.cn-hangzhou.aliyuncs.com/antmoveh
+  carina:
+    repository: registry.cn-hangzhou.aliyuncs.com/antmoveh/carina
+    tag: v0.9.1-20211217165406
+    pullPolicy: IfNotPresent
+  csiProvisioner:
+    repository: /csi-provisioner
+    tag: v2.1.0
+    pullPolicy: IfNotPresent
+  csiAttacher:
+    repository: /csi-attacher
+    tag: v3.1.0
+    pullPolicy: IfNotPresent
+  csiResizer:
+    repository: /csi-resizer
+    tag: v1.1.0
+    pullPolicy: IfNotPresent
+  nodeDriverRegistrar:
+    repository: /csi-node-driver-registrar
+    tag: v2.1.0
+    pullPolicy: IfNotPresent
+  nodeInitImage:  
+    repository: /busybox
+    tag: "1.28"
+    pullPolicy: IfNotPresent
+
+serviceAccount:
+  create: true # When true, service accounts will be created for you. Set to false if you want to use your own.
+  controller: carina-csi-controller 
+  node: carina-csi-node 
+
+driver:
+  name: csi.carina.com
+
+rbac:
+  create: true
+  name: carina
+
+controller:
+  name: csi-carina-controller
+  replicas: 1
+  metricsPort: 29604
+  httpPort: 18089
+  webhookPort: 8443
+  livenessProbe:
+    healthPort: 29602
+  disableAvailabilitySetNodes: true
+  provisionerWorkerThreads: 40
+  attacherWorkerThreads: 500
+  logLevel: 5
+  tolerations:
+    - key: "node-role.kubernetes.io/master"
+      operator: "Exists"
+      effect: "NoSchedule"
+    - key: "node-role.kubernetes.io/controlplane"
+      operator: "Exists"
+      effect: "NoSchedule"
+  hostNetwork: true # this setting could be disabled if controller does not depend on MSI setting
+  podLabels: {}
+  resources:
+    csiProvisioner:
+      limits:
+        cpu: 200m
+        memory: 500Mi
+      requests:
+        cpu: 10m
+        memory: 20Mi
+    csiAttacher:
+      limits:
+        cpu: 200m
+        memory: 500Mi
+      requests:
+        cpu: 10m
+        memory: 20Mi
+    csiResizer:
+      limits:
+        cpu: 200m
+        memory: 500Mi
+      requests:
+        cpu: 10m
+        memory: 20Mi
+    livenessProbe:
+      limits:
+        cpu: 100m
+        memory: 100Mi
+      requests:
+        cpu: 10m
+        memory: 20Mi
+    carina:
+      limits:
+        cpu: 300m
+        memory: 500Mi
+      requests:
+        cpu: 10m
+        memory: 20Mi
+
+node:
+  name: csi-carina-node # daemonset name
+  logLevel: 2
+  kubelet: /var/lib/kubelet
+  initContainer:
+    modprobe: 
+      - dm_snapshot 
+      - dm_mirror 
+      - dm_thin_pool 
+      #- bcache
+  enablePerfOptimization: true
+  tolerations:
+    - operator: "Exists"
+  hostNetwork: true # this setting could be disabled if perfProfile is `none`
+  maxUnavailable: 1
+  podLabels: {}
+  nodeAffinity: {}
+  resources:
+    livenessProbe:
+      limits:
+        cpu: 100m
+        memory: 100Mi
+      requests:
+        cpu: 10m
+        memory: 20Mi
+    nodeDriverRegistrar:
+      limits:
+        cpu: 200m
+        memory: 100Mi
+      requests:
+        cpu: 10m
+        memory: 20Mi
+    carina:
+      limits:
+        cpu: 200m
+        memory: 200Mi
+      requests:
+        cpu: 10m
+        memory: 20Mi
+  metricsPort: 28080
+  httpPort:  28089
+  logDir: /var/log/carina/
+  configDir: /etc/carina/
+
+imagePullSecrets: []
+# - name: "image-pull-secret"
+installCRDs: true  
+
+
+serviceMonitor:
+  enable: false 
+
+certs:
+  create: true
+  securityContext:
+    enabled: true
+    runAsUser: 65534
+    fsGroup: 65534
+  image: registry.cn-hangzhou.aliyuncs.com/antmoveh/kubernetes-init-amd64
+  imageTag: "v1.0.1"
+  imagePullPolicy: "IfNotPresent"
+  pod:
+    nodeSelector: {}
+    tolerations: []
+    affinity: {}
+ 
+webhook:
+  caBundle:  # Base64-encoded, PEM-encoded CA certificate that signs the server certificate.
+  enabled: true
+
+kubeconfig:
+  enabled: false
+  # base64 encoded kube-config file
+  secret:  

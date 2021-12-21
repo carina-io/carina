@@ -1,0 +1,26 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: carina-scheduler-config
+  namespace: {{ .Release.Namespace }}
+  labels:
+{{ include "carina-scheduler.labels" . | indent 4 }}
+data:
+  scheduler-config.yaml: |-
+    apiVersion: kubescheduler.config.k8s.io/v1beta1
+    kind: KubeSchedulerConfiguration
+    leaderElection:
+      leaderElect: true
+      resourceName:  carina-scheduler
+      resourceNamespace: kube-system
+    profiles:
+    - schedulerName: carina-scheduler
+      plugins:
+        filter:
+          enabled:
+            - name: "local-storage"
+              weight: 1
+        score:
+          enabled:
+            - name: "local-storage"
+              weight: 1

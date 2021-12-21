@@ -51,12 +51,17 @@ if [ ! -x "$(command -v openssl)" ]; then
 fi
 
 csrName=${service}.${namespace}
+<<<<<<< HEAD
 tmpdir="/"
 echo "creating certs in tmpdir ${tmpdir} "
 kubectl get pods 
 mkdir test 
 touch abc.txt
 
+=======
+tmpdir="./"
+echo "creating certs in tmpdir ${tmpdir} "
+>>>>>>> 2759e6d... add disk support mutil vg group
 cat <<EOF >> csr.conf
 [req]
 req_extensions = v3_req
@@ -73,14 +78,24 @@ DNS.2 = ${service}.${namespace}
 DNS.3 = ${service}.${namespace}.svc
 EOF
 
+<<<<<<< HEAD
+=======
+
+>>>>>>> 2759e6d... add disk support mutil vg group
 openssl genrsa -out server-key.pem 2048
 openssl req -new -key server-key.pem -subj "/CN=${service}.${namespace}.svc" -days 36500 -out server.csr -config csr.conf
 
 # clean-up any previously created CSR for our service. Ignore errors if not present.
 kubectl delete csr ${csrName} 2>/dev/null || true
+<<<<<<< HEAD
 
 kubeVersion=$(kubectl version -oyaml   |grep serverVersion -A 10  |awk '/gitVersion:/{print$2}' | awk -F'v' '{print $2}')
 if [ ${kubeVersion} -gt 1.20 ]; then
+=======
+kubeVersion=$(kubectl version --output=yaml  |grep serverVersion -A 10  |awk '/gitVersion:/{print$2}' | awk -F'v' '{print $2}')
+# create  server cert/key CSR and  send to k8s API
+if [[ ${kubeVersion} > 1.20.0 ]]; then
+>>>>>>> 2759e6d... add disk support mutil vg group
 cat <<EOF | kubectl create -f -
 apiVersion: certificates.k8s.io/v1
 kind: CertificateSigningRequest
@@ -112,7 +127,11 @@ spec:
   - server auth
 EOF
 fi
+<<<<<<< HEAD
 # create  server cert/key CSR and  send to k8s API
+=======
+
+>>>>>>> 2759e6d... add disk support mutil vg group
 
 
 # verify CSR has been created
@@ -139,6 +158,7 @@ if [[ ${serverCert} == '' ]]; then
 fi
 echo "${serverCert}" | openssl base64 -d -A -out "${tmpdir}"/server-cert.pem
 
+<<<<<<< HEAD
 
 # create the secret with CA cert and server cert/key
 kubectl create secret generic ${secret} \
@@ -188,3 +208,8 @@ while true; do
         break
     fi
 done
+=======
+kubectl delete secret ${secret} 2>/dev/null || true
+# run create the secret with CA cert and server cert/key
+kubectl create secret generic ${secret} --from-file=tls.key=server-key.pem --from-file=tls.crt=server-cert.pem -n ${namespace}
+>>>>>>> 2759e6d... add disk support mutil vg group
