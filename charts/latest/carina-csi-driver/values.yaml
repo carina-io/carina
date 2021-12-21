@@ -1,26 +1,19 @@
-<<<<<<< HEAD
 
-=======
 carina-scheduler:
   image:
     repository: registry.cn-hangzhou.aliyuncs.com/antmoveh/scheduler
     pullPolicy: IfNotPresent
     # Overrides the image tag whose default is the chart appVersion.
     tag: "v0.9-20211012111249"
->>>>>>> 2759e6d... add disk support mutil vg group
+
 # Default values for carina-csi-driver.
 # This is a YAML-formatted file.
 # Declare variables to be passed into your templates.
 image:
   baseRepo: registry.cn-hangzhou.aliyuncs.com/antmoveh
   carina:
-<<<<<<< HEAD
-    repository: /carina
-    tag: v0.9-20210804141609
-=======
     repository: registry.cn-hangzhou.aliyuncs.com/antmoveh/carina
     tag: v0.9.1-20211217165406
->>>>>>> 2759e6d... add disk support mutil vg group
     pullPolicy: IfNotPresent
   csiProvisioner:
     repository: /csi-provisioner
@@ -129,7 +122,6 @@ node:
   hostNetwork: true # this setting could be disabled if perfProfile is `none`
   maxUnavailable: 1
   podLabels: {}
-<<<<<<< HEAD
   nodeAffinity:
     requiredDuringSchedulingIgnoredDuringExecution:
       nodeSelectorTerms:
@@ -138,9 +130,6 @@ node:
               operator: NotIn
               values:
                 - virtual-kubelet
-=======
-  nodeAffinity: {}
->>>>>>> 2759e6d... add disk support mutil vg group
   resources:
     livenessProbe:
       limits:
@@ -177,10 +166,7 @@ serviceMonitor:
   enable: false 
 
 certs:
-<<<<<<< HEAD
-=======
   create: true
->>>>>>> 2759e6d... add disk support mutil vg group
   securityContext:
     enabled: true
     runAsUser: 65534
@@ -192,15 +178,11 @@ certs:
     nodeSelector: {}
     tolerations: []
     affinity: {}
-<<<<<<< HEAD
-   
-=======
  
 webhook:
   caBundle:  # Base64-encoded, PEM-encoded CA certificate that signs the server certificate.
   enabled: true
 
->>>>>>> 2759e6d... add disk support mutil vg group
 kubeconfig:
   enabled: false
   # base64 encoded kube-config file

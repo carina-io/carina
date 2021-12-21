@@ -170,11 +170,7 @@ spec:
           }
         - name: config
           configMap:
-<<<<<<< HEAD
-            name: carina-csi-config
-=======
             name: {{ .Release.Name }}-csi-config
->>>>>>> 2759e6d... add disk support mutil vg group
         - name: certs
           secret:
             secretName: mutatingwebhook
