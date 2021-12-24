@@ -11,14 +11,8 @@ test:
 docker-build: test
 	docker build . -t ${IMG}
 
-# Push the docker image
-latest:
-	docker rmi $(IMAGE_REPOSITORY)/antmoveh/scheduler:latest 2>&1 1>/dev/null;\
-    docker build -t $(IMAGE_REPOSITORY)/antmoveh/scheduler:latest . ;\
-    docker push $(IMAGE_REPOSITORY)/antmoveh/scheduler:latest
 
 # Push the docker image
 release:
-	docker rmi $(IMAGE_REPOSITORY)/antmoveh/scheduler:$(VERSION)-$(DATE) 2>&1 1>/dev/null;\
-    docker build -t $(IMAGE_REPOSITORY)/antmoveh/scheduler:$(VERSION)-$(DATE) . ;\
-    docker push $(IMAGE_REPOSITORY)/antmoveh/scheduler:$(VERSION)-$(DATE)
+	docker buildx build -t $(IMAGE_REPOSITORY)/antmoveh/carina-scheduler:$(VERSION)-$(DATE) --platform=linux/arm64,linux/amd64 . --push
+
