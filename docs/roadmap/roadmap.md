@@ -46,7 +46,7 @@ Use helm chart for ease of installation、uninstallation、upgrade。
 ### Seperate different disks of same type into multiple groups
 
 Currently, carina groups disks with its type. However, some workloads may prefer using spereated disks
- against others. For now the capacity and allocatable resoucres will remain the same. 
+ against others. For now the capacity and allocatable resources will remain the same. 
 
  This will fix [#10](https://github.com/carina-io/carina/issues/10).
 

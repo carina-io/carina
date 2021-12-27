@@ -72,27 +72,8 @@ docker-build: test
 	docker build . -t ${IMG}
 
 # Push the docker image
-latest:
-	go build -ldflags="-X main.gitCommitID=`git rev-parse HEAD`" -gcflags '-N -l' -o bin/carina-node github.com/carina-io/carina/cmd/carina-node ;\
-	go build -ldflags="-X main.gitCommitID=`git rev-parse HEAD`" -gcflags '-N -l' -o bin/carina-controller github.com/carina-io/carina/cmd/carina-controller ;\
-	docker rmi $(IMAGE_REPOSITORY)/antmoveh/carina:latest 1>/dev/null 2>&1;\
-	docker build -f Dockerfile.local -t $(IMAGE_REPOSITORY)/antmoveh/carina:latest . ;\
-	docker push $(IMAGE_REPOSITORY)/antmoveh/carina:latest
-
-# Push the docker image
 release:
-	docker rmi $(IMAGE_REPOSITORY)/antmoveh/carina:$(VERSION)-$(DATE) 2>&1 1>/dev/null;\
-    docker build -t $(IMAGE_REPOSITORY)/antmoveh/carina:$(VERSION)-$(DATE) . ;\
-    docker push $(IMAGE_REPOSITORY)/antmoveh/carina:$(VERSION)-$(DATE)
-
-# Push the docker image
-local:
-	go build -ldflags="-X main.gitCommitID=`git rev-parse HEAD`" -gcflags '-N -l' -o bin/carina-node github.com/carina-io/carina/cmd/carina-node ;\
-	go build -ldflags="-X main.gitCommitID=`git rev-parse HEAD`" -gcflags '-N -l' -o bin/carina-controller github.com/carina-io/carina/cmd/carina-controller ;\
-	docker rmi 192.168.56.101:5000/carina:latest 1>/dev/null 2>&1;\
-	docker build -f Dockerfile.local -t 192.168.56.101:5000/carina:latest . ;\
-	docker push 192.168.56.101:5000/carina:latest
-
+	docker buildx build -t $(IMAGE_REPOSITORY)/antmoveh/carina:$(VERSION)-$(DATE) --platform=linux/arm64,linux/amd64 . --push
 
 # find or download controller-gen
 # download controller-gen if necessary
