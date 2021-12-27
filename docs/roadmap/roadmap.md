@@ -70,7 +70,7 @@ fails, carina can find the failed disk and try to rebuild the RAID if new disk i
 
 ## v0.11.0
 
-> eta 2022.5
+> eta 2022.6
 
 ### support NVME disks
 
@@ -86,6 +86,8 @@ SSD is dying.
 Report raw disk and PV's comprehensive metrics, likes IOPS、bandwidth、iotop and so on.
 
 ## v0.12.0
+
+> eta 2022.9
 
 ### PVC auto sizing
 
@@ -103,6 +105,8 @@ load-aware.
 Carina should support cgroup V2 for disk throttling to have better experience for buffered IO.
 
 ## v0.13.0
+
+> eta 2022.12
 
 ### E2E checksum
 
