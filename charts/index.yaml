@@ -2,14 +2,14 @@ apiVersion: v1
 entries:
   carina-csi-driver:
   - apiVersion: v2
-    appVersion: latest
-    created: "2021-12-28T18:10:28.1579905+08:00"
+    appVersion: 0.9.1
+    created: "2021-12-28T18:46:34.5418077+08:00"
     dependencies:
     - name: carina-scheduler
       repository: ""
       version: 0.1.0
     description: A Helm chart for carina-csi-driver;Carina is a standard kubernetes CSI plugin. Users can use standard kubernetes storage resources like storageclass/PVC/PV to request storage media.
-    digest: 36e7a6eae9cc2056a60bfddb3da04a4fbd27b39d58438ccc26738bbc6f404329
+    digest: b4ed8559f92e7353a789e7374a1943b35ae5b6d9ba9d6eb1795f2b249f745023
     home: https://github.com/carina-io/carina.git
     icon: https://user-images.githubusercontent.com/88021699/130191822-50112078-fad9-4516-b76b-8b7566d1bfc3.jpg
     maintainers:
@@ -21,17 +21,17 @@ entries:
     - https://github.com/carina-io/carina.git
     type: application
     urls:
-    - https://raw.githubusercontent.com/carina-io/carina/main/charts/latest/carina-csi-driver-v0.9.1.tgz
+    - https://raw.githubusercontent.com/carina-io/carina/main/charts/v0.9.1/carina-csi-driver-v0.9.1.tgz
     version: v0.9.1
   - apiVersion: v2
     appVersion: latest
-    created: "2021-12-28T18:10:28.1564923+08:00"
+    created: "2021-12-28T18:46:34.5385717+08:00"
     dependencies:
     - name: carina-scheduler
       repository: ""
       version: 0.1.0
     description: A Helm chart for carina-csi-driver;Carina is a standard kubernetes CSI plugin. Users can use standard kubernetes storage resources like storageclass/PVC/PV to request storage media.
-    digest: f4145b758d38c30a19da40f6bb8d9222903d2624fd7b0e8e71e664219641053b
+    digest: fa6fb8c8c46e99fbeab7811b0c525f3270fe265da569f8b670f939ee5c4fd060
     home: https://github.com/carina-io/carina.git
     icon: https://user-images.githubusercontent.com/88021699/130191822-50112078-fad9-4516-b76b-8b7566d1bfc3.jpg
     maintainers:
@@ -47,13 +47,13 @@ entries:
     version: v0.9.0
   - apiVersion: v2
     appVersion: 0.9.0
-    created: "2021-12-28T18:10:28.1593425+08:00"
+    created: "2021-12-28T18:46:34.5400967+08:00"
     dependencies:
     - name: carina-scheduler
       repository: ""
       version: 0.1.0
     description: A Helm chart for carina-csi-driver;Carina is a standard kubernetes CSI plugin. Users can use standard kubernetes storage resources like storageclass/PVC/PV to request storage media.
-    digest: 913cd2b0cb9593a6b7ecd036746dad346c28e7478225338cf50dbbf55f067f71
+    digest: d4a3f82e946ccda667209fa5f4f852f5a811da2e4bb7943c83f496890a006e33
     home: https://github.com/carina-io/carina.git
     icon: https://user-images.githubusercontent.com/88021699/130191822-50112078-fad9-4516-b76b-8b7566d1bfc3.jpg
     maintainers:
@@ -67,4 +67,4 @@ entries:
     urls:
     - https://raw.githubusercontent.com/carina-io/carina/main/charts/v0.9.0/carina-csi-driver-v0.9.0.tgz
     version: v0.9.0
-generated: "2021-12-28T18:10:28.1546441+08:00"
+generated: "2021-12-28T18:46:34.5358489+08:00"
