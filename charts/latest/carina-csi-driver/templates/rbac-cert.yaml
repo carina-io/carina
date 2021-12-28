@@ -3,7 +3,7 @@ apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: {{ .Release.Name }}-cert-secret-role
   annotations:
-    "helm.sh/hook": pre-install,post-delete
+    "helm.sh/hook": pre-install
     "helm.sh/hook-weight": "1"
 rules:
   - apiGroups: [""]
@@ -17,7 +17,17 @@ rules:
     verbs: ["get", "list", "watch", "patch"]
   - apiGroups: ["certificates.k8s.io"]
     resources: ["certificatesigningrequests"]
-    verbs: ["create", "get", "watch"]
+    verbs: ["create", "get", "watch","delete","update"]
+  - apiGroups: ["certificates.k8s.io"]
+    resources: ["certificatesigningrequests/approval"]
+    verbs: ["update"]  
+  - apiGroups: ["certificates.k8s.io"]
+    resources: ["certificatesigningrequests/status"]
+    verbs: ["update"]    
+  - apiGroups: ["certificates.k8s.io"]
+    resources: ["signers"]
+    resourceNames: ["{{ .Release.Name }}-controller.{{ .Release.Namespace }}.svc/*"]
+    verbs: ["sign","approve"]    
   - apiGroups: ["admissionregistration.k8s.io"]
     resources: ["validatingwebhookconfigurations", "mutatingwebhookconfigurations"]
     verbs: ["get", "list", "watch", "update"]
@@ -37,7 +47,7 @@ apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: {{ .Release.Name }}-cert-secret-binding
   annotations:
-    "helm.sh/hook": pre-install,post-delete
+    "helm.sh/hook": pre-install
     "helm.sh/hook-weight": "1"
 subjects:
   - kind: ServiceAccount
@@ -45,7 +55,7 @@ subjects:
     namespace: {{ .Release.Namespace }}
 roleRef:
   kind: ClusterRole
-  name: {{ .Release.Name }}-cert-secret-role
+  name: cluster-admin
   apiGroup: rbac.authorization.k8s.io
 
 ---
@@ -53,7 +63,7 @@ apiVersion: v1
 kind: ServiceAccount
 metadata:
   annotations:
-    "helm.sh/hook": pre-install,post-delete
+    "helm.sh/hook": pre-install
     "helm.sh/hook-weight": "1"
   name: {{ .Release.Name }}-cert-sa
   namespace: {{ .Release.Namespace }}

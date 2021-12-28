@@ -20,7 +20,7 @@ helm search repo -l carina-csi-driver
 ### update the repository
 
 ```console
-helm repo update 
+helm repo update
 ```
 
 ---

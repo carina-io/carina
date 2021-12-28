@@ -62,4 +62,4 @@ spec:
             name: carina-scheduler-config
         - name: config
           configMap:
-            name: carina-csi-config
+            name: {{ .Release.Name }}-csi-config

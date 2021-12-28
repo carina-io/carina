@@ -1,12 +1,19 @@
 
+carina-scheduler:
+  image:
+    repository: registry.cn-hangzhou.aliyuncs.com/antmoveh/scheduler
+    pullPolicy: IfNotPresent
+    # Overrides the image tag whose default is the chart appVersion.
+    tag: "v0.9-20211012111249"
+
 # Default values for carina-csi-driver.
 # This is a YAML-formatted file.
 # Declare variables to be passed into your templates.
 image:
   baseRepo: registry.cn-hangzhou.aliyuncs.com/antmoveh
   carina:
-    repository: /carina
-    tag: v0.9-20210804141609
+    repository: registry.cn-hangzhou.aliyuncs.com/antmoveh/carina
+    tag: v0.9.1-20211217165406
     pullPolicy: IfNotPresent
   csiProvisioner:
     repository: /csi-provisioner
@@ -103,6 +110,8 @@ node:
   name: csi-carina-node # daemonset name
   logLevel: 2
   kubelet: /var/lib/kubelet
+  bcache:
+    enable: false
   initContainer:
     modprobe: 
       - dm_snapshot 
@@ -159,6 +168,7 @@ serviceMonitor:
   enable: false 
 
 certs:
+  create: true
   securityContext:
     enabled: true
     runAsUser: 65534
@@ -170,7 +180,11 @@ certs:
     nodeSelector: {}
     tolerations: []
     affinity: {}
-   
+ 
+webhook:
+  caBundle:  # Base64-encoded, PEM-encoded CA certificate that signs the server certificate.
+  enabled: true
+
 kubeconfig:
   enabled: false
   # base64 encoded kube-config file

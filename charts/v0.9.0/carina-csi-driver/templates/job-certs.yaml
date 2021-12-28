@@ -5,7 +5,7 @@ metadata:
   annotations:
     "helm.sh/hook": pre-install
     "helm.sh/hook-weight": "2"
-    "helm.sh/hook-delete-policy": hook-succeeded
+    "helm.sh/hook-delete-policy": hook-succeeded,before-hook-creation
   name: {{ .Release.Name  }}-certs
   labels:
       app.kubernetes.io/instance: {{ .Release.Name }}
@@ -79,9 +79,9 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   annotations:
-    "helm.sh/hook": pre-install,post-delete
+    "helm.sh/hook": pre-install
     "helm.sh/hook-weight": "1"
-    "helm.sh/hook-delete-policy": hook-succeeded
+    "helm.sh/hook-delete-policy": before-hook-creation
   name: {{ .Release.Name }}-cert-config
   namespace: {{ .Release.Namespace }}
 {{ include "carina-node.labels" . | indent 2 }}

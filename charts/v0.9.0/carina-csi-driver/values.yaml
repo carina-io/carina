@@ -103,6 +103,8 @@ node:
   name: csi-carina-node # daemonset name
   logLevel: 2
   kubelet: /var/lib/kubelet
+  bcache:
+    enable: false 
   initContainer:
     modprobe: 
       - dm_snapshot 

@@ -91,3 +91,9 @@ CONTROLLER_GEN=$(GOBIN)/controller-gen
 else
 CONTROLLER_GEN=$(shell which controller-gen)
 endif
+
+
+helmpackage:
+		helm lint charts/latest/carina-csi-driver && helm package charts/latest/carina-csi-driver --debug --destination charts/latest/
+		helm lint charts/v0.9.0/carina-csi-driver && helm package charts/v0.9.0/carina-csi-driver --debug --destination charts/v0.9.0/
+		helm repo index --url=https://raw.githubusercontent.com/carina-io/carina/main/charts   ./charts/
