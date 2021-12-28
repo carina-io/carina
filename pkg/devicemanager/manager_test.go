@@ -91,7 +91,7 @@ func TestDeviceManager(t *testing.T) {
 
 	stopChan := make(chan struct{})
 	defer close(stopChan)
-	dm := NewDeviceManager("localhost", stopChan)
+	dm := NewDeviceManager("localhost",nil, stopChan)
 	defer func() {
 		// 清理volume
 		_ = cleanVolume(dm)
