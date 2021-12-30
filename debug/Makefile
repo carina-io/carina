@@ -16,15 +16,20 @@ image:
 	docker buildx build -t $(IMAGE_REPOSITORY)/antmoveh/carina-proxy:$(TAG) --platform=$(PLATFORM) -o type=registry . 
 	docker buildx imagetools inspect $(IMAGE_REPOSITORY)/antmoveh/carina-proxy:$(TAG)
 
-stop:
+clean:
+	@rm -rf hack/certs
 	docker stop $(shell docker ps -a  |grep -E "csi-node-register|csi-resizer|csi-provisioner"  | awk '{print$$1}')
-	
-rm:
 	docker rm  $(shell docker ps -a  |grep -E "csi-node-register|csi-resizer|csi-provisioner"  | awk '{print$$1}')
+    
+	
 
-run:
+certs:
+	@hack/certs.sh --service carina-controller --namespace default 
+
+run: certs	
 	@hack/csi-provisioner.sh  
 	@hack/csi-node-register.sh
+	
 
 node:  
 	go run ../cmd/carina-node/main.go 
