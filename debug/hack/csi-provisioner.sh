@@ -1,5 +1,29 @@
+#!/bin/bash
 
+set -o errexit
+set -o nounset
+set -o pipefail
 
+#cert
+sudo mkdir -p /tmp/k8s-webhook-server/serving-certs
+sudo chmod 775 /tmp/k8s-webhook-server/serving-certs
+cp hack/certs/* /tmp/k8s-webhook-server/serving-certs
+ls /tmp/k8s-webhook-server/serving-certs
+#csi
+sudo mkdir -p /tmp/csi
+sudo touch /tmp/csi/csi-provisioner.sock
+sudo chmod -R 775 /tmp/csi
+
+#config 
+sudo mkdir -p  /etc/carina/
+sudo cp hack/config.json /etc/carina/
+sudo chmod -R 775 /etc/carina/
+
+#node
+sudo mkdir -p /dev/carina
+sudo chmod 775 /dev/carina
+
+#docker
 docker rm -f csi-provisioner
 
 docker run --name csi-provisioner -d -e KUBECONFIG=/root/.kube/config -v /root/.kube:/root/.kube -v /tmp/csi:/csi:rw antmoveh/csi-provisioner:v2.1.0 \
