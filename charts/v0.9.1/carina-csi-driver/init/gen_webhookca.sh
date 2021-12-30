@@ -51,12 +51,8 @@ if [ ! -x "$(command -v openssl)" ]; then
 fi
 
 csrName=${service}.${namespace}
-tmpdir="/"
+tmpdir="./"
 echo "creating certs in tmpdir ${tmpdir} "
-kubectl get pods 
-mkdir test 
-touch abc.txt
-
 cat <<EOF >> csr.conf
 [req]
 req_extensions = v3_req
@@ -73,14 +69,15 @@ DNS.2 = ${service}.${namespace}
 DNS.3 = ${service}.${namespace}.svc
 EOF
 
+
 openssl genrsa -out server-key.pem 2048
 openssl req -new -key server-key.pem -subj "/CN=${service}.${namespace}.svc" -days 36500 -out server.csr -config csr.conf
 
 # clean-up any previously created CSR for our service. Ignore errors if not present.
 kubectl delete csr ${csrName} 2>/dev/null || true
-
-kubeVersion=$(kubectl version -oyaml   |grep serverVersion -A 10  |awk '/gitVersion:/{print$2}' | awk -F'v' '{print $2}')
-if [ ${kubeVersion} -gt 1.20 ]; then
+kubeVersion=$(kubectl version --output=yaml  |grep serverVersion -A 10  |awk '/gitVersion:/{print$2}' | awk -F'v' '{print $2}')
+# create  server cert/key CSR and  send to k8s API
+if [[ ${kubeVersion} > 1.20.0 ]]; then
 cat <<EOF | kubectl create -f -
 apiVersion: certificates.k8s.io/v1
 kind: CertificateSigningRequest
@@ -112,7 +109,7 @@ spec:
   - server auth
 EOF
 fi
-# create  server cert/key CSR and  send to k8s API
+
 
 
 # verify CSR has been created

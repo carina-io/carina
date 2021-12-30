@@ -2,8 +2,8 @@ apiVersion: v2
 name: carina-csi-driver
 description: A Helm chart for carina-csi-driver;Carina is a standard kubernetes CSI plugin. Users can use standard kubernetes storage resources like storageclass/PVC/PV to request storage media.
 type: application
-version: v0.9.0
-appVersion: "latest"
+version: v0.9.1
+appVersion: "0.9.1"
 maintainers:
     - name: bocloud
       email: support@beyondcent.com

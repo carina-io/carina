@@ -37,6 +37,16 @@ spec:
       {{- include "carina.pullSecrets" . | indent 6 }}
 {{- if .Values.node.initContainer }}        
       initContainers:
+{{- if .Values.node.bcache.enable}}
+        - name: bcache
+          securityContext:
+            privileged: true
+          image: {{ $initiMage  }}
+          command: ["sh", "-c","modprobe bcache"] 
+          volumeMounts:
+            - mountPath: /lib/modules
+              name: modules
+{{- end}}       
 {{- range .Values.node.initContainer.modprobe}}
         - name: {{ kebabcase   . | }}
           securityContext:

@@ -13,6 +13,7 @@ CRD_OPTIONS ?= "crd:trivialVersions=true"
 
 IMAGE_REPOSITORY=registry.cn-hangzhou.aliyuncs.com
 VERSION ?= latest
+HELMVERSION:= v0.9.0 v0.9.1 latest
 
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
 ifeq (,$(shell go env GOBIN))
@@ -91,3 +92,12 @@ CONTROLLER_GEN=$(GOBIN)/controller-gen
 else
 CONTROLLER_GEN=$(shell which controller-gen)
 endif
+
+
+
+helmpackage:
+	@for var in $(HELMVERSION); do \
+		helm lint charts/$$var/carina-csi-driver && helm package charts/$$var/carina-csi-driver --debug --destination charts/$$var/; \
+	done
+		helm repo index --url=https://raw.githubusercontent.com/carina-io/carina/main/charts   ./charts/ 
+		

@@ -46,7 +46,7 @@ spec:
           volumeMounts:
             - mountPath: /lib/modules
               name: modules
-{{- end}}       
+{{- end}}      
 {{- range .Values.node.initContainer.modprobe}}
         - name: {{ kebabcase   . | }}
           securityContext:

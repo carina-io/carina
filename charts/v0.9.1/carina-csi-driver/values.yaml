@@ -1,11 +1,9 @@
-
 carina-scheduler:
   image:
     repository: registry.cn-hangzhou.aliyuncs.com/antmoveh/scheduler
     pullPolicy: IfNotPresent
     # Overrides the image tag whose default is the chart appVersion.
     tag: "v0.9-20211012111249"
-
 # Default values for carina-csi-driver.
 # This is a YAML-formatted file.
 # Declare variables to be passed into your templates.
@@ -124,14 +122,7 @@ node:
   hostNetwork: true # this setting could be disabled if perfProfile is `none`
   maxUnavailable: 1
   podLabels: {}
-  nodeAffinity:
-    requiredDuringSchedulingIgnoredDuringExecution:
-      nodeSelectorTerms:
-        - matchExpressions:
-            - key: type
-              operator: NotIn
-              values:
-                - virtual-kubelet
+  nodeAffinity: {}
   resources:
     livenessProbe:
       limits:
