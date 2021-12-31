@@ -19,6 +19,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sort"
+	"strconv"
+	"strings"
+
 	"github.com/carina-io/carina/scheduler/configuration"
 	"github.com/carina-io/carina/scheduler/utils"
 	v1 "k8s.io/api/core/v1"
@@ -27,9 +31,6 @@ import (
 	lstoragev1 "k8s.io/client-go/listers/storage/v1"
 	"k8s.io/klog/v2"
 	"k8s.io/kubernetes/pkg/scheduler/framework"
-	"sort"
-	"strconv"
-	"strings"
 )
 
 // 插件名称
@@ -202,7 +203,7 @@ func (ls *LocalStorage) Score(ctx context.Context, state *framework.CycleState, 
 			requestTotalGb := (requestTotalBytes-1)>>30 + 1
 			ratio := int64(capacityMap[key] / requestTotalGb)
 
-			if configuration.SchedulerStrategy() == configuration.SchedulerSpradout {
+			if configuration.SchedulerStrategy() == configuration.Schedulerspreadout {
 				score = reasonableScore(ratio)
 			}
 			if configuration.SchedulerStrategy() == configuration.SchedulerBinpack {

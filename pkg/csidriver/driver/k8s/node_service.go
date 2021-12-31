@@ -19,14 +19,15 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sort"
+	"strings"
+	"time"
+
 	"github.com/carina-io/carina/pkg/configuration"
 	"github.com/carina-io/carina/pkg/csidriver/csi"
 	"github.com/carina-io/carina/utils"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/rand"
-	"sort"
-	"strings"
-	"time"
 
 	corev1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -139,7 +140,7 @@ func (s NodeService) SelectVolumeNode(ctx context.Context, requestGb int64, devi
 	if configuration.SchedulerStrategy() == configuration.SchedulerBinpack {
 		nodeName = strings.Split(preselectNode[0].Key, "-*-")[0]
 		selectDeviceGroup = strings.Split(preselectNode[0].Key, "/")[1]
-	} else if configuration.SchedulerStrategy() == configuration.SchedulerSpradout {
+	} else if configuration.SchedulerStrategy() == configuration.Schedulerspreadout {
 		nodeName = strings.Split(preselectNode[len(preselectNode)-1].Key, "-*-")[0]
 		selectDeviceGroup = strings.Split(preselectNode[len(preselectNode)-1].Key, "/")[1]
 	} else {
@@ -341,7 +342,7 @@ func (s NodeService) SelectMultiVolumeNode(ctx context.Context, backendDeviceGro
 	// 根据配置文件中设置算法进行节点选择
 	if configuration.SchedulerStrategy() == configuration.SchedulerBinpack {
 		nodeName = preselectNode[0].Key
-	} else if configuration.SchedulerStrategy() == configuration.SchedulerSpradout {
+	} else if configuration.SchedulerStrategy() == configuration.Schedulerspreadout {
 		nodeName = preselectNode[len(preselectNode)-1].Key
 	} else {
 		return "", segments, errors.New(fmt.Sprintf("no support scheduler strategy %s", configuration.SchedulerStrategy()))

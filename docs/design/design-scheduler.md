@@ -18,12 +18,12 @@
 - 配置文件，支持动态修改调度策略
 
   - binpack：选择恰好满足pvc容量的节点
-  - spradout：选择剩余容量最大的节点，这个是默认调度策略
+  - spreadout：选择剩余容量最大的节点，这个是默认调度策略
   
 ```
    config.json: |-
       {
-        "schedulerStrategy": "spradout" # binpack，spradout支持这两个参数
+        "schedulerStrategy": "spreadout" # binpack，spreadout支持这两个参数
       }
   ```
   
