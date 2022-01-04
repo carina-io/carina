@@ -158,25 +158,7 @@ installCRDs: true
 serviceMonitor:
   enable: false 
 
-certs:
-  create: true
-  securityContext:
-    enabled: true
-    runAsUser: 65534
-    fsGroup: 65534
-  image: registry.cn-hangzhou.aliyuncs.com/antmoveh/kubernetes-init-amd64
-  imageTag: "v1.0.1"
-  imagePullPolicy: "IfNotPresent"
-  pod:
-    nodeSelector: {}
-    tolerations: []
-    affinity: {}
- 
+
 webhook:
-  caBundle:  # Base64-encoded, PEM-encoded CA certificate that signs the server certificate.
   enabled: true
 
-kubeconfig:
-  enabled: false
-  # base64 encoded kube-config file
-  secret:  

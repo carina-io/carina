@@ -3,7 +3,7 @@ FROM golang:1.16.6-buster AS builder
 
 ENV GO111MODULE=on CGO_ENABLED=0 GOOS=linux GOPROXY=https://goproxy.cn,direct
 ENV WORKSPACE=/workspace/github.com/carina-io/carina
-ENV GOMODCACHE=$WORKSPACE/vendor
+#ENV GOMODCACHE=$WORKSPACE/vendor
 
 WORKDIR $WORKSPACE
 ADD . .
@@ -18,7 +18,7 @@ FROM registry.cn-hangzhou.aliyuncs.com/antmoveh/centos-mutilarch-lvm2:runtime-20
 # copy binary file
 COPY --from=builder /tmp/carina-node /usr/bin/
 COPY --from=builder /tmp/carina-controller /usr/bin/
-COPY --from=builder /workspace/github.com/carina-io/carina/debug/config.json /etc/carina/
+COPY --from=builder /workspace/github.com/carina-io/carina/debug/hack/config.json /etc/carina/
 
 RUN chmod +x /usr/bin/carina-node && chmod +x /usr/bin/carina-controller
 

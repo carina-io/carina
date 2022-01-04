@@ -117,20 +117,9 @@ The following table lists the configurable parameters of the latest  Disk CSI Dr
 | `node.resources.carina.requests.memory`            | carina memory requests limits                            | 20Mi         |
 | `node.logDir`                                      | node pod logDir                                          |/var/log/carina/  |
 | `node.configDir`                                   | node pod configDir                                       |/etc/carina      |
-| `installCRDs`                                      | install crd                                              |true  |
-| `serviceMonitor.enable`                            | controller minitor serviceMonitor                        |true  |
-| `certs.securityContext.enabled`                    | certs securityContext                                    |true  |
-| `certs.securityContext.runAsUser`                  | certs securityContext                                    |65534 |
-| `certs.securityContext.fsGroup`                    | certs securityContext                                    |65534 |
-| `certs.image`                                      | certs  image   for create CertificateSigningRequest and approving    |registry.cn-hangzhou.aliyuncs.com/antmoveh/kubernetes-init-amd64     |
-| `certs.imageTag`                                   | certs  imageTag                                          |v1.0.1     |
-| `certs.imagePullPolicy`                            | certs  imagePullPolicy                                   |IfNotPresent     |
-| `certs.pod.nodeSelector`                           | certs  pod nodeSelector                                  |{}     |
-| `certs.pod.tolerations`                            | certs  pod tolerations                                   |[]     |
-| `certs.pod.affinity`                               | certs  pod affinity                                      |{}     |
-| `kubeconfig.enabled`                               | if your want config defferent .kube/config               |false default (~/.kube/config)     |
-| `kubeconfig.secret`                                |base64 encoded kube-config file                           |{}     |
-
+| `installCRDs`                                      | install crd                                              |true  |      |
+| `serviceMonitor.enable`                            | controller minitor serviceMonitor                        |true  |      |
+| `webhook.enable`                                   | controller webhook                         |true  |      |
 ---
 
 #### storageClass

@@ -173,4 +173,4 @@ spec:
             name: {{ .Release.Name }}-csi-config
         - name: certs
           secret:
-            secretName: mutatingwebhook
+            secretName: {{ .Release.Name  }}-apiserver-cert

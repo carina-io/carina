@@ -1,4 +1,20 @@
+{{- $ca := genCA "svc-cat-ca" 3650 }}
+{{- $cn := printf "%s-controller"  .Release.Name  }}
+{{- $altName1 := printf "%s.%s" $cn .Release.Namespace }}
+{{- $altName2 := printf "%s.%s" $cn .Release.Namespace }}
+{{- $altName3 := printf "%s.%s.svc" $cn .Release.Namespace }}
+{{- $cert := genSignedCert $cn nil (list $altName1 $altName2 $altName3) 3650 $ca }}
 {{- if  .Values.webhook.enabled  }}
+apiVersion: v1
+kind: Secret
+metadata:
+  name: {{ .Release.Name  }}-apiserver-cert
+{{ include "carina.labels" . | indent 2 }}
+type: Opaque
+data:
+  tls.crt: {{ b64enc $cert.Cert }}
+  tls.key: {{ b64enc $cert.Key }}
+---
 apiVersion: admissionregistration.k8s.io/v1
 kind: MutatingWebhookConfiguration
 metadata:
@@ -12,9 +28,7 @@ webhooks:
         operator: NotIn
         values: ["ignore"]
     clientConfig:
-      {{- with .Values.webhook.caBundle }}
-      caBundle: {{ . }}
-      {{- end }}
+      caBundle: {{ b64enc $ca.Cert }}
       service:
         name: {{ .Release.Name }}-controller
         namespace: {{ .Release.Namespace }}
