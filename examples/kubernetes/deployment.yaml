@@ -6,6 +6,8 @@ metadata:
   namespace: carina
   labels:
     app: web-server
+  annotations:
+    carina.io/rebuild-node-notready: "true"  
 spec:
   replicas: 1
   selector:
@@ -15,6 +17,8 @@ spec:
     metadata:
       labels:
         app: web-server
+      annotations:
+        carina.io/rebuild-node-notready: "true"    
     spec:
       containers:
         - name: web-server

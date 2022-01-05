@@ -144,7 +144,7 @@ func (r *NodeReconciler) getNeedRebuildVolume(ctx context.Context) (map[string]c
 	if err != nil {
 		return volumeObjectMap, err
 	}
-
+	log.Infof("nodeStatus list: %s", nodeStatus)
 	pvMap, err := r.pvMap(ctx)
 	if err != nil {
 		log.Errorf("unable to fetch pv list %s", err.Error())
@@ -175,20 +175,21 @@ func (r *NodeReconciler) getNeedRebuildVolume(ctx context.Context) (map[string]c
 			}
 			continue
 		}
-		err := r.clearPod(ctx, lv.Spec.NodeName)
-		if err != nil {
-			log.Errorf("unable to clear pod in not ready node:%s  err:%s", lv.Spec.NodeName, err.Error())
-			return volumeObjectMap, err
-		}
-		// 重建逻辑
 
+		// 重建逻辑
+		log.Infof("lv list: %s", lv.Name)
 		if _, ok := r.cacheNoDeleteLv[lv.Name]; ok {
 			continue
 		}
 		if v, ok := nodeStatus[lv.Spec.NodeName]; ok && v == "normal" {
 			continue
 		}
-
+		log.Infof("start clear pod: %s", lv.Spec.NodeName)
+		err := r.clearPod(ctx, lv.Spec.NodeName)
+		if err != nil {
+			log.Errorf("unable to clear pod in not ready node:%s  err:%s", lv.Spec.NodeName, err.Error())
+			return volumeObjectMap, err
+		}
 		log.Info("Namespace: ", lv.Spec.NameSpace, " Name: ", lv.Spec.Pvc, " Status: ", lv.Status.Status)
 		volumeObjectMap[lv.Name] = client.ObjectKey{Namespace: lv.Spec.NameSpace, Name: lv.Spec.Pvc}
 		if lv.Finalizers != nil && utils.ContainsString(lv.Finalizers, utils.LogicVolumeFinalizer) {
@@ -313,20 +314,37 @@ func (r *NodeReconciler) nodeStatusList(ctx context.Context) (map[string]nodeSta
 	}
 
 	for _, n := range nl.Items {
+		nodeList[n.Name] = Normal
 		//when node is delete, clear pods
 		if n.DeletionTimestamp != nil || n.Status.Phase == corev1.NodeTerminated {
 			nodeList[n.Name] = Abnormal
+			log.Infof("get node  name: %s status: %s", n.Name, n.Status.Phase)
 		}
 		//when node is nodeready, clear pods
 		for _, s := range n.Status.Conditions {
 			if s.Type == corev1.NodeReady && s.Status != corev1.ConditionTrue {
 				nodeList[n.Name] = Abnormal
+				log.Infof("get node  name: %s ,type: %s,status: %s", n.Name, s.Type, s.Status)
 			}
 		}
-		nodeList[n.Name] = Normal
+
 	}
 	return nodeList, nil
 
+}
+func (r *NodeReconciler) targetStorageClasses(ctx context.Context) (map[string]storagev1.StorageClass, error) {
+	var scl storagev1.StorageClassList
+	if err := r.List(ctx, &scl); err != nil {
+		return nil, err
+	}
+
+	targets := make(map[string]storagev1.StorageClass)
+	for _, sc := range scl.Items {
+		if sc.Provisioner == utils.CSIPluginName {
+			targets[sc.Name] = sc
+		}
+	}
+	return targets, nil
 }
 
 //get polist from  notready nodes
@@ -341,22 +359,28 @@ func (r *NodeReconciler) podMap(ctx context.Context) (map[string][]client.Object
 	if err != nil {
 		return result, err
 	}
-
+	log.Infof("nodeStatus list: %s", nodeStatus)
 	for _, pod := range podList.Items {
 		//skip ready node
 		if _, ok := nodeStatus[pod.Spec.NodeName]; !ok {
 			continue
 		}
+		if nodeStatus[pod.Spec.NodeName] == Normal {
+			continue
+		}
+
 		// check annotation carina.io/rebuild-node-notready: true
 		if _, ok := pod.Annotations["carina.io/rebuild-node-notready"]; !ok || pod.Annotations["carina.io/rebuild-node-notready"] == "false" {
 			continue
 		}
+		log.Infof("not ready node: %s  pod: %s ", pod.Spec.NodeName, pod.Name)
 		//select carina-csi build pod in notready node
 		var podInAbnormalNode bool = false
 		for _, vol := range pod.Spec.Volumes {
 			if vol.PersistentVolumeClaim == nil {
 				continue
 			}
+			log.Infof("not ready node: %s  pod: %s pvc: %s ", pod.Spec.NodeName, pod.Name, vol.PersistentVolumeClaim)
 			pvcName := vol.PersistentVolumeClaim.ClaimName
 			pvc := &corev1.PersistentVolumeClaim{}
 			err = r.Get(ctx, client.ObjectKey{Namespace: pod.Namespace, Name: pvcName}, pvc)
@@ -364,12 +388,21 @@ func (r *NodeReconciler) podMap(ctx context.Context) (map[string][]client.Object
 				log.Errorf("get pvc err in namespace: %s name: %s err:%s ", pod.Namespace, pvcName, err.Error())
 				continue
 			}
-			if pvc.Spec.StorageClassName != nil && *pvc.Spec.StorageClassName == utils.CSIPluginName {
+			log.Infof("get pvc  StorageClassName: %s selected-node: %s", *pvc.Spec.StorageClassName, pvc.Annotations["volume.kubernetes.io/selected-node"])
+			targets, err := r.targetStorageClasses(ctx)
+			if err != nil {
+				log.Error(err.Error(), " targetStorageClasses failed")
 				continue
 			}
-			if _, ok := nodeStatus[pvc.Annotations["volume.kubernetes.io/selected-node"]]; !ok {
+			//skip nil storageclassname
+			if pvc.Spec.StorageClassName == nil {
 				continue
 			}
+			//skip pvc not build by storageclass belong to carina csi
+			if _, ok := targets[*pvc.Spec.StorageClassName]; !ok {
+				continue
+			}
+
 			podInAbnormalNode = true
 
 		}
