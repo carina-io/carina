@@ -31,31 +31,7 @@ certs:
 run: certs	
 	@hack/csi-provisioner.sh  
 	@hack/csi-node-register.sh
-kc:
-	kind create cluster --config kind.yaml --image kindest/node:$(kversion) --name debug --verbosity 1
-	kind get kubeconfig --name="debug" > ~/.kube/config
-	kubectl get nodes
-
-	for n in `docker ps --filter name=worker --format "{{.Names}}"`; \
-	do \
-		docker exec $$n modprobe dm_snapshot && \
-		docker exec $$n modprobe dm_mirror && \
-		docker exec $$n modprobe dm_thin_pool && \
-		for i in `seq 1 5`; \
-		do \
-			docker exec $$n truncate --size=20G /tmp/disk$$i.device && \
-			sleep 1 &&\
-			docker exec $$n losetup -f /tmp/disk$$i.device --show; \
-		done \
-	done
 	
-kd:
-	kind delete cluster --name debug
-	for name in `lsblk --paths --output NAME |grep loop`; \
-	do \
-		losetup -d $$name; \
-	done	
-
 node:  
 	 go run ../cmd/carina-node/main.go --http-addr 0.0.0.0:8091 --metrics-addr :8081
 
