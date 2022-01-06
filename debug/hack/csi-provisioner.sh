@@ -6,8 +6,8 @@ set -o pipefail
 
 #cert
 sudo mkdir -p /tmp/k8s-webhook-server/serving-certs
-sudo chmod 775 /tmp/k8s-webhook-server/serving-certs
-cp hack/certs/* /tmp/k8s-webhook-server/serving-certs
+sudo cp hack/certs/* /tmp/k8s-webhook-server/serving-certs
+sudo chmod -R 775 /tmp/k8s-webhook-server/serving-certs
 ls /tmp/k8s-webhook-server/serving-certs
 #csi
 sudo mkdir -p /tmp/csi
