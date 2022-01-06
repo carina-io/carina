@@ -13,9 +13,10 @@
    See the License for the specific language governing permissions and
    limitations under the License.
 */
-package node_proxy_client
+package main
 
 import (
+	"flag"
 	"fmt"
 	"io"
 	"net"
@@ -23,11 +24,18 @@ import (
 )
 
 var (
-	clientUnix string = "/var/lib/kubelet/plugins/csi.carina.com/csi.sock"
-	ServerAddr string = "10.40.20.66:8888"
+	clientUnix string 
+	ServerAddr string 
 )
 
+
+func init() {
+	flag.StringVar(&clientUnix, "csi-address", "/var/lib/kubelet/plugins/csi.carina.com/csi.sock", "csi.sock path")
+	flag.StringVar(&ServerAddr, "server-address", "0.0.0.0:8888","server 地址")	
+}
+
 func main() {
+	flag.Parse()
 	_ = os.Remove(clientUnix)
 	ln, err := net.Listen("unix", clientUnix)
 	if err != nil {

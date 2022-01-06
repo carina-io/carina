@@ -69,7 +69,7 @@ generate: controller-gen
 	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./..."
 
 # Build the docker image
-docker-build: test
+docker-build: 
 	docker build . -t ${IMG}
 
 # Push the docker image
@@ -93,11 +93,3 @@ else
 CONTROLLER_GEN=$(shell which controller-gen)
 endif
 
-
-
-helmpackage:
-	@for var in $(HELMVERSION); do \
-		helm lint charts/$$var/carina-csi-driver && helm package charts/$$var/carina-csi-driver --debug --destination charts/$$var/; \
-	done
-		helm repo index --url=https://raw.githubusercontent.com/carina-io/carina/main/charts   ./charts/ 
-		

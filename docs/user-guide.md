@@ -169,13 +169,13 @@ mountOptions:
           "diskSelector": ["loop*", "vd*"], # 磁盘匹配策略，支持正则表达式
           "diskScanInterval": "300", # 300s 磁盘扫描间隔，0表示关闭本地磁盘扫描
           "diskGroupPolicy": "type", # 磁盘分组策略，只支持按照磁盘类型分组，更改成其他值无效
-          "schedulerStrategy": "spradout" # binpack，spradout支持这两个参数
+          "schedulerStrategy": "spreadout" # binpack，spreadout支持这两个参数
         }
     ```
 
     - 备注1：`diskSelector`若是A磁盘已经加入了VG卷组，修改为不在匹配A盘，如果该盘尚未使用则会在VG卷组中移除该磁盘
-    - 备注2：`schedulerStrategy`中`binpack`为pv选择磁盘容量刚好满足`requests.storage`的节点 ，`spradout`为pv选择磁盘剩余容量最多的节点
-    - 备注3：`schedulerStrategy`在`storageclass volumeBindingMode:Immediate`模式中选择只受磁盘容量影响，即在`spradout`策略下Pvc创建后会立即在剩余容量最大的节点创建volume
+    - 备注2：`schedulerStrategy`中`binpack`为pv选择磁盘容量刚好满足`requests.storage`的节点 ，`spreadout`为pv选择磁盘剩余容量最多的节点
+    - 备注3：`schedulerStrategy`在`storageclass volumeBindingMode:Immediate`模式中选择只受磁盘容量影响，即在`spreadout`策略下Pvc创建后会立即在剩余容量最大的节点创建volume
     - 备注4：`schedulerStrategy`在`storageclass volumeBindingMode:WaitForFirstConsumer`模式pvc受pod调度影响，它影响的只是调度策略评分，这个评分可以通过自定义调度器日志查看`kubectl logs -f carina-scheduler-6cc9cddb4b-jdt68 -n kube-system`
     - 备注5：当多个节点磁盘容量大于请求容量10倍，则这些节点的调度评分是相同的
 

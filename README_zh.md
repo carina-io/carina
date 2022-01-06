@@ -66,7 +66,7 @@ $ ./deploy.sh uninstall
 ## 使用helm3
 
 ```bash
-helm repo add carina-csi-driver https://raw.githubusercontent.com/carina-io/carina/main/charts
+helm repo add carina-csi-driver https://raw.githubusercontent.com/carina-io/charts/main
 
 helm search repo -l carina-csi-driver
 

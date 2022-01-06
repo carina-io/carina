@@ -25,3 +25,5 @@ bin
 
 vendor/
 .vscode/
+
+debug/hack/certs

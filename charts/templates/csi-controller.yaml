@@ -1,0 +1,176 @@
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  name: {{ .Values.controller.name }}
+  namespace: {{ .Release.Namespace }}
+{{ include "carina.labels" . | indent 2 }}
+spec:
+  replicas: {{ .Values.controller.replicas }}
+  selector:
+    matchLabels:
+      app: {{ .Values.controller.name }}
+  template:
+    metadata:
+{{ include "carina.labels" . | indent 6 }}
+{{- with .Values.controller.podLabels }}
+{{ toYaml . | indent 8 }}
+{{- end }}
+    spec:
+      {{- if .Values.imagePullSecrets }}
+      imagePullSecrets:
+{{ toYaml .Values.imagePullSecrets | indent 8 }}
+      {{- end }}
+      hostNetwork: {{ .Values.controller.hostNetwork }}
+      serviceAccountName: {{ .Values.serviceAccount.controller }}
+{{- with .Values.controller.tolerations }}
+      tolerations:
+{{ toYaml . | indent 8 }}
+{{- end }}
+{{- with .Values.controller.affinity }}
+      affinity:
+{{ toYaml . | indent 8 }}
+{{- end }}
+      {{- include "carina.pullSecrets" . | indent 6 }}
+      containers:
+        - name: csi-provisioner
+{{- if hasPrefix "/" .Values.image.csiProvisioner.repository }}
+          image: "{{ .Values.image.baseRepo }}{{ .Values.image.csiProvisioner.repository }}:{{ .Values.image.csiProvisioner.tag }}"
+{{- else }}
+          image: "{{ .Values.image.csiProvisioner.repository }}:{{ .Values.image.csiProvisioner.tag }}"
+{{- end }}
+          imagePullPolicy: {{ .Values.image.csiProvisioner.pullPolicy }}
+          args:
+            - "--feature-gates=Topology=true"
+            - "--csi-address=$(ADDRESS)"
+            - "--v={{ .Values.controller.logLevel }}"
+            - "--timeout=15s"
+            - "--leader-election"
+            - "--worker-threads={{ .Values.controller.provisionerWorkerThreads }}"
+            - "--extra-create-metadata=true"
+            - "--strict-topology=true"
+          env:
+            - name: ADDRESS
+              value: unix:///csi/csi-provisioner.sock
+          volumeMounts:
+            - mountPath: /csi
+              name: socket-dir
+          resources: {{- toYaml .Values.controller.resources.csiProvisioner | nindent 12 }}
+        - name: csi-attacher
+{{- if hasPrefix "/" .Values.image.csiAttacher.repository }}
+          image: "{{ .Values.image.baseRepo }}{{ .Values.image.csiAttacher.repository }}:{{ .Values.image.csiAttacher.tag }}"
+{{- else }}
+          image: "{{ .Values.image.csiAttacher.repository }}:{{ .Values.image.csiAttacher.tag }}"
+{{- end }}
+          imagePullPolicy: {{ .Values.image.csiProvisioner.pullPolicy }}
+          args:
+            - "-v={{ .Values.controller.logLevel }}"
+            - "-csi-address=$(ADDRESS)"
+            - "-timeout=600s"
+            - "-leader-election"
+            - "-worker-threads={{ .Values.controller.attacherWorkerThreads }}"
+          env:
+            - name: ADDRESS
+              value: /csi/csi-provisioner.sock
+          volumeMounts:
+          - mountPath: /csi
+            name: socket-dir
+          resources: {{- toYaml .Values.controller.resources.csiAttacher | nindent 12 }}
+        - name: csi-resizer
+{{- if hasPrefix "/" .Values.image.csiResizer.repository }}
+          image: "{{ .Values.image.baseRepo }}{{ .Values.image.csiResizer.repository }}:{{ .Values.image.csiResizer.tag }}"
+{{- else }}
+          image: "{{ .Values.image.csiResizer.repository }}:{{ .Values.image.csiResizer.tag }}"
+{{- end }}
+          args:
+            - "-csi-address=$(ADDRESS)"
+            - "-v={{ .Values.controller.logLevel }}"
+            - "-leader-election"
+            - '-handle-volume-inuse-error=false'
+            - "-timeout=60s"
+          env:
+            - name: ADDRESS
+              value: unix:///csi/csi-provisioner.sock
+          volumeMounts:
+            - name: socket-dir
+              mountPath: /csi
+          resources: {{- toYaml .Values.controller.resources.csiResizer | nindent 12 }}
+{{- if .Values.image.livenessProbe }}             
+        - name: liveness-probe
+{{- if hasPrefix "/" .Values.image.livenessProbe.repository }}
+          image: "{{ .Values.image.baseRepo }}{{ .Values.image.livenessProbe.repository }}:{{ .Values.image.livenessProbe.tag }}"
+{{- else }}
+          image: "{{ .Values.image.livenessProbe.repository }}:{{ .Values.image.livenessProbe.tag }}"
+{{- end }}
+          args:
+            - --csi-address=$(ADDRESS)
+            - --probe-timeout=3s
+            - --health-port={{ .Values.controller.livenessProbe.healthPort }}
+            - --v={{ .Values.controller.logLevel }}
+          env:
+            - name: ADDRESS
+              value: unix:///csi/csi-provisioner.sock  
+          volumeMounts:
+            - name: socket-dir
+              mountPath: /csi
+          resources: {{- toYaml .Values.controller.resources.livenessProbe | nindent 12 }}
+{{- end }}          
+        - name: csi-carina-controller
+{{- if hasPrefix "/" .Values.image.carina.repository }}
+          image: "{{ .Values.image.baseRepo }}{{ .Values.image.carina.repository }}:{{ .Values.image.carina.tag }}"
+{{- else }}
+          image: "{{ .Values.image.carina.repository }}:{{ .Values.image.carina.tag }}"
+{{- end }}
+          securityContext:
+            privileged: true
+            capabilities:
+              add: ["SYS_ADMIN"]
+          command: ["carina-controller"]    
+          args:
+            - "--csi-address=$(ADDRESS)"
+            - "--cert-dir=/certs"
+            - "--metrics-addr=:{{ .Values.controller.metricsPort }}"
+            - "--webhook-addr=:{{ .Values.controller.webhookPort }}"
+            - "--http-addr=:{{ .Values.controller.httpPort }}"  
+          ports:
+            - containerPort: {{ .Values.controller.metricsPort }}
+              name: metrics
+            - containerPort: {{ .Values.controller.httpPort }}
+              name: http
+            - containerPort: {{ .Values.controller.webhookPort }}
+              name: webhook  
+          env:
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+            - name: NODE_ID
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+            - name: NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: ADDRESS
+              value: /csi/csi-provisioner.sock
+          imagePullPolicy: {{ .Values.image.carina.pullPolicy }}
+          volumeMounts:
+            - mountPath: /csi
+              name: socket-dir
+              mountPropagation: Bidirectional
+            - name: config
+              mountPath: /etc/carina/  
+            - name: certs
+              mountPath: /certs       
+          resources: {{- toYaml .Values.controller.resources.carina | nindent 12 }}
+      volumes:
+        - name: socket-dir
+          emptyDir: {
+            medium: "Memory"
+          }
+        - name: config
+          configMap:
+            name: {{ .Release.Name }}-csi-config
+        - name: certs
+          secret:
+            secretName: {{ .Release.Name  }}-apiserver-cert

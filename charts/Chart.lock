@@ -1,0 +1,6 @@
+dependencies:
+- name: carina-scheduler
+  repository: ""
+  version: 0.1.0
+digest: sha256:ee568d130f20fcdfc38d89c209977022af7ad5229838b9c0af116bec21bde0fc
+generated: "2022-01-04T15:05:56.0339201+08:00"

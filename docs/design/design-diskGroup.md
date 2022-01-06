@@ -27,7 +27,7 @@ data:
       "diskSelector": ["loop*", "vd*"],
       "diskScanInterval": "300",
       "diskGroupPolicy": "type",
-      "schedulerStrategy": "spradout"
+      "schedulerStrategy": "spreadout"
     }
 ```
 
@@ -160,7 +160,7 @@ data:
       "diskSelector": ["loop*", "vd*"],
       "diskScanInterval": "300",
       "diskGroupPolicy": "type",
-      "schedulerStrategy": "spradout"
+      "schedulerStrategy": "spreadout"
     }
 ```
 
