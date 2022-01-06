@@ -76,7 +76,7 @@ func subMain() error {
 	// 初始化磁盘管理服务
 	stopChan := make(chan struct{})
 	defer close(stopChan)
-	dm := deviceManager.NewDeviceManager(nodeName, mgr.GetCache(), stopChan)
+	dm := deviceManager.NewDeviceManager(mgr.GetClient(),nodeName, mgr.GetCache(), stopChan)
 
 	podController := controllers.PodReconciler{
 		Client:   mgr.GetClient(),

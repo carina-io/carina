@@ -19,6 +19,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
+	"time"
+
 	"github.com/carina-io/carina/pkg/devicemanager/bcache"
 	"github.com/carina-io/carina/pkg/devicemanager/lvmd"
 	"github.com/carina-io/carina/pkg/devicemanager/types"
@@ -27,8 +30,6 @@ import (
 	"github.com/carina-io/carina/utils/mutx"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	"strings"
-	"time"
 )
 
 const VOLUMEMUTEX = "VolumeMutex"
@@ -311,9 +312,10 @@ func (v *LocalVolumeImplement) GetCurrentVgStruct() ([]types.VgGroup, error) {
 		return nil, err
 	}
 	for i, v := range vgs {
-		if !strings.HasPrefix(v.VGName, types.KEYWORD) {
-			continue
-		}
+		//0.9.0 版本只接管有carina前缀的vg,0.9.1 版本里这里逻辑变更为接管所有vg
+		// if !strings.HasPrefix(v.VGName, types.KEYWORD) {
+		// 	continue
+		// }
 		tmp[v.VGName] = &vgs[i]
 	}
 
@@ -362,7 +364,7 @@ func (v *LocalVolumeImplement) AddNewDiskToVg(disk, vgName string) error {
 	} else {
 		if pvInfo.VGName != "" {
 			log.Errorf("pv %s have bind vg %s ", pvInfo.PVName, pvInfo.VGName)
-			return errors.New(fmt.Sprintf("pv %s have bind vg %s ", pvInfo.PVName, pvInfo.VGName))
+			return fmt.Errorf("pv %s have bind vg %s ", pvInfo.PVName, pvInfo.VGName)
 		}
 	}
 	// 检查PV,决定新创建还是扩容
@@ -406,7 +408,7 @@ func (v *LocalVolumeImplement) RemoveDiskInVg(disk, vgName string) error {
 	} else {
 		if pvInfo.VGName != vgName {
 			log.Errorf("pv %s have bind vg %s not %s", pvInfo.PVName, pvInfo.VGName, vgName)
-			return errors.New(fmt.Sprintf("pv %s have bind vg %s not %s ", pvInfo.PVName, pvInfo.VGName, vgName))
+			return fmt.Errorf("pv %s have bind vg %s not %s ", pvInfo.PVName, pvInfo.VGName, vgName)
 		}
 		if pvInfo.VGName == "" {
 			err = v.Lv.PVRemove(disk)

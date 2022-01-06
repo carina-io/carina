@@ -65,4 +65,6 @@ type Lvm2 interface {
 	StartLvm2() error
 	// 清理unknown设备
 	RemoveUnknownDevice(vg string) error
+	//同步分区表
+	PartProbe() error
 }

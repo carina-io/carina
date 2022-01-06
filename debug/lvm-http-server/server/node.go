@@ -28,7 +28,7 @@ var stopChan chan struct{}
 func init() {
 	stopChan = make(chan struct{})
 
-	dm = deviceManager.NewDeviceManager("localhost", nil, stopChan)
+	dm = deviceManager.NewDeviceManager(nil,"localhost", nil, stopChan)
 }
 
 func Start(c echo.Context) error {

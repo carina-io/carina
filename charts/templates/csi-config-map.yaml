@@ -11,13 +11,13 @@ data:
       "diskSelector": [
         {
           "name": "hdd1" ,
-          "re": ["loop*"],
+          "re": ["sdb","vdb"],
           "policy": "LVM",
           "nodeLabel": "kubernetes.io/hostname"
         },
          {
           "name": "hdd2", 
-          "re": ["loop*", "ad*"],
+          "re": ["sdc","vdc"],
           "policy": "LVM",
           "nodeLabel": "kubernetes.io/hostname"
         },
