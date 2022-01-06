@@ -13,6 +13,7 @@
    See the License for the specific language governing permissions and
    limitations under the License.
 */
+
 package controllers
 
 import (
@@ -36,7 +37,7 @@ import (
 )
 
 const (
-	// pod annotation KubernetesCustomized/BlkIOThrottleReadBPS
+	// KubernetesCustomized pod annotation BlkIOThrottleReadBPS
 	KubernetesCustomized   = "kubernetes.customized"
 	BlkIOThrottleReadBPS   = "blkio.throttle.read_bps_device"
 	BlkIOThrottleReadIOPS  = "blkio.throttle.read_iops_device"
@@ -150,7 +151,7 @@ func (r *PodReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Complete(r)
 }
 
-// 对于单独一个Pod的创建,修改事件只需要判断当前cgroup和pod.annotations对比，即可判定是否需要变更
+// SinglePodCGroupConfig 对于单独一个Pod的创建,修改事件只需要判断当前cgroup和pod.annotations对比，即可判定是否需要变更
 func (r *PodReconciler) SinglePodCGroupConfig(ctx context.Context, pod *corev1.Pod) error {
 
 	log.Infof("config cgroup blkio %s %s", pod.GetNamespace(), pod.GetName())

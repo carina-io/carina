@@ -13,6 +13,7 @@
    See the License for the specific language governing permissions and
    limitations under the License.
 */
+
 package controllers
 
 import (
@@ -36,7 +37,7 @@ import (
 	"time"
 )
 
-// PersistentVolumeClaimReconciler reconciles a PersistentVolumeClaim object
+// PersistentVolumeReconciler PersistentVolumeClaimReconciler reconciles a PersistentVolumeClaim object
 type PersistentVolumeReconciler struct {
 	client.Client
 	APIReader      client.Reader

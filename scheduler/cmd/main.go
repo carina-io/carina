@@ -13,12 +13,13 @@
    See the License for the specific language governing permissions and
    limitations under the License.
 */
+
 package main
 
 import (
+	"github.com/carina-io/carina/scheduler/schedulerplugin/localstorage"
 	"math/rand"
 	"os"
-	"github.com/carina-io/carina/scheduler/schedulerplugin/localstorage"
 	"time"
 
 	"k8s.io/component-base/logs"

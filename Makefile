@@ -1,10 +1,11 @@
 ## Dependency versions
 CSI_VERSION=1.3.0
-K8S_VERSION=1.20.4
-KUBEBUILDER_VERSION = 2.3.1
+K8S_VERSION=1.21.5
+KUBEBUILDER_VERSION = 3.2.1
 KUSTOMIZE_VERSION= 3.8.9
 PROTOC_VERSION=3.15.0
 DATE=$(shell date '+%Y%m%d%H%M%S')
+ARCH ?= linux/arm,linux/arm64,linux/amd64
 
 # Image URL to use all building/pushing image targets
 IMG ?= controller:latest
@@ -69,12 +70,16 @@ generate: controller-gen
 	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./..."
 
 # Build the docker image
-docker-build: 
+docker-build:
+	go mod vendor
 	docker build . -t ${IMG}
+	rm -rf vendor
 
 # Push the docker image
 release:
-	docker buildx build -t $(IMAGE_REPOSITORY)/antmoveh/carina:$(VERSION)-$(DATE) --platform=linux/arm64,linux/amd64 . --push
+	go mod vendor
+	docker buildx build -t $(IMAGE_REPOSITORY)/antmoveh/carina:$(VERSION)-$(DATE) --platform=$(ARCH) . --push
+	rm -rf vendor
 
 # find or download controller-gen
 # download controller-gen if necessary
