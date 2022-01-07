@@ -37,7 +37,7 @@ spec:
       {{- include "carina.pullSecrets" . | indent 6 }}
 {{- if .Values.node.initContainer }}        
       initContainers:
-{{- if .Values.node.bcache.enable}}
+{{- if .Values.node.bcache}}
         - name: bcache
           securityContext:
             privileged: true
