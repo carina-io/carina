@@ -10,14 +10,14 @@ data:
     {
       "diskSelector": [
         {
-          "name": "hdd1" ,
-          "re": ["sdb","vdb"],
+          "name": "carina-vg-hdd" ,
+          "re": ["vdb"],
           "policy": "LVM",
           "nodeLabel": "kubernetes.io/hostname"
         },
          {
           "name": "hdd2", 
-          "re": ["sdc","vdc"],
+          "re": ["sdc","vdd1"],
           "policy": "LVM",
           "nodeLabel": "kubernetes.io/hostname"
         },
