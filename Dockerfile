@@ -25,5 +25,6 @@ RUN chmod +x /usr/bin/carina-node && chmod +x /usr/bin/carina-controller
 # Update time zone to Asia-Shanghai
 COPY --from=builder /workspace/github.com/carina-io/carina/Shanghai /etc/localtime
 RUN echo 'Asia/Shanghai' > /etc/timezone
-
+#add partprobe
+RUN  yum -y install parted
 CMD ["echo carina-node carina-controller"]
