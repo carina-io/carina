@@ -8,7 +8,7 @@ DATE=$(shell date '+%Y%m%d%H%M%S')
 ARCH ?= linux/arm64,linux/amd64
 
 # Image URL to use all building/pushing image targets
-IMG ?= controller:latest
+IMG ?= carina:latest
 # Produce CRDs that work back to Kubernetes 1.11 (no version conversion)
 CRD_OPTIONS ?= "crd:trivialVersions=true"
 
@@ -72,7 +72,7 @@ generate: controller-gen
 # Build the docker image
 docker-build:
 	go mod vendor
-	docker build . -t $(IMG)
+	docker build -t $(IMG) .
 	rm -rf vendor
 
 # Push the docker image
