@@ -1,4 +1,4 @@
-FROM golang:1.16.6-buster AS builder
+FROM golang:1.17.5-buster AS builder
 
 ENV GO111MODULE=on CGO_ENABLED=0 GOOS=linux GOPROXY=https://goproxy.cn,direct
 ENV WORKSPACE=/workspace/github.com/carina-io/carina/scheduler

@@ -86,10 +86,11 @@ spec:
   groups:
   - system:authenticated
   request: $(< "${tmpdir}"/server.csr base64 | tr -d '\n')
+  signerName: kubernetes.io/kube-apiserver-client
   usages:
   - digital signature
   - key encipherment
-  - server auth
+  - client auth
 EOF
 
 # verify CSR has been created
@@ -121,5 +122,5 @@ echo "${serverCert}" | openssl base64 -d -A -out "${tmpdir}"/server-cert.pem
 kubectl create secret generic ${secret} \
         --from-file=tls.key="${tmpdir}"/server-key.pem \
         --from-file=tls.crt="${tmpdir}"/server-cert.pem \
-        --dry-run=client -o yaml |
+        --dry-run=server -o yaml |
     kubectl -n ${namespace} apply -f -

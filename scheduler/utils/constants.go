@@ -13,21 +13,22 @@
    See the License for the specific language governing permissions and
    limitations under the License.
 */
+
 package utils
 
 const (
-	// PluginName is the name of the CSI plugin.
+	// CSIPluginName PluginName is the name of the CSI plugin.
 	CSIPluginName = "carina.storage.io"
-	// storage class disk group
+	// DeviceDiskKey storage class disk group
 	DeviceDiskKey = "carina.storage.io/disk-type"
-	// pv csi VolumeAttributes
+	// VolumeDeviceNode pv csi VolumeAttributes
 	VolumeDeviceNode = "carina.storage.io/node"
-	// device plugin
+	// DeviceCapacityKeyPrefix device plugin
 	DeviceCapacityKeyPrefix = "carina.storage.io/"
 
-	// bcahce scheduler
+	// VolumeBackendDiskType bcahce scheduler
 	VolumeBackendDiskType = "carina.storage.io/backend-disk-type"
 	VolumeCacheDiskType   = "carina.storage.io/cache-disk-type"
-	// value: 1-100 Cache Capacity Ratio
+	// VolumeCacheDiskRatio value: 1-100 Cache Capacity Ratio
 	VolumeCacheDiskRatio = "carina.storage.io/cache-disk-ratio"
 )

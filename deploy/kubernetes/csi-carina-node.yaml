@@ -16,7 +16,6 @@ spec:
         app: csi-carina-node
     spec:
       serviceAccount: carina-csi-node
-      hostNetwork: true
       # resolved through k8s service, set dns policy to cluster first
       dnsPolicy: ClusterFirstWithHostNet
       initContainers:

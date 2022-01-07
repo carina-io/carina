@@ -9,8 +9,32 @@ metadata:
 data:
   config.json: |-
     {
-      "diskSelector": ["loop*", "vd*"],
+      "diskSelector": [
+        {
+          "name": "hdd1" ,
+          "re": ["loop*"],
+          "policy": "LVM",
+          "nodeLabel": "kubernetes.io/hostname"
+        },
+         {
+          "name": "hdd2",
+          "re": ["loop*", "ad*"],
+          "policy": "LVM",
+          "nodeLabel": "kubernetes.io/hostname"
+        },
+        {
+          "name": "ssd",
+          "re": ["loop*", "vd*"],
+          "policy": "RAW",
+         "nodeLabel": "kubernetes.io/hostname"
+        },
+         {
+          "name": "ssd",
+          "re": ["loop*", "vd*"],
+          "policy": "RAW",
+          "nodeLabel": "kubernetes.io/hostname"
+        }
+      ],
       "diskScanInterval": "300",
-      "diskGroupPolicy": "type",
       "schedulerStrategy": "spreadout"
     }

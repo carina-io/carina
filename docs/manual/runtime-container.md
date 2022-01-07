@@ -13,5 +13,5 @@ $ docker build -t runtime-container:latest .
 
 ```shell
 $ cd docs/runtime-container
-$ docker buildx build -t registry.cn-hangzhou.aliyuncs.com/antmoveh/centos-mutilarch-lvm2:runtime-2021 --platform=linux/arm64,linux/amd64 . --push
+$ docker buildx build -t centos-mutilarch-lvm2:runtime --platform=linux/arm,linux/arm64,linux/amd64 . --push
 ```
