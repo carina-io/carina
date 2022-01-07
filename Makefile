@@ -5,7 +5,7 @@ KUBEBUILDER_VERSION = 3.2.1
 KUSTOMIZE_VERSION= 3.8.9
 PROTOC_VERSION=3.15.0
 DATE=$(shell date '+%Y%m%d%H%M%S')
-ARCH ?= linux/arm,linux/arm64,linux/amd64
+ARCH ?= linux/arm64,linux/amd64
 
 # Image URL to use all building/pushing image targets
 IMG ?= controller:latest

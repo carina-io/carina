@@ -22,7 +22,7 @@ Carina is a standard kubernetes CSI plugin. Users can use standard kubernetes st
 
 # Running Environments
 
-* Kubernetes：>=1.18 (*least verified version)
+* Kubernetes：(CSI_VERSION=1.3.0)
 * Node OS：Linux
 * Filesystems：ext4，xfs
 
