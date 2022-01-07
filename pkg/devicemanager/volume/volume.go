@@ -13,6 +13,7 @@
    See the License for the specific language governing permissions and
    limitations under the License.
 */
+
 package volume
 
 import (
@@ -533,7 +534,7 @@ func (v *LocalVolumeImplement) RegisterNoticeServer(vgName string, notice chan s
 	v.NoticeServerMap[vgName] = notice
 }
 
-// bcache
+// CreateBcache bcache
 func (v *LocalVolumeImplement) CreateBcache(dev, cacheDev string, block, bucket string, cachePolicy string) (*types.BcacheDeviceInfo, error) {
 	err := v.Bcache.CreateBcache(dev, cacheDev, block, bucket)
 	if err != nil {

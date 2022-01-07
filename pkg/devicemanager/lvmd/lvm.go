@@ -13,6 +13,7 @@
    See the License for the specific language governing permissions and
    limitations under the License.
 */
+
 package lvmd
 
 import (
@@ -47,7 +48,7 @@ func (lv2 *Lvm2Implement) PVResize(dev string) error {
 	return lv2.Executor.ExecuteCommand("pvresize", dev)
 }
 
-// 示例输出
+// PVS 示例输出
 // pvs --noheadings --separator=, --units=b --nosuffix --unbuffered --nameprefixes
 // LVM2_PV_NAME='/dev/loop2',LVM2_VG_NAME='lvmvg',LVM2_PV_FMT='lvm2',LVM2_PV_ATTR='a--',LVM2_PV_SIZE='16101933056',LVM2_PV_FREE='16101933056'
 func (lv2 *Lvm2Implement) PVS() ([]types.PVInfo, error) {
@@ -61,6 +62,7 @@ func (lv2 *Lvm2Implement) PVS() ([]types.PVInfo, error) {
 	return parsePvs(pvsInfo), nil
 }
 
+// PVDisplay
 /*
 # pvdisplay /dev/loop4
   --- Physical volume ---
@@ -102,7 +104,7 @@ func (lv2 *Lvm2Implement) VGCheck(vg string) error {
 	return lv2.Executor.ExecuteCommand("vgck", vg)
 }
 
-// vgcreate --add-tag=v1 v1 /dev/loop4
+// VGCreate vgcreate --add-tag=v1 v1 /dev/loop4
 func (lv2 *Lvm2Implement) VGCreate(vg string, tags, pvs []string) error {
 	var args []string
 	for _, tag := range tags {
@@ -126,7 +128,7 @@ func (lv2 *Lvm2Implement) VGRemove(vg string) error {
 	return lv2.Executor.ExecuteCommand("vgremove", "-f", vg)
 }
 
-// 示例
+// VGS 示例
 // vgs --noheadings --separator=, --units=b --nosuffix --unbuffered --nameprefixes
 // LVM2_VG_NAME='lvmvg',LVM2_PV_COUNT='1',LVM2_LV_COUNT='0',LVM2_SNAP_COUNT='0',LVM2_VG_ATTR='wz--n-',LVM2_VG_SIZE='16101933056',LVM2_VG_FREE='16101933056'
 // LVM2_VG_NAME='v1',LVM2_PV_COUNT='2',LVM2_LV_COUNT='0',LVM2_SNAP_COUNT='0',LVM2_VG_ATTR='wz--n-',LVM2_VG_SIZE='32203866112',LVM2_VG_FREE='32203866112'
@@ -176,6 +178,7 @@ func (lv2 *Lvm2Implement) VGExtend(vg, pv string) error {
 	return nil
 }
 
+// VGReduce
 /*
 # vgs
   VG    #PV #lv2.#SN Attr   VSize  VFree
@@ -219,17 +222,17 @@ func (lv2 *Lvm2Implement) VGReduce(vg, pv string) error {
 	return nil
 }
 
-// lvcreate -T v1/t5 --size 2g
+// CreateThinPool lvcreate -T v1/t5 --size 2g
 func (lv2 *Lvm2Implement) CreateThinPool(lv, vg string, size uint64) error {
 	return lv2.Executor.ExecuteCommand("lvcreate", "-T", fmt.Sprintf("%s/%s", vg, lv), "--size", fmt.Sprintf("%vg", size>>30))
 }
 
-// lvresize -f -L 6g v1/t5
+// ResizeThinPool lvresize -f -L 6g v1/t5
 func (lv2 *Lvm2Implement) ResizeThinPool(lv, vg string, size uint64) error {
 	return lv2.Executor.ExecuteCommand("lvresize", "-f", "-L", fmt.Sprintf("%vg", size>>30), fmt.Sprintf("%s/%s", vg, lv))
 }
 
-// lvremove v1/t3
+// DeleteThinPool lvremove v1/t3
 func (lv2 *Lvm2Implement) DeleteThinPool(lv, vg string) error {
 	// TODO: 删除pool前，要保证池子内lvm卷和snapshot已经全部删除
 	return lv2.LVRemove(lv, vg)
@@ -240,7 +243,7 @@ func (lv2 *Lvm2Implement) LVCreateFromPool(lv, thin, vg string, size uint64) err
 	return lv2.Executor.ExecuteCommand("lvcreate", "-T", fmt.Sprintf("%s/%s", vg, thin), "-n", lv, "-V", fmt.Sprintf("%vg", size>>30))
 }
 
-// LVCreate creates logical volume in this volume group.
+// LVCreateFromVG LVCreate creates logical volume in this volume group.
 // name is a name of creating volume. size is volume size in bytes. volTags is a
 // list of tags to add to the volume.
 func (lv2 *Lvm2Implement) LVCreateFromVG(lv, vg string, size uint64, tags []string, stripe uint, stripeSize string) error {
@@ -266,12 +269,12 @@ func (lv2 *Lvm2Implement) LVRemove(lv, vg string) error {
 	return lv2.Executor.ExecuteCommand("lvremove", "-f", fmt.Sprintf("%s/%s", vg, lv))
 }
 
-// lvresize -L 2g v1/m2
+// LVResize lvresize -L 2g v1/m2
 func (lv2 *Lvm2Implement) LVResize(lv, vg string, size uint64) error {
 	return lv2.Executor.ExecuteCommand("lvresize", "-L", fmt.Sprintf("%vg", size>>30), fmt.Sprintf("%s/%s", vg, lv))
 }
 
-// lvdisplay v1/m2
+// LVDisplay lvdisplay v1/m2
 func (lv2 *Lvm2Implement) LVDisplay(lv, vg string) (*types.LvInfo, error) {
 	lvInfo, err := lv2.LVS(fmt.Sprintf("%s/%s", vg, lv))
 	if err != nil {
@@ -284,6 +287,7 @@ func (lv2 *Lvm2Implement) LVDisplay(lv, vg string) (*types.LvInfo, error) {
 	//return lv2.Executor.ExecuteCommandWithOutput("lvdisplay", fmt.Sprintf("%s/%s", vg, lv))
 }
 
+// LVS
 /*
 # lvs -o lv_name,lv_path,lv_size,lv_kernel_major,lv_kernel_minor,origin,origin_size,pool_lv,thin_count,lv_tags --noheadings --separator=, --units=b --nosuffix --unbuffered --nameprefixes
   LVM2_LV_NAME='t1',LVM2_LV_PATH='/dev/v1/t1',LVM2_LV_SIZE='1073741824',LVM2_LV_KERNEL_MAJOR='252',LVM2_LV_KERNEL_MINOR='0',LVM2_ORIGIN='',LVM2_ORIGIN_SIZE='',LVM2_POOL_LV='',LVM2_THIN_COUNT='',LVM2_LV_TAGS='t1'
@@ -309,19 +313,19 @@ func (lv2 *Lvm2Implement) LVS(lvName string) ([]types.LvInfo, error) {
 	return parseLvs(lvsInfo), nil
 }
 
-// lvcreate -s v1/m2 -n snaph-m1 -ay -Ky
+// CreateSnapshot lvcreate -s v1/m2 -n snaph-m1 -ay -Ky
 func (lv2 *Lvm2Implement) CreateSnapshot(snap, lv, vg string) error {
 	// Pool容量时lv卷的三倍，则能创建两个快照
 	// TODO: 需要检查pool>lvm卷,若是相等则不支持创建快照操作
 	return lv2.Executor.ExecuteCommand("lvcreate", "-s", fmt.Sprintf("%s/%s", vg, lv), "-n", snap, "-ay", "-Ky")
 }
 
-//
+// DeleteSnapshot
 func (lv2 *Lvm2Implement) DeleteSnapshot(snap, vg string) error {
 	return lv2.LVRemove(snap, vg)
 }
 
-// 测试
+// RestoreSnapshot 测试
 // mkfs -t ext4 /dev/v1/m2
 // mount /dev/v1/m2 /mnt && touch /mnt/1 && touch /mnt/2 && ls
 // lvcreate -s v1/m2 -n snap-m1 -ay -Ky
