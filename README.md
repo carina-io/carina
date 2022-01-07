@@ -63,17 +63,26 @@ It has three componets: carina-scheduler, carina-controller and carina-node.
 
 # Quickstart
 
-* Install by shell
+## Install by shell
+
+- In this deployment mode, the image TAG is Latest. If you want to deploy a specific version of Carina, you need to change the image address
 
 ```shell
 $ cd deploy/kubernetes
-# install, if k8s>=1.22, you can use the './deploy.sh signature 'command to install it
+# install
 $ ./deploy.sh
+
+# If you want to generate a webhook certificate based on your local environment, you can use the following command to install the certificate
+# If Kubernetes>= 1.22 need to modify the gen_webhookca.sh certificates.k8s.io/v1beta1 for v1
+$ ./deploy.sh sign
+
 # uninstall
 $ ./deploy.sh uninstall
 ```
 
-Install by helm3
+## Install by helm3
+
+- Support installation of specified versions of Carina
 
 ```bash
 helm repo add carina-csi-driver https://raw.githubusercontent.com/carina-io/charts/main
@@ -85,6 +94,10 @@ helm install carina-csi-driver carina-csi-driver/carina-csi-driver --namespace k
 
 * [deployment guide](docs/manual/install.md)
 * [user guide](docs/user-guide.md)
+
+## Carina to upgrade
+
+- Uninstall the old version `./deploy.sh uninstall` and then install the new version `./deploy.sh` (uninstalling carina will not affect volume usage)
 
 # Contribution Guide
 

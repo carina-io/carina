@@ -54,16 +54,24 @@ Carina 是一款基于 Kubernetes CSI 标准实现的存储插件，用户可以
 
 ## 使用shell
 
+- 该部署方式，部署的镜像TAG为latest，如果要部署指定版本carina需要更改镜像地址
+
 ```shell
 $ cd deploy/kubernetes
-# 安装，如果k8s>=1.22，可以使用命令 `./deploy.sh signature` 安装
+# 安装
 $ ./deploy.sh
+
+# 如果要根据本地环境生成webhook证书，可使用如下命令安装
+# 注意如果kubernetes>=1.22需要修改gen_webhookca.sh中的certificates.k8s.io/v1beta1为v1
+$ ./deploy.sh sign
 
 # 卸载
 $ ./deploy.sh uninstall
 ```
 
 ## 使用helm3
+
+- 支持安装指定版本carina
 
 ```bash
 helm repo add carina-csi-driver https://raw.githubusercontent.com/carina-io/charts/main
@@ -75,6 +83,11 @@ helm install carina-csi-driver carina-csi-driver/carina-csi-driver --namespace k
 
 - [部署文档](docs/manual/install.md)
 - 详细部署及使用参考[使用手册](docs/user-guide.md)
+
+## Carina 升级
+
+- 先卸载老版本`./deploy.sh uninstall`,然后安装新版本`./deploy.sh`(卸载carina并不会影响存储卷的使用)
+
 
 # 开发指南
 
