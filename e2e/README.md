@@ -9,13 +9,13 @@
 ##### 部署存储驱动
 
 ```cassandraql
-$ cd deploy
+$ cd ../kubernetes/deploy
 $ ./deploy.sh
 ```
 ##### 卸载存储驱动
 
 ```cassandraql
-$ cd deploy
+$ cd ../kubernetes/deploy
 $ ./deploy.sh uninstall
 ```
 

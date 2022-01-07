@@ -1,8 +1,8 @@
 
-IMAGE_REPOSITORY=registry.cn-hangzhou.aliyuncs.com
+IMAGE_REPOSITORY=registry.cn-hangzhou.aliyuncs.com/antmoveh
 VERSION ?= latest
 DATE=$(shell date '+%Y%m%d%H%M%S')
-ARCH ?= linux/arm,linux/arm64,linux/amd64
+ARCH ?= linux/arm64,linux/amd64
 
 # Run tests
 test:
@@ -11,13 +11,13 @@ test:
 # Build the docker image
 docker-build: test
 	go mod vendor
-	docker build . -t ${IMG}
+	docker build . -t $(IMG)
 	rm -rf vendor
 
 
 # Push the docker image
 release:
 	go mod vendor
-	docker buildx build -t $(IMAGE_REPOSITORY)/antmoveh/carina-scheduler:$(VERSION)-$(DATE) --platform=$(ARCH) . --push
+	docker buildx build -t $(IMAGE_REPOSITORY)/carina-scheduler:$(VERSION) --platform=$(ARCH) . --push
 	rm -rf vendor
 

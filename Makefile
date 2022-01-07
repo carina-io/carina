@@ -12,7 +12,7 @@ IMG ?= controller:latest
 # Produce CRDs that work back to Kubernetes 1.11 (no version conversion)
 CRD_OPTIONS ?= "crd:trivialVersions=true"
 
-IMAGE_REPOSITORY=registry.cn-hangzhou.aliyuncs.com
+IMAGE_REPOSITORY=registry.cn-hangzhou.aliyuncs.com/antmoveh
 VERSION ?= latest
 HELMVERSION:= v0.9.0 v0.9.1 latest
 
@@ -72,13 +72,13 @@ generate: controller-gen
 # Build the docker image
 docker-build:
 	go mod vendor
-	docker build . -t ${IMG}
+	docker build . -t $(IMG)
 	rm -rf vendor
 
 # Push the docker image
 release:
 	go mod vendor
-	docker buildx build -t $(IMAGE_REPOSITORY)/antmoveh/carina:$(VERSION)-$(DATE) --platform=$(ARCH) . --push
+	docker buildx build -t $(IMAGE_REPOSITORY)/carina:$(VERSION) --platform=$(ARCH) . --push
 	rm -rf vendor
 
 # find or download controller-gen
