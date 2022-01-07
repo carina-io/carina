@@ -13,6 +13,7 @@
    See the License for the specific language governing permissions and
    limitations under the License.
 */
+
 package volume
 
 import (
@@ -25,7 +26,7 @@ const (
 	LVVolume = "volume-"
 )
 
-// 本接口负责对外提供方法
+// LocalVolume 本接口负责对外提供方法
 // 处理业务逻辑并调用lvm接口
 type LocalVolume interface {
 	CreateVolume(lvName, vgName string, size, ratio uint64) error
@@ -41,7 +42,7 @@ type LocalVolume interface {
 
 	CloneVolume(lvName, vgName, newLvName string) error
 
-	// 额外的方法
+	// GetCurrentVgStruct 额外的方法
 	GetCurrentVgStruct() ([]types.VgGroup, error)
 	GetCurrentPvStruct() ([]types.PVInfo, error)
 	AddNewDiskToVg(disk, vgName string) error
@@ -49,12 +50,12 @@ type LocalVolume interface {
 
 	HealthCheck()
 	RefreshLvmCache()
-	// For Device Plugin
+	// NoticeUpdateCapacity For Device Plugin
 	NoticeUpdateCapacity(vgName []string)
-	// 注册通知服务，因为多个vg组，每个组需要不同的channel
+	// RegisterNoticeServer 注册通知服务，因为多个vg组，每个组需要不同的channel
 	RegisterNoticeServer(vgName string, notice chan struct{})
 
-	// bcache
+	// CreateBcache bcache
 	CreateBcache(dev, cacheDev string, block, bucket string, cacheMode string) (*types.BcacheDeviceInfo, error)
 	DeleteBcache(dev, cacheDev string) error
 	BcacheDeviceInfo(dev string) (*types.BcacheDeviceInfo, error)

@@ -13,6 +13,7 @@
    See the License for the specific language governing permissions and
    limitations under the License.
 */
+
 package runners
 
 import (
@@ -28,14 +29,14 @@ import (
 
 const metricsNamespace = "carina"
 
-// Device Metrics
+// DeviceMetrics Device Metrics
 type DeviceMetrics struct {
 	FreeBytes   uint64
 	TotalBytes  uint64
 	DeviceGroup string
 }
 
-// volume Metrics
+// VolumeMetrics volume Metrics
 type VolumeMetrics struct {
 	Volume     string
 	TotalBytes uint64

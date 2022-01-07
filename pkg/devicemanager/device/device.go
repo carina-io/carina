@@ -13,6 +13,7 @@
    See the License for the specific language governing permissions and
    limitations under the License.
 */
+
 package device
 
 import (
@@ -47,6 +48,7 @@ func (ld *LocalDeviceImplement) ListDevices() ([]string, error) {
 	return strings.Split(devices, "\n"), nil
 }
 
+// ListDevicesDetail
 /*
 # lsblk --pairs --paths --bytes --all --output NAME,FSTYPE,MOUNTPOINT,SIZE,STATE,TYPE,ROTA,RO,PKNAME
 NAME="/dev/sda" FSTYPE="" MOUNTPOINT="" SIZE="85899345920" STATE="running" TYPE="disk" ROTA="1" RO="0"
@@ -78,6 +80,7 @@ func (ld *LocalDeviceImplement) ListDevicesDetail(device string) ([]*types.Local
 	return parseDiskString(devices), nil
 }
 
+// GetDiskUsed
 /*
 # df /dev/sda
 文件系统         1K-块  已用    可用 已用% 挂载点
