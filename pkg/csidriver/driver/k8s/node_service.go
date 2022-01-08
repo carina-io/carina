@@ -13,6 +13,7 @@
    See the License for the specific language governing permissions and
    limitations under the License.
 */
+
 package k8s
 
 import (
@@ -39,15 +40,15 @@ const annAlphaSelectedNode = "volume.alpha.kubernetes.io/selected-node"
 
 type nodeService interface {
 	getNodes(ctx context.Context) (*corev1.NodeList, error)
-	// 支持 volume size 及 topology match
+	// SelectVolumeNode 支持 volume size 及 topology match
 	SelectVolumeNode(ctx context.Context, request int64, deviceGroup string, requirement *csi.TopologyRequirement) (string, string, map[string]string, error)
 	GetCapacityByNodeName(ctx context.Context, nodeName, deviceGroup string) (int64, error)
 	GetTotalCapacity(ctx context.Context, deviceGroup string, topology *csi.Topology) (int64, error)
 	SelectDeviceGroup(ctx context.Context, request int64, nodeName string) (string, error)
-	// sc WaitForConsumer
+	// HaveSelectedNode sc WaitForConsumer
 	HaveSelectedNode(ctx context.Context, namespace, name string) (string, error)
 
-	// multi volume node select
+	// SelectMultiVolumeNode multi volume node select
 	SelectMultiVolumeNode(ctx context.Context, backendDeviceGroup, cacheDeviceGroup string, backendRequestGb, cacheRequestGb int64, requirement *csi.TopologyRequirement) (string, map[string]string, error)
 }
 

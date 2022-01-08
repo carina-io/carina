@@ -27,6 +27,7 @@ yum --setopt=tsflags=nodocs -y install rsync  && \
 yum --setopt=tsflags=nodocs -y install tar  && \
 yum --setopt=tsflags=nodocs -y install cronie  && \
 yum --setopt=tsflags=nodocs -y install lvm2 && \
+yum --setopt=tsflags=nodocs -y install parted && \
 yum --setopt=tsflags=nodocs -y install file && \
 yum --setopt=tsflags=nodocs -y install e4fsprogs && \
 yum --setopt=tsflags=nodocs -y install xfsprogs  && yum clean all && \

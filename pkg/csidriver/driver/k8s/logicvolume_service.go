@@ -13,6 +13,7 @@
    See the License for the specific language governing permissions and
    limitations under the License.
 */
+
 package k8s
 
 import (
@@ -242,7 +243,7 @@ func (s *LogicVolumeService) ExpandVolume(ctx context.Context, volumeID string, 
 	}
 }
 
-// GetVolume returns LogicVolume by volume ID.
+// GetLogicVolume GetVolume returns LogicVolume by volume ID.
 func (s *LogicVolumeService) GetLogicVolume(ctx context.Context, volumeID string) (*carinav1.LogicVolume, error) {
 	lvList := new(carinav1.LogicVolumeList)
 	err := s.List(ctx, lvList, client.MatchingFields{indexFieldVolumeID: volumeID})
@@ -258,7 +259,7 @@ func (s *LogicVolumeService) GetLogicVolume(ctx context.Context, volumeID string
 	return &lvList.Items[0], nil
 }
 
-// UpdateCurrentSize updates .Status.CurrentSize of LogicVolume.
+// UpdateLogicVolumeCurrentSize UpdateCurrentSize updates .Status.CurrentSize of LogicVolume.
 func (s *LogicVolumeService) UpdateLogicVolumeCurrentSize(ctx context.Context, volumeID string, size *resource.Quantity) error {
 	for {
 		select {
@@ -287,7 +288,7 @@ func (s *LogicVolumeService) UpdateLogicVolumeCurrentSize(ctx context.Context, v
 	}
 }
 
-// UpdateSpecSize updates .Spec.Size of LogicVolume.
+// UpdateLogicVolumeSpecSize UpdateSpecSize updates .Spec.Size of LogicVolume.
 func (s *LogicVolumeService) UpdateLogicVolumeSpecSize(ctx context.Context, volumeID string, size *resource.Quantity) error {
 	for {
 		select {

@@ -13,6 +13,7 @@
    See the License for the specific language governing permissions and
    limitations under the License.
 */
+
 package bcache
 
 import (
@@ -65,7 +66,7 @@ func (bi *BcacheImplement) RemoveBcache(bcacheInfo *types.BcacheDeviceInfo) erro
 	return nil
 }
 
-// lsblk --pairs --noheadings --output KNAME,MAJ:MIN /dev/hdd/pvc-test-v1
+// GetDeviceBcache lsblk --pairs --noheadings --output KNAME,MAJ:MIN /dev/hdd/pvc-test-v1
 func (bi *BcacheImplement) GetDeviceBcache(dev string) (*types.BcacheDeviceInfo, error) {
 	deviceInfo, err := bi.Executor.ExecuteCommandWithOutput("lsblk", "--pairs", "--noheadings", "--output", "KNAME,MAJ:MIN", dev)
 	if err != nil {

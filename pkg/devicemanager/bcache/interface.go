@@ -13,6 +13,7 @@
    See the License for the specific language governing permissions and
    limitations under the License.
 */
+
 package bcache
 
 import (
@@ -20,11 +21,11 @@ import (
 )
 
 type Bcache interface {
-	// create bcache
+	// CreateBcache create bcache
 	CreateBcache(dev, cacheDev string, block, bucket string) error
 	RemoveBcache(bcacheInfo *types.BcacheDeviceInfo) error
 
-	//
+	// GetDeviceBcache
 	GetDeviceBcache(dev string) (*types.BcacheDeviceInfo, error)
 	RegisterDevice(dev ...string) error
 	ShowDevice(dev string) (*types.BcacheDeviceInfo, error)

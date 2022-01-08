@@ -13,6 +13,7 @@
    See the License for the specific language governing permissions and
    limitations under the License.
 */
+
 package configuration
 
 import (
@@ -36,7 +37,6 @@ const (
 	configPath        = "/etc/carina/"
 	SchedulerBinpack  = "binpack"
 	Schedulerspreadout = "spreadout"
-	diskGroupType     = "type"
 )
 
 var TestAssistDiskSelector []string
@@ -58,7 +58,7 @@ var opt = viper.DecodeHook(mapstructure.ComposeDecodeHookFunc(
 	},
 ))
 
-// 提供给其他应用获取服务数据
+// ConfigProvider 提供给其他应用获取服务数据
 // 这个configMap理论上应该由Node Server更新，为了实现简单改为有Control Server更新，遍历所有Node信息更新configmap
 // 暂定这些参数字段，不排除会增加一些需要暴露的数据
 type ConfigProvider struct {
@@ -145,7 +145,7 @@ func NewDiskClass(diskSelectors []DiskSelectorItem) *DiskClass {
 	return &disk
 }
 
-// 支持正则表达式
+// DiskSelector 支持正则表达式
 // 定时扫描本地磁盘，凡是匹配的将被加入到相应vg卷组
 // 对于此配置的修改需要非常慎重，如果更改匹配条件，可能会移除正在使用的磁盘
 func DiskSelector() []DiskSelectorItem {
@@ -161,7 +161,7 @@ func DiskSelector() []DiskSelectorItem {
 	return diskSelector
 }
 
-// 定时磁盘扫描时间间隔(秒),默认300s
+// DiskScanInterval 定时磁盘扫描时间间隔(秒),默认300s
 func DiskScanInterval() int64 {
 	diskScanInterval := GlobalConfig.GetInt64("diskScanInterval")
 	if diskScanInterval == 0 {
@@ -173,15 +173,7 @@ func DiskScanInterval() int64 {
 	return diskScanInterval
 }
 
-// 磁盘分组策略，支持根据磁盘类型和自定义分组
-func DiskGroupPolicy() string {
-	diskGroupPolicy := GlobalConfig.GetString("diskGroupPolicy")
-	//diskGroupPolicy = "type"
-	return diskGroupPolicy
-
-}
-
-// pv调度策略binpac/spreadout，默认为binpac
+// SchedulerStrategy pv调度策略binpac/spreadout，默认为binpac
 func SchedulerStrategy() string {
 	schedulerStrategy := GlobalConfig.GetString("schedulerStrategy")
 	if utils.ContainsString([]string{SchedulerBinpack, Schedulerspreadout}, strings.ToLower(schedulerStrategy)) {
