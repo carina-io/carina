@@ -34,8 +34,8 @@ import (
 
 // 配置文件路径
 const (
-	configPath        = "/etc/carina/"
-	SchedulerBinpack  = "binpack"
+	configPath         = "/etc/carina/"
+	SchedulerBinpack   = "binpack"
 	Schedulerspreadout = "spreadout"
 )
 
@@ -137,7 +137,7 @@ func NewDiskClass(diskSelectors []DiskSelectorItem) *DiskClass {
 	disk := DiskClass{}
 	disk.DiskClassByName = make(map[string]DiskSelectorItem)
 	for _, d := range diskSelectors {
-        if d.Policy == "RAW" {
+		if d.Policy == "RAW" {
 			continue
 		}
 		disk.DiskClassByName[d.Name] = d
