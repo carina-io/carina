@@ -11,7 +11,7 @@ IMG ?= controller:latest
 # Produce CRDs that work back to Kubernetes 1.11 (no version conversion)
 CRD_OPTIONS ?= "crd:trivialVersions=true"
 
-IMAGE_REPOSITORY=registry.cn-hangzhou.aliyuncs.com
+IMAGE_REPOSITORY=registry.cn-qingdao.aliyuncs.com/zhangkai8048
 VERSION ?= latest
 HELMVERSION:= v0.9.0 v0.9.1 latest
 

@@ -112,9 +112,9 @@ node:
     enable: false
   initContainer:
     modprobe: 
-      - dm_snapshot 
-      - dm_mirror 
-      - dm_thin_pool 
+      #- dm_snapshot 
+      #- dm_mirror 
+      #- dm_thin_pool 
       #- bcache
   enablePerfOptimization: true
   tolerations:

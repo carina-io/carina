@@ -33,10 +33,10 @@ import (
 
 // 配置文件路径
 const (
-	configPath        = "/etc/carina/"
-	SchedulerBinpack  = "binpack"
+	configPath         = "/etc/carina/"
+	SchedulerBinpack   = "binpack"
 	Schedulerspreadout = "spreadout"
-	diskGroupType     = "type"
+	diskGroupType      = "type"
 )
 
 var TestAssistDiskSelector []string
@@ -137,12 +137,25 @@ func NewDiskClass(diskSelectors []DiskSelectorItem) *DiskClass {
 	disk := DiskClass{}
 	disk.DiskClassByName = make(map[string]DiskSelectorItem)
 	for _, d := range diskSelectors {
-        if d.Policy == "RAW" {
+		if d.Policy == "RAW" {
 			continue
 		}
 		disk.DiskClassByName[d.Name] = d
 	}
 	return &disk
+}
+
+func (disk *Disk) GetDiskGroups() (vgs []string) {
+
+	for _, d := range disk.DiskSelectors {
+		if d.Policy == "RAW" {
+			continue
+		}
+		if !utils.ContainsString(vgs, d.Name) {
+			vgs = append(vgs, d.Name)
+		}
+	}
+	return vgs
 }
 
 // 支持正则表达式
