@@ -19,6 +19,14 @@ package driver
 import (
 	"context"
 	"errors"
+	"io"
+	"os"
+	"path"
+	"path/filepath"
+	"strings"
+	"sync"
+
+	"github.com/carina-io/carina/pkg/configuration"
 	"github.com/carina-io/carina/pkg/csidriver/csi"
 	"github.com/carina-io/carina/pkg/csidriver/driver/k8s"
 	"github.com/carina-io/carina/pkg/csidriver/filesystem"
@@ -26,12 +34,6 @@ import (
 	"github.com/carina-io/carina/pkg/devicemanager/volume"
 	"github.com/carina-io/carina/utils"
 	"github.com/carina-io/carina/utils/log"
-	"io"
-	"os"
-	"path"
-	"path/filepath"
-	"strings"
-	"sync"
 
 	"golang.org/x/sys/unix"
 	"google.golang.org/grpc/codes"
@@ -605,8 +607,8 @@ func (s *nodeService) getLvFromContext(deviceGroup, volumeID string) (*types.LvI
 }
 
 func (s *nodeService) getBcacheDevice(volumeID string) (*types.BcacheDeviceInfo, error) {
-
-	for _, d := range []string{utils.DeviceVGHDD, utils.DeviceVGSSD} {
+	diskClass := configuration.DiskConfig.GetDiskGroups()
+	for _, d := range diskClass {
 		devicePath := filepath.Join("/dev", d, volumeID)
 		_, err := os.Stat(devicePath)
 		if err == nil {

@@ -2,7 +2,7 @@ apiVersion: skaffold/v2beta7
 kind: Config
 build:
   artifacts:
-  - image: registry.cn-hangzhou.aliyuncs.com/antmoveh/carina
+  - image: registry.cn-qingdao.aliyuncs.com/zhangkai8048/carina
     context: .
     docker:
       dockerfile: Dockerfile    

@@ -17,12 +17,14 @@
 package deviceplugin
 
 import (
+	"os"
+
+	"github.com/carina-io/carina/pkg/configuration"
 	"github.com/carina-io/carina/pkg/devicemanager/volume"
 	"github.com/carina-io/carina/pkg/deviceplugin/v1beta1"
 	"github.com/carina-io/carina/utils"
 	"github.com/carina-io/carina/utils/log"
 	"github.com/fsnotify/fsnotify"
-	"os"
 	// 依赖冲突，把整个proto目录挪移过来
 	//pluginapi "k8s.io/kubelet/pkg/apis/deviceplugin/v1beta1"
 )
@@ -43,7 +45,8 @@ restart:
 	}
 
 	log.Info("Retreiving plugins.")
-	for _, d := range []string{utils.DeviceVGSSD, utils.DeviceVGHDD} {
+	diskClass := configuration.DiskConfig.GetDiskGroups()
+	for _, d := range diskClass {
 		c := make(chan struct{}, 5)
 		plugins = append(plugins, NewCarinaDevicePlugin(
 			utils.DeviceCapacityKeyPrefix+d,
