@@ -1,5 +1,5 @@
 
-function install() {
+function signature() {
   echo "install..."
   kubectl label namespace kube-system carina.storage.io/webhook=ignore
 
@@ -25,7 +25,7 @@ function install() {
   kubectl get pods -n kube-system |grep carina
 }
 
-function signature() {
+function install() {
   echo "install..."
   kubectl label namespace kube-system carina.storage.io/webhook=ignore
   rm -rf mutatingwebhooks.yaml && cp mutatingwebhooks.yaml.signature mutatingwebhooks.yaml
@@ -79,7 +79,7 @@ operator=${1:-'install'}
 if [ "uninstall" == $operator ]
 then
   uninstall
-elif [ "signature" == $operator ]
+elif [ "sign" == $operator ]
 then
   signature
 else

@@ -13,9 +13,10 @@
    See the License for the specific language governing permissions and
    limitations under the License.
 */
+
 package types
 
-// bcache
+// BcacheDeviceInfo bcache
 type BcacheDeviceInfo struct {
 	Magic            string `json:"magic"`
 	FirstSector      string `json:"first_sector"`

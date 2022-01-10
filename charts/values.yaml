@@ -65,7 +65,7 @@ controller:
     - key: "node-role.kubernetes.io/controlplane"
       operator: "Exists"
       effect: "NoSchedule"
-  hostNetwork: true # this setting could be disabled if controller does not depend on MSI setting
+  hostNetwork: false # this setting could be disabled if controller does not depend on MSI setting
   podLabels: {}
   resources:
     csiProvisioner:
@@ -108,18 +108,16 @@ node:
   name: csi-carina-node # daemonset name
   logLevel: 2
   kubelet: /var/lib/kubelet
-  bcache:
-    enable: false
+  bcache: false
   initContainer:
     modprobe: 
-      #- dm_snapshot 
-      #- dm_mirror 
-      #- dm_thin_pool 
-      #- bcache
+      - dm_snapshot 
+      - dm_mirror 
+      - dm_thin_pool
   enablePerfOptimization: true
   tolerations:
     - operator: "Exists"
-  hostNetwork: true # this setting could be disabled if perfProfile is `none`
+  hostNetwork: false # this setting could be disabled if perfProfile is `none`
   maxUnavailable: 1
   podLabels: {}
   nodeAffinity: {}

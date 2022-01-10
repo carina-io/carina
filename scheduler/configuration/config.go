@@ -13,6 +13,7 @@
    See the License for the specific language governing permissions and
    limitations under the License.
 */
+
 package configuration
 
 import (
@@ -57,7 +58,7 @@ func dynamicConfig() {
 	})
 }
 
-// pv调度策略binpac/spreadout，默认为binpac
+// SchedulerStrategy pv调度策略binpac/spreadout，默认为binpac
 func SchedulerStrategy() string {
 	schedulerStrategy := GlobalConfig.GetString("schedulerStrategy")
 	if utils.ContainsString([]string{SchedulerBinpack, Schedulerspreadout}, strings.ToLower(schedulerStrategy)) {

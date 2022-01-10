@@ -13,6 +13,7 @@
    See the License for the specific language governing permissions and
    limitations under the License.
 */
+
 package localstorage
 
 import (
@@ -33,7 +34,7 @@ import (
 	"k8s.io/kubernetes/pkg/scheduler/framework"
 )
 
-// 插件名称
+// Name 插件名称
 const Name = "local-storage"
 const undefined = "undefined"
 
@@ -47,7 +48,7 @@ type LocalStorage struct {
 var _ framework.FilterPlugin = &LocalStorage{}
 var _ framework.ScorePlugin = &LocalStorage{}
 
-//type PluginFactory = func(configuration *runtime.Unknown, f FrameworkHandle) (Plugin, error)
+// New type PluginFactory = func(configuration *runtime.Unknown, f FrameworkHandle) (Plugin, error)
 func New(_ runtime.Object, handle framework.Handle) (framework.Plugin, error) {
 	scLister := handle.SharedInformerFactory().Storage().V1().StorageClasses().Lister()
 	pvcLister := handle.SharedInformerFactory().Core().V1().PersistentVolumeClaims().Lister()
@@ -64,7 +65,7 @@ func (ls *LocalStorage) Name() string {
 	return Name
 }
 
-// 过滤掉不符合当前 Pod 运行条件的Node（相当于旧版本的 predicate）
+// Filter 过滤掉不符合当前 Pod 运行条件的Node（相当于旧版本的 predicate）
 func (ls *LocalStorage) Filter(ctx context.Context, cycleState *framework.CycleState, pod *v1.Pod, node *framework.NodeInfo) *framework.Status {
 
 	klog.V(3).Infof("filter pod: %v, node: %v", pod.Name, node.Node().Name)
@@ -147,7 +148,7 @@ func (ls *LocalStorage) Filter(ctx context.Context, cycleState *framework.CycleS
 	return framework.NewStatus(framework.Success, "")
 }
 
-// 对节点进行打分（相当于旧版本的 priorities）
+// Score 对节点进行打分（相当于旧版本的 priorities）
 func (ls *LocalStorage) Score(ctx context.Context, state *framework.CycleState, pod *v1.Pod, nodeName string) (int64, *framework.Status) {
 	klog.V(3).Infof("score pod: %v, node: %v", pod.Name, nodeName)
 	pvcMap, node, _, _ := ls.getLocalStoragePvc(pod)

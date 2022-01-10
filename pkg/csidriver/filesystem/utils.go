@@ -13,6 +13,7 @@
    See the License for the specific language governing permissions and
    limitations under the License.
 */
+
 package filesystem
 
 import (
@@ -147,7 +148,7 @@ func Mknod(path string, mode uint32, dev int) (err error) {
 	}
 }
 
-// Statfs wrapped a golang.org/x/sys/unix.Statfs function to handle EINTR signal for Go 1.14+
+// Statfs Stats wrapped a golang.org/x/sys/unix.Statfs function to handle EINTR signal for Go 1.14+
 func Statfs(path string, buf *unix.Statfs_t) (err error) {
 	for {
 		err := unix.Statfs(path, buf)

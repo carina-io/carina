@@ -13,9 +13,10 @@
    See the License for the specific language governing permissions and
    limitations under the License.
 */
+
 package types
 
-// vg卷组信息及映射关系
+// VgGroup vg卷组信息及映射关系
 type VgGroup struct {
 	VGName    string    `json:"vgName"`
 	PVName    string    `json:"pvName"`
@@ -28,7 +29,7 @@ type VgGroup struct {
 	PVS       []*PVInfo `json:"pvs"`
 }
 
-// pv详细信息
+// PVInfo pv详细信息
 type PVInfo struct {
 	PVName string `json:"pvName"`
 	VGName string `json:"vgName"`
@@ -38,7 +39,7 @@ type PVInfo struct {
 	PVFree uint64 `json:"pvFree"`
 }
 
-// lv详细信息
+// LvInfo lv详细信息
 type LvInfo struct {
 	LVName        string  `json:"lvName"`
 	VGName        string  `json:"vgName"`

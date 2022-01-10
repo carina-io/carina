@@ -2,13 +2,13 @@
   "diskSelector": [
     {
       "name": "hdd1" ,
-      "re": ["sdb","vdb"],
+      "re": ["loop*"],
       "policy": "LVM",
       "nodeLabel": "kubernetes.io/hostname"
     },
-     {
-      "name": "hdd2", 
-      "re": ["sdc","vdc"],
+    {
+      "name": "hdd2",
+      "re": ["loop*", "ad*"],
       "policy": "LVM",
       "nodeLabel": "kubernetes.io/hostname"
     },
@@ -16,9 +16,9 @@
       "name": "ssd",
       "re": ["loop*", "vd*"],
       "policy": "RAW",
-     "nodeLabel": "kubernetes.io/hostname"
+      "nodeLabel": "kubernetes.io/hostname"
     },
-     {
+    {
       "name": "ssd",
       "re": ["loop*", "vd*"],
       "policy": "RAW",
@@ -26,5 +26,5 @@
     }
   ],
   "diskScanInterval": "300",
-  "schedulerStrategy": "spreadout"    
+  "schedulerStrategy": "spreadout"
 }

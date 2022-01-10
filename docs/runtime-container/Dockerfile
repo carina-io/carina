@@ -1,7 +1,12 @@
+FROM centos:7 as builder
+
+RUN cd /tmp && curl -O https://ghproxy.com/https://github.com/g2p/bcache-tools/archive/refs/tags/v1.0.8.tar.gz && tar -zxvf v1.0.8.tar.gz
+RUN yum -y install gcc automake autoconf libtool make gcc-c++ libblkid-devel
+RUN cd /tmp/bcache-tools-1.0.8 && make && make install
+
 FROM centos:7
 
 ENV container docker
-ENV ARCH "x86_64"
 
 RUN yum --setopt=tsflags=nodocs -y update && yum clean all && \
 (cd /lib/systemd/system/sysinit.target.wants/; for i in *; do [ $i == systemd-tmpfiles-setup.service ] || rm -f $i; done) && \
@@ -22,6 +27,7 @@ yum --setopt=tsflags=nodocs -y install rsync  && \
 yum --setopt=tsflags=nodocs -y install tar  && \
 yum --setopt=tsflags=nodocs -y install cronie  && \
 yum --setopt=tsflags=nodocs -y install lvm2 && \
+yum --setopt=tsflags=nodocs -y install parted && \
 yum --setopt=tsflags=nodocs -y install file && \
 yum --setopt=tsflags=nodocs -y install e4fsprogs && \
 yum --setopt=tsflags=nodocs -y install xfsprogs  && yum clean all && \
@@ -74,6 +80,12 @@ ADD exec-on-host.sh /usr/sbin/exec-on-host
 
 RUN chmod +x /usr/local/bin/update-params.sh && \
 systemctl disable nfs-server.service
+
+COPY --from=builder /tmp/bcache-tools-1.0.8/bcache-register /usr/bin/
+COPY --from=builder /tmp/bcache-tools-1.0.8/bcache-super-show /usr/bin/
+COPY --from=builder /tmp/bcache-tools-1.0.8/make-bcache /usr/bin/
+COPY --from=builder /tmp/bcache-tools-1.0.8/probe-bcache /usr/bin/
+RUN chmod +x /usr/bin/bcache-register /usr/bin/bcache-register /usr/bin/bcache-register /usr/bin/bcache-register
 
 EXPOSE 8080
 

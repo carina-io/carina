@@ -13,6 +13,7 @@
    See the License for the specific language governing permissions and
    limitations under the License.
 */
+
 package deviceManager
 
 import (
@@ -101,7 +102,7 @@ func (dm *DeviceManager) CheckNodeLables(nodelabekey string) (flag bool, err err
 	return false, nil
 }
 
-// 定时巡检磁盘，是否有新磁盘加入
+// AddAndRemoveDevice 定时巡检磁盘，是否有新磁盘加入
 func (dm *DeviceManager) AddAndRemoveDevice() {
 
 	currentDiskSelector := configuration.DiskSelector()
@@ -219,7 +220,7 @@ func (dm *DeviceManager) AddAndRemoveDevice() {
 	}
 }
 
-// 查找是否有符合条件的块设备加入
+// DiscoverDisk 查找是否有符合条件的块设备加入
 func (dm *DeviceManager) DiscoverDisk() (map[string][]string, error) {
 	blockClass := map[string][]string{}
 	var name string
@@ -315,7 +316,7 @@ func (dm *DeviceManager) DiscoverDisk() (map[string][]string, error) {
 	return blockClass, nil
 }
 
-// 支持发现Pv，由于某些异常情况，只创建成功了PV,并未创建成功VG
+// DiscoverPv 支持发现Pv，由于某些异常情况，只创建成功了PV,并未创建成功VG
 func (dm *DeviceManager) DiscoverPv() (map[string][]string, error) {
 	resp := map[string][]string{}
 	var name string
