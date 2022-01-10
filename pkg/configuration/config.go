@@ -147,7 +147,6 @@ func NewDiskClass(diskSelectors []DiskSelectorItem) *DiskClass {
 }
 
 func (disk *Disk) GetDiskGroups() (vgs []string) {
-
 	for _, d := range disk.DiskSelectors {
 		if d.Policy == "RAW" {
 			continue
@@ -156,6 +155,7 @@ func (disk *Disk) GetDiskGroups() (vgs []string) {
 			vgs = append(vgs, d.Name)
 		}
 	}
+    
 	return vgs
 }
 

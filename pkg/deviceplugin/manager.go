@@ -46,6 +46,15 @@ restart:
 
 	log.Info("Retreiving plugins.")
 	diskClass := configuration.DiskConfig.GetDiskGroups()
+	vgs, _ := volumeManager.GetCurrentVgStruct()
+	if len(vgs) > 0 {
+		for _, v := range vgs {
+			if utils.ContainsString([]string{utils.DeviceVGHDD, utils.DeviceVGSSD}, v.VGName) && !utils.ContainsString(diskClass, v.VGName) {
+				diskClass = append(diskClass, v.VGName)
+			}
+
+		}
+	}
 	for _, d := range diskClass {
 		c := make(chan struct{}, 5)
 		plugins = append(plugins, NewCarinaDevicePlugin(
@@ -69,6 +78,7 @@ restart:
 		}
 		started++
 	}
+	
 	if started == 0 {
 		log.Info("No devices found, Waiting indefinitely.")
 	}
