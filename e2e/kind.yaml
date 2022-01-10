@@ -4,14 +4,5 @@ kind: Cluster
 nodes:
 - role: control-plane
 - role: worker
-  extraMounts:
-    - containerPath: /dev
-      hostPath: /dev
 - role: worker
-  extraMounts:
-    - containerPath: /dev
-      hostPath: /dev
 - role: worker
-  extraMounts:
-    - containerPath: /dev
-      hostPath: /dev
