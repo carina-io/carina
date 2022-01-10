@@ -11,25 +11,25 @@ data:
       "diskSelector": [
         {
           "name": "hdd1" ,
-          "re": ["sdb","vdb"],
+          "re": ["vdb"],
           "policy": "LVM",
           "nodeLabel": "kubernetes.io/hostname"
         },
          {
           "name": "hdd2", 
-          "re": ["sdc","vdc"],
+          "re": ["vdc"],
           "policy": "LVM",
           "nodeLabel": "kubernetes.io/hostname"
         },
         {
-          "name": "ssd",
-          "re": ["loop*", "vd*"],
+          "name": "ssd1",
+          "re": ["loop*","vdd1"],
           "policy": "RAW",
          "nodeLabel": "kubernetes.io/hostname"
         },
          {
-          "name": "ssd",
-          "re": ["loop*", "vd*"],
+          "name": "ssd2",
+          "re": ["vdd2"],
           "policy": "RAW",
           "nodeLabel": "kubernetes.io/hostname"
         }

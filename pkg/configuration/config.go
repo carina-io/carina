@@ -37,6 +37,7 @@ const (
 	configPath         = "/etc/carina/"
 	SchedulerBinpack   = "binpack"
 	Schedulerspreadout = "spreadout"
+	diskGroupType      = "type"
 )
 
 var TestAssistDiskSelector []string
@@ -145,7 +146,20 @@ func NewDiskClass(diskSelectors []DiskSelectorItem) *DiskClass {
 	return &disk
 }
 
-// DiskSelector 支持正则表达式
+func (disk *Disk) GetDiskGroups() (vgs []string) {
+	for _, d := range disk.DiskSelectors {
+		if d.Policy == "RAW" {
+			continue
+		}
+		if !utils.ContainsString(vgs, d.Name) {
+			vgs = append(vgs, d.Name)
+		}
+	}
+    
+	return vgs
+}
+
+// 支持正则表达式
 // 定时扫描本地磁盘，凡是匹配的将被加入到相应vg卷组
 // 对于此配置的修改需要非常慎重，如果更改匹配条件，可能会移除正在使用的磁盘
 func DiskSelector() []DiskSelectorItem {
