@@ -162,7 +162,7 @@ func (r *NodeReconciler) getNeedRebuildVolume(ctx context.Context) (map[string]c
 		log.Errorf("unable to fetch pv list %s", err.Error())
 		return volumeObjectMap, err
 	}
-
+	var cacheNodeName = make(map[string]string)
 	for _, lv := range lvList.Items {
 		// bcache logicvolume not be remove
 		if len(lv.OwnerReferences) > 0 {
@@ -197,10 +197,12 @@ func (r *NodeReconciler) getNeedRebuildVolume(ctx context.Context) (map[string]c
 			continue
 		}
 		log.Infof("start clear pod: %s", lv.Spec.NodeName)
-		err := r.clearPod(ctx, lv.Spec.NodeName)
-		if err != nil {
-			log.Errorf("unable to clear pod in not ready node:%s  err:%s", lv.Spec.NodeName, err.Error())
-			return volumeObjectMap, err
+		if _, ok := cacheNodeName[lv.Spec.NodeName]; !ok {
+			err := r.clearPod(ctx, lv.Spec.NodeName)
+			if err != nil {
+				log.Errorf("unable to clear pod in not ready node:%s  err:%s", lv.Spec.NodeName, err.Error())
+				return volumeObjectMap, err
+			}
 		}
 		log.Info("Namespace: ", lv.Spec.NameSpace, " Name: ", lv.Spec.Pvc, " Status: ", lv.Status.Status)
 		volumeObjectMap[lv.Name] = client.ObjectKey{Namespace: lv.Spec.NameSpace, Name: lv.Spec.Pvc}
@@ -286,28 +288,17 @@ func (r *NodeReconciler) clearPod(ctx context.Context, nodeName string) error {
 	if err != nil {
 		return err
 	}
-
 	for _, p := range podList.Items {
 		// check annotation carina.io/rebuild-node-notready: true
 		if _, ok := p.Annotations["carina.io/rebuild-node-notready"]; !ok || p.Annotations["carina.io/rebuild-node-notready"] == "false" {
 			continue
 		}
 		log.Infof("not ready node: %s  pod: %s ", p.Spec.NodeName, p.Name)
-
-		vo := &storagev1.VolumeAttachment{}
 		err = r.killPod(ctx, &p)
 		if err != nil {
 			return err
 		}
-		err = r.Get(ctx, client.ObjectKey{p.Namespace, p.Name}, vo)
-		if err != nil && !errors.IsNotFound(err) {
-			return err
-		}
-		err = r.forceDetach(ctx, vo)
-		if err != nil {
-			return err
-		}
-
+		
 	}
 
 	return nil

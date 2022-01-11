@@ -71,6 +71,7 @@ func (ls *LocalStorage) Filter(ctx context.Context, cycleState *framework.CycleS
 	klog.V(3).Infof("filter pod: %v, node: %v", pod.Name, node.Node().Name)
 
 	pvcMap, nodeName, cacheDeviceRequest, err := ls.getLocalStoragePvc(pod)
+	klog.V(3).Infof("pvcMap:%v, nodeName:%v, cacheDeviceRequest: %v", pvcMap, nodeName, cacheDeviceRequest)
 	if err != nil {
 		klog.V(3).ErrorS(err, "get pvc sc failed pod: %v, node: %v", pod.Name, node.Node().Name)
 		return framework.NewStatus(framework.Error, "get pv/sc resource error")
@@ -91,7 +92,8 @@ func (ls *LocalStorage) Filter(ctx context.Context, cycleState *framework.CycleS
 			total += v.Value()
 		}
 	}
-
+	klog.V(3).Infof("capacityMap: %v", capacityMap)
+	klog.V(3).Infof("total: %v", total)
 	// 检查节点容量是否充足
 	for key, pvs := range pvcMap {
 		sort.Slice(pvs, func(i, j int) bool {
@@ -270,7 +272,7 @@ func (ls *LocalStorage) getLocalStoragePvc(pod *v1.Pod) (map[string][]*v1.Persis
 
 		cacheGroup := sc.Parameters[utils.VolumeCacheDiskType]
 		if cacheGroup != "" {
-			cacheGroup = utils.DeviceCapacityKeyPrefix + "carina-vg-" + cacheGroup
+			cacheGroup = utils.DeviceCapacityKeyPrefix + configuration.GetdeviceGroup(deviceGroup)
 			cacheDiskRatio := sc.Parameters[utils.VolumeCacheDiskRatio]
 			ratio, err := strconv.ParseInt(cacheDiskRatio, 10, 64)
 			if err != nil {
@@ -287,7 +289,7 @@ func (ls *LocalStorage) getLocalStoragePvc(pod *v1.Pod) (map[string][]*v1.Persis
 			// sc中未设置device group
 			deviceGroup = undefined
 		} else {
-			deviceGroup = utils.DeviceCapacityKeyPrefix + "carina-vg-" + deviceGroup
+			deviceGroup = utils.DeviceCapacityKeyPrefix + configuration.GetdeviceGroup(deviceGroup)
 		}
 		localPvc[deviceGroup] = append(localPvc[deviceGroup], pvc)
 	}

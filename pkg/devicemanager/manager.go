@@ -85,9 +85,9 @@ func NewDeviceManager(client client.Client,nodeName string, cache cache.Cache, s
 
 	return &dm
 }
-func (dm *DeviceManager) CheckNodeLables(nodelabekey string) (flag bool, err error) {
+func (dm *DeviceManager) CheckNodeLabel(nodeLabelKey string) (flag bool, err error) {
 	//nodelabekey 为空，对所有节点有效
-	if nodelabekey == "" {
+	if nodeLabelKey == "" {
 		return true, nil
 	}
 	nodeList := &corev1.NodeList{}
@@ -95,7 +95,7 @@ func (dm *DeviceManager) CheckNodeLables(nodelabekey string) (flag bool, err err
 		return false, err
 	}
 	for _, n := range nodeList.Items {
-		if _, ok := n.Annotations[nodelabekey]; ok && n.Name != dm.nodeName {
+		if _, ok := n.Annotations[nodeLabelKey]; ok && n.Name != dm.nodeName {
 			return true, nil
 		}
 	}
@@ -179,10 +179,15 @@ func (dm *DeviceManager) AddAndRemoveDevice() {
 		log.Error("get current vg struct failed: " + err.Error())
 		return
 	}
+	
 	for _, v := range ActuallyVg {
 		if _, ok := diskClass.DiskClassByName[v.VGName]; !ok {
 			continue
 		}
+		if flag,err := dm.CheckNodeLabel(diskClass.DiskClassByName[v.VGName].NodeLabel);!flag || err !=nil{
+			continue
+		}
+
 		diskSelector, err := regexp.Compile(strings.Join(diskClass.DiskClassByName[v.VGName].Re, "|"))
 		if err != nil {
 			log.Warnf("disk regex %s error %v ", strings.Join(diskClass.DiskClassByName[v.VGName].Re, "|"), err)

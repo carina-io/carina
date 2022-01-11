@@ -4,7 +4,7 @@ kind: ConfigMap
 metadata:
   name: {{ .Release.Name }}-csi-config
   namespace: {{ .Release.Namespace }}
-{{ include "carina-node.labels" . | indent 2 }}
+
 data:
  config.json: |-
     {

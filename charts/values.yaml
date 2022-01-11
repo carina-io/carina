@@ -1,4 +1,5 @@
 carina-scheduler:
+  enabled: false
   image:
     repository: registry.cn-hangzhou.aliyuncs.com/antmoveh/scheduler
     pullPolicy: IfNotPresent
@@ -160,3 +161,9 @@ serviceMonitor:
 webhook:
   enabled: true
 
+storage:
+  # file system
+  fstype: xfs
+  # disk group
+  disktype: vdd1
+  reclaimPolicy: Delete
