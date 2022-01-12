@@ -42,27 +42,18 @@ diskSelectors:
 - `diskSelector`是一个diskGroups的列表,每个diskGroup有四个主要字段，参数都是必须的，不是可选的
 
 * name
-
   - vg卷组的名称，这里可以填写节点上不存在的vg卷组，也可以填写节点已存在的vg卷组
   - 注意这个名称在配置中是唯一的，不要重复
   - 命名规范`^([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9]$`
-
 * re
-
   - 这里是一个正则表达式列表，例如`["loop+", "sdb+"]`，carina-node在进行本地磁盘扫描时会根据这个正则表达式将匹配到的磁盘加入该vg卷组
   - 如果改动该re，会将vg卷组中不符合匹配条件的磁盘移除该卷组，当然如果磁盘使用中无法移除
-
 * policy
-
   - 磁盘策略，目前支持 `LVM和RAW`两种策略
   - LVM策略表示该diskGroup将会被组建成VG卷组，并以lvm卷的方式提供给容器使用
   - RAW策略表示该diskGroup将会将节点上的裸盘直接提供给容器使用，在该策略下Carina将会根据request.storage大小，对磁盘分区，将该分区提供给容器使用
   - RAW策略下，用户可以在PVC中增加`carina.io/exclusivly-disk-claim: true` 表示该pvc独占磁盘，其他的pvc将不会在该磁盘上划分新分区
-
-  
-
 * nodeLabel
-
   - 该字段表示该磁盘组生效的节点范围，比如`diskAAA`，carina会获取当前节点label并进行对比，存在`diskAAA`的则该配置生效
   - 如果为空，表示该配置在所有节点生效
 
