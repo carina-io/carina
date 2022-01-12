@@ -101,7 +101,7 @@ func (ls *LocalStorage) Filter(ctx context.Context, cycleState *framework.CycleS
 		})
 
 		// 对于sc中未设置Device组处理比较复杂,需要判断在多个Device组的情况下，pv是否能够分配
-		// 如carina-vg-hdd 20G carina-vg-ssd 40G, pv1.reques
+		// 如carina-vg-hdd 20G carina-vg-ssd 40G, pv1.request
 		// t30 pv2.request.15 pv3.request 6G
 		// 我们这里不能采取最优分配算法，应该采用贪婪算法，因为我们CSI控制器对PV的创建是逐个进行的，它没有全局视图
 		// 即便如此，由于创建PV是由csi-provisioner发起的，请求顺序不确有可能导致pv不合理分配，所以建议sc设置Device组
