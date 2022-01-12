@@ -96,7 +96,7 @@ func initConfig() *viper.Viper {
 func dynamicConfig() {
 	GlobalConfig.WatchConfig()
 	GlobalConfig.OnConfigChange(func(event fsnotify.Event) {
-		_ = GlobalConfig.Unmarshal(&DiskConfig, opt)			
+		_ = GlobalConfig.Unmarshal(&DiskConfig, opt)
 	})
 }
 
@@ -116,7 +116,7 @@ func GetdeviceGroup(diskType string) string {
 	deviceGroup := strings.ToLower(diskType)
 	diskSelector := DiskConfig.DiskSelectors
 	for _, d := range diskSelector {
-		if d.Policy == "RAW" {
+		if strings.ToLower(d.Policy) == "raw" {
 			continue
 		}
 		//如果sc 配置的磁盘组在配置里就默认返回配置的磁盘组，老板本的磁盘组如果在新配置文件里配置了，就采用新的配置

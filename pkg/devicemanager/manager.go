@@ -62,7 +62,7 @@ type DeviceManager struct {
 	configModifyChan chan struct{}
 }
 
-func NewDeviceManager(client client.Client,nodeName string, cache cache.Cache, stopChan <-chan struct{}) *DeviceManager {
+func NewDeviceManager(client client.Client, nodeName string, cache cache.Cache, stopChan <-chan struct{}) *DeviceManager {
 	executor := &exec.CommandExecutor{}
 	mutex := mutx.NewGlobalLocks()
 	dm := DeviceManager{
@@ -85,6 +85,7 @@ func NewDeviceManager(client client.Client,nodeName string, cache cache.Cache, s
 
 	return &dm
 }
+
 func (dm *DeviceManager) CheckNodeLabel(nodeLabelKey string) (flag bool, err error) {
 	//nodelabekey 为空，对所有节点有效
 	if nodeLabelKey == "" {
@@ -95,18 +96,30 @@ func (dm *DeviceManager) CheckNodeLabel(nodeLabelKey string) (flag bool, err err
 		return false, err
 	}
 	for _, n := range nodeList.Items {
-		if _, ok := n.Annotations[nodeLabelKey]; ok && n.Name != dm.nodeName {
+		if _, ok := n.Labels[nodeLabelKey]; ok && n.Name == dm.nodeName {
+			log.Debug("Labels: ", n.Labels[nodeLabelKey], "node", dm.nodeName)
 			return true, nil
 		}
 	}
 	return false, nil
 }
 
+func (dm *DeviceManager) CheckNodeVg() *configuration.DiskClass {
+	currentDiskSelector := configuration.DiskSelector()
+	var currentNodeDiskSelector = []configuration.DiskSelectorItem{}
+	for _, v := range currentDiskSelector {
+		if flag, _ := dm.CheckNodeLabel(v.NodeLabel); flag {
+			currentNodeDiskSelector = append(currentNodeDiskSelector, v)
+			continue
+		}
+	}
+	return configuration.NewDiskClass(currentNodeDiskSelector)
+}
+
 // AddAndRemoveDevice 定时巡检磁盘，是否有新磁盘加入
 func (dm *DeviceManager) AddAndRemoveDevice() {
-
-	currentDiskSelector := configuration.DiskSelector()
-	diskClass := configuration.NewDiskClass(currentDiskSelector)
+	diskClass := dm.CheckNodeVg()
+	configuration.SetDiskGroups(diskClass)
 	ActuallyVg, err := dm.VolumeManager.GetCurrentVgStruct()
 	if err != nil {
 		log.Error("get current vg struct failed: " + err.Error())
@@ -114,13 +127,13 @@ func (dm *DeviceManager) AddAndRemoveDevice() {
 	}
 	changeBefore := ActuallyVg
 	log.Debug("ActuallyVg: ", ActuallyVg)
-	newDisk, err := dm.DiscoverDisk()
+	newDisk, err := dm.DiscoverDisk(diskClass)
 	if err != nil {
 		log.Error("find new device failed: " + err.Error())
 		return
 	}
 	log.Debug("newDisk: ", newDisk)
-	newPv, err := dm.DiscoverPv()
+	newPv, err := dm.DiscoverPv(diskClass)
 	if err != nil {
 		log.Error("find new pv failed: " + err.Error())
 		return
@@ -156,10 +169,13 @@ func (dm *DeviceManager) AddAndRemoveDevice() {
 
 	// 执行新增磁盘
 	log.Debug("needAddPv ", needAddPv)
-
 	for vg, pvs := range needAddPv {
 		log.Infof("vg:%s ,pvs:%s ", vg, pvs)
 		for _, pv := range pvs {
+			//过滤已经在磁盘组的磁盘
+			if v, ok := ActuallyVgMap[vg]; ok && utils.ContainsString(v, pv) {
+				continue
+			}
 			if err := dm.VolumeManager.AddNewDiskToVg(pv, vg); err != nil {
 				log.Errorf("add new disk failed vg: %s, disk: %s, error: %v", vg, pv, err)
 			}
@@ -179,12 +195,15 @@ func (dm *DeviceManager) AddAndRemoveDevice() {
 		log.Error("get current vg struct failed: " + err.Error())
 		return
 	}
-	
+
 	for _, v := range ActuallyVg {
 		if _, ok := diskClass.DiskClassByName[v.VGName]; !ok {
 			continue
 		}
-		if flag,err := dm.CheckNodeLabel(diskClass.DiskClassByName[v.VGName].NodeLabel);!flag || err !=nil{
+		log.Debug("nodelabels:", diskClass.DiskClassByName[v.VGName].NodeLabel)
+		//如果标签和节点不匹配就跳过
+		if flag, err := dm.CheckNodeLabel(diskClass.DiskClassByName[v.VGName].NodeLabel); !flag || err != nil {
+			log.Errorf("flag:%s,get lable  err:%v", flag, err)
 			continue
 		}
 
@@ -199,7 +218,6 @@ func (dm *DeviceManager) AddAndRemoveDevice() {
 				_ = dm.LvmManager.RemoveUnknownDevice(pv.VGName)
 				continue
 			}
-
 			//同一个vg里，如果正则不匹配就将磁盘移出vg
 			if !diskSelector.MatchString(pv.PVName) {
 				log.Infof("remove pv %s in vg %s", pv.PVName, v.VGName)
@@ -226,15 +244,9 @@ func (dm *DeviceManager) AddAndRemoveDevice() {
 }
 
 // DiscoverDisk 查找是否有符合条件的块设备加入
-func (dm *DeviceManager) DiscoverDisk() (map[string][]string, error) {
+func (dm *DeviceManager) DiscoverDisk(diskClass *configuration.DiskClass) (map[string][]string, error) {
 	blockClass := map[string][]string{}
 	var name string
-	dsList := configuration.DiskSelector()
-	if len(dsList) == 0 {
-		log.Info("cannot find new device")
-		return blockClass, nil
-	}
-	diskClass := configuration.NewDiskClass(dsList)
 	// 列出所有本地磁盘
 	localDisk, err := dm.DiskManager.ListDevicesDetail("")
 	if err != nil {
@@ -322,15 +334,9 @@ func (dm *DeviceManager) DiscoverDisk() (map[string][]string, error) {
 }
 
 // DiscoverPv 支持发现Pv，由于某些异常情况，只创建成功了PV,并未创建成功VG
-func (dm *DeviceManager) DiscoverPv() (map[string][]string, error) {
+func (dm *DeviceManager) DiscoverPv(diskClass *configuration.DiskClass) (map[string][]string, error) {
 	resp := map[string][]string{}
 	var name string
-	dsList := configuration.DiskSelector()
-	if len(dsList) == 0 {
-		log.Info("disk selector cannot not be empty, skip pv scan")
-		return resp, nil
-	}
-	diskClass := configuration.NewDiskClass(dsList)
 	pvList, err := dm.VolumeManager.GetCurrentPvStruct()
 	if err != nil {
 		log.Errorf("get pv failed %s", err.Error())

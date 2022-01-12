@@ -43,6 +43,7 @@ const (
 var TestAssistDiskSelector []string
 var configModifyNotice []chan<- struct{}
 var err error
+var vgs []string
 var GlobalConfig *viper.Viper
 var DiskConfig Disk
 var opt = viper.DecodeHook(mapstructure.ComposeDecodeHookFunc(
@@ -138,7 +139,7 @@ func NewDiskClass(diskSelectors []DiskSelectorItem) *DiskClass {
 	disk := DiskClass{}
 	disk.DiskClassByName = make(map[string]DiskSelectorItem)
 	for _, d := range diskSelectors {
-		if d.Policy == "RAW" {
+		if strings.ToLower(d.Policy) == "raw" {
 			continue
 		}
 		disk.DiskClassByName[d.Name] = d
@@ -146,16 +147,18 @@ func NewDiskClass(diskSelectors []DiskSelectorItem) *DiskClass {
 	return &disk
 }
 
-func (disk *Disk) GetDiskGroups() (vgs []string) {
-	for _, d := range disk.DiskSelectors {
-		if d.Policy == "RAW" {
+func GetDiskGroups() (vgs []string) {
+	return vgs
+}
+func SetDiskGroups(diskClass *DiskClass) (vgs []string) {
+	for _, d := range diskClass.DiskClassByName {
+		if strings.ToLower(d.Policy) == "raw" {
 			continue
 		}
 		if !utils.ContainsString(vgs, d.Name) {
 			vgs = append(vgs, d.Name)
 		}
 	}
-    
 	return vgs
 }
 

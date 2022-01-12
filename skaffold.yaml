@@ -14,7 +14,7 @@ deploy:
         chartPath: ./charts
         setValues:
           image.carina.repository: registry.cn-hangzhou.aliyuncs.com/antmoveh/carina
-          image.carina.tag: v0.9.0-73-g97f88fc-dirty
+          image.carina.tag: v0.9.0-74-gf1fe170-dirty
           image.carina.pullPolicy: Always
           carina-scheduler.image.tag: v0.9.0-73-g97f88fc-dirty
           carina-scheduler.image.pullPolicy: Always

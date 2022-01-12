@@ -45,17 +45,9 @@ restart:
 	}
 
 	log.Info("Retreiving plugins.")
-	diskClass := configuration.DiskConfig.GetDiskGroups()
-	vgs, _ := volumeManager.GetCurrentVgStruct()
-	if len(vgs) > 0 {
-		for _, v := range vgs {
-			if utils.ContainsString([]string{utils.DeviceVGHDD, utils.DeviceVGSSD}, v.VGName) && !utils.ContainsString(diskClass, v.VGName) {
-				diskClass = append(diskClass, v.VGName)
-			}
-
-		}
-	}
+	diskClass := configuration.GetDiskGroups()
 	for _, d := range diskClass {
+
 		c := make(chan struct{}, 5)
 		plugins = append(plugins, NewCarinaDevicePlugin(
 			utils.DeviceCapacityKeyPrefix+d,
@@ -78,7 +70,7 @@ restart:
 		}
 		started++
 	}
-	
+
 	if started == 0 {
 		log.Info("No devices found, Waiting indefinitely.")
 	}
@@ -100,7 +92,12 @@ events:
 				log.Infof("inotify: %s created, restarting.", v1beta1.KubeletSocket)
 				goto restart
 			}
-
+		case event := <-watcher.Events:
+			//接收到创建文件的事件，
+			if event.Op&fsnotify.Create == fsnotify.Create || event.Op&fsnotify.Remove == fsnotify.Remove {
+				//log.Infof("inotify: %s created, restarting.", v1beta1.KubeletSocket)
+				goto restart
+			}
 		// Watch for any other fs errors and log them.
 		case err := <-watcher.Errors:
 			log.Infof("inotify: %s", err)
