@@ -69,7 +69,7 @@ It has three componets: carina-scheduler, carina-controller and carina-node.
 
 ```shell
 $ cd deploy/kubernetes
-# install
+# install， The default installation is kube-system. If the installation is under another name, please use the following custom signature installation method
 $ ./deploy.sh
 
 # If you want to generate a webhook certificate based on your local environment, you can use the following command to install the certificate
