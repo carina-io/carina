@@ -607,7 +607,14 @@ func (s *nodeService) getLvFromContext(deviceGroup, volumeID string) (*types.LvI
 }
 
 func (s *nodeService) getBcacheDevice(volumeID string) (*types.BcacheDeviceInfo, error) {
-	diskClass := configuration.GetDiskGroups()
+	currentDiskSelector := configuration.DiskSelector()
+	var diskClass = []string{}
+	for _, v := range currentDiskSelector {
+		if strings.ToLower(v.Policy) == "raw" {
+			continue
+		}
+		diskClass = append(diskClass, strings.ToLower(v.Name))
+	}
 	for _, d := range diskClass {
 		devicePath := filepath.Join("/dev", d, volumeID)
 		_, err := os.Stat(devicePath)

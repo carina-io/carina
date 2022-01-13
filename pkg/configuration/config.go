@@ -154,17 +154,7 @@ func NewDiskClass(diskSelectors []DiskSelectorItem) *DiskClass {
 func GetDiskGroups() (vgs []string) {
 	return Vgs
 }
-func SetDiskGroups(diskClass *DiskClass) []string {
-	for _, d := range diskClass.DiskClassByName {
-		if strings.ToLower(d.Policy) == "raw" {
-			continue
-		}
-		if !utils.ContainsString(Vgs, d.Name) {
-			Vgs = append(Vgs, d.Name)
-		}
-	}
-	return Vgs
-}
+
 
 // 支持正则表达式
 // 定时扫描本地磁盘，凡是匹配的将被加入到相应vg卷组

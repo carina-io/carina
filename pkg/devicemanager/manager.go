@@ -82,8 +82,7 @@ func NewDeviceManager(client client.Client, nodeName string, cache cache.Cache, 
 	// 注册监听配置变更
 	dm.configModifyChan = make(chan struct{}, 1)
 	configuration.RegisterListenerChan(dm.configModifyChan)
-    diskClass := dm.CheckNodeVg()
-	configuration.SetDiskGroups(diskClass)
+
 	return &dm
 }
 
@@ -435,7 +434,6 @@ func (dm *DeviceManager) DeviceCheckTask() {
 
 			case <-dm.configModifyChan:
 				log.Info("config modify trigger disk scan...")
-				configuration.SetDiskGroups(dm.CheckNodeVg())
 				dm.AddAndRemoveDevice()
 			case <-dm.stopChan:
 				log.Info("stop device scan...")
