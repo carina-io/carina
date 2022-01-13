@@ -171,6 +171,44 @@ mountOptions:
           "diskGroupPolicy": "type", # 磁盘分组策略，只支持按照磁盘类型分组，更改成其他值无效
           "schedulerStrategy": "spreadout" # binpack，spreadout支持这两个参数
         }
+        
+     # v0.9.1 配置已变更，详细文档参考[docs/design/design-diskGroup-zh.md]
+     {
+      "diskSelector": [
+        {
+          "name": "carina-vg-ssd",
+          "re": ["loop2+"],
+          "policy": "LVM",
+          "nodeLabel": "kubernetes.io/hostname"
+        },
+        {
+          "name": "carina-vg-hdd",
+          "re": ["loop3+"],
+          "policy": "LVM",
+          "nodeLabel": "kubernetes.io/hostname"
+        },
+        {
+          "name": "exist-vg-group",
+          "re": ["loop4+"],
+          "policy": "LVM",
+          "nodeLabel": "kubernetes.io/hostname"
+        },
+        {
+          "name": "new-vg-group",
+          "re": ["loop5+"],
+          "policy": "LVM",
+          "nodeLabel": "kubernetes.io/hostname"
+        },
+        {
+          "name": "raw",
+          "re": ["vdb+", "sd+"],
+          "policy": "RAW",
+          "nodeLabel": "kubernetes.io/hostname"
+        }
+      ],
+      "diskScanInterval": "300",
+      "schedulerStrategy": "spreadout"
+    }
     ```
 
     - 备注1：`diskSelector`若是A磁盘已经加入了VG卷组，修改为不在匹配A盘，如果该盘尚未使用则会在VG卷组中移除该磁盘
