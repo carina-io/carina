@@ -18,7 +18,6 @@ package deviceManager
 
 import (
 	"context"
-	"fmt"
 	"regexp"
 	"strings"
 	"time"
@@ -171,7 +170,7 @@ func (dm *DeviceManager) AddAndRemoveDevice() {
 			}
 			//同步磁盘分区表
 			if err := dm.LvmManager.PartProbe(); err != nil {
-				log.Errorf("faild partprobe  error: %v", err)
+				log.Errorf("failed partprobe  error: %v", err)
 			}
 		}
 	}
@@ -209,7 +208,7 @@ func (dm *DeviceManager) AddAndRemoveDevice() {
 					log.Errorf("remove pv %s error %v", pv.PVName, err)
 				}
 				if err := dm.LvmManager.PartProbe(); err != nil {
-					log.Errorf("faild partprobe  error: %v", err)
+					log.Errorf("failed partprobe  error: %v", err)
 				}
 			}
 
@@ -246,14 +245,19 @@ func (dm *DeviceManager) DiscoverDisk(diskClass map[string]configuration.DiskSel
 	for _, d := range localDisk {
 		parentDisk[d.ParentName] = 1
 	}
+	// If the disk has been added to a VG group, add it to this vg group
+	hasMatchedDisk := map[string]int8{}
 
 	for _, ds := range diskClass {
+		if strings.ToLower(ds.Policy) == "raw" {
+			// 目前不支持raw磁盘模式
+			continue
+		}
 		diskSelector, err := regexp.Compile(strings.Join(ds.Re, "|"))
 		if err != nil {
 			log.Warnf("disk regex %s error %v ", strings.Join(ds.Re, "|"), err)
-			return blockClass, err
+			continue
 		}
-
 		// 过滤出空块设备
 		for _, d := range localDisk {
 			if strings.Contains(d.Name, types.KEYWORD) {
@@ -304,15 +308,13 @@ func (dm *DeviceManager) DiscoverDisk(diskClass map[string]configuration.DiskSel
 			name = ds.Name
 			log.Infof("eligible %s device %s", ds.Name, d.Name)
 			if !utils.ContainsString(blockClass[name], d.Name) {
+				if hasMatchedDisk[d.Name] == 1 {
+					continue
+				}
 				blockClass[name] = append(blockClass[name], d.Name)
-			} else {
-				//磁盘符合多个匹配，抛出异常不处理。
-				log.Warnf("mutimatched disk:%s, regex:%s", d.Name, diskSelector.String())
-				return map[string][]string{}, fmt.Errorf("mutimatched disk:%s, regex:%s", d.Name, diskSelector.String())
+				hasMatchedDisk[d.Name] = 1
 			}
-
 		}
-
 	}
 	return blockClass, nil
 }
@@ -334,7 +336,7 @@ func (dm *DeviceManager) DiscoverPv(diskClass map[string]configuration.DiskSelec
 		}
 
 		for _, pv := range pvList {
-			//如果是属于同一个组,重新配置pv容量大小
+			// 如果是属于同一个组,重新配置pv容量大小
 			if pv.VGName == ds.Name {
 				err := dm.LvmManager.PVResize(pv.PVName)
 				if err != nil {
@@ -362,7 +364,6 @@ func (dm *DeviceManager) DiscoverPv(diskClass map[string]configuration.DiskSelec
 			if !utils.ContainsString(resp[name], disk[0].Name) {
 				resp[name] = append(resp[name], disk[0].Name)
 			}
-
 		}
 	}
 	return resp, nil
