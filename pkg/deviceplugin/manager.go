@@ -17,9 +17,6 @@
 package deviceplugin
 
 import (
-	"os"
-	"strings"
-
 	"github.com/carina-io/carina/pkg/configuration"
 	"github.com/carina-io/carina/pkg/devicemanager/volume"
 	"github.com/carina-io/carina/pkg/deviceplugin/v1beta1"
@@ -28,12 +25,14 @@ import (
 	"github.com/fsnotify/fsnotify"
 	"golang.org/x/net/context"
 	corev1 "k8s.io/api/core/v1"
+	"os"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	// 依赖冲突，把整个proto目录挪移过来
 	//pluginapi "k8s.io/kubelet/pkg/apis/deviceplugin/v1beta1"
 )
 
-func Run(cache cache.Cache, volumeManager volume.LocalVolume, stopChan <-chan struct{}) {
+func Run(nodeName string, cache cache.Cache, volumeManager volume.LocalVolume, stopChan <-chan struct{}) {
 	cache.WaitForCacheSync(context.Background())
 	watcher, err := newFSWatcher(v1beta1.DevicePluginPath)
 	if err != nil {
@@ -43,6 +42,9 @@ func Run(cache cache.Cache, volumeManager volume.LocalVolume, stopChan <-chan st
 
 	defer watcher.Close()
 
+	var c = make(chan struct{}, 1)
+	configuration.RegisterListenerChan(c)
+
 	plugins := []*CarinaDevicePlugin{}
 restart:
 	for _, p := range plugins {
@@ -50,7 +52,7 @@ restart:
 	}
 
 	log.Info("Retreiving plugins.")
-	diskClass := CheckNodeVg(cache)
+	diskClass := GetNodeVg(nodeName, cache)
 	log.Debug("diskClass:", diskClass)
 	for _, d := range diskClass {
 
@@ -99,7 +101,7 @@ events:
 				goto restart
 			}
 		//configModifyNoticeToPlugin
-		case <-configuration.ConfigModifyNoticeToPlugin:
+		case <-c:
 			log.Info("inotify: config change event")
 			goto restart
 		// Watch for any other fs errors and log them.
@@ -115,39 +117,22 @@ events:
 	}
 }
 
-func CheckNodeLabel(cache cache.Cache, nodeLabelKey string) (flag bool, err error) {
-	//nodelabekey 为空，对所有节点有效
-	if nodeLabelKey == "" {
-		return true, nil
-	}
-	nodeList := &corev1.NodeList{}
-	if err = cache.List(context.Background(), nodeList); err != nil {
-		return false, err
-	}
-	for _, n := range nodeList.Items {
-		if _, ok := n.Labels[nodeLabelKey]; ok && n.Name == os.Getenv("NODE_NAME") {
-			return true, nil
-		}
-	}
-	return false, nil
-}
-
-func CheckNodeVg(cache cache.Cache) (diskClass []string) {
+func GetNodeVg(nodeName string, cache cache.Cache) (diskClass []string) {
 	currentDiskSelector := configuration.DiskSelector()
-	log.Debugf("get cofig disk %s", currentDiskSelector)
+	log.Debugf("get config disk %s", currentDiskSelector)
+	node := &corev1.Node{}
+	err := cache.Get(context.Background(), client.ObjectKey{Name: nodeName}, node)
+	if err != nil {
+		log.Errorf("get node %s error %s", node, err.Error())
+		return diskClass
+	}
 	for _, v := range currentDiskSelector {
-		flag, err := CheckNodeLabel(cache, v.NodeLabel)
-		if err != nil {
-			log.Errorf("get node labels error:", err)
-			return []string{}
+		if v.NodeLabel == "" {
+			diskClass = append(diskClass, v.Name)
 		}
-		if flag {
-			if strings.ToLower(v.Policy) == "raw" {
-				continue
-			}
+		if _, ok := node.Labels[v.NodeLabel]; ok {
 			diskClass = append(diskClass, v.Name)
 		}
 	}
-
 	return diskClass
 }

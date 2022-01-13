@@ -138,7 +138,7 @@ func subMain() error {
 	// 启动volume一致性检查
 	dm.VolumeConsistencyCheck()
 	// 启动设备插件
-	go deviceplugin.Run(mgr.GetCache(), dm.VolumeManager, stopChan)
+	go deviceplugin.Run(nodeName, mgr.GetCache(), dm.VolumeManager, stopChan)
 	// http server
 	e := newHttpServer(dm.VolumeManager, stopChan)
 	go e.start()

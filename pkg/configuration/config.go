@@ -37,14 +37,11 @@ const (
 	configPath         = "/etc/carina/"
 	SchedulerBinpack   = "binpack"
 	Schedulerspreadout = "spreadout"
-	diskGroupType      = "type"
 )
 
 var TestAssistDiskSelector []string
 var configModifyNotice []chan<- struct{}
-var ConfigModifyNoticeToPlugin = make(chan struct{}, 1)
 var err error
-var Vgs []string
 var GlobalConfig *viper.Viper
 var DiskConfig Disk
 var opt = viper.DecodeHook(mapstructure.ComposeDecodeHookFunc(
@@ -80,10 +77,6 @@ type Disk struct {
 	DiskSelectors     []DiskSelectorItem `json:"diskSelectors"`
 	DiskScanInterval  int64              `json:"diskScanInterval"`
 	SchedulerStrategy string             `json:"schedulerStrategy"`
-}
-
-type DiskClass struct {
-	DiskClassByName map[string]DiskSelectorItem `json:"diskClassByName"`
 }
 
 func init() {
@@ -129,9 +122,6 @@ func dynamicConfig() {
 			}
 			c <- struct{}{}
 		}
-
-		ConfigModifyNoticeToPlugin <- struct{}{}
-
 	})
 }
 
@@ -139,24 +129,7 @@ func RegisterListenerChan(c chan<- struct{}) {
 	configModifyNotice = append(configModifyNotice, c)
 }
 
-func NewDiskClass(diskSelectors []DiskSelectorItem) *DiskClass {
-	disk := DiskClass{}
-	disk.DiskClassByName = make(map[string]DiskSelectorItem)
-	for _, d := range diskSelectors {
-		if strings.ToLower(d.Policy) == "raw" {
-			continue
-		}
-		disk.DiskClassByName[d.Name] = d
-	}
-	return &disk
-}
-
-func GetDiskGroups() (vgs []string) {
-	return Vgs
-}
-
-
-// 支持正则表达式
+// DiskSelector 支持正则表达式
 // 定时扫描本地磁盘，凡是匹配的将被加入到相应vg卷组
 // 对于此配置的修改需要非常慎重，如果更改匹配条件，可能会移除正在使用的磁盘
 func DiskSelector() []DiskSelectorItem {
@@ -184,7 +157,7 @@ func DiskScanInterval() int64 {
 	return diskScanInterval
 }
 
-// SchedulerStrategy pv调度策略binpac/spreadout，默认为binpac
+// SchedulerStrategy pv调度策略binpack/spreadout，默认为binpack
 func SchedulerStrategy() string {
 	schedulerStrategy := GlobalConfig.GetString("schedulerStrategy")
 	if utils.ContainsString([]string{SchedulerBinpack, Schedulerspreadout}, strings.ToLower(schedulerStrategy)) {
