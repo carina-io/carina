@@ -61,7 +61,7 @@ func (s controllerService) CreateVolume(ctx context.Context, req *csi.CreateVolu
 	name = strings.ToLower(name)
 
 	// 处理磁盘类型参数，支持carina.storage.io/disk-type:ssd书写方式
-    deviceGroup = version.GetdeviceGroup(deviceGroup)
+    deviceGroup = version.GetDeviceGroup(deviceGroup)
 	log.Info("CreateVolume called ",
 		" name ", req.GetName(),
 		" device_group ", deviceGroup,

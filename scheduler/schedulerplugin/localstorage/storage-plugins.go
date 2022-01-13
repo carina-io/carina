@@ -272,7 +272,7 @@ func (ls *LocalStorage) getLocalStoragePvc(pod *v1.Pod) (map[string][]*v1.Persis
 
 		cacheGroup := sc.Parameters[utils.VolumeCacheDiskType]
 		if cacheGroup != "" {
-			cacheGroup = utils.DeviceCapacityKeyPrefix + configuration.GetdeviceGroup(deviceGroup)
+			cacheGroup = utils.DeviceCapacityKeyPrefix + configuration.GetDeviceGroup(deviceGroup)
 			cacheDiskRatio := sc.Parameters[utils.VolumeCacheDiskRatio]
 			ratio, err := strconv.ParseInt(cacheDiskRatio, 10, 64)
 			if err != nil {
@@ -289,7 +289,7 @@ func (ls *LocalStorage) getLocalStoragePvc(pod *v1.Pod) (map[string][]*v1.Persis
 			// sc中未设置device group
 			deviceGroup = undefined
 		} else {
-			deviceGroup = utils.DeviceCapacityKeyPrefix + configuration.GetdeviceGroup(deviceGroup)
+			deviceGroup = utils.DeviceCapacityKeyPrefix + configuration.GetDeviceGroup(deviceGroup)
 		}
 		localPvc[deviceGroup] = append(localPvc[deviceGroup], pvc)
 	}

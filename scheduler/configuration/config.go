@@ -111,8 +111,8 @@ func SchedulerStrategy() string {
 	return schedulerStrategy
 }
 
-// 处理磁盘类型参数，支持carina.storage.io/disk-type:ssd书写方式
-func GetdeviceGroup(diskType string) string {
+// GetDeviceGroup 处理磁盘类型参数，支持carina.storage.io/disk-type:ssd书写方式
+func GetDeviceGroup(diskType string) string {
 	deviceGroup := strings.ToLower(diskType)
 	diskSelector := DiskConfig.DiskSelectors
 	for _, d := range diskSelector {
