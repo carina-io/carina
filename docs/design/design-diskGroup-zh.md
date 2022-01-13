@@ -143,6 +143,6 @@ diskSelectors:
         "nodeLabel": "kubernetes.io/hostname"
       }
   ```
-
   
-
+#### 注意事项
+ - 当多个vg组的re匹配到同一块盘时，最先匹配到这个盘的VG会优先使用，后边的在匹配到的直接跳过，建议慎重填写re内容，防止不期望的结果
