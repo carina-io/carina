@@ -50,10 +50,49 @@ helm install carina-csi-driver carina-csi-driver/carina-csi-driver --namespace k
 ##### 版本升级
 
 - 先卸载旧版本，然后安装新版本
+helm uninstall carina-csi-driver 
 
 ```
-
+helm pull  carina-csi-driver/carina-csi-driver  --version v0.9.1 
+tar -zxvf carina-csi-driver-v0.9.1.tgz   
 ```
-
+编辑 carina-csi-driver/templates/csi-config-map.yaml，把原来对应的节点上vg 组填在配置文件里
+helm install carina-csi-driver carina-csi-driver/
 ##### 可配置参数说明
 
+  {
+      "diskSelector": [
+        {
+          "name": "carina-vg-ssd" ,  #原0.9.0版本默认vg组
+          "re": ["loop2+"],          #这里需要修改匹配条件，可以查看节点磁盘名称是否满足此匹配。如果不满足，需要纳管哪些磁盘，相应这里填上满足匹配的条件即可
+          "policy": "LVM",           # lvm管理
+          "nodeLabel": "kubernetes.io/hostname" #节点匹配的标签,节点标签上有这个key，匹配条件才会生效
+        },
+        {
+          "name": "carina-vg-hdd",   #原0.9.0版本默认vg组
+          "re": ["loop3+"],
+          "policy": "LVM",
+          "nodeLabel": "kubernetes.io/hostname"
+        },
+        {
+          "name": "exist-vg-group",  #已经存在的vg，可以别纳管
+          "re": ["loop4+"],
+          "policy": "LVM",
+          "nodeLabel": "kubernetes.io/hostname"
+        },
+        {
+          "name": "new-vg-group",    #空盘未匹配vg，这里可以创建新的vg纳管空盘
+          "re": ["loop5+"],
+          "policy": "LVM",
+          "nodeLabel": "kubernetes.io/hostname"
+        },
+        {
+          "name": "raw",
+          "re": ["vdb+", "sd+"],
+          "policy": "RAW",
+          "nodeLabel": "kubernetes.io/hostname"
+        }
+      ],
+      "diskScanInterval": "300",
+      "schedulerStrategy": "spreadout"
+    }
