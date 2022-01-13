@@ -42,8 +42,9 @@ const (
 
 var TestAssistDiskSelector []string
 var configModifyNotice []chan<- struct{}
+var ConfigModifyNoticeToPlugin = make(chan struct{}, 1)
 var err error
-var vgs []string
+var Vgs []string
 var GlobalConfig *viper.Viper
 var DiskConfig Disk
 var opt = viper.DecodeHook(mapstructure.ComposeDecodeHookFunc(
@@ -128,6 +129,9 @@ func dynamicConfig() {
 			}
 			c <- struct{}{}
 		}
+
+		ConfigModifyNoticeToPlugin <- struct{}{}
+
 	})
 }
 
@@ -148,18 +152,18 @@ func NewDiskClass(diskSelectors []DiskSelectorItem) *DiskClass {
 }
 
 func GetDiskGroups() (vgs []string) {
-	return vgs
+	return Vgs
 }
-func SetDiskGroups(diskClass *DiskClass) (vgs []string) {
+func SetDiskGroups(diskClass *DiskClass) []string {
 	for _, d := range diskClass.DiskClassByName {
 		if strings.ToLower(d.Policy) == "raw" {
 			continue
 		}
-		if !utils.ContainsString(vgs, d.Name) {
-			vgs = append(vgs, d.Name)
+		if !utils.ContainsString(Vgs, d.Name) {
+			Vgs = append(Vgs, d.Name)
 		}
 	}
-	return vgs
+	return Vgs
 }
 
 // 支持正则表达式

@@ -167,5 +167,5 @@ storage:
   # file system
   fstype: xfs
   # disk group
-  disktype: vdd1
+  disktype: carina-vg-hdd
   reclaimPolicy: Delete

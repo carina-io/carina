@@ -18,6 +18,7 @@ package deviceplugin
 
 import (
 	"os"
+	"strings"
 
 	"github.com/carina-io/carina/pkg/configuration"
 	"github.com/carina-io/carina/pkg/devicemanager/volume"
@@ -25,17 +26,21 @@ import (
 	"github.com/carina-io/carina/utils"
 	"github.com/carina-io/carina/utils/log"
 	"github.com/fsnotify/fsnotify"
+	"golang.org/x/net/context"
+	corev1 "k8s.io/api/core/v1"
+	"sigs.k8s.io/controller-runtime/pkg/cache"
 	// 依赖冲突，把整个proto目录挪移过来
 	//pluginapi "k8s.io/kubelet/pkg/apis/deviceplugin/v1beta1"
 )
 
-func Run(volumeManager volume.LocalVolume, stopChan <-chan struct{}) {
-
+func Run(cache cache.Cache, volumeManager volume.LocalVolume, stopChan <-chan struct{}) {
+	cache.WaitForCacheSync(context.Background())
 	watcher, err := newFSWatcher(v1beta1.DevicePluginPath)
 	if err != nil {
 		log.Errorf("Failed to create FS watcher: %v", err)
 		os.Exit(-1)
 	}
+
 	defer watcher.Close()
 
 	plugins := []*CarinaDevicePlugin{}
@@ -45,7 +50,8 @@ restart:
 	}
 
 	log.Info("Retreiving plugins.")
-	diskClass := configuration.GetDiskGroups()
+	diskClass := CheckNodeVg(cache)
+	log.Debug("diskClass:", diskClass)
 	for _, d := range diskClass {
 
 		c := make(chan struct{}, 5)
@@ -56,7 +62,7 @@ restart:
 			v1beta1.DevicePluginPath+d+".sock",
 		))
 		// 注册通知服务
-		log.Info("register volume notice server.")
+		log.Info("register volume notice server.", d)
 		volumeManager.RegisterNoticeServer(d, c)
 	}
 
@@ -92,12 +98,10 @@ events:
 				log.Infof("inotify: %s created, restarting.", v1beta1.KubeletSocket)
 				goto restart
 			}
-		case event := <-watcher.Events:
-			//接收到创建文件的事件，
-			if event.Op&fsnotify.Create == fsnotify.Create || event.Op&fsnotify.Remove == fsnotify.Remove {
-				//log.Infof("inotify: %s created, restarting.", v1beta1.KubeletSocket)
-				goto restart
-			}
+		//configModifyNoticeToPlugin
+		case <-configuration.ConfigModifyNoticeToPlugin:
+			log.Info("inotify: config change event")
+			goto restart
 		// Watch for any other fs errors and log them.
 		case err := <-watcher.Errors:
 			log.Infof("inotify: %s", err)
@@ -109,4 +113,41 @@ events:
 			return
 		}
 	}
+}
+
+func CheckNodeLabel(cache cache.Cache, nodeLabelKey string) (flag bool, err error) {
+	//nodelabekey 为空，对所有节点有效
+	if nodeLabelKey == "" {
+		return true, nil
+	}
+	nodeList := &corev1.NodeList{}
+	if err = cache.List(context.Background(), nodeList); err != nil {
+		return false, err
+	}
+	for _, n := range nodeList.Items {
+		if _, ok := n.Labels[nodeLabelKey]; ok && n.Name == os.Getenv("NODE_NAME") {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
+func CheckNodeVg(cache cache.Cache) (diskClass []string) {
+	currentDiskSelector := configuration.DiskSelector()
+	log.Debugf("get cofig disk %s", currentDiskSelector)
+	for _, v := range currentDiskSelector {
+		flag, err := CheckNodeLabel(cache, v.NodeLabel)
+		if err != nil {
+			log.Errorf("get node labels error:", err)
+			return []string{}
+		}
+		if flag {
+			if strings.ToLower(v.Policy) == "raw" {
+				continue
+			}
+			diskClass = append(diskClass, v.Name)
+		}
+	}
+
+	return diskClass
 }

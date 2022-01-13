@@ -6,64 +6,34 @@ metadata:
   namespace: {{ .Release.Namespace }}
 {{ include "carina-node.labels" . | indent 2 }}
 data:
- config.json: |-
+  config.json: |-
     {
       "diskSelector": [
-         {
-          "name": "carina-vg-ssd" ,
-          "re": ["vdb"],
+        {
+          "name": "hdd1" ,
+          "re": ["loop*"],
           "policy": "LVM",
           "nodeLabel": "kubernetes.io/hostname"
         },
          {
-          "name": "carina-vg-hdd" ,
-          "re": ["vdc"],
-          "policy": "LVM",
-          "nodeLabel": "kubernetes.io/hostname"
-        },
-         {
-          "name": "carina-vg-test-ssd" ,
-          "re": ["vdd"],
+          "name": "hdd2",
+          "re": ["loop*", "ad*"],
           "policy": "LVM",
           "nodeLabel": "kubernetes.io/hostname"
         },
         {
-          "name": "carina-vg-test-vdd" ,
-          "re": ["vdd1"],
-          "policy": "LVM",
-          "nodeLabel": "topology.carina.storage.io/vgs"
+          "name": "ssd",
+          "re": ["loop*", "vd*"],
+          "policy": "RAW",
+         "nodeLabel": "kubernetes.io/hostname"
         },
          {
-          "name": "vdd1" ,
-          "re": ["loop*"],
-          "policy": "LVM",
-          "nodeLabel": "kubernetes.io/hostname"
-        },
-         {
-          "name": "vdd2" ,
-          "re": ["a"],
-          "policy": "LVM",
-          "nodeLabel": "kubernetes.io/hostname"
-        },
-         {
-          "name": "hdd1" ,
-          "re": ["a"],
-          "policy": "LVM",
-          "nodeLabel": "kubernetes.io/hostname"
-        },
-         {
-          "name": "hdd2" ,
-          "re": ["a"],
-          "policy": "LVM",
-          "nodeLabel": "kubernetes.io/hostname"
-        },
-         {
-          "name": "carina-vg-test-raw",
-          "re": ["loop*"],
+          "name": "ssd",
+          "re": ["loop*", "vd*"],
           "policy": "RAW",
           "nodeLabel": "kubernetes.io/hostname"
         }
       ],
       "diskScanInterval": "300",
-      "schedulerStrategy": "spreadout"    
+      "schedulerStrategy": "spreadout"
     }
