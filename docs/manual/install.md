@@ -33,3 +33,27 @@
 
   - 安装卸载该服务，对已经挂载到容器内使用的volume卷无影响
 
+#### Helm安装
+
+- 通过helm chart支持多版本carina安装
+
+##### 安装
+
+```
+helm repo add carina-csi-driver https://raw.githubusercontent.com/carina-io/charts/main
+
+helm search repo -l carina-csi-driver
+
+helm install carina-csi-driver carina-csi-driver/carina-csi-driver --namespace kube-system --version v0.9.0
+```
+
+##### 版本升级
+
+- 先卸载旧版本，然后安装新版本
+
+```
+
+```
+
+##### 可配置参数说明
+
