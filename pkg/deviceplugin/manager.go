@@ -28,6 +28,7 @@ import (
 	"os"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"strings"
 	// 依赖冲突，把整个proto目录挪移过来
 	//pluginapi "k8s.io/kubelet/pkg/apis/deviceplugin/v1beta1"
 )
@@ -52,7 +53,7 @@ restart:
 	}
 
 	log.Info("Retreiving plugins.")
-	diskClass := GetNodeVg(nodeName, cache)
+	_, diskClass := getDiskGroup(nodeName, cache)
 	log.Debug("diskClass:", diskClass)
 	for _, d := range diskClass {
 
@@ -103,7 +104,11 @@ events:
 		//configModifyNoticeToPlugin
 		case <-c:
 			log.Info("inotify: config change event")
-			goto restart
+			need, _ := getDiskGroup(nodeName, cache)
+			if need {
+				log.Info("Restart the service because the device plug-in has changed")
+				goto restart
+			}
 		// Watch for any other fs errors and log them.
 		case err := <-watcher.Errors:
 			log.Infof("inotify: %s", err)
@@ -117,22 +122,33 @@ events:
 	}
 }
 
-func GetNodeVg(nodeName string, cache cache.Cache) (diskClass []string) {
+func getDiskGroup(nodeName string, cache cache.Cache) (bool, []string) {
+	diskClass := []string{}
 	currentDiskSelector := configuration.DiskSelector()
 	log.Debugf("get config disk %s", currentDiskSelector)
 	node := &corev1.Node{}
 	err := cache.Get(context.Background(), client.ObjectKey{Name: nodeName}, node)
 	if err != nil {
 		log.Errorf("get node %s error %s", node, err.Error())
-		return diskClass
+		return false, diskClass
 	}
 	for _, v := range currentDiskSelector {
 		if v.NodeLabel == "" {
 			diskClass = append(diskClass, v.Name)
+			continue
 		}
 		if _, ok := node.Labels[v.NodeLabel]; ok {
 			diskClass = append(diskClass, v.Name)
+			continue
 		}
 	}
-	return diskClass
+	//
+	currentClass := []string{}
+	for key, _ := range node.Status.Capacity {
+		if strings.HasPrefix(string(key), utils.DeviceCapacityKeyPrefix) {
+			sf := strings.Split(string(key), "/")[1]
+			currentClass = append(currentClass, sf)
+		}
+	}
+	return !utils.SliceEqualSlice(currentClass, diskClass), diskClass
 }

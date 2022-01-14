@@ -75,6 +75,8 @@ spec:
                   fieldPath: spec.nodeName
             - name: ADDRESS
               value: /csi/csi.sock
+#            - name: DEBUG
+#              value: "true"
           ports:
             - containerPort: 8080
               name: metrics
