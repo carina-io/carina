@@ -51,9 +51,9 @@ restart:
 	for _, p := range plugins {
 		_ = p.Stop()
 	}
-
 	log.Info("Retreiving plugins.")
-	_, diskClass := getDiskGroup(nodeName, cache)
+	_, diskClass := getDiskGroup(nodeName, cache, plugins)
+	plugins = []*CarinaDevicePlugin{}
 	log.Debug("diskClass:", diskClass)
 	for _, d := range diskClass {
 
@@ -104,9 +104,9 @@ events:
 		//configModifyNoticeToPlugin
 		case <-c:
 			log.Info("inotify: config change event")
-			need, _ := getDiskGroup(nodeName, cache)
+			need, _ := getDiskGroup(nodeName, cache, plugins)
 			if need {
-				log.Info("Restart the service because the device plug-in has changed")
+				log.Info("Restart the service because the device plugin has changed")
 				goto restart
 			}
 		// Watch for any other fs errors and log them.
@@ -122,7 +122,7 @@ events:
 	}
 }
 
-func getDiskGroup(nodeName string, cache cache.Cache) (bool, []string) {
+func getDiskGroup(nodeName string, cache cache.Cache, plugins []*CarinaDevicePlugin) (bool, []string) {
 	diskClass := []string{}
 	currentDiskSelector := configuration.DiskSelector()
 	log.Debugf("get config disk %s", currentDiskSelector)
@@ -133,7 +133,7 @@ func getDiskGroup(nodeName string, cache cache.Cache) (bool, []string) {
 		return false, diskClass
 	}
 	for _, v := range currentDiskSelector {
-		if v.NodeLabel == "" {
+		if len(v.NodeLabel) == 0 {
 			diskClass = append(diskClass, v.Name)
 			continue
 		}
@@ -144,11 +144,9 @@ func getDiskGroup(nodeName string, cache cache.Cache) (bool, []string) {
 	}
 	//
 	currentClass := []string{}
-	for key, _ := range node.Status.Capacity {
-		if strings.HasPrefix(string(key), utils.DeviceCapacityKeyPrefix) {
-			sf := strings.Split(string(key), "/")[1]
-			currentClass = append(currentClass, sf)
-		}
+	for _, p := range plugins {
+		sf := strings.Split(p.resourceName, "/")[1]
+		currentClass = append(currentClass, sf)
 	}
 	return !utils.SliceEqualSlice(currentClass, diskClass), diskClass
 }

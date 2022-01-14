@@ -20,24 +20,6 @@ data:
           "re": ["loop3+"],
           "policy": "LVM",
           "nodeLabel": "kubernetes.io/hostname"
-        },
-        {
-          "name": "exist-vg-group",
-          "re": ["loop4+"],
-          "policy": "LVM",
-          "nodeLabel": "kubernetes.io/hostname"
-        },
-        {
-          "name": "new-vg-group",
-          "re": ["loop5+"],
-          "policy": "LVM",
-          "nodeLabel": "kubernetes.io/hostname"
-        },
-        {
-          "name": "raw",
-          "re": ["vdb+", "sd+"],
-          "policy": "RAW",
-          "nodeLabel": "kubernetes.io/hostname"
         }
       ],
       "diskScanInterval": "300",
