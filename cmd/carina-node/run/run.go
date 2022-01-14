@@ -134,7 +134,7 @@ func subMain() error {
 	}
 
 	// 启动磁盘检查
-	dm.DeviceCheckTask()
+	go dm.DeviceCheckTask()
 	// 启动volume一致性检查
 	dm.VolumeConsistencyCheck()
 	// 启动设备插件

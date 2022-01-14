@@ -400,7 +400,7 @@ func (dm *DeviceManager) DeviceCheckTask() {
 	}
 
 	ticker1 := time.NewTicker(time.Duration(monitorInterval) * time.Second)
-	go func(t *time.Ticker) {
+	func(t *time.Ticker) {
 		defer ticker1.Stop()
 		for {
 			select {
