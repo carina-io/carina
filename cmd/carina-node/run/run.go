@@ -19,6 +19,8 @@ package run
 import (
 	"context"
 	"errors"
+	"os"
+
 	carinav1 "github.com/carina-io/carina/api/v1"
 	"github.com/carina-io/carina/controllers"
 	"github.com/carina-io/carina/pkg/csidriver/csi"
@@ -32,7 +34,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
-	"os"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	// +kubebuilder:scaffold:imports
@@ -77,7 +78,7 @@ func subMain() error {
 	// 初始化磁盘管理服务
 	stopChan := make(chan struct{})
 	defer close(stopChan)
-	dm := deviceManager.NewDeviceManager(mgr.GetClient(),nodeName, mgr.GetCache(), stopChan)
+	dm := deviceManager.NewDeviceManager(nodeName, mgr.GetCache(), stopChan)
 
 	podController := controllers.PodReconciler{
 		Client:   mgr.GetClient(),
@@ -101,6 +102,10 @@ func subMain() error {
 
 	if err := lvController.SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "LogicalVolume")
+		return err
+	}
+
+	if _, err := mgr.GetCache().GetInformer(ctx, &corev1.Node{}); err != nil {
 		return err
 	}
 	// +kubebuilder:scaffold:builder
@@ -129,11 +134,11 @@ func subMain() error {
 	}
 
 	// 启动磁盘检查
-	dm.DeviceCheckTask()
+	go dm.DeviceCheckTask()
 	// 启动volume一致性检查
 	dm.VolumeConsistencyCheck()
 	// 启动设备插件
-	go deviceplugin.Run(dm.VolumeManager, stopChan)
+	go deviceplugin.Run(nodeName, mgr.GetCache(), dm.VolumeManager, stopChan)
 	// http server
 	e := newHttpServer(dm.VolumeManager, stopChan)
 	go e.start()

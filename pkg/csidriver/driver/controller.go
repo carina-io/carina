@@ -20,14 +20,16 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/carina-io/carina/pkg/csidriver/csi"
-	"github.com/carina-io/carina/pkg/csidriver/driver/k8s"
-	"github.com/carina-io/carina/utils"
-	"github.com/carina-io/carina/utils/log"
-	"github.com/carina-io/carina/utils/mutx"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/carina-io/carina/pkg/csidriver/csi"
+	"github.com/carina-io/carina/pkg/csidriver/driver/k8s"
+	"github.com/carina-io/carina/pkg/version"
+	"github.com/carina-io/carina/utils"
+	"github.com/carina-io/carina/utils/log"
+	"github.com/carina-io/carina/utils/mutx"
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -59,13 +61,7 @@ func (s controllerService) CreateVolume(ctx context.Context, req *csi.CreateVolu
 	name = strings.ToLower(name)
 
 	// 处理磁盘类型参数，支持carina.storage.io/disk-type:ssd书写方式
-	deviceGroup = strings.ToLower(deviceGroup)
-	if deviceGroup != "" {
-		if !strings.HasPrefix(deviceGroup, "carina-vg-") {
-			deviceGroup = fmt.Sprintf("carina-vg-%s", deviceGroup)
-		}
-	}
-
+    deviceGroup = version.GetDeviceGroup(deviceGroup)
 	log.Info("CreateVolume called ",
 		" name ", req.GetName(),
 		" device_group ", deviceGroup,

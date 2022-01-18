@@ -1,4 +1,5 @@
 carina-scheduler:
+  enabled: false
   image:
     repository: registry.cn-hangzhou.aliyuncs.com/antmoveh/scheduler
     pullPolicy: IfNotPresent
@@ -116,7 +117,9 @@ node:
       - dm_thin_pool
   enablePerfOptimization: true
   tolerations:
-    - operator: "Exists"
+    # - key: "node-role.kubernetes.io/master"
+    #   operator: "Exists"
+    #   effect: "NoSchedule"
   hostNetwork: false # this setting could be disabled if perfProfile is `none`
   maxUnavailable: 1
   podLabels: {}
@@ -160,3 +163,9 @@ serviceMonitor:
 webhook:
   enabled: true
 
+storage:
+  # file system
+  fstype: xfs
+  # disk group
+  disktype: carina-vg-hdd
+  reclaimPolicy: Delete

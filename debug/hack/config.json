@@ -1,27 +1,15 @@
 {
   "diskSelector": [
     {
-      "name": "hdd1" ,
-      "re": ["loop*"],
+      "name": "carina-vg-ssd",
+      "re": ["loop2+"],
       "policy": "LVM",
       "nodeLabel": "kubernetes.io/hostname"
     },
     {
-      "name": "hdd2",
-      "re": ["loop*", "ad*"],
+      "name": "carina-vg-hdd",
+      "re": ["loop3+"],
       "policy": "LVM",
-      "nodeLabel": "kubernetes.io/hostname"
-    },
-    {
-      "name": "ssd",
-      "re": ["loop*", "vd*"],
-      "policy": "RAW",
-      "nodeLabel": "kubernetes.io/hostname"
-    },
-    {
-      "name": "ssd",
-      "re": ["loop*", "vd*"],
-      "policy": "RAW",
       "nodeLabel": "kubernetes.io/hostname"
     }
   ],

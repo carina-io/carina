@@ -345,6 +345,7 @@ func (v *LocalVolumeImplement) GetCurrentPvStruct() ([]types.PVInfo, error) {
 }
 
 func (v *LocalVolumeImplement) AddNewDiskToVg(disk, vgName string) error {
+	vgName = strings.ToLower(vgName)
 	if !v.Mutex.TryAcquire(VOLUMEMUTEX) {
 		log.Info("wait other task release mutex, please retry...")
 		return errors.New("get global mutex failed")

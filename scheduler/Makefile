@@ -15,7 +15,7 @@ docker-build:
 	go mod vendor
 	docker build -t $(IMG) .
 	rm -rf vendor
-
+	docker push $(IMG)
 
 # Push the docker image
 release:

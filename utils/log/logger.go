@@ -78,7 +78,10 @@ func init() {
 	//}
 	encoder := zapcore.NewConsoleEncoder(encoderConfig)
 
-	level := zap.DebugLevel
+	level := zap.InfoLevel
+	if os.Getenv("DEBUG") != "" {
+		level = zap.DebugLevel
+	}
 	core := zapcore.NewCore(
 		encoder,
 		syncer,

@@ -6,34 +6,22 @@ metadata:
   namespace: {{ .Release.Namespace }}
 {{ include "carina-node.labels" . | indent 2 }}
 data:
- config.json: |-
+  config.json: |-
     {
       "diskSelector": [
         {
-          "name": "hdd1" ,
-          "re": ["vdb"],
-          "policy": "LVM",
-          "nodeLabel": "kubernetes.io/hostname"
-        },
-         {
-          "name": "hdd2", 
-          "re": ["vdc"],
+          "name": "carina-vg-ssd" ,
+          "re": ["loop2+"],
           "policy": "LVM",
           "nodeLabel": "kubernetes.io/hostname"
         },
         {
-          "name": "ssd1",
-          "re": ["loop*","vdd1"],
-          "policy": "RAW",
-         "nodeLabel": "kubernetes.io/hostname"
-        },
-         {
-          "name": "ssd2",
-          "re": ["vdd2"],
-          "policy": "RAW",
+          "name": "carina-vg-hdd",
+          "re": ["loop3+"],
+          "policy": "LVM",
           "nodeLabel": "kubernetes.io/hostname"
         }
       ],
       "diskScanInterval": "300",
-      "schedulerStrategy": "spreadout"    
+      "schedulerStrategy": "spreadout"
     }

@@ -14,8 +14,12 @@ deploy:
         chartPath: ./charts
         setValues:
           image.carina.repository: registry.cn-hangzhou.aliyuncs.com/antmoveh/carina
-          image.carina.tag: v0.9.0-70-gfa3f605-dirty
+          image.carina.tag: v0.9.0-78-gfb04fc3-dirty
           image.carina.pullPolicy: Always
+          carina-scheduler.enabled: true
+          carina-scheduler.image.tag: v0.9.0-77-g3583395
+          carina-scheduler.image.pullPolicy: Always
         imageStrategy:
           helm: 
            explicitRegistry: true
+  

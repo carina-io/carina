@@ -37,12 +37,10 @@ const (
 	configPath         = "/etc/carina/"
 	SchedulerBinpack   = "binpack"
 	Schedulerspreadout = "spreadout"
-	diskGroupType      = "type"
 )
 
 var TestAssistDiskSelector []string
 var configModifyNotice []chan<- struct{}
-var err error
 var GlobalConfig *viper.Viper
 var DiskConfig Disk
 var opt = viper.DecodeHook(mapstructure.ComposeDecodeHookFunc(
@@ -54,8 +52,9 @@ var opt = viper.DecodeHook(mapstructure.ComposeDecodeHookFunc(
 			return data, nil
 		}
 		mapstructure.Decode(data.(map[string]interface{}), &DiskConfig)
+		DiskConfig.DiskSelectors = []DiskSelectorItem{}
 		mapstructure.Decode(data.(map[string]interface{})["diskselector"], &DiskConfig.DiskSelectors)
-		return data, err
+		return data, nil
 	},
 ))
 
@@ -78,10 +77,6 @@ type Disk struct {
 	DiskSelectors     []DiskSelectorItem `json:"diskSelectors"`
 	DiskScanInterval  int64              `json:"diskScanInterval"`
 	SchedulerStrategy string             `json:"schedulerStrategy"`
-}
-
-type DiskClass struct {
-	DiskClassByName map[string]DiskSelectorItem `json:"diskClassByName"`
 }
 
 func init() {
@@ -117,13 +112,15 @@ func dynamicConfig() {
 		log.Infof("Detect config change: %s", event.String())
 		for _, c := range configModifyNotice {
 			log.Info("generates the configuration change event")
-			err = GlobalConfig.Unmarshal(&DiskConfig, opt)
+			err := GlobalConfig.Unmarshal(&DiskConfig, opt)
 			if err != nil {
-				log.Errorf("Failed to unmarshal the configuration:%s", err)
+				log.Errorf("Failed to unmarshal the configuration: %s", err)
+				os.Exit(-1)
 			}
 			err = Validate(DiskConfig)
 			if err != nil {
-				log.Errorf("Failed to validate the configuration%s", err)
+				log.Errorf("Failed to validate the configuration: %s", err)
+				os.Exit(-1)
 			}
 			c <- struct{}{}
 		}
@@ -134,32 +131,7 @@ func RegisterListenerChan(c chan<- struct{}) {
 	configModifyNotice = append(configModifyNotice, c)
 }
 
-func NewDiskClass(diskSelectors []DiskSelectorItem) *DiskClass {
-	disk := DiskClass{}
-	disk.DiskClassByName = make(map[string]DiskSelectorItem)
-	for _, d := range diskSelectors {
-		if d.Policy == "RAW" {
-			continue
-		}
-		disk.DiskClassByName[d.Name] = d
-	}
-	return &disk
-}
-
-func (disk *Disk) GetDiskGroups() (vgs []string) {
-	for _, d := range disk.DiskSelectors {
-		if d.Policy == "RAW" {
-			continue
-		}
-		if !utils.ContainsString(vgs, d.Name) {
-			vgs = append(vgs, d.Name)
-		}
-	}
-    
-	return vgs
-}
-
-// 支持正则表达式
+// DiskSelector 支持正则表达式
 // 定时扫描本地磁盘，凡是匹配的将被加入到相应vg卷组
 // 对于此配置的修改需要非常慎重，如果更改匹配条件，可能会移除正在使用的磁盘
 func DiskSelector() []DiskSelectorItem {
@@ -187,7 +159,7 @@ func DiskScanInterval() int64 {
 	return diskScanInterval
 }
 
-// SchedulerStrategy pv调度策略binpac/spreadout，默认为binpac
+// SchedulerStrategy pv调度策略binpack/spreadout，默认为binpack
 func SchedulerStrategy() string {
 	schedulerStrategy := GlobalConfig.GetString("schedulerStrategy")
 	if utils.ContainsString([]string{SchedulerBinpack, Schedulerspreadout}, strings.ToLower(schedulerStrategy)) {
@@ -207,7 +179,7 @@ func RuntimeNamespace() string {
 }
 
 func Validate(disk Disk) error {
-	dcNames := make(map[string]bool)
+	vgGroup := make(map[string]bool)
 	var diskNameRegexp = regexp.MustCompile("^([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9]$")
 	var diskScanRegexp = regexp.MustCompile("(?i)^([0-9]*)?$")
 	var schedulerStrategyRegexp = regexp.MustCompile("(?i)^(spreadout|binpack)?$")
@@ -228,12 +200,10 @@ func Validate(disk Disk) error {
 		if len(dc.Re) == 0 {
 			return fmt.Errorf("disk regexp should not be empty: %s", dc.Re)
 		}
-
-		if dcNames[dc.Name] {
-			return fmt.Errorf("duplicate disk name: %s", dc.Name)
+		if vgGroup[dc.Name] {
+			return fmt.Errorf("duplicate vg group: %s", dc.Name)
 		}
-		dcNames[dc.Name] = true
-
+		vgGroup[dc.Name] = true
 	}
 	return nil
 }
