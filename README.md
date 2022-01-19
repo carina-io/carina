@@ -85,11 +85,11 @@ $ ./deploy.sh uninstall
 - Support installation of specified versions of Carina
 
 ```bash
-helm repo add carina-csi-driver https://raw.githubusercontent.com/carina-io/charts/main
+helm repo add carina-csi-driver https://carina-io.github.io/charts
 
 helm search repo -l carina-csi-driver
 
-helm install carina-csi-driver carina-csi-driver/carina-csi-driver --namespace kube-system --version v0.9.0
+helm install carina-csi-driver carina-csi-driver/carina-csi-driver --namespace kube-system --version v0.9.1
 ```
 
 * [deployment guide](docs/manual/install.md)
