@@ -123,7 +123,7 @@ allocatable:
     carina.storage.io/carina-vg-test-ssd: "0"
     carina.storage.io/carina-vg-test-vdd: "0"
     cpu: "8"
-
+```
 - kubectl get  nodes dev1-node-5.novalocal -oyaml |grep allocatable -A 5
 
 ```
@@ -134,7 +134,7 @@ allocatable:
     carina.storage.io/carina-vg-test-vdd: "0"
     cpu: "8"
 
-
+```
 ## 测试存储是否运行正常，如果已经安装并正常使用忽略此步骤
 -  下载示例文件
 ```
@@ -156,7 +156,7 @@ carina-deployment-7cd5cd85c9-mstwj   1/1     Running   0          14m
 kubectl  delete -f pvc.yaml -f deployment.yaml
 ```
 
-## 到环境检测正常，安装mysql中间件示例 参考这个项目示例[https://github.com/bitpoke/mysql-operator]
+## 到此实验环境检测正常，安装mysql中间件示例 参考这个项目示例[https://github.com/bitpoke/mysql-operator]
 
 -  安装operator
 
@@ -297,7 +297,7 @@ my-cluster-mysql-0   4/4     Running   0          23m   10.245.2.65   dev1-node-
 my-cluster-mysql-0   4/4     Terminating   0          29m   10.245.2.65   dev1-node-2.novalocal   <none>           <none>
 
 ```
-- 如果这里在其他节点正常创建了，那么就不用处理一下情况了
+- 如果这里在其他节点正常创建了，那么就不用处理以下情况了
 - 问题：怎么没有创建呢，这是因为csi-carina-controller 正好也是在故障节点上，这个时候等待k8s去驱逐，在新的节点上重建
 ```
 root@dev1-master zhangkai]# kubectl get pods -n kube-system -o wide  |grep carina  
@@ -313,7 +313,7 @@ csi-carina-node-ww24j                                2/2     Running            
 csi-carina-node-zwlcq                                2/2     Running            6          8m48s   10.245.1.215   dev1-node-1.novalocal   <none>           <none>
 
 ```
-- 等待新的csi-carina-controller runing后所有需要我们自己手动处理一下，当前等待迁移的pods已经处于Terminating了，这个时候需要手动触发一次
+- 等待新的csi-carina-controller runing后需要我们自己手动处理一下，当前等待迁移的pods已经处于Terminating了，这个时候需要手动触发一次
 - kubectl delete pods my-cluster-mysql-0 -n carina --force 
 
 ```
