@@ -39,8 +39,21 @@ helm install carina-csi-driver carina-csi-driver/carina-csi-driver --namespace k
 - 设置storageclass  查看默认存储磁盘组是否满足匹配磁盘
 
 ```
+allowVolumeExpansion: true
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  annotations:
+    meta.helm.sh/release-name: carina-csi-driver
+    meta.helm.sh/release-namespace: kube-system
+  creationTimestamp: "2022-01-24T02:26:12Z"
+  labels:
+    app.kubernetes.io/managed-by: Helm
+  name: csi-carina-sc
+  resourceVersion: "50310602"
+  uid: 442eeaf0-4d97-44d1-a526-1ddb80a01c27
 parameters:
-  carina.storage.io/disk-type: carina-vg-hdd
+  carina.storage.io/disk-type: hdd
   csi.storage.k8s.io/fstype: xfs
 provisioner: carina.storage.io
 reclaimPolicy: Delete
@@ -166,7 +179,7 @@ helm search repo -l mysql
 ```
 - 设置参数persistence.enabled=fasle，关闭operator使用存储
 ```
-helm install mysql-operator bitpoke/mysql-operator --namespace carina --version 0.6.2 --set persistence.enabled=fasle
+helm install mysql-operator bitpoke/mysql-operator --namespace carina --version 0.6.2 --set orchestrator.persistence.enabled=false
 kubectl get pods -n carina -w 
 
 NAME                   READY   STATUS    RESTARTS   AGE     IP             NODE                    NOMINATED NODE   READINESS GATES
