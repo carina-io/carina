@@ -280,10 +280,17 @@ my-cluster-mysql-0   2/4     Running   0          43s   10.245.2.28   dev1-node-
 
 ```
 - 给pods 添加注解carina.io/rebuild-node-notready: true
-
-- kubectl -n carina annotate pods my-cluster-mysql-0 carina.io/rebuild-node-notready='true'
+- 编辑example-cluster.yaml，设置注解
 ```
-pod/my-cluster-mysql-0 annotated
+podSpec:
+     annotations:
+      carina.io/rebuild-node-notready: "true"
+```
+-  kubectl apply -f example-cluster.yaml  -f example-cluster-secret.yaml -n carina 
+```
+mysqlcluster.mysql.presslabs.org/my-cluster created
+secret/my-secret created
+```y-cluster-mysql-0 annotated
 ```
 - kubectl get pods my-cluster-mysql-0 -n carina -oyaml |grep carina.io/rebuild-node-notready
 ```
