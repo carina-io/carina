@@ -255,7 +255,7 @@ spec:
             - patch
             - --webhook-name=carina-hook
             - --namespace=$(POD_NAMESPACE)
-            - --patch-mutating=false
+            - --patch-validating=false
             - --secret-name=mutatingwebhook
             - --patch-failure-policy=Fail
           env:
