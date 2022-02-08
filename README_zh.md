@@ -58,12 +58,8 @@ Carina 是一款基于 Kubernetes CSI 标准实现的存储插件，用户可以
 
 ```shell
 $ cd deploy/kubernetes
-# 安装，默认安装在kube-system，若是安裝在其他命名，请使用如下自定义签名的安装方式
+# 安装，默认安装在kube-system
 $ ./deploy.sh
-
-# 如果要根据本地环境生成webhook证书，可使用如下命令安装
-# 注意如果kubernetes>=1.22需要修改gen_webhookca.sh中的certificates.k8s.io/v1beta1为v1
-$ ./deploy.sh sign
 
 # 卸载
 $ ./deploy.sh uninstall
