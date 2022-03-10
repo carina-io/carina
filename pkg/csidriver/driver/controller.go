@@ -24,12 +24,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/carina-io/carina/pkg/csidriver/csi"
 	"github.com/carina-io/carina/pkg/csidriver/driver/k8s"
 	"github.com/carina-io/carina/pkg/version"
 	"github.com/carina-io/carina/utils"
 	"github.com/carina-io/carina/utils/log"
 	"github.com/carina-io/carina/utils/mutx"
+	"github.com/container-storage-interface/spec/lib/go/csi"
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"

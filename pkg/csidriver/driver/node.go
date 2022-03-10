@@ -27,13 +27,13 @@ import (
 	"sync"
 
 	"github.com/carina-io/carina/pkg/configuration"
-	"github.com/carina-io/carina/pkg/csidriver/csi"
 	"github.com/carina-io/carina/pkg/csidriver/driver/k8s"
 	"github.com/carina-io/carina/pkg/csidriver/filesystem"
 	"github.com/carina-io/carina/pkg/devicemanager/types"
 	"github.com/carina-io/carina/pkg/devicemanager/volume"
 	"github.com/carina-io/carina/utils"
 	"github.com/carina-io/carina/utils/log"
+	"github.com/container-storage-interface/spec/lib/go/csi"
 
 	"golang.org/x/sys/unix"
 	"google.golang.org/grpc/codes"

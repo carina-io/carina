@@ -23,12 +23,12 @@ import (
 
 	carinav1 "github.com/carina-io/carina/api/v1"
 	"github.com/carina-io/carina/controllers"
-	"github.com/carina-io/carina/pkg/csidriver/csi"
 	"github.com/carina-io/carina/pkg/csidriver/driver"
 	"github.com/carina-io/carina/pkg/csidriver/driver/k8s"
 	"github.com/carina-io/carina/pkg/csidriver/runners"
 	deviceManager "github.com/carina-io/carina/pkg/devicemanager"
 	"github.com/carina-io/carina/pkg/deviceplugin"
+	"github.com/container-storage-interface/spec/lib/go/csi"
 	"google.golang.org/grpc"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
