@@ -18,7 +18,7 @@ package deviceplugin
 
 import (
 	"fmt"
-	"github.com/carina-io/carina/pkg/devicemanager/types"
+	"github.com/carina-io/carina/api"
 	"github.com/carina-io/carina/pkg/devicemanager/volume"
 	"github.com/carina-io/carina/pkg/deviceplugin/v1beta1"
 	"github.com/carina-io/carina/utils"
@@ -271,7 +271,7 @@ func (dp *CarinaDevicePlugin) getDeviceCapacity() ([]*v1beta1.Device, error) {
 	// Kubelet实质只是获取一下设备数量len(v1betal.Device)，就像8个gpu
 	// 基于此需要展示我们的黑科技了，基于容量构建一个数组，为了避免数组太大，以G为单位
 
-	var capacity types.VgGroup
+	var capacity api.VgGroup
 	for _, v := range vgs {
 		if strings.HasSuffix(dp.resourceName, v.VGName) {
 			capacity = v

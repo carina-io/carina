@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/carina-io/carina/api"
 	"github.com/carina-io/carina/pkg/devicemanager/types"
 	"github.com/carina-io/carina/utils/log"
 	"github.com/labstack/echo/v4"
@@ -76,7 +77,7 @@ func vgList(c echo.Context) error {
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, err.Error())
 	}
-	result := map[string][]types.VgGroup{}
+	result := map[string][]api.VgGroup{}
 	for _, ep := range endpoints {
 		resp, err := http.Get(fmt.Sprintf("http://%s:%d/devicegroup", ep.Ip, ep.Port))
 		if err != nil {
@@ -91,7 +92,7 @@ func vgList(c echo.Context) error {
 		if err != nil {
 			continue
 		}
-		r := []types.VgGroup{}
+		r := []api.VgGroup{}
 		err = json.Unmarshal(body, &r)
 		if err != nil {
 			return c.JSON(http.StatusInternalServerError, err.Error())

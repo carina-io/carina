@@ -105,6 +105,18 @@ func subMain() error {
 		return err
 	}
 
+	nodeController := controllers.NewNodeStorageResourceReconciler(
+		mgr.GetClient(),
+		mgr.GetScheme(),
+		nodeName,
+		dm.VolumeManager,
+	)
+
+	if err := nodeController.SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "NodeStorageResource")
+		return err
+	}
+
 	if _, err := mgr.GetCache().GetInformer(ctx, &corev1.Node{}); err != nil {
 		return err
 	}

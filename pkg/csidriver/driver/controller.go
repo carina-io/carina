@@ -61,7 +61,7 @@ func (s controllerService) CreateVolume(ctx context.Context, req *csi.CreateVolu
 	name = strings.ToLower(name)
 
 	// 处理磁盘类型参数，支持carina.storage.io/disk-type:ssd书写方式
-    deviceGroup = version.GetDeviceGroup(deviceGroup)
+	deviceGroup = version.GetDeviceGroup(deviceGroup)
 	log.Info("CreateVolume called ",
 		" name ", req.GetName(),
 		" device_group ", deviceGroup,
@@ -488,7 +488,6 @@ func (s controllerService) CreateBcacheVolume(ctx context.Context, req *csi.Crea
 	segments := map[string]string{}
 
 	if node == "" {
-		// xxxx
 		log.Info("decide node because accessibility_requirements not found")
 		nodeName, segmentsTmp, err := s.nodeService.SelectMultiVolumeNode(ctx, backendDiskType, cacheDiskType, backendRequestGb, cacheRequestGb, requirements)
 		if err != nil {

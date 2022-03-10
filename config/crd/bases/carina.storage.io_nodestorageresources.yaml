@@ -160,6 +160,7 @@ spec:
                 type: array
               raids:
                 items:
+                  description: Raid defines raid details
                   type: object
                 type: array
               syncTime:

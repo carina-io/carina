@@ -17,6 +17,7 @@
 package volume
 
 import (
+	"github.com/carina-io/carina/api"
 	"github.com/carina-io/carina/pkg/devicemanager/types"
 )
 
@@ -43,8 +44,8 @@ type LocalVolume interface {
 	CloneVolume(lvName, vgName, newLvName string) error
 
 	// GetCurrentVgStruct 额外的方法
-	GetCurrentVgStruct() ([]types.VgGroup, error)
-	GetCurrentPvStruct() ([]types.PVInfo, error)
+	GetCurrentVgStruct() ([]api.VgGroup, error)
+	GetCurrentPvStruct() ([]api.PVInfo, error)
 	AddNewDiskToVg(disk, vgName string) error
 	RemoveDiskInVg(disk, vgName string) error
 
