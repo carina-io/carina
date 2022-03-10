@@ -1,0 +1,6 @@
+apiVersion: carina.storage.io/v1beta1
+kind: NodeStorageResource
+metadata:
+  name: nodestorageresource-sample
+spec:
+  # TODO(user): Add fields here
