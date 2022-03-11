@@ -198,7 +198,7 @@ func Validate(disk Disk) error {
 			return fmt.Errorf("disk name should consist of alphanumeric characters, '-', '_' or '.', and should start and end with an alphanumeric character: %s", dc.Name)
 		}
 		if len(dc.Re) == 0 {
-			return fmt.Errorf("disk regexp should not be empty: %s", dc.Re)
+			log.Warnf("disk regexp should not be empty: %s", dc.Re)
 		}
 		if vgGroup[dc.Name] {
 			return fmt.Errorf("duplicate vg group: %s", dc.Name)
