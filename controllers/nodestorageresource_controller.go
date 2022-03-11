@@ -18,6 +18,7 @@ package controllers
 
 import (
 	"context"
+	"fmt"
 	"github.com/carina-io/carina/pkg/devicemanager/volume"
 	"github.com/carina-io/carina/utils"
 	"github.com/carina-io/carina/utils/log"
@@ -187,9 +188,8 @@ func (r *NodeStorageResourceReconciler) needUpdateLvmStatus(status *carinav1beta
 			if v.VGFree > utils.DefaultReservedSpace {
 				freeGb = (v.VGFree - utils.DefaultReservedSpace) >> 30
 			}
-			status.Capacity[v.VGName] = *resource.NewQuantity(int64(sizeGb), resource.BinarySI)
-			status.Allocatable[v.VGName] = *resource.NewQuantity(int64(freeGb), resource.BinarySI)
-
+			status.Capacity[fmt.Sprintf("%s%s", utils.DeviceCapacityKeyPrefix, v.VGName)] = *resource.NewQuantity(int64(sizeGb), resource.BinarySI)
+			status.Allocatable[fmt.Sprintf("%s%s", utils.DeviceCapacityKeyPrefix, v.VGName)] = *resource.NewQuantity(int64(freeGb), resource.BinarySI)
 		}
 		return true
 	}

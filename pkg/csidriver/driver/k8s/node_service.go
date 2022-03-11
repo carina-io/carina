@@ -20,6 +20,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	carinav1beta1 "github.com/carina-io/carina/api/v1beta1"
 	"sort"
 	"strings"
 	"time"
@@ -40,6 +41,8 @@ const annAlphaSelectedNode = "volume.alpha.kubernetes.io/selected-node"
 
 type nodeService interface {
 	getNodes(ctx context.Context) (*corev1.NodeList, error)
+	// getNodeStorageResources
+	getNodeStorageResources(ctx context.Context) (map[string]carinav1beta1.NodeStorageResourceStatus, error)
 	// SelectVolumeNode 支持 volume size 及 topology match
 	SelectVolumeNode(ctx context.Context, request int64, deviceGroup string, requirement *csi.TopologyRequirement) (string, string, map[string]string, error)
 	GetCapacityByNodeName(ctx context.Context, nodeName, deviceGroup string) (int64, error)
@@ -60,8 +63,21 @@ type NodeService struct {
 	client.Client
 }
 
+// +kubebuilder:rbac:groups=carina.storage.io,resources=NodeStorageResources,verbs=get;list;watch
+// +kubebuilder:rbac:groups="",resources=nodes,verbs=get;list;watch
+
 // NewNodeService returns NodeService.
 func NewNodeService(mgr manager.Manager) *NodeService {
+
+	ctx := context.Background()
+	err := mgr.GetFieldIndexer().IndexField(ctx, &carinav1beta1.NodeStorageResource{}, "spec.nodeName",
+		func(o client.Object) []string {
+			return []string{o.(*carinav1beta1.NodeStorageResource).Spec.NodeName}
+		})
+	if err != nil {
+		return nil
+	}
+
 	return &NodeService{Client: mgr.GetClient()}
 }
 
@@ -72,6 +88,36 @@ func (s NodeService) getNodes(ctx context.Context) (*corev1.NodeList, error) {
 		return nil, err
 	}
 	return nl, nil
+}
+
+func (s NodeService) getNodeStorageResources(ctx context.Context) (map[string]carinav1beta1.NodeStorageResourceStatus, error) {
+	readyNSR := map[string]carinav1beta1.NodeStorageResourceStatus{}
+
+	nl := new(corev1.NodeList)
+	err := s.List(ctx, nl)
+	if err != nil {
+		return readyNSR, err
+	}
+	// only ready nodes are returned
+	readyNode := map[string]uint8{}
+	for _, n := range nl.Items {
+		for _, s := range n.Status.Conditions {
+			if s.Type == corev1.NodeReady && s.Status == corev1.ConditionTrue {
+				readyNode[n.Name] = 1
+			}
+		}
+	}
+	nsr := new(carinav1beta1.NodeStorageResourceList)
+	err = s.Client.List(ctx, nsr)
+	if err != nil {
+		return readyNSR, err
+	}
+	for _, sr := range nsr.Items {
+		if _, exists := readyNode[sr.Spec.NodeName]; exists {
+			readyNSR[sr.Spec.NodeName] = sr.Status
+		}
+	}
+	return readyNSR, nil
 }
 
 func (s NodeService) SelectVolumeNode(ctx context.Context, requestGb int64, deviceGroup string, requirement *csi.TopologyRequirement) (string, string, map[string]string, error) {
@@ -85,12 +131,17 @@ func (s NodeService) SelectVolumeNode(ctx context.Context, requestGb int64, devi
 		return "", "", segments, err
 	}
 
-	type paris struct {
+	nsr, err := s.getNodeStorageResources(ctx)
+	if err != nil {
+		return "", "", segments, err
+	}
+
+	type pairs struct {
 		Key   string
 		Value int64
 	}
 
-	preselectNode := []paris{}
+	preselectNode := []pairs{}
 
 	for _, node := range nl.Items {
 
@@ -110,20 +161,24 @@ func (s NodeService) SelectVolumeNode(ctx context.Context, requestGb int64, devi
 				continue
 			}
 		}
+		// Only ready nodes exist
+		status, exists := nsr[node.Name]
+		if !exists {
+			continue
+		}
 
 		// capacity selector
 		// 注册设备时有特殊前缀的，若是sc指定了设备组则过滤出所有节点上符合条件的设备组
-		for key, value := range node.Status.Allocatable {
-
-			if strings.HasPrefix(string(key), utils.DeviceCapacityKeyPrefix) {
-				if deviceGroup != "" && string(key) != deviceGroup && string(key) != utils.DeviceCapacityKeyPrefix+deviceGroup {
+		for key, value := range status.Allocatable {
+			if strings.HasPrefix(key, utils.DeviceCapacityKeyPrefix) {
+				if deviceGroup != "" && key != deviceGroup && key != utils.DeviceCapacityKeyPrefix+deviceGroup {
 					continue
 				}
 				if value.Value() < requestGb {
 					continue
 				}
-				preselectNode = append(preselectNode, paris{
-					Key:   node.Name + "-*-" + string(key),
+				preselectNode = append(preselectNode, pairs{
+					Key:   node.Name + "-*-" + key,
 					Value: value.Value(),
 				})
 			}
@@ -145,7 +200,7 @@ func (s NodeService) SelectVolumeNode(ctx context.Context, requestGb int64, devi
 		nodeName = strings.Split(preselectNode[len(preselectNode)-1].Key, "-*-")[0]
 		selectDeviceGroup = strings.Split(preselectNode[len(preselectNode)-1].Key, "/")[1]
 	} else {
-		return "", "", segments, errors.New(fmt.Sprintf("no support scheduler strategy %s", configuration.SchedulerStrategy()))
+		return "", "", segments, errors.New(fmt.Sprintf("Unsupported scheduling policies %s", configuration.SchedulerStrategy()))
 	}
 
 	// 获取选择节点的label
@@ -164,14 +219,15 @@ func (s NodeService) SelectVolumeNode(ctx context.Context, requestGb int64, devi
 
 // GetCapacityByNodeName returns VG capacity of specified node by name.
 func (s NodeService) GetCapacityByNodeName(ctx context.Context, name, deviceGroup string) (int64, error) {
-	node := new(corev1.Node)
-	err := s.Get(ctx, client.ObjectKey{Name: name}, node)
+
+	nsr := new(carinav1beta1.NodeStorageResource)
+	err := s.Get(ctx, client.ObjectKey{Name: name}, nsr)
 	if err != nil {
 		return 0, err
 	}
 
-	for key, v := range node.Status.Allocatable {
-		if string(key) == deviceGroup || string(key) == utils.DeviceCapacityKeyPrefix+deviceGroup {
+	for key, v := range nsr.Status.Allocatable {
+		if key == deviceGroup || key == utils.DeviceCapacityKeyPrefix+deviceGroup {
 			return v.Value(), nil
 		}
 	}
@@ -181,6 +237,11 @@ func (s NodeService) GetCapacityByNodeName(ctx context.Context, name, deviceGrou
 // GetTotalCapacity returns total VG capacity of all nodes.
 func (s NodeService) GetTotalCapacity(ctx context.Context, deviceGroup string, topology *csi.Topology) (int64, error) {
 	nl, err := s.getNodes(ctx)
+	if err != nil {
+		return 0, err
+	}
+
+	nsr, err := s.getNodeStorageResources(ctx)
 	if err != nil {
 		return 0, err
 	}
@@ -195,11 +256,16 @@ func (s NodeService) GetTotalCapacity(ctx context.Context, deviceGroup string, t
 			}
 		}
 
-		for key, v := range node.Status.Capacity {
+		// Only ready nodes exist
+		status, exists := nsr[node.Name]
+		if !exists {
+			continue
+		}
 
-			if deviceGroup == "" && strings.HasPrefix(string(key), utils.DeviceCapacityKeyPrefix) {
+		for key, v := range status.Capacity {
+			if deviceGroup == "" && strings.HasPrefix(key, utils.DeviceCapacityKeyPrefix) {
 				capacity += v.Value()
-			} else if string(key) == deviceGroup || string(key) == utils.DeviceCapacityKeyPrefix+deviceGroup {
+			} else if key == deviceGroup || key == utils.DeviceCapacityKeyPrefix+deviceGroup {
 				capacity += v.Value()
 			}
 		}
@@ -215,23 +281,32 @@ func (s NodeService) SelectDeviceGroup(ctx context.Context, request int64, nodeN
 		return "", err
 	}
 
-	type paris struct {
+	nsr, err := s.getNodeStorageResources(ctx)
+	if err != nil {
+		return "", err
+	}
+
+	type pairs struct {
 		Key   string
 		Value int64
 	}
 
-	preselectNode := []paris{}
+	preselectNode := []pairs{}
 
 	for _, node := range nl.Items {
 		if nodeName != node.Name {
 			continue
 		}
+		status, exists := nsr[node.Name]
+		if !exists {
+			continue
+		}
 		// capacity selector
 		// 经过上层过滤，这里只会有一个节点
-		for key, value := range node.Status.Allocatable {
-			if strings.HasPrefix(string(key), utils.DeviceCapacityKeyPrefix) {
-				preselectNode = append(preselectNode, paris{
-					Key:   string(key),
+		for key, value := range status.Allocatable {
+			if strings.HasPrefix(key, utils.DeviceCapacityKeyPrefix) {
+				preselectNode = append(preselectNode, pairs{
+					Key:   key,
 					Value: value.Value(),
 				})
 			}
@@ -279,12 +354,17 @@ func (s NodeService) SelectMultiVolumeNode(ctx context.Context, backendDeviceGro
 		return "", segments, err
 	}
 
-	type paris struct {
+	nsr, err := s.getNodeStorageResources(ctx)
+	if err != nil {
+		return "", segments, err
+	}
+
+	type pairs struct {
 		Key   string
 		Value int64
 	}
 
-	preselectNode := []paris{}
+	preselectNode := []pairs{}
 
 	for _, node := range nl.Items {
 
@@ -305,28 +385,32 @@ func (s NodeService) SelectMultiVolumeNode(ctx context.Context, backendDeviceGro
 			}
 		}
 
+		status, exists := nsr[node.Name]
+		if !exists {
+			continue
+		}
+
 		// capacity selector
 		// 注册设备时有特殊前缀的，若是sc指定了设备组则过滤出所有节点上符合条件的设备组
 		backendFilter := int64(0)
-		cacheFileter := int64(0)
-		for key, value := range node.Status.Allocatable {
-
-			if strings.HasPrefix(string(key), utils.DeviceCapacityKeyPrefix) {
-				if strings.Contains(string(key), backendDeviceGroup) {
+		cacheFilter := int64(0)
+		for key, value := range status.Allocatable {
+			if strings.HasPrefix(key, utils.DeviceCapacityKeyPrefix) {
+				if strings.Contains(key, backendDeviceGroup) {
 					if value.Value() >= backendRequestGb {
 						backendFilter = value.Value()
 					}
 				}
-				if strings.Contains(string(key), cacheDeviceGroup) {
+				if strings.Contains(key, cacheDeviceGroup) {
 					if value.Value() >= cacheRequestGb {
-						cacheFileter = value.Value()
+						cacheFilter = value.Value()
 					}
 				}
 			}
 		}
 
-		if backendFilter > 0 && cacheFileter >= 0 {
-			preselectNode = append(preselectNode, paris{
+		if backendFilter > 0 && cacheFilter >= 0 {
+			preselectNode = append(preselectNode, pairs{
 				Key:   node.Name,
 				Value: backendFilter,
 			})
