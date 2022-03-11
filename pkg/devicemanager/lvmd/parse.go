@@ -17,17 +17,18 @@
 package lvmd
 
 import (
+	"github.com/carina-io/carina/api"
 	"github.com/carina-io/carina/pkg/devicemanager/types"
 	"github.com/carina-io/carina/utils/log"
 	"strconv"
 	"strings"
 )
 
-func parseVgs(vgsString string) []types.VgGroup {
+func parseVgs(vgsString string) []api.VgGroup {
 	// LVM2_VG_NAME='lvmvg',LVM2_PV_COUNT='1',LVM2_LV_COUNT='0',LVM2_SNAP_COUNT='0',LVM2_VG_ATTR='wz--n-',LVM2_VG_SIZE='16101933056',LVM2_VG_FREE='16101933056'
 	// LVM2_VG_NAME='v1',LVM2_PV_COUNT='2',LVM2_LV_COUNT='0',LVM2_SNAP_COUNT='0',LVM2_VG_ATTR='wz--n-',LVM2_VG_SIZE='32203866112',LVM2_VG_FREE='32203866112'
 	// LVM2_VG_NAME='v1',LVM2_PV_NAME='/dev/loop2',LVM2_PV_COUNT='1',LVM2_LV_COUNT='0',LVM2_SNAP_COUNT='0',LVM2_VG_ATTR='wz--n-',LVM2_VG_SIZE='16101933056',LVM2_VG_FREE='16101933056'
-	resp := []types.VgGroup{}
+	resp := []api.VgGroup{}
 
 	if vgsString == "" {
 		return resp
@@ -38,7 +39,7 @@ func parseVgs(vgsString string) []types.VgGroup {
 
 	vgsList := strings.Split(vgsString, "\n")
 	for _, vgs := range vgsList {
-		tmp := types.VgGroup{}
+		tmp := api.VgGroup{}
 		vg := strings.Split(vgs, ",")
 		for _, v := range vg {
 			k := strings.Split(v, "=")
@@ -64,7 +65,7 @@ func parseVgs(vgsString string) []types.VgGroup {
 				log.Warnf("undefined filed %s-%s", k[0], k[1])
 			}
 		}
-		tmp.PVS = []*types.PVInfo{}
+		tmp.PVS = []*api.PVInfo{}
 		resp = append(resp, tmp)
 	}
 	return resp
@@ -132,9 +133,9 @@ func parseLvs(lvsString string) []types.LvInfo {
 	return resp
 }
 
-func parsePvs(pvsString string) []types.PVInfo {
+func parsePvs(pvsString string) []api.PVInfo {
 	// LVM2_PV_NAME='/dev/loop2',LVM2_VG_NAME='lvmvg',LVM2_PV_FMT='lvm2',LVM2_PV_ATTR='a--',LVM2_PV_SIZE='16101933056',LVM2_PV_FREE='16101933056'
-	resp := []types.PVInfo{}
+	resp := []api.PVInfo{}
 
 	if pvsString == "" {
 		return resp
@@ -145,7 +146,7 @@ func parsePvs(pvsString string) []types.PVInfo {
 
 	pvsList := strings.Split(pvsString, "\n")
 	for _, pvs := range pvsList {
-		tmp := types.PVInfo{}
+		tmp := api.PVInfo{}
 		pv := strings.Split(pvs, ",")
 		for _, v := range pv {
 			k := strings.Split(v, "=")

@@ -20,6 +20,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/carina-io/carina/api"
 	"strings"
 	"time"
 
@@ -303,10 +304,10 @@ func (v *LocalVolumeImplement) CloneVolume(lvName, vgName, newLvName string) err
 	return nil
 }
 
-func (v *LocalVolumeImplement) GetCurrentVgStruct() ([]types.VgGroup, error) {
+func (v *LocalVolumeImplement) GetCurrentVgStruct() ([]api.VgGroup, error) {
 
-	resp := []types.VgGroup{}
-	tmp := map[string]*types.VgGroup{}
+	resp := []api.VgGroup{}
+	tmp := map[string]*api.VgGroup{}
 
 	vgs, err := v.Lv.VGS()
 	if err != nil {
@@ -340,7 +341,7 @@ func (v *LocalVolumeImplement) GetCurrentVgStruct() ([]types.VgGroup, error) {
 	return resp, nil
 }
 
-func (v *LocalVolumeImplement) GetCurrentPvStruct() ([]types.PVInfo, error) {
+func (v *LocalVolumeImplement) GetCurrentPvStruct() ([]api.PVInfo, error) {
 	return v.Lv.PVS()
 }
 

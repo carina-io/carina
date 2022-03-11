@@ -18,6 +18,7 @@ package deviceManager
 
 import (
 	"context"
+	"github.com/carina-io/carina/api"
 	"regexp"
 	"strings"
 	"time"
@@ -430,7 +431,7 @@ func (dm *DeviceManager) DeviceCheckTask() {
 	}(ticker1)
 }
 
-func validateVg(src []types.VgGroup, dst []types.VgGroup) bool {
+func validateVg(src []api.VgGroup, dst []api.VgGroup) bool {
 	if len(src) != len(dst) {
 		return true
 	}

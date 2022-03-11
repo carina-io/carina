@@ -25,8 +25,8 @@ import (
 	"time"
 
 	"github.com/carina-io/carina/pkg/configuration"
-	"github.com/carina-io/carina/pkg/csidriver/csi"
 	"github.com/carina-io/carina/utils"
+	"github.com/container-storage-interface/spec/lib/go/csi"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/rand"
 

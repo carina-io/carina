@@ -20,6 +20,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/carina-io/carina/api"
 	"github.com/carina-io/carina/pkg/devicemanager/types"
 	"github.com/carina-io/carina/utils/log"
 	"io/ioutil"
@@ -155,7 +156,7 @@ func vgMetrics() ([]DeviceMetrics, error) {
 	if err != nil {
 		return metricsResult, err
 	}
-	result := map[string][]types.VgGroup{}
+	result := map[string][]api.VgGroup{}
 
 	for _, ep := range endpoints {
 		resp, err := http.Get(fmt.Sprintf("http://%s:%d/devicegroup", ep.Ip, ep.Port))
@@ -171,7 +172,7 @@ func vgMetrics() ([]DeviceMetrics, error) {
 		if err != nil {
 			continue
 		}
-		r := []types.VgGroup{}
+		r := []api.VgGroup{}
 		err = json.Unmarshal(body, &r)
 		if err != nil {
 			return metricsResult, err

@@ -16,7 +16,10 @@
 
 package lvmd
 
-import "github.com/carina-io/carina/pkg/devicemanager/types"
+import (
+	"github.com/carina-io/carina/api"
+	"github.com/carina-io/carina/pkg/devicemanager/types"
+)
 
 type Lvm2 interface {
 	// PVCheck 检查pv是否存在
@@ -25,16 +28,16 @@ type Lvm2 interface {
 	PVRemove(dev string) error
 	PVResize(dev string) error
 	// PVS 列出pv列表
-	PVS() ([]types.PVInfo, error)
+	PVS() ([]api.PVInfo, error)
 	// PVScan 扫描pv加入cache,在服务启动时执行
 	PVScan(dev string) error
-	PVDisplay(dev string) (*types.PVInfo, error)
+	PVDisplay(dev string) (*api.PVInfo, error)
 
 	VGCheck(vg string) error
 	VGCreate(vg string, tags, pvs []string) error
 	VGRemove(vg string) error
-	VGS() ([]types.VgGroup, error)
-	VGDisplay(vg string) (*types.VgGroup, error)
+	VGS() ([]api.VgGroup, error)
+	VGDisplay(vg string) (*api.VgGroup, error)
 	VGScan(vg string) error
 	// VGExtend vg卷组增加新的pv
 	VGExtend(vg, pv string) error

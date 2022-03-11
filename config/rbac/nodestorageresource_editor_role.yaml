@@ -1,0 +1,24 @@
+# permissions for end users to edit nodestorageresources.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: nodestorageresource-editor-role
+rules:
+- apiGroups:
+  - carina.storage.io
+  resources:
+  - nodestorageresources
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - carina.storage.io
+  resources:
+  - nodestorageresources/status
+  verbs:
+  - get

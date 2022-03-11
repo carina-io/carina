@@ -23,12 +23,11 @@ import (
 
 	carinav1 "github.com/carina-io/carina/api/v1"
 	"github.com/carina-io/carina/controllers"
-	"github.com/carina-io/carina/pkg/csidriver/csi"
 	"github.com/carina-io/carina/pkg/csidriver/driver"
 	"github.com/carina-io/carina/pkg/csidriver/driver/k8s"
 	"github.com/carina-io/carina/pkg/csidriver/runners"
 	deviceManager "github.com/carina-io/carina/pkg/devicemanager"
-	"github.com/carina-io/carina/pkg/deviceplugin"
+	"github.com/container-storage-interface/spec/lib/go/csi"
 	"google.golang.org/grpc"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -105,6 +104,18 @@ func subMain() error {
 		return err
 	}
 
+	nodeController := controllers.NewNodeStorageResourceReconciler(
+		mgr.GetClient(),
+		mgr.GetScheme(),
+		nodeName,
+		dm.VolumeManager,
+	)
+
+	if err := nodeController.SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "NodeStorageResource")
+		return err
+	}
+
 	if _, err := mgr.GetCache().GetInformer(ctx, &corev1.Node{}); err != nil {
 		return err
 	}
@@ -137,8 +148,6 @@ func subMain() error {
 	go dm.DeviceCheckTask()
 	// 启动volume一致性检查
 	dm.VolumeConsistencyCheck()
-	// 启动设备插件
-	go deviceplugin.Run(nodeName, mgr.GetCache(), dm.VolumeManager, stopChan)
 	// http server
 	e := newHttpServer(dm.VolumeManager, stopChan)
 	go e.start()

@@ -18,9 +18,9 @@ package driver
 
 import (
 	"context"
-	"github.com/carina-io/carina/pkg/csidriver/csi"
 	"github.com/carina-io/carina/utils"
 	"github.com/carina-io/carina/utils/log"
+	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/golang/protobuf/ptypes/wrappers"
 )
 

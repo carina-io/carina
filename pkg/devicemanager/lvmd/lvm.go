@@ -19,6 +19,7 @@ package lvmd
 import (
 	"errors"
 	"fmt"
+	"github.com/carina-io/carina/api"
 	"strings"
 	"time"
 
@@ -51,7 +52,7 @@ func (lv2 *Lvm2Implement) PVResize(dev string) error {
 // PVS 示例输出
 // pvs --noheadings --separator=, --units=b --nosuffix --unbuffered --nameprefixes
 // LVM2_PV_NAME='/dev/loop2',LVM2_VG_NAME='lvmvg',LVM2_PV_FMT='lvm2',LVM2_PV_ATTR='a--',LVM2_PV_SIZE='16101933056',LVM2_PV_FREE='16101933056'
-func (lv2 *Lvm2Implement) PVS() ([]types.PVInfo, error) {
+func (lv2 *Lvm2Implement) PVS() ([]api.PVInfo, error) {
 
 	args := []string{"--noheadings", "--separator=,", "--units=b", "--nosuffix", "--unbuffered", "--nameprefixes"}
 
@@ -76,7 +77,7 @@ func (lv2 *Lvm2Implement) PVS() ([]types.PVInfo, error) {
   Allocated PE          0
   PV UUID               OiNoxD-Y1sw-FSzi-mqPN-07EW-C77P-TNdtc6
 */
-func (lv2 *Lvm2Implement) PVDisplay(dev string) (*types.PVInfo, error) {
+func (lv2 *Lvm2Implement) PVDisplay(dev string) (*api.PVInfo, error) {
 	pvsInfo, err := lv2.PVS()
 	if err != nil {
 		return nil, err
@@ -132,7 +133,7 @@ func (lv2 *Lvm2Implement) VGRemove(vg string) error {
 // vgs --noheadings --separator=, --units=b --nosuffix --unbuffered --nameprefixes
 // LVM2_VG_NAME='lvmvg',LVM2_PV_COUNT='1',LVM2_LV_COUNT='0',LVM2_SNAP_COUNT='0',LVM2_VG_ATTR='wz--n-',LVM2_VG_SIZE='16101933056',LVM2_VG_FREE='16101933056'
 // LVM2_VG_NAME='v1',LVM2_PV_COUNT='2',LVM2_LV_COUNT='0',LVM2_SNAP_COUNT='0',LVM2_VG_ATTR='wz--n-',LVM2_VG_SIZE='32203866112',LVM2_VG_FREE='32203866112'
-func (lv2 *Lvm2Implement) VGS() ([]types.VgGroup, error) {
+func (lv2 *Lvm2Implement) VGS() ([]api.VgGroup, error) {
 	flieds := []string{"-o", "VG_NAME,PV_NAME,PV_COUNT,LV_COUNT,SNAP_COUNT,VG_ATTR,VG_SIZE,VG_FREE"}
 	args := []string{"--noheadings", "--separator=,", "--units=b", "--nosuffix", "--unbuffered", "--nameprefixes"}
 
@@ -144,7 +145,7 @@ func (lv2 *Lvm2Implement) VGS() ([]types.VgGroup, error) {
 	return parseVgs(vgsInfo), nil
 }
 
-func (lv2 *Lvm2Implement) VGDisplay(vg string) (*types.VgGroup, error) {
+func (lv2 *Lvm2Implement) VGDisplay(vg string) (*api.VgGroup, error) {
 	vgsInfo, err := lv2.VGS()
 	if err != nil {
 		return nil, err
