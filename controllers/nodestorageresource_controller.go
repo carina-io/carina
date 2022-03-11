@@ -54,8 +54,9 @@ type NodeStorageResourceReconciler struct {
 //+kubebuilder:rbac:groups=carina.storage.io,resources=nodestorageresources,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=carina.storage.io,resources=nodestorageresources/status,verbs=get;update;patch
 
-func NewNodeStorageResourceReconciler(client client.Client, scheme *runtime.Scheme, nodeName string, volume volume.LocalVolume) *LogicVolumeReconciler {
-	return &LogicVolumeReconciler{
+func NewNodeStorageResourceReconciler(client client.Client, scheme *runtime.Scheme, nodeName string,
+	volume volume.LocalVolume) *NodeStorageResourceReconciler {
+	return &NodeStorageResourceReconciler{
 		Client:   client,
 		Scheme:   scheme,
 		nodeName: nodeName,
