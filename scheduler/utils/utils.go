@@ -16,6 +16,8 @@
 
 package utils
 
+import "os"
+
 func ContainsString(slice []string, s string) bool {
 	for _, item := range slice {
 		if item == s {
@@ -23,4 +25,15 @@ func ContainsString(slice []string, s string) bool {
 		}
 	}
 	return false
+}
+
+func Exists(path string) bool {
+	_, err := os.Stat(path)
+	if err != nil {
+		if os.IsExist(err) {
+			return true
+		}
+		return false
+	}
+	return true
 }

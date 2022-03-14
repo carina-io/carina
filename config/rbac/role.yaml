@@ -59,6 +59,14 @@ rules:
 - apiGroups:
   - carina.storage.io
   resources:
+  - NodeStorageResources
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - carina.storage.io
+  resources:
   - logicvolumes
   verbs:
   - create

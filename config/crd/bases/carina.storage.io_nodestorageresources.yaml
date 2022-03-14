@@ -24,7 +24,7 @@ spec:
       type: string
     - jsonPath: .status.syncTime
       name: time
-      type: string
+      type: date
     name: v1beta1
     schema:
       openAPIV3Schema:
@@ -48,7 +48,7 @@ spec:
           status:
             description: NodeStorageResourceStatus defines the observed state of NodeStorageResource
             properties:
-              available:
+              allocatable:
                 additionalProperties:
                   anyOf:
                   - type: integer
@@ -164,7 +164,8 @@ spec:
                   type: object
                 type: array
               syncTime:
-                type: Any
+                format: date-time
+                type: string
               vgGroups:
                 items:
                   description: VgGroup defines the observed state of NodeStorageResourceStatus

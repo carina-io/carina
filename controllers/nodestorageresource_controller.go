@@ -98,7 +98,7 @@ func (r *NodeStorageResourceReconciler) Reconcile(ctx context.Context, req ctrl.
 	raidNeed := r.needUpdateRaidStatus(&nsr.Status)
 
 	if lvmNeed || diskNeed || raidNeed {
-		nsr.Status.SyncTime = time.Now()
+		nsr.Status.SyncTime = metav1.Now()
 		if err := r.Client.Status().Update(ctx, nsr); err != nil {
 			log.Error(err, " failed to update nodeStorageResource status name ", nsr.Name)
 		}
@@ -165,7 +165,7 @@ func (r *NodeStorageResourceReconciler) createNodeStorageResource(ctx context.Co
 			NodeName: r.nodeName,
 		},
 		Status: carinav1beta1.NodeStorageResourceStatus{
-			SyncTime: time.Now(),
+			SyncTime: metav1.Now(),
 		},
 	}
 	if err := r.Client.Create(ctx, NodeStorageResource); err != nil {

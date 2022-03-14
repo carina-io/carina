@@ -20,6 +20,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"k8s.io/client-go/dynamic"
 	"sort"
 	"strconv"
 	"strings"
@@ -39,10 +40,11 @@ const Name = "local-storage"
 const undefined = "undefined"
 
 type LocalStorage struct {
-	handle    framework.Handle
-	scLister  lstoragev1.StorageClassLister
-	pvcLister lcorev1.PersistentVolumeClaimLister
-	pvLister  lcorev1.PersistentVolumeLister
+	handle        framework.Handle
+	scLister      lstoragev1.StorageClassLister
+	pvcLister     lcorev1.PersistentVolumeClaimLister
+	pvLister      lcorev1.PersistentVolumeLister
+	dynamicClient dynamic.Interface
 }
 
 var _ framework.FilterPlugin = &LocalStorage{}
@@ -53,11 +55,13 @@ func New(_ runtime.Object, handle framework.Handle) (framework.Plugin, error) {
 	scLister := handle.SharedInformerFactory().Storage().V1().StorageClasses().Lister()
 	pvcLister := handle.SharedInformerFactory().Core().V1().PersistentVolumeClaims().Lister()
 	pvLister := handle.SharedInformerFactory().Core().V1().PersistentVolumes().Lister()
+	dynamicClient := newDynamicClientFromConfig()
 	return &LocalStorage{
-		handle:    handle,
-		pvcLister: pvcLister,
-		scLister:  scLister,
-		pvLister:  pvLister,
+		handle:        handle,
+		pvcLister:     pvcLister,
+		scLister:      scLister,
+		pvLister:      pvLister,
+		dynamicClient: dynamicClient,
 	}, nil
 }
 
