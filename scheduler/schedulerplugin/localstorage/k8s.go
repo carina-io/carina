@@ -15,8 +15,8 @@ import (
 )
 
 var gvr = schema.GroupVersionResource{
-	Group:    "carina.storage.io",
-	Version:  "v1beta1",
+	Group:    v1beta1.GroupVersion.Group,
+	Version:  v1beta1.GroupVersion.Version,
 	Resource: "nodestorageresources",
 }
 
