@@ -18,6 +18,7 @@ package controllers
 
 import (
 	"context"
+	"fmt"
 	"github.com/carina-io/carina/pkg/devicemanager/volume"
 	"github.com/carina-io/carina/utils"
 	"github.com/carina-io/carina/utils/log"
@@ -97,7 +98,7 @@ func (r *NodeStorageResourceReconciler) Reconcile(ctx context.Context, req ctrl.
 	raidNeed := r.needUpdateRaidStatus(&nsr.Status)
 
 	if lvmNeed || diskNeed || raidNeed {
-		nsr.Status.SyncTime = time.Now()
+		nsr.Status.SyncTime = metav1.Now()
 		if err := r.Client.Status().Update(ctx, nsr); err != nil {
 			log.Error(err, " failed to update nodeStorageResource status name ", nsr.Name)
 		}
@@ -164,7 +165,7 @@ func (r *NodeStorageResourceReconciler) createNodeStorageResource(ctx context.Co
 			NodeName: r.nodeName,
 		},
 		Status: carinav1beta1.NodeStorageResourceStatus{
-			SyncTime: time.Now(),
+			SyncTime: metav1.Now(),
 		},
 	}
 	if err := r.Client.Create(ctx, NodeStorageResource); err != nil {
@@ -187,9 +188,8 @@ func (r *NodeStorageResourceReconciler) needUpdateLvmStatus(status *carinav1beta
 			if v.VGFree > utils.DefaultReservedSpace {
 				freeGb = (v.VGFree - utils.DefaultReservedSpace) >> 30
 			}
-			status.Capacity[v.VGName] = *resource.NewQuantity(int64(sizeGb), resource.BinarySI)
-			status.Allocatable[v.VGName] = *resource.NewQuantity(int64(freeGb), resource.BinarySI)
-
+			status.Capacity[fmt.Sprintf("%s%s", utils.DeviceCapacityKeyPrefix, v.VGName)] = *resource.NewQuantity(int64(sizeGb), resource.BinarySI)
+			status.Allocatable[fmt.Sprintf("%s%s", utils.DeviceCapacityKeyPrefix, v.VGName)] = *resource.NewQuantity(int64(freeGb), resource.BinarySI)
 		}
 		return true
 	}

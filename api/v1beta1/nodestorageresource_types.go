@@ -18,7 +18,6 @@ import (
 	"github.com/carina-io/carina/api"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"time"
 )
 
 // EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
@@ -39,7 +38,7 @@ type NodeStorageResourceStatus struct {
 	// Important: Run "make" to regenerate code after modifying this file
 
 	// +optional
-	SyncTime time.Time `json:"syncTime,omitempty"`
+	SyncTime metav1.Time `json:"syncTime,omitempty"`
 	// Capacity represents the total resources of a node.
 	// More info: https://kubernetes.io/docs/concepts/storage/persistent-volumes#capacity
 	// +optional
@@ -47,7 +46,7 @@ type NodeStorageResourceStatus struct {
 	// Allocatable represents the resources of a node that are available for scheduling.
 	// Defaults to Capacity.
 	// +optional
-	Allocatable map[string]resource.Quantity `json:"available,omitempty"`
+	Allocatable map[string]resource.Quantity `json:"allocatable,omitempty"`
 	// +optional
 	VgGroups []api.VgGroup `json:"vgGroups,omitempty"`
 	// +optional
@@ -61,7 +60,7 @@ type NodeStorageResourceStatus struct {
 // +kubebuilder:subresource:status
 // +kubebuilder:resource:shortName=nsr
 // +kubebuilder:printcolumn:name="node",type="string",JSONPath=".spec.nodeName"
-// +kubebuilder:printcolumn:name="time",type="string",JSONPath=".status.syncTime"
+// +kubebuilder:printcolumn:name="time",type="date",JSONPath=".status.syncTime"
 
 // NodeStorageResource is the Schema for the nodestorageresources API
 type NodeStorageResource struct {

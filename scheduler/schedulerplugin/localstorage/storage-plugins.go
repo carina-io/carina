@@ -19,7 +19,7 @@ package localstorage
 import (
 	"context"
 	"errors"
-	"fmt"
+	"k8s.io/client-go/dynamic"
 	"sort"
 	"strconv"
 	"strings"
@@ -39,10 +39,11 @@ const Name = "local-storage"
 const undefined = "undefined"
 
 type LocalStorage struct {
-	handle    framework.Handle
-	scLister  lstoragev1.StorageClassLister
-	pvcLister lcorev1.PersistentVolumeClaimLister
-	pvLister  lcorev1.PersistentVolumeLister
+	handle        framework.Handle
+	scLister      lstoragev1.StorageClassLister
+	pvcLister     lcorev1.PersistentVolumeClaimLister
+	pvLister      lcorev1.PersistentVolumeLister
+	dynamicClient dynamic.Interface
 }
 
 var _ framework.FilterPlugin = &LocalStorage{}
@@ -53,11 +54,13 @@ func New(_ runtime.Object, handle framework.Handle) (framework.Plugin, error) {
 	scLister := handle.SharedInformerFactory().Storage().V1().StorageClasses().Lister()
 	pvcLister := handle.SharedInformerFactory().Core().V1().PersistentVolumeClaims().Lister()
 	pvLister := handle.SharedInformerFactory().Core().V1().PersistentVolumes().Lister()
+	dynamicClient := newDynamicClientFromConfig()
 	return &LocalStorage{
-		handle:    handle,
-		pvcLister: pvcLister,
-		scLister:  scLister,
-		pvLister:  pvLister,
+		handle:        handle,
+		pvcLister:     pvcLister,
+		scLister:      scLister,
+		pvLister:      pvLister,
+		dynamicClient: dynamicClient,
 	}, nil
 }
 
@@ -84,11 +87,17 @@ func (ls *LocalStorage) Filter(ctx context.Context, cycleState *framework.CycleS
 		return framework.NewStatus(framework.Success, "")
 	}
 
+	nsr, err := getNodeStorageResource(ls.dynamicClient, nodeName)
+	if err != nil {
+		klog.V(3).Infof("Failed to obtain node storage information pod: %v, node: %v, err: %v", pod.Name, node.Node().Name, err.Error())
+		return framework.NewStatus(framework.Error, "Failed to obtain node storage information")
+	}
+
 	capacityMap := map[string]int64{}
 	total := int64(0)
-	for key, v := range node.Node().Status.Allocatable {
-		if strings.HasPrefix(string(key), utils.DeviceCapacityKeyPrefix) {
-			capacityMap[string(key)] = v.Value()
+	for key, v := range nsr.Status.Allocatable {
+		if strings.HasPrefix(key, utils.DeviceCapacityKeyPrefix) {
+			capacityMap[key] = v.Value()
 			total += v.Value()
 		}
 	}
@@ -162,18 +171,17 @@ func (ls *LocalStorage) Score(ctx context.Context, state *framework.CycleState, 
 		return 5, framework.NewStatus(framework.Success, "")
 	}
 
-	// Get Node Info
-	// 节点信息快照在执行调度时创建，并在在整个调度周期内不变
-	nodeInfo, err := ls.handle.SnapshotSharedLister().NodeInfos().Get(nodeName)
+	nsr, err := getNodeStorageResource(ls.dynamicClient, nodeName)
 	if err != nil {
-		return 0, framework.NewStatus(framework.Error, fmt.Sprintf("getting node %q from Snapshot: %v", nodeName, err))
+		klog.V(3).Infof("Failed to obtain node storage information pod: %v, node: %v, err: %v", pod.Name, nodeName, err.Error())
+		return 0, framework.NewStatus(framework.Error, "Failed to obtain node storage information")
 	}
 
 	capacityMap := map[string]int64{}
 	total := int64(0)
-	for key, v := range nodeInfo.Node().Status.Allocatable {
-		if strings.HasPrefix(string(key), utils.DeviceCapacityKeyPrefix) {
-			capacityMap[string(key)] = v.Value()
+	for key, v := range nsr.Status.Allocatable {
+		if strings.HasPrefix(key, utils.DeviceCapacityKeyPrefix) {
+			capacityMap[key] = v.Value()
 			total += v.Value()
 		}
 	}
@@ -204,7 +212,7 @@ func (ls *LocalStorage) Score(ctx context.Context, state *framework.CycleState, 
 				requestTotalBytes += pv.Spec.Resources.Requests.Storage().Value()
 			}
 			requestTotalGb := (requestTotalBytes-1)>>30 + 1
-			ratio := int64(capacityMap[key] / requestTotalGb)
+			ratio := capacityMap[key] / requestTotalGb
 
 			if configuration.SchedulerStrategy() == configuration.Schedulerspreadout {
 				score = reasonableScore(ratio)
@@ -265,7 +273,7 @@ func (ls *LocalStorage) getLocalStoragePvc(pod *v1.Pod) (map[string][]*v1.Persis
 		}
 
 		deviceGroup := sc.Parameters[utils.DeviceDiskKey]
-		// if bcache device
+		// bcache device
 		if deviceGroup == "" {
 			deviceGroup = sc.Parameters[utils.VolumeBackendDiskType]
 		}
