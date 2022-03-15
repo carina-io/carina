@@ -2,7 +2,7 @@ package localstorage
 
 import (
 	"context"
-	"github.com/carina-io/carina/api/v1beta1"
+	"github.com/carina-io/carina-api/api/v1beta1"
 	"github.com/carina-io/carina/scheduler/utils"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
