@@ -3,6 +3,7 @@ module github.com/carina-io/carina/scheduler
 go 1.17
 
 require (
+	github.com/carina-io/carina-api v0.0.0-20220315075933-3e5ab2ab7ee0
 	github.com/fsnotify/fsnotify v1.4.9
 	github.com/mitchellh/mapstructure v1.1.2
 	github.com/spf13/viper v1.7.1
@@ -22,7 +23,6 @@ require (
 	github.com/PuerkitoBio/urlesc v0.0.0-20170810143723-de5bf2ad4578 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/blang/semver v3.5.1+incompatible // indirect
-	github.com/carina-io/carina-api v0.0.0-20220315075933-3e5ab2ab7ee0 // indirect
 	github.com/cespare/xxhash/v2 v2.1.1 // indirect
 	github.com/coreos/go-semver v0.3.0 // indirect
 	github.com/coreos/go-systemd v0.0.0-20190321100706-95778dfbb74e // indirect
