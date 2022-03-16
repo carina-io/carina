@@ -3,7 +3,7 @@ module github.com/carina-io/carina/scheduler
 go 1.17
 
 require (
-	github.com/carina-io/carina v0.9.2-0.20220311025018-84d2ada1fe62
+	github.com/carina-io/carina-api v0.0.0-20220315075933-3e5ab2ab7ee0
 	github.com/fsnotify/fsnotify v1.4.9
 	github.com/mitchellh/mapstructure v1.1.2
 	github.com/spf13/viper v1.7.1
@@ -36,13 +36,13 @@ require (
 	github.com/go-openapi/jsonreference v0.19.3 // indirect
 	github.com/go-openapi/spec v0.19.3 // indirect
 	github.com/go-openapi/swag v0.19.5 // indirect
-	github.com/gogo/protobuf v1.3.2 // indirect
+	github.com/gogo/protobuf v1.3.1 // indirect
 	github.com/golang/groupcache v0.0.0-20200121045136-8c9f03a8e57e // indirect
 	github.com/golang/protobuf v1.4.3 // indirect
 	github.com/google/go-cmp v0.5.2 // indirect
 	github.com/google/gofuzz v1.1.0 // indirect
 	github.com/google/uuid v1.1.2 // indirect
-	github.com/googleapis/gnostic v0.5.1 // indirect
+	github.com/googleapis/gnostic v0.4.1 // indirect
 	github.com/grpc-ecosystem/go-grpc-prometheus v1.2.0 // indirect
 	github.com/hashicorp/golang-lru v0.5.4 // indirect
 	github.com/hashicorp/hcl v1.0.0 // indirect
@@ -68,29 +68,29 @@ require (
 	github.com/sirupsen/logrus v1.6.0 // indirect
 	github.com/spf13/afero v1.2.2 // indirect
 	github.com/spf13/cast v1.3.0 // indirect
-	github.com/spf13/cobra v1.1.3 // indirect
+	github.com/spf13/cobra v1.1.1 // indirect
 	github.com/spf13/jwalterweatherman v1.1.0 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
 	github.com/subosito/gotenv v1.2.0 // indirect
 	go.etcd.io/etcd v0.5.0-alpha.5.0.20200910180754-dd1b699fc489 // indirect
 	go.uber.org/atomic v1.6.0 // indirect
 	go.uber.org/multierr v1.5.0 // indirect
-	go.uber.org/zap v1.16.0 // indirect
+	go.uber.org/zap v1.15.0 // indirect
 	golang.org/x/crypto v0.0.0-20201002170205-7f63de1d35b0 // indirect
-	golang.org/x/net v0.0.0-20210226172049-e18ecbb05110 // indirect
+	golang.org/x/net v0.0.0-20201110031124-69a78807bb2b // indirect
 	golang.org/x/oauth2 v0.0.0-20200107190931-bf48bf16ab8d // indirect
-	golang.org/x/sync v0.0.0-20201020160332-67f06af15bc9 // indirect
-	golang.org/x/sys v0.0.0-20210309074719-68d13333faf2 // indirect
+	golang.org/x/sync v0.0.0-20190911185100-cd5d95a43a6e // indirect
+	golang.org/x/sys v0.0.0-20201112073958-5cba982894dd // indirect
 	golang.org/x/text v0.3.4 // indirect
-	golang.org/x/time v0.0.0-20201208040808-7e3f01d25324 // indirect
+	golang.org/x/time v0.0.0-20200630173020-3af7569d3a1e // indirect
 	google.golang.org/appengine v1.6.6 // indirect
 	google.golang.org/genproto v0.0.0-20201110150050-8816d57aaa9a // indirect
-	google.golang.org/grpc v1.36.0 // indirect
+	google.golang.org/grpc v1.27.1 // indirect
 	google.golang.org/protobuf v1.25.0 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/ini.v1 v1.51.0 // indirect
 	gopkg.in/natefinch/lumberjack.v2 v2.0.0 // indirect
-	gopkg.in/yaml.v2 v2.4.0 // indirect
+	gopkg.in/yaml.v2 v2.3.0 // indirect
 	gopkg.in/yaml.v3 v3.0.0-20200615113413-eeeca48fe776 // indirect
 	k8s.io/apiserver v0.20.4 // indirect
 	k8s.io/cloud-provider v0.20.4 // indirect
@@ -98,10 +98,10 @@ require (
 	k8s.io/csi-translation-lib v0.20.4 // indirect
 	k8s.io/kube-openapi v0.0.0-20201113171705-d219536bb9fd // indirect
 	k8s.io/kube-scheduler v0.0.0 // indirect
-	k8s.io/mount-utils v0.20.4 // indirect
+	k8s.io/mount-utils v0.0.0 // indirect
 	k8s.io/utils v0.0.0-20210111153108-fddb29f9d009 // indirect
 	sigs.k8s.io/apiserver-network-proxy/konnectivity-client v0.0.14 // indirect
-	sigs.k8s.io/controller-runtime v0.8.3 // indirect
+	sigs.k8s.io/controller-runtime v0.6.0 // indirect
 	sigs.k8s.io/structured-merge-diff/v4 v4.0.2 // indirect
 	sigs.k8s.io/yaml v1.2.0 // indirect
 )
