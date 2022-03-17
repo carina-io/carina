@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 	carinav1 "github.com/carina-io/carina/api/v1"
+	carinav1beta1 "github.com/carina-io/carina/api/v1beta1"
 	"github.com/carina-io/carina/controllers"
 	"github.com/carina-io/carina/hook"
 	"github.com/carina-io/carina/pkg/configuration"
@@ -48,6 +49,7 @@ var (
 
 func init() {
 	utilruntime.Must(carinav1.AddToScheme(scheme))
+	utilruntime.Must(carinav1beta1.AddToScheme(scheme))
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 
 	// +kubebuilder:scaffold:scheme

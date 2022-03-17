@@ -49,6 +49,8 @@ type NodeStorageResourceReconciler struct {
 	Log      logr.Logger
 	Scheme   *runtime.Scheme
 	nodeName string
+	// stop
+	StopChan <-chan struct{}
 	volume   volume.LocalVolume
 }
 
@@ -56,12 +58,13 @@ type NodeStorageResourceReconciler struct {
 //+kubebuilder:rbac:groups=carina.storage.io,resources=nodestorageresources/status,verbs=get;update;patch
 
 func NewNodeStorageResourceReconciler(client client.Client, scheme *runtime.Scheme, nodeName string,
-	volume volume.LocalVolume) *NodeStorageResourceReconciler {
+	volume volume.LocalVolume, stopChan <-chan struct{}) *NodeStorageResourceReconciler {
 	return &NodeStorageResourceReconciler{
 		Client:   client,
 		Scheme:   scheme,
 		nodeName: nodeName,
 		volume:   volume,
+		StopChan: stopChan,
 	}
 }
 
@@ -84,7 +87,7 @@ func (r *NodeStorageResourceReconciler) Reconcile(ctx context.Context, req ctrl.
 		if apierrs.IsNotFound(err) {
 			err := r.createNodeStorageResource(ctx)
 			if err != nil {
-				log.Error(err, "unable to create NodeDevice ", r.nodeName)
+				log.Error(err, "unable to create NodeStorageResource ", r.nodeName)
 			}
 			return ctrl.Result{Requeue: true, RequeueAfter: 1 * time.Minute}, err
 		}
@@ -108,6 +111,23 @@ func (r *NodeStorageResourceReconciler) Reconcile(ctx context.Context, req ctrl.
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *NodeStorageResourceReconciler) SetupWithManager(mgr ctrl.Manager) error {
+
+	ticker1 := time.NewTicker(600 * time.Second)
+	go func(t *time.Ticker) {
+		defer ticker1.Stop()
+		for {
+			select {
+			case <-t.C:
+				_ = r.ensureNodeStorageResourceExist()
+			case <-r.StopChan:
+				_ = r.deleteNodeStorageResource(context.TODO())
+				log.Info("delete nodestorageresource...")
+				return
+			}
+		}
+	}(ticker1)
+	go time.AfterFunc(1*time.Minute, r.triggerReconcile)
+
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&carinav1beta1.NodeStorageResource{}).
 		WithOptions(controller.Options{
@@ -152,6 +172,28 @@ func pvPredicateFn(nodeName string) builder.Predicates {
 	})
 }
 
+func (r *NodeStorageResourceReconciler) triggerReconcile() {
+	log.Info("trigger reconcile logic")
+	ctx := context.Background()
+	_ = r.deleteNodeStorageResource(ctx)
+	_ = r.createNodeStorageResource(ctx)
+}
+
+func (r *NodeStorageResourceReconciler) ensureNodeStorageResourceExist() error {
+	ctx := context.Background()
+	nodeStorageResource := new(carinav1beta1.NodeStorageResource)
+	err := r.Get(ctx, client.ObjectKey{Name: r.nodeName}, nodeStorageResource)
+	if err != nil {
+		if apierrs.IsNotFound(err) {
+			err := r.createNodeStorageResource(ctx)
+			if err != nil {
+				log.Error(err, "unable to create NodeStorageResource ", r.nodeName)
+			}
+		}
+	}
+	return nil
+}
+
 func (r *NodeStorageResourceReconciler) createNodeStorageResource(ctx context.Context) error {
 	NodeStorageResource := &carinav1beta1.NodeStorageResource{
 		TypeMeta: metav1.TypeMeta{
@@ -169,6 +211,22 @@ func (r *NodeStorageResourceReconciler) createNodeStorageResource(ctx context.Co
 		},
 	}
 	if err := r.Client.Create(ctx, NodeStorageResource); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (r *NodeStorageResourceReconciler) deleteNodeStorageResource(ctx context.Context) error {
+	NodeStorageResource := &carinav1beta1.NodeStorageResource{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       carinav1beta1.GroupVersion.Version,
+			APIVersion: carinav1beta1.GroupVersion.Group,
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name: r.nodeName,
+		},
+	}
+	if err := r.Client.Delete(ctx, NodeStorageResource); err != nil {
 		return err
 	}
 	return nil

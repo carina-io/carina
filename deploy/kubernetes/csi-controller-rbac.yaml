@@ -60,7 +60,7 @@ rules:
     resources: ["volumesnapshotcontents/status"]
     verbs: ["update"]
   - apiGroups: ["carina.storage.io"]
-    resources: ["logicvolumes", "logicvolumes/status"]
+    resources: ["logicvolumes", "logicvolumes/status", "nodestorageresources", "nodestorageresources/status"]
     verbs: ["get", "list", "watch", "update", "patch", "create", "delete"]
   - apiGroups: [""]
     resources: ["configmaps"]

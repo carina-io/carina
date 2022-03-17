@@ -27,7 +27,7 @@ rules:
     resources: ["persistentvolumes"]
     verbs: ["get", "list", "watch", "create", "delete", "patch"]
   - apiGroups: ["carina.storage.io"]
-    resources: ["logicvolumes", "logicvolumes/status"]
+    resources: ["logicvolumes", "logicvolumes/status", "nodestorageresources", "nodestorageresources/status"]
     verbs: ["get", "list", "watch", "update", "patch"]
   - apiGroups: ["storage.k8s.io"]
     resources: ["csidrivers"]

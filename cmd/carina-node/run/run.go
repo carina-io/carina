@@ -19,6 +19,7 @@ package run
 import (
 	"context"
 	"errors"
+	carinav1beta1 "github.com/carina-io/carina/api/v1beta1"
 	"os"
 
 	carinav1 "github.com/carina-io/carina/api/v1"
@@ -45,6 +46,7 @@ var (
 
 func init() {
 	utilruntime.Must(carinav1.AddToScheme(scheme))
+	utilruntime.Must(carinav1beta1.AddToScheme(scheme))
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 
 	// +kubebuilder:scaffold:scheme
@@ -109,6 +111,7 @@ func subMain() error {
 		mgr.GetScheme(),
 		nodeName,
 		dm.VolumeManager,
+		stopChan,
 	)
 
 	if err := nodeController.SetupWithManager(mgr); err != nil {
