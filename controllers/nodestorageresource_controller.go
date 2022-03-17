@@ -126,7 +126,7 @@ func (r *NodeStorageResourceReconciler) SetupWithManager(mgr ctrl.Manager) error
 			}
 		}
 	}(ticker1)
-	go time.AfterFunc(1*time.Minute, r.triggerReconcile)
+	go time.AfterFunc(15*time.Second, r.triggerReconcile)
 
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&carinav1beta1.NodeStorageResource{}).
@@ -175,8 +175,14 @@ func pvPredicateFn(nodeName string) builder.Predicates {
 func (r *NodeStorageResourceReconciler) triggerReconcile() {
 	log.Info("trigger reconcile logic")
 	ctx := context.Background()
-	_ = r.deleteNodeStorageResource(ctx)
-	_ = r.createNodeStorageResource(ctx)
+	err := r.deleteNodeStorageResource(ctx)
+	if err != nil {
+		log.Warnf("delete node resource error %s", err.Error())
+	}
+	err = r.createNodeStorageResource(ctx)
+	if err != nil {
+		log.Warnf("create node resource error %s", err.Error())
+	}
 }
 
 func (r *NodeStorageResourceReconciler) ensureNodeStorageResourceExist() error {
@@ -201,7 +207,8 @@ func (r *NodeStorageResourceReconciler) createNodeStorageResource(ctx context.Co
 			APIVersion: carinav1beta1.GroupVersion.Group,
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name: r.nodeName,
+			Name:      r.nodeName,
+			Namespace: utils.LogicVolumeNamespace,
 		},
 		Spec: carinav1beta1.NodeStorageResourceSpec{
 			NodeName: r.nodeName,
@@ -223,7 +230,8 @@ func (r *NodeStorageResourceReconciler) deleteNodeStorageResource(ctx context.Co
 			APIVersion: carinav1beta1.GroupVersion.Group,
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name: r.nodeName,
+			Name:      r.nodeName,
+			Namespace: utils.LogicVolumeNamespace,
 		},
 	}
 	if err := r.Client.Delete(ctx, NodeStorageResource); err != nil {
