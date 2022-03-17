@@ -79,7 +79,6 @@ func NewNodeStorageResourceReconciler(client client.Client, scheme *runtime.Sche
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.6.4/pkg/reconcile
 func (r *NodeStorageResourceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	_ = context.Background()
-	_ = r.Log.WithValues("nodestorageresource", req.NamespacedName)
 
 	nodeStorageResource := new(carinav1beta1.NodeStorageResource)
 	err := r.Get(ctx, client.ObjectKey{Name: r.nodeName}, nodeStorageResource)
@@ -207,8 +206,7 @@ func (r *NodeStorageResourceReconciler) createNodeStorageResource(ctx context.Co
 			APIVersion: carinav1beta1.GroupVersion.Group,
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      r.nodeName,
-			Namespace: utils.LogicVolumeNamespace,
+			Name: r.nodeName,
 		},
 		Spec: carinav1beta1.NodeStorageResourceSpec{
 			NodeName: r.nodeName,
@@ -230,8 +228,7 @@ func (r *NodeStorageResourceReconciler) deleteNodeStorageResource(ctx context.Co
 			APIVersion: carinav1beta1.GroupVersion.Group,
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      r.nodeName,
-			Namespace: utils.LogicVolumeNamespace,
+			Name: r.nodeName,
 		},
 	}
 	if err := r.Client.Delete(ctx, NodeStorageResource); err != nil {
@@ -253,6 +250,12 @@ func (r *NodeStorageResourceReconciler) needUpdateLvmStatus(status *carinav1beta
 			freeGb := uint64(0)
 			if v.VGFree > utils.DefaultReservedSpace {
 				freeGb = (v.VGFree - utils.DefaultReservedSpace) >> 30
+			}
+			if status.Capacity == nil {
+				status.Capacity = make(map[string]resource.Quantity)
+			}
+			if status.Allocatable == nil {
+				status.Allocatable = make(map[string]resource.Quantity)
 			}
 			status.Capacity[fmt.Sprintf("%s%s", utils.DeviceCapacityKeyPrefix, v.VGName)] = *resource.NewQuantity(int64(sizeGb), resource.BinarySI)
 			status.Allocatable[fmt.Sprintf("%s%s", utils.DeviceCapacityKeyPrefix, v.VGName)] = *resource.NewQuantity(int64(freeGb), resource.BinarySI)

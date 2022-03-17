@@ -106,7 +106,7 @@ func subMain() error {
 		return err
 	}
 
-	nodeController := controllers.NewNodeStorageResourceReconciler(
+	nodeResourceController := controllers.NewNodeStorageResourceReconciler(
 		mgr.GetClient(),
 		mgr.GetScheme(),
 		nodeName,
@@ -114,7 +114,7 @@ func subMain() error {
 		stopChan,
 	)
 
-	if err := nodeController.SetupWithManager(mgr); err != nil {
+	if err := nodeResourceController.SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "NodeStorageResource")
 		return err
 	}
