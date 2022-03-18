@@ -72,9 +72,9 @@ generate: controller-gen
 # Build the docker image
 docker-build:
 	go mod vendor
-	docker build -t $(IMG) .
+	docker build -t $(IMAGE_REPOSITORY)/carina:$(VERSION) .
 	rm -rf vendor
-	docker push $(IMG)
+	docker push $(IMAGE_REPOSITORY)/carina:$(VERSION)
 
 # Push the docker image
 release:

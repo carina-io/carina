@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 	carinav1 "github.com/carina-io/carina/api/v1"
+	carinav1beta1 "github.com/carina-io/carina/api/v1beta1"
 	"github.com/carina-io/carina/controllers"
 	"github.com/carina-io/carina/hook"
 	"github.com/carina-io/carina/pkg/configuration"
@@ -37,6 +38,7 @@ import (
 	"net"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
+	"sigs.k8s.io/controller-runtime/pkg/webhook"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 	// +kubebuilder:scaffold:imports
 )
@@ -48,6 +50,7 @@ var (
 
 func init() {
 	utilruntime.Must(carinav1.AddToScheme(scheme))
+	utilruntime.Must(carinav1beta1.AddToScheme(scheme))
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 
 	// +kubebuilder:scaffold:scheme
@@ -76,9 +79,13 @@ func subMain() error {
 		LeaderElection:          true,
 		LeaderElectionID:        utils.CSIPluginName + "-carina-controller",
 		LeaderElectionNamespace: configuration.RuntimeNamespace(),
-		Host:                    hookHost,
-		Port:                    hookPort,
-		CertDir:                 config.certDir,
+		WebhookServer: &webhook.Server{
+			Host:     hookHost,
+			Port:     hookPort,
+			CertDir:  config.certDir,
+			CertName: "cert",
+			KeyName:  "key",
+		},
 	})
 	if err != nil {
 		return err

@@ -87,7 +87,7 @@ func (ls *LocalStorage) Filter(ctx context.Context, cycleState *framework.CycleS
 		return framework.NewStatus(framework.Success, "")
 	}
 
-	nsr, err := getNodeStorageResource(ls.dynamicClient, nodeName)
+	nsr, err := getNodeStorageResource(ls.dynamicClient, node.Node().Name)
 	if err != nil {
 		klog.V(3).Infof("Failed to obtain node storage information pod: %v, node: %v, err: %v", pod.Name, node.Node().Name, err.Error())
 		return framework.NewStatus(framework.Error, "Failed to obtain node storage information")

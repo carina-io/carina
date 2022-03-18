@@ -13,10 +13,8 @@ spec:
     kind: NodeStorageResource
     listKind: NodeStorageResourceList
     plural: nodestorageresources
-    shortNames:
-    - nsr
     singular: nodestorageresource
-  scope: Namespaced
+  scope: Cluster
   versions:
   - additionalPrinterColumns:
     - jsonPath: .spec.nodeName

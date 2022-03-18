@@ -3,8 +3,6 @@ IMAGE_REPOSITORY=registry.cn-hangzhou.aliyuncs.com/antmoveh
 VERSION ?= latest
 DATE=$(shell date '+%Y%m%d%H%M%S')
 ARCH ?= linux/arm64,linux/amd64
-# Image URL to use all building/pushing image targets
-IMG ?= carina-scheduler:latest
 
 # Run tests
 test:
@@ -13,9 +11,9 @@ test:
 # Build the docker image
 docker-build:
 	go mod vendor
-	docker build -t $(IMG) .
+	docker build -t $(IMAGE_REPOSITORY)/carina-scheduler:$(VERSION) .
 	rm -rf vendor
-	docker push $(IMG)
+	docker push $(IMAGE_REPOSITORY)/carina-scheduler:$(VERSION)
 
 # Push the docker image
 release:
