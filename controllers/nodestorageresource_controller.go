@@ -24,12 +24,12 @@ import (
 	"github.com/carina-io/carina/utils/log"
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/equality"
 	apierrs "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/util/workqueue"
-	"reflect"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -105,7 +105,7 @@ func (r *NodeStorageResourceReconciler) Reconcile(ctx context.Context, req ctrl.
 			log.Error(err, " failed to update nodeStorageResource status name ", nsr.Name)
 		}
 	}
-	return ctrl.Result{Requeue: true, RequeueAfter: 1 * time.Minute}, nil
+	return ctrl.Result{}, nil
 }
 
 // SetupWithManager sets up the controller with the Manager.
@@ -127,8 +127,34 @@ func (r *NodeStorageResourceReconciler) SetupWithManager(mgr ctrl.Manager) error
 	}(ticker1)
 	go time.AfterFunc(15*time.Second, r.triggerReconcile)
 
+	nodePredicateFn := builder.WithPredicates(
+		predicate.Funcs{
+			CreateFunc: func(e event.CreateEvent) bool {
+				o := e.Object.(*carinav1beta1.NodeStorageResource)
+				if o != nil {
+					if o.Spec.NodeName == r.nodeName {
+						return true
+					}
+					return false
+				}
+				return false
+			},
+			DeleteFunc: func(e event.DeleteEvent) bool {
+				o := e.Object.(*carinav1beta1.NodeStorageResource)
+				if o != nil {
+					if o.Spec.NodeName == r.nodeName {
+						return true
+					}
+					return false
+				}
+				return false
+			},
+			UpdateFunc:  func(event.UpdateEvent) bool { return false },
+			GenericFunc: func(event.GenericEvent) bool { return false },
+		})
+
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&carinav1beta1.NodeStorageResource{}).
+		For(&carinav1beta1.NodeStorageResource{}, nodePredicateFn).
 		WithOptions(controller.Options{
 			RateLimiter: workqueue.NewItemFastSlowRateLimiter(10*time.Second, 60*time.Second, 5),
 		}).
@@ -140,7 +166,7 @@ func pvPredicateFn(nodeName string) builder.Predicates {
 	return builder.WithPredicates(predicate.Funcs{
 		CreateFunc: func(e event.CreateEvent) bool {
 			pv := e.Object.(*corev1.PersistentVolume)
-			if pv != nil && pv.Spec.StorageClassName == utils.CSIPluginName {
+			if pv != nil && pv.Spec.CSI != nil && pv.Spec.CSI.Driver == utils.CSIPluginName {
 				if pv.Spec.CSI.VolumeAttributes[utils.VolumeDeviceNode] == nodeName {
 					return true
 				}
@@ -149,7 +175,7 @@ func pvPredicateFn(nodeName string) builder.Predicates {
 		},
 		UpdateFunc: func(e event.UpdateEvent) bool {
 			pv := e.ObjectNew.(*corev1.PersistentVolume)
-			if pv != nil && pv.Spec.StorageClassName == utils.CSIPluginName {
+			if pv != nil && pv.Spec.CSI != nil && pv.Spec.CSI.Driver == utils.CSIPluginName {
 				if pv.Spec.CSI.VolumeAttributes[utils.VolumeDeviceNode] == nodeName {
 					return true
 				}
@@ -158,7 +184,7 @@ func pvPredicateFn(nodeName string) builder.Predicates {
 		},
 		DeleteFunc: func(e event.DeleteEvent) bool {
 			pv := e.Object.(*corev1.PersistentVolume)
-			if pv != nil && pv.Spec.StorageClassName == utils.CSIPluginName {
+			if pv != nil && pv.Spec.CSI != nil && pv.Spec.CSI.Driver == utils.CSIPluginName {
 				if pv.Spec.CSI.VolumeAttributes[utils.VolumeDeviceNode] == nodeName {
 					return true
 				}
@@ -243,7 +269,7 @@ func (r *NodeStorageResourceReconciler) needUpdateLvmStatus(status *carinav1beta
 	if err != nil {
 		return false
 	}
-	if !reflect.DeepEqual(vgs, status.VgGroups) {
+	if !equality.Semantic.DeepEqual(vgs, status.VgGroups) {
 		status.VgGroups = vgs
 		for _, v := range vgs {
 			sizeGb := v.VGSize>>30 + 1
