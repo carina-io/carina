@@ -38,6 +38,7 @@ import (
 	"net"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
+	"sigs.k8s.io/controller-runtime/pkg/webhook"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 	// +kubebuilder:scaffold:imports
 )
@@ -78,9 +79,13 @@ func subMain() error {
 		LeaderElection:          true,
 		LeaderElectionID:        utils.CSIPluginName + "-carina-controller",
 		LeaderElectionNamespace: configuration.RuntimeNamespace(),
-		Host:                    hookHost,
-		Port:                    hookPort,
-		CertDir:                 config.certDir,
+		WebhookServer: &webhook.Server{
+			Host:     hookHost,
+			Port:     hookPort,
+			CertDir:  config.certDir,
+			CertName: "cert",
+			KeyName:  "key",
+		},
 	})
 	if err != nil {
 		return err

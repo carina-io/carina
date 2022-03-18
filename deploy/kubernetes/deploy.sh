@@ -5,6 +5,7 @@ function install() {
   kubectl label namespace kube-system carina.storage.io/webhook=ignore
 
   kubectl apply -f crd.yaml
+  kubectl apply -f node-crd.yaml
   kubectl apply -f csi-config-map.yaml
   kubectl apply -f csi-controller-psp.yaml
   kubectl apply -f csi-controller-rbac.yaml
@@ -43,6 +44,7 @@ function uninstall() {
   if [ `kubectl get lv | wc -l` == 0 ]; then
     kubectl delete -f crd.yaml
   fi
+  kubectl delete -f node-crd.yaml
 }
 
 operator=${1:-'install'}
