@@ -12,6 +12,7 @@ This project adheres to [Semantic Versioning](https://www.opencarina.io).
 - Added controllers that maintain NodeStorageResource
 - The scheduler supports fetching resources from NodeStorageResource
 - Upgrade go.mod to depend on K8s1.23
+- Upgrade the Webhook certificate using job
 - Raw disk support under development
 
 ## [0.9.1] - 2021-12-17
