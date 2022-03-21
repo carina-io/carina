@@ -11,7 +11,7 @@ This project adheres to [Semantic Versioning](https://www.opencarina.io).
 - Remove device registration and use the CRD resource NodeStorageResource instead
 - Added controllers that maintain NodeStorageResource
 - The scheduler supports fetching resources from NodeStorageResource
-- Upgrade go.mod to rely on K8s1.23
+- Upgrade go.mod to depend on K8s1.23
 - Raw disk support under development
 
 ## [0.9.1] - 2021-12-17
