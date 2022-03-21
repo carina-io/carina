@@ -7,7 +7,7 @@ This project adheres to [Semantic Versioning](https://www.opencarina.io).
 
 ## [v1.0.0] - 2020-04-x
 
-- Removed csu.proto upgrade CSI_VERSION=1.5
+- Removed csi.proto upgrade CSI_VERSION=1.5
 - Remove device registration and use the CRD resource NodeStorageResource instead
 - Added controllers that maintain NodeStorageResource
 - The scheduler supports fetching resources from NodeStorageResource
