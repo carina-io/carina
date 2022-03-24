@@ -17,7 +17,9 @@
 package utils
 
 import (
+	"errors"
 	"os"
+	"reflect"
 	"time"
 )
 
@@ -114,4 +116,26 @@ func UntilMaxRetry(f func() error, maxRetry int, interval time.Duration) error {
 		time.Sleep(interval)
 	}
 	return err
+}
+
+func Fill(src interface{}, dst interface{}) error {
+	srcType := reflect.TypeOf(src)
+	srcValue := reflect.ValueOf(src)
+	dstValue := reflect.ValueOf(dst)
+
+	if srcType.Kind() != reflect.Struct {
+		return errors.New("src must be  a struct")
+	}
+	if dstValue.Kind() != reflect.Ptr {
+		return errors.New("dst must be a point")
+	}
+
+	for i := 0; i < srcType.NumField(); i++ {
+		dstField := dstValue.Elem().FieldByName(srcType.Field(i).Name)
+		if dstField.CanSet() {
+			dstField.Set(srcValue.Field(i))
+		}
+	}
+
+	return nil
 }

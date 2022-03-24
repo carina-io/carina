@@ -19,6 +19,9 @@ package controllers
 import (
 	"context"
 	"fmt"
+	"time"
+
+	"github.com/carina-io/carina/pkg/devicemanager/partition"
 	"github.com/carina-io/carina/pkg/devicemanager/volume"
 	"github.com/carina-io/carina/utils"
 	"github.com/carina-io/carina/utils/log"
@@ -31,7 +34,6 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/event"
-	"time"
 
 	carinav1 "github.com/carina-io/carina/api/v1"
 )
@@ -39,22 +41,24 @@ import (
 // LogicVolumeReconciler reconciles a LogicVolume object
 type LogicVolumeReconciler struct {
 	client.Client
-	Scheme   *runtime.Scheme
-	Recorder record.EventRecorder
-	nodeName string
-	volume   volume.LocalVolume
+	Scheme    *runtime.Scheme
+	Recorder  record.EventRecorder
+	nodeName  string
+	volume    volume.LocalVolume
+	partition partition.LocalPartition
 }
 
 // +kubebuilder:rbac:groups=carina.storage.io,resources=logicvolumes,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=carina.storage.io,resources=logicvolumes/status,verbs=get;update;patch
 
-func NewLogicVolumeReconciler(client client.Client, scheme *runtime.Scheme, recorder record.EventRecorder, nodeName string, volume volume.LocalVolume) *LogicVolumeReconciler {
+func NewLogicVolumeReconciler(client client.Client, scheme *runtime.Scheme, recorder record.EventRecorder, nodeName string, volume volume.LocalVolume, partition partition.LocalPartition) *LogicVolumeReconciler {
 	return &LogicVolumeReconciler{
-		Client:   client,
-		Scheme:   scheme,
-		Recorder: recorder,
-		nodeName: nodeName,
-		volume:   volume,
+		Client:    client,
+		Scheme:    scheme,
+		Recorder:  recorder,
+		nodeName:  nodeName,
+		volume:    volume,
+		partition: partition,
 	}
 }
 
@@ -149,44 +153,83 @@ func (r *LogicVolumeReconciler) removeLVIfExists(ctx context.Context, lv *carina
 func (r *LogicVolumeReconciler) createLV(ctx context.Context, lv *carinav1.LogicVolume) error {
 	// When lv.Status.Code is not codes.OK (== 0), CreateLV has already failed.
 	// LogicalVolume CRD will be deleted soon by the controller.
+	var volumeType string
+
 	if lv.Status.Code != codes.OK {
 		return nil
 	}
-
 	reqBytes := lv.Spec.Size.Value()
 
-	err := utils.UntilMaxRetry(func() error {
-		return r.volume.CreateVolume(lv.Name, lv.Spec.DeviceGroup, uint64(reqBytes), 1)
-	}, 5, 12*time.Second)
+	switch lv.Annotations["carina.storage.io/disk-type"] {
+	case utils.LvmVolumeType:
+		err := utils.UntilMaxRetry(func() error {
+			return r.volume.CreateVolume(lv.Name, lv.Spec.DeviceGroup, uint64(reqBytes), 1)
+		}, 5, 12*time.Second)
 
-	if err != nil {
-		lv.Status.Code = codes.Internal
-		lv.Status.Message = err.Error()
-		lv.Status.Status = "Failed"
-		r.Recorder.Event(lv, corev1.EventTypeWarning, "CreateVolumeFailed", fmt.Sprintf("create volume failed node: %s, time: %s, error: %s", r.nodeName, time.Now().Format("2006-01-02T15:04:05.000Z"), err.Error()))
-	} else {
-		lv.Status.VolumeID = "volume-" + lv.Name
-		lv.Status.CurrentSize = resource.NewQuantity(reqBytes, resource.BinarySI)
-		lv.Status.Code = codes.OK
-		lv.Status.Message = ""
-		lv.Status.Status = "Success"
+		if err != nil {
+			lv.Status.Code = codes.Internal
+			lv.Status.Message = err.Error()
+			lv.Status.Status = "Failed"
+			r.Recorder.Event(lv, corev1.EventTypeWarning, "CreateVolumeFailed", fmt.Sprintf("create volume failed node: %s, time: %s, error: %s", r.nodeName, time.Now().Format("2006-01-02T15:04:05.000Z"), err.Error()))
+			//update status failed
+			if err2 := r.Status().Update(ctx, lv); err2 != nil {
+				// err2 is logged but not returned because err is more important
+				log.Error(err2, " failed to update status name ", lv.Name, " uid ", lv.UID)
+			}
+		} else {
+			lv.Status.VolumeID = "volume-" + lv.Name
+			lv.Status.CurrentSize = resource.NewQuantity(reqBytes, resource.BinarySI)
+			lv.Status.Code = codes.OK
+			lv.Status.Message = ""
+			lv.Status.Status = "Success"
 
-		lvInfo, _ := r.volume.VolumeInfo(lv.Status.VolumeID, lv.Spec.DeviceGroup)
-		if lvInfo != nil {
-			lv.Status.DeviceMajor = lvInfo.LVKernelMajor
-			lv.Status.DeviceMinor = lvInfo.LVKernelMinor
+			lvInfo, _ := r.volume.VolumeInfo(lv.Status.VolumeID, lv.Spec.DeviceGroup)
+			if lvInfo != nil {
+				lv.Status.DeviceMajor = lvInfo.LVKernelMajor
+				lv.Status.DeviceMinor = lvInfo.LVKernelMinor
+			}
+			r.Recorder.Event(lv, corev1.EventTypeNormal, "CreateVolumeSuccess", fmt.Sprintf("create volume success node: %s, time: %s", r.nodeName, time.Now().Format("2006-01-02T15:04:05.000Z")))
 		}
-		r.Recorder.Event(lv, corev1.EventTypeNormal, "CreateVolumeSuccess", fmt.Sprintf("create volume success node: %s, time: %s", r.nodeName, time.Now().Format("2006-01-02T15:04:05.000Z")))
-	}
 
-	if err != nil {
-		if err2 := r.Status().Update(ctx, lv); err2 != nil {
-			// err2 is logged but not returned because err is more important
-			log.Error(err2, " failed to update status name ", lv.Name, " uid ", lv.UID)
+	case utils.RawVolumeType:
+		if exclusivity, ok := lv.Annotations["carina.storage.io/exclusivity-disk"]; !ok {
+			log.Info("Create lv using an exclusive disk")
 		}
-		return err
-	}
 
+		err := utils.UntilMaxRetry(func() error {
+			return r.partition.AddPartition(lv.Spec.DeviceGroup,lv.Name, uint64(reqBytes), 1)
+		}, 5, 12*time.Second)
+
+		if err != nil {
+			lv.Status.Code = codes.Internal
+			lv.Status.Message = err.Error()
+			lv.Status.Status = "Failed"
+			r.Recorder.Event(lv, corev1.EventTypeWarning, "CreateVolumeFailed", fmt.Sprintf("create volume failed node: %s, time: %s, error: %s", r.nodeName, time.Now().Format("2006-01-02T15:04:05.000Z"), err.Error()))
+			//update status failed
+			if err2 := r.Status().Update(ctx, lv); err2 != nil {
+				// err2 is logged but not returned because err is more important
+				log.Error(err2, " failed to update status name ", lv.Name, " uid ", lv.UID)
+			}
+		} else {
+			lv.Status.VolumeID = "volume-" + lv.Name
+			lv.Status.CurrentSize = resource.NewQuantity(reqBytes, resource.BinarySI)
+			lv.Status.Code = codes.OK
+			lv.Status.Message = ""
+			lv.Status.Status = "Success"
+
+			lvInfo, _ := r.volume.VolumeInfo(lv.Status.VolumeID, lv.Spec.DeviceGroup)
+			if lvInfo != nil {
+				lv.Status.DeviceMajor = lvInfo.LVKernelMajor
+				lv.Status.DeviceMinor = lvInfo.LVKernelMinor
+			}
+			r.Recorder.Event(lv, corev1.EventTypeNormal, "CreateVolumeSuccess", fmt.Sprintf("create volume success node: %s, time: %s", r.nodeName, time.Now().Format("2006-01-02T15:04:05.000Z")))
+		}
+
+	default:
+		log.Errorf("Create LogicVolume: Create with no support volume type %s", volumeType)
+		return fmt.Errorf("Create with no support type " + volumeType)
+	}
+	//update status success
 	if err := r.Status().Update(ctx, lv); err != nil {
 		log.Error(err, " failed to update status name ", lv.Name, " uid ", lv.UID)
 		return err
@@ -219,7 +262,12 @@ func (r *LogicVolumeReconciler) expandLV(ctx context.Context, lv *carinav1.Logic
 		lv.Status.Message = err.Error()
 		lv.Status.Status = "Failed"
 		r.Recorder.Event(lv, corev1.EventTypeWarning, "ExpandVolumeFailed", fmt.Sprintf("expand volume failed node: %s, time: %s, error: %s", r.nodeName, time.Now().Format("2006-01-02T15:04:05.000Z"), err.Error()))
-
+		//update status failed
+		if err2 := r.Status().Update(ctx, lv); err2 != nil {
+			// err2 is logged but not returned because err is more important
+			log.Error(err2, " failed to update status name ", lv.Name, " uid ", lv.UID)
+		}
+		return err
 	} else {
 		lv.Status.CurrentSize = resource.NewQuantity(reqBytes, resource.BinarySI)
 		lv.Status.Code = codes.OK
@@ -228,14 +276,7 @@ func (r *LogicVolumeReconciler) expandLV(ctx context.Context, lv *carinav1.Logic
 		r.Recorder.Event(lv, corev1.EventTypeNormal, "ExpandVolumeSuccess", fmt.Sprintf("expand volume success node: %s, time: %s", r.nodeName, time.Now().Format("2006-01-02T15:04:05.000Z")))
 	}
 
-	if err != nil {
-		if err2 := r.Status().Update(ctx, lv); err2 != nil {
-			// err2 is logged but not returned because err is more important
-			log.Error(err2, " failed to update status name ", lv.Name, " uid ", lv.UID)
-		}
-		return err
-	}
-
+	//update status success
 	if err := r.Status().Update(ctx, lv); err != nil {
 		log.Error(err, " failed to update status name ", lv.Name, " uid ", lv.UID)
 		return err

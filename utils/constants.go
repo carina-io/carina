@@ -33,6 +33,9 @@ const (
 	// ResizeRequestedAtKey is the key of LogicalVolume that represents the timestamp of the resize request.
 	ResizeRequestedAtKey = "carina.storage.io/resize-requested-at"
 
+	//ExclusivityDisk  true or false  is the key indicates that only the disk is used by one pod
+	ExclusivityDisk = "carina.storage.io/exclusivity-disk"
+
 	// DeviceDiskKey storage class
 	// DeviceDiskKey is the key used in CSI volume create requests to specify a DeviceDiskKey support carina-vg-ssd carina-vg-hdd
 	DeviceDiskKey = "carina.storage.io/disk-type"
@@ -76,4 +79,8 @@ const (
 
 	// CarinaSchedule custom schedule
 	CarinaSchedule = "carina-scheduler"
+
+	// DeviceVolumeType type
+	LvmVolumeType = "LVM"
+	RawVolumeType = "Raw"
 )

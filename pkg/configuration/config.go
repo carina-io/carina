@@ -207,3 +207,19 @@ func Validate(disk Disk) error {
 	}
 	return nil
 }
+
+func GetRawDeviceGroupRe(diskType string) []string {
+	deviceGroup := strings.ToLower(diskType)
+	currentDiskSelector := DiskConfig.DiskSelectors
+	if utils.ContainsString([]string{"ssd", "hdd"}, deviceGroup) {
+		deviceGroup = fmt.Sprintf("carina-vg-%s", deviceGroup)
+	}
+
+	for _, v := range currentDiskSelector {
+		if v.Name == deviceGroup && strings.ToLower(v.Policy) == "raw" {
+			return v.Re
+		}
+
+	}
+	return nil
+}

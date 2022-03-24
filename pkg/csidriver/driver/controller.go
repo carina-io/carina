@@ -116,8 +116,17 @@ func (s controllerService) CreateVolume(ctx context.Context, req *csi.CreateVolu
 
 	// process topology
 	var node string
+	var nodeName string
+	var group string
+	var volumeType string
 	segments := map[string]string{}
 	requirements := req.GetAccessibilityRequirements()
+
+	if version.CheckRawDeviceGroup(deviceGroup) {
+		volumeType = utils.RawVolumeType
+	} else {
+		volumeType = utils.LvmVolumeType
+	}
 
 	// 为什么requirements是所有的节点列表，不应该只有已选定的节点吗
 	// 只能通过pvc Annotations来判断pvc是否已经被选定节点
@@ -146,29 +155,57 @@ func (s controllerService) CreateVolume(ctx context.Context, req *csi.CreateVolu
 		deviceGroup = group
 	}
 
+	//check  Parameters done
+	log.Infof("CreateVolume: Starting to Create %s volume %s with: pvcName(%s), pvcNameSpace(%s), nodeSelected(%s), storageSelected(%s)", volumeType, req.GetName(), pvcName, namespace, nodeName, deviceGroup)
+	// pv csi VolumeAttributes
+	annotation := map[string]string{}
+	annotation["carina.storage.io/disk-type"] = volumeType
+	volumeContext := req.GetParameters()
 	// 不是调度器完成pv调度，则采用controller调度
 	if node == "" {
-		// In CSI spec, controllers are required that they response OK even if accessibility_requirements field is nil.
-		// So we must create volume, and must not return error response in this case.
-		// - https://github.com/container-storage-interface/spec/blob/release-1.1/spec.md#createvolume
-		// - https://github.com/kubernetes-csi/csi-test/blob/6738ab2206eac88874f0a3ede59b40f680f59f43/pkg/sanity/controller.go#L404-L428
-		log.Info("decide node because accessibility_requirements not found")
-		nodeName, group, segmentsTmp, err := s.nodeService.SelectVolumeNode(ctx, requestGb, deviceGroup, requirements)
-		if err != nil {
-			return nil, status.Errorf(codes.Internal, "failed to get max capacity node %v", err)
+		switch volumeType {
+		case utils.LvmVolumeType:
+			// In CSI spec, controllers are required that they response OK even if accessibility_requirements field is nil.
+			// So we must create volume, and must not return error response in this case.
+			// - https://github.com/container-storage-interface/spec/blob/release-1.1/spec.md#createvolume
+			// - https://github.com/kubernetes-csi/csi-test/blob/6738ab2206eac88874f0a3ede59b40f680f59f43/pkg/sanity/controller.go#L404-L428
+			log.Info("decide node because accessibility_requirements not found")
+			nodeName, group, segments, err = s.nodeService.SelectVolumeNode(ctx, requestGb, deviceGroup, requirements)
+			if err != nil {
+				return nil, status.Errorf(codes.Internal, "failed to get max capacity node %v", err)
+			}
+			if nodeName == "" {
+				return nil, status.Error(codes.Internal, "can not find any node")
+			}
+			if group == "" {
+				return nil, status.Error(codes.Internal, "can not find any device group")
+			}
+
+		case utils.RawVolumeType:
+			log.Info("decide node because accessibility_requirements not found")
+			exclusivityDisk := req.GetParameters()[utils.ExclusivityDisk] == "true"
+			nodeName, group, segments, err = s.nodeService.SelectDeviceNode(ctx, requestGb, deviceGroup, requirements, exclusivityDisk)
+			if err != nil {
+				return nil, status.Errorf(codes.Internal, "failed to get max capacity node %v", err)
+			}
+			if nodeName == "" {
+				return nil, status.Error(codes.Internal, "can not find any node")
+			}
+			if group == "" {
+				return nil, status.Error(codes.Internal, "can not find any device group")
+			}
+
+			if req.GetParameters()[utils.ExclusivityDisk] == "true" {
+				annotation["carina.storage.io/exclusivity-disk"] = "true"
+			}
+		default:
+			log.Errorf("CreateVolume: Create with no support volume type %s", volumeType)
+			return nil, status.Error(codes.InvalidArgument, "Create with no support type "+volumeType)
 		}
-		if nodeName == "" {
-			return nil, status.Error(codes.Internal, "can not find any node")
-		}
-		if group == "" {
-			return nil, status.Error(codes.Internal, "can not find any device group")
-		}
-		node = nodeName
-		segments = segmentsTmp
-		deviceGroup = group
 	}
 
-	volumeID, deviceMajor, deviceMinor, err := s.lvService.CreateVolume(ctx, namespace, pvcName, node, deviceGroup, name, requestGb, metav1.OwnerReference{}, map[string]string{})
+	// create logicVolume
+	volumeID, deviceMajor, deviceMinor, err := s.lvService.CreateVolume(ctx, namespace, pvcName, node, group, name, requestGb, metav1.OwnerReference{}, annotation)
 	if err != nil {
 		_, ok := status.FromError(err)
 		if !ok {
@@ -176,18 +213,14 @@ func (s controllerService) CreateVolume(ctx context.Context, req *csi.CreateVolu
 		}
 		return nil, err
 	}
-
-	// pv csi VolumeAttributes
-	volumeContext := req.GetParameters()
+	//Append necessary parameters
 	volumeContext[utils.DeviceDiskKey] = deviceGroup
 	volumeContext[utils.VolumeDevicePath] = fmt.Sprintf("/dev/%s/volume-%s", deviceGroup, name)
 	volumeContext[utils.VolumeDeviceNode] = node
 	volumeContext[utils.VolumeDeviceMajor] = fmt.Sprintf("%d", deviceMajor)
 	volumeContext[utils.VolumeDeviceMinor] = fmt.Sprintf("%d", deviceMinor)
-
 	// pv nodeAffinity
 	segments[utils.TopologyNodeKey] = node
-
 	return &csi.CreateVolumeResponse{
 		Volume: &csi.Volume{
 			CapacityBytes: requestGb << 30,

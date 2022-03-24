@@ -42,12 +42,11 @@ type Disk struct {
 	Filesystem string `json:"filesystem"`
 	// has used
 	Used uint64 `json:"used"`
-	// parent Name
-	ParentName string      `json:"parentName"`
-	Capacity   string      `json:"capacity,omitempty"`
-	Available  string      `json:"available,omitempty"`
-	Partition  []Partition `json:"partition,omitempty"`
-	FreeSpace  []Partition `json:"freespace,omitempty"`
+
+	Capacity  string      `json:"capacity,omitempty"`
+	Available string      `json:"available,omitempty"`
+	Partition []Partition `json:"partition,omitempty"`
+	FreeSpace []Partition `json:"freespace,omitempty"`
 }
 
 // Partition defines disk partition details

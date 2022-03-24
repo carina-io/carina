@@ -18,15 +18,17 @@ package deviceManager
 
 import (
 	"context"
-	"github.com/carina-io/carina/api"
 	"regexp"
 	"strings"
 	"time"
+
+	"github.com/carina-io/carina/api"
 
 	"github.com/carina-io/carina/pkg/configuration"
 	"github.com/carina-io/carina/pkg/devicemanager/bcache"
 	"github.com/carina-io/carina/pkg/devicemanager/device"
 	"github.com/carina-io/carina/pkg/devicemanager/lvmd"
+	"github.com/carina-io/carina/pkg/devicemanager/partition"
 	"github.com/carina-io/carina/pkg/devicemanager/troubleshoot"
 	"github.com/carina-io/carina/pkg/devicemanager/types"
 	"github.com/carina-io/carina/pkg/devicemanager/volume"
@@ -60,6 +62,8 @@ type DeviceManager struct {
 	trouble *troubleshoot.Trouble
 	// 配置变更即触发搜索本地磁盘逻辑
 	configModifyChan chan struct{}
+	//磁盘分区
+	Partition partition.LocalPartition
 }
 
 func NewDeviceManager(nodeName string, cache cache.Cache, stopChan <-chan struct{}) *DeviceManager {
@@ -77,6 +81,7 @@ func NewDeviceManager(nodeName string, cache cache.Cache, stopChan <-chan struct
 		nodeName:         nodeName,
 		trouble:          &troubleshoot.Trouble{},
 		configModifyChan: make(chan struct{}),
+		Partition:        &partition.LocalPartitionImplement{Executor: executor},
 	}
 	dm.trouble = troubleshoot.NewTroubleObject(dm.VolumeManager, cache, nodeName)
 	// 注册监听配置变更
