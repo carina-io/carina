@@ -14,6 +14,8 @@ spec:
     listKind: NodeStorageResourceList
     plural: nodestorageresources
     singular: nodestorageresource
+    shortNames:
+    - nsr
   scope: Cluster
   versions:
     - additionalPrinterColumns:

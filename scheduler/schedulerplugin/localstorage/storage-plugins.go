@@ -19,10 +19,11 @@ package localstorage
 import (
 	"context"
 	"errors"
-	"k8s.io/client-go/dynamic"
 	"sort"
 	"strconv"
 	"strings"
+
+	"k8s.io/client-go/dynamic"
 
 	"github.com/carina-io/carina/scheduler/configuration"
 	"github.com/carina-io/carina/scheduler/utils"

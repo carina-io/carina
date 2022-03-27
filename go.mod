@@ -29,12 +29,15 @@ require (
 )
 
 require (
-	github.com/go-ole/go-ole v1.2.6 // indirect
-	github.com/yusufpapurcu/wmi v1.2.2 // indirect
+	github.com/patrickmn/go-cache v2.1.0+incompatible // indirect
+	github.com/rekby/gpt v0.0.0-20200614112001-7da10aec5566 // indirect
+	github.com/rekby/mbr v0.0.0-20190325193910-2b19b9cdeebc // indirect
+	github.com/satori/go.uuid v1.2.0 // indirect
 )
 
 require (
 	cloud.google.com/go v0.99.0 // indirect
+	github.com/anuvu/disko v0.0.8
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cespare/xxhash/v2 v2.1.2 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
@@ -64,7 +67,6 @@ require (
 	github.com/prometheus/client_model v0.2.0 // indirect
 	github.com/prometheus/common v0.32.1 // indirect
 	github.com/prometheus/procfs v0.7.3 // indirect
-	github.com/shirou/gopsutil v3.21.11+incompatible // indirect
 	github.com/spf13/afero v1.6.0 // indirect
 	github.com/spf13/cast v1.4.1 // indirect
 	github.com/spf13/jwalterweatherman v1.1.0 // indirect

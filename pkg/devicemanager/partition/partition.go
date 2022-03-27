@@ -17,384 +17,263 @@
 package partition
 
 import (
-	"encoding/json"
+	"errors"
 	"fmt"
+	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 
-	carinav1beta1 "github.com/carina-io/carina/api"
-	"github.com/carina-io/carina/pkg/devicemanager/device"
+	"github.com/anuvu/disko"
+	"github.com/anuvu/disko/linux"
+	"github.com/anuvu/disko/partid"
 	"github.com/carina-io/carina/utils/exec"
 	"github.com/carina-io/carina/utils/log"
+	"github.com/carina-io/carina/utils/mutx"
 )
 
-const (
-	// DiskType is a disk type
-	DiskType = "disk"
-	// SSDType is an sdd type
-	SSDType = "ssd"
-	// PartType is a partition type
-	PartType = "part"
-	// CryptType is an encrypted type
-	CryptType = "crypt"
-	// LVMType is an LVM type
-	LVMType = "lvm"
-	// MultiPath is for multipath devices
-	MultiPath = "mpath"
-	// LinearType is a linear type
-	LinearType = "linear"
-	sgdiskCmd  = "sgdisk"
+var (
+	matchAll = func(d disko.Disk) bool {
+		return true
+	}
+	xenbusSysPathMatch = regexp.MustCompile(`/dev/sd-\d+/block/`)
 
-	LoopType = "loop"
+	matchRe = func(d disko.Disk) bool {
+		if xenbusSysPathMatch.MatchString(d.UdevInfo.SysPath) {
+			return true
+		}
+		return false
+	}
+	mysys = linux.System()
 )
 
 type LocalPartition interface {
-	ListPartitions() (partitions []carinav1beta1.Partition, err error)
-	ListDiskPartitions() (rawDevices []carinav1beta1.Disk, err error)
-	AddPartition(device string, name, start, end string) (partition carinav1beta1.Partition, err error)
-	DelPartition(device, partitionNumber string) (bool, error)
-	GetPartitions(device string) (partitions []carinav1beta1.Partition, err error)
-	GetUnUsePartitions(device string) (partitions []carinav1beta1.Partition, unusedSpace uint64, err error)
-	IsPartType(device string) (bool, error)
-	GetUdevInfo(device string) (map[string]string, error)
-	//"bsd", "dvh", "gpt",  "loop","mac", "msdos", "pc98", or "sun"
-	GetDiskPartitionType(device string) (string, error)
-	GetDiskInfo(device string) (map[string]string, error)
+	ScanAllDisks(filter disko.DiskFilter) (disko.DiskSet, error)
+	ScanDisk(groups string) (disko.Disk, error)
+	CreatePartition(name, groups string, size uint64) error
+	UpdatePartition(name, groups string, size uint64) error
+	DeletePartition(name, groups string) error
+	DeletePartitionByPartNumber(disk disko.Disk, number uint)
+	Wipe(name, groups string) error
+	UdevSettle() error
 }
+
+const DISKMUTEX = "DiskMutex"
 
 type LocalPartitionImplement struct {
-	LocalDeviceImplement device.LocalDeviceImplement
-	Executor             exec.Executor
+	//	LocalDeviceImplement device.LocalDeviceImplement
+	//	Bcache               bcache.Bcache
+	Mutex            *mutx.GlobalLocks
+	CacheParttionNum map[string]uint
+	Executor         exec.Executor
 }
 
-//list all device partitions
-func (ld *LocalPartitionImplement) ListPartitions() (partitions []carinav1beta1.Partition, err error) {
-	divices, err := ld.LocalDeviceImplement.ListDevices()
+func NewLocalPartitionImplement() *LocalPartitionImplement {
+	executor := &exec.CommandExecutor{}
+	mutex := mutx.NewGlobalLocks()
+	return &LocalPartitionImplement{
+		Mutex:            mutex,
+		CacheParttionNum: make(map[string]uint),
+		Executor:         executor}
+}
+
+func (ld *LocalPartitionImplement) ScanAllDisks(filter disko.DiskFilter) (disko.DiskSet, error) {
+	diskSet, err := mysys.ScanAllDisks(filter)
 	if err != nil {
-		return partitions, fmt.Errorf("failed to list all devices: %+v", err)
+		log.Errorf("scan  node disk resource error %s", err.Error())
+		return disko.DiskSet{}, err
 	}
-	if len(divices) < 1 {
-		return partitions, fmt.Errorf("unable to get one devices: %+v", err)
-	}
-	for _, v := range divices {
-		log.Infof("list device %s", v)
-		parttiontype, err := ld.GetDiskPartitionType(v)
-		if err != nil {
-			log.Infof("failed to get  devices Partition Table Type: %+v", err)
-		}
-		if parttiontype == " " || parttiontype == "unknown" {
-			continue
-		}
-		partition, err := ld.GetPartitions(v)
-		if err != nil {
-			log.Errorf("failed to list all devices: %+v", err)
-			continue
-		}
-
-		partitions = append(partitions, partition...)
-
-	}
-	return partitions, nil
-
+	return diskSet, nil
 }
 
-//list all device partitions
-func (ld *LocalPartitionImplement) ListDiskPartitions() (rawDevices []carinav1beta1.Disk, err error) {
-	divices, err := ld.LocalDeviceImplement.ListDevicesDetail("")
+func (ld *LocalPartitionImplement) ScanDisk(groups string) (disko.Disk, error) {
+	selectDeviceGroup := strings.Split(groups, "-")[1]
+	diskPath := strings.Split(selectDeviceGroup, "/")[1]
+	disk, err := mysys.ScanDisk(fmt.Sprintf("/dev/%s", diskPath))
 	if err != nil {
-		return rawDevices, fmt.Errorf("failed to list all devices: %+v", err)
+		log.Error("scanDisk path ", fmt.Sprintf("/dev/%s", diskPath), "failed"+err.Error())
+		return disko.Disk{}, err
 	}
-	if len(divices) < 1 {
-		return rawDevices, fmt.Errorf("unable to get one devices: %+v", err)
-	}
-
-	for _, v := range divices {
-		//skip partition
-		if v.Type == PartType {
-			continue
-		}
-		rawDevicesItem := new(carinav1beta1.Disk)
-		tmp, err := json.Marshal(v)
-		if err != nil {
-			log.Infof("failed to marshal devices Partition %s,%+v", v.Name, err)
-		}
-		json.Unmarshal(tmp, &rawDevicesItem)
-		rawDevicesItem.Partition, err = ld.GetPartitions(v.Name)
-		if err != nil {
-			log.Errorf("failed to list all devices: %+v", err)
-			continue
-		}
-
-		rawDevices = append(rawDevices, *rawDevicesItem)
-
-	}
-	return rawDevices, nil
+	return disk, nil
 
 }
+func (ld *LocalPartitionImplement) CreatePartition(name, groups string, size uint64) error {
+	//DeviceGroup=node.Name + "-" + deviceGroup + "/" + device.Name + "/" + start,
 
-// add partition to give device
-// parted -s /dev/sdX -- mklabel msdos
-// mkpart primary fat32 64s 4MiB \
-// mkpart primary fat32 4MiB -1s
-//ext2,fat16, fat32,hfs, hfs+, hfsx,linux-swap,NTFS,reiserfs,ufs,btrfs
-//name 2 'carina.io/pods-name-volume/pvc-1'
-func (ld *LocalPartitionImplement) AddPartition(device string, name, start, end string) (partition carinav1beta1.Partition, err error) {
-	parttiontype, err := ld.GetDiskPartitionType(device)
+	selectDeviceGroup := strings.Split(groups, "-")[1]
+	diskPath := strings.Split(selectDeviceGroup, "/")[1]
+
+	startString := strings.Split(selectDeviceGroup, "/")[2]
+	start, err := strconv.ParseInt(startString, 10, 64)
 	if err != nil {
-		return partition, err
-	}
-	if parttiontype == " " || parttiontype == "unknown" {
-		//rebuild parttion
-		_, err := ld.Executor.ExecuteCommandWithOutput("parted", "-s", fmt.Sprintf("/dev/%s", device), "mklable", "gpt")
-		if err != nil {
-			return partition, err
-		}
+		log.Error(" transfer startString ", "failed"+err.Error())
+		return err
 	}
 
-	_, err = ld.Executor.ExecuteCommandWithOutput("parted", "-s", fmt.Sprintf("/dev/%s", device), "mkpart", "primary", start, end)
+	if !ld.Mutex.TryAcquire(DISKMUTEX) {
+		log.Info("wait other task release mutex, please retry...")
+		return errors.New("get global mutex failed")
+	}
+	defer ld.Mutex.Release(DISKMUTEX)
+
+	disk, err := ld.ScanDisk(groups)
 	if err != nil {
-		log.Error("exec parted -s", fmt.Sprintf("/dev/%s", device), "mkpart", "primary", start, end, "failed"+err.Error())
-		return partition, err
+		log.Error("scanDisk path ", fmt.Sprintf("/dev/%s", diskPath), "failed"+err.Error())
+		return err
+	}
+	fs := disk.FreeSpacesWithMin(size)
+	if len(fs) < 1 {
+		log.Error("path ", fmt.Sprintf("/dev/%s", diskPath), "has not free size "+err.Error())
+		return err
+	}
+	//check start location is in fs
+	var inFreeSizeSpace bool = false
+	for _, f := range fs {
+		if f.Start == uint64(start) {
+			inFreeSizeSpace = true
+		}
+	}
+	if !inFreeSizeSpace {
+		start = int64(fs[0].Start)
 	}
 
-	output, err := ld.Executor.ExecuteCommandWithOutput("parted", "-s", fmt.Sprintf("/dev/%s", device), "p")
+	number := []int{}
+	for k, _ := range disk.Partitions {
+		number = append(number, int(k))
+	}
+	sort.Ints(number)
+	myGUID := disko.GenGUID()
+	partitionNum := uint(number[len(number)-1]) + 1
+	part := disko.Partition{
+		Start:  uint64(start),
+		Last:   uint64(size),
+		Type:   partid.LinuxLVM,
+		Name:   name,
+		ID:     myGUID,
+		Number: partitionNum,
+	}
+
+	err = mysys.CreatePartition(disk, part)
 	if err != nil {
-		return partition, err
+		log.Error("create parttion on disk ", fmt.Sprintf("/dev/%s", diskPath), "failed"+err.Error())
+		return err
 	}
-
-	partitionString := strings.ReplaceAll(output, "\"", "")
-	partitionsList := strings.Split(partitionString, "\n")
-	locationNum := 0
-
-	for i, partitions := range partitionsList {
-
-		if strings.Contains(partitions, "Number") {
-			locationNum = i
-		}
-		if locationNum == 0 || i <= locationNum {
-			continue
-		}
-		log.Infof("found partition in line %s", i)
-		tmp := strings.Split(partitions, " ")
-		partition.Number = tmp[0]
-		partition.Start = tmp[1]
-		partition.End = tmp[2]
-		partition.Size = tmp[3]
-		partition.Filesystem = tmp[4]
-		partition.Name = tmp[5]
-		partition.Flags = tmp[6]
-		if partition.Start == start && partition.End == end {
-			//set partition name
-			_, err = ld.Executor.ExecuteCommandWithOutput("parted", "-s", fmt.Sprintf("/dev/%s", device), "name", partition.Number, name)
-			if err != nil {
-				log.Error("exec parted -s", fmt.Sprintf("/dev/%s", device), "name", partition.Number, name, "failed"+err.Error())
-				return partition, err
-			}
-			return partition, nil
-		}
-	}
-
-	return partition, nil
+	ld.CacheParttionNum[name] = partitionNum
+	return nil
 }
 
-// delete a partition on a given device
-func (ld *LocalPartitionImplement) DelPartition(device, partitionNumber string) (bool, error) {
-	_, err := ld.Executor.ExecuteCommandWithOutput("parted", fmt.Sprintf("/dev/%s", device), "rm", partitionNumber)
+func (ld *LocalPartitionImplement) UpdatePartition(name, groups string, size uint64) error {
+
+	if !ld.Mutex.TryAcquire(DISKMUTEX) {
+		log.Info("wait other task release mutex, please retry...")
+		return errors.New("get global mutex failed")
+	}
+	defer ld.Mutex.Release(DISKMUTEX)
+	selectDeviceGroup := strings.Split(groups, "-")[1]
+	diskPath := strings.Split(selectDeviceGroup, "/")[1]
+
+	disk, err := ld.ScanDisk(groups)
 	if err != nil {
-		log.Error("exec parted -s", fmt.Sprintf("/dev/%s", device), "rm", partitionNumber, "failed"+err.Error())
-		return false, err
+		log.Error("scanDisk path ", fmt.Sprintf("/dev/%s", diskPath), "failed"+err.Error())
+		return err
+	}
+	fs := disk.FreeSpacesWithMin(size)
+	if len(fs) < 1 {
+		log.Error("path ", fmt.Sprintf("/dev/%s", diskPath), "has not free size ")
+		return errors.New("disk has not free size" + fmt.Sprintf("/dev/%s", diskPath))
+	}
+	if len(disk.Partitions) < 1 {
+		log.Error("path", fmt.Sprintf("/dev/%s", diskPath), "disk has mutipod used")
+		return errors.New("disk has mutipod used" + fmt.Sprintf("/dev/%s", diskPath))
+	}
+	if _, ok := ld.CacheParttionNum[name]; !ok {
+		log.Error("path", fmt.Sprintf("/dev/%s", diskPath), "cacheParttionMap has no parttion number")
+		return errors.New("cacheParttionMap has no parttion number" + fmt.Sprintf("/dev/%s", diskPath))
+	}
+	if p, ok := disk.Partitions[ld.CacheParttionNum[name]]; ok {
+		p.Last = size
+		if err := mysys.UpdatePartition(disk, p); err != nil {
+			log.Error("Update parttion on disk ", fmt.Sprintf("/dev/%s", diskPath), "failed"+err.Error())
+			return errors.New("Update parttion on disk failed" + fmt.Sprintf("/dev/%s", diskPath))
+		}
 	}
 
-	return true, nil
+	return nil
 }
 
-// GetDevicePartitions gets partitions on a given device
-func (ld *LocalPartitionImplement) GetPartitions(device string) (partitions []carinav1beta1.Partition, err error) {
-
-	var devicePath string
-	splitDevicePath := strings.Split(device, "/")
-	if len(splitDevicePath) == 1 {
-		devicePath = fmt.Sprintf("/dev/%s", device) //device path for OSD on devices.
-	} else {
-		devicePath = device //use the exact device path (like /mnt/<pvc-name>) in case of PVC block device
+func (ld *LocalPartitionImplement) DeletePartition(name, groups string) error {
+	if !ld.Mutex.TryAcquire(DISKMUTEX) {
+		log.Info("wait other task release mutex, please retry...")
+		return errors.New("get global mutex failed")
 	}
+	defer ld.Mutex.Release(DISKMUTEX)
 
-	output, err := ld.Executor.ExecuteCommandWithOutput("parted", "-s", devicePath, "p")
-	log.Infof("Output: %+v", output)
+	selectDeviceGroup := strings.Split(groups, "-")[1]
+	diskPath := strings.Split(selectDeviceGroup, "/")[1]
+	disk, err := mysys.ScanDisk(fmt.Sprintf("/dev/%s", diskPath))
 	if err != nil {
-		return partitions, fmt.Errorf("failed to get device %s partitions. %+v", device, err)
+		log.Error("scanDisk path ", fmt.Sprintf("/dev/%s", diskPath), "failed"+err.Error())
+		return err
 	}
-	partitions = parsePartitionString(output)
+	if _, ok := ld.CacheParttionNum[name]; !ok {
+		log.Error("path", fmt.Sprintf("/dev/%s", diskPath), "cacheParttionMap has no parttion number")
+		return errors.New("cacheParttionMap has no parttion number" + fmt.Sprintf("/dev/%s", diskPath))
+	}
+	number := ld.CacheParttionNum[name]
+	if _, ok := disk.Partitions[number]; !ok {
+		return fmt.Errorf("partition %d does not exist", number)
+	}
+	if err := mysys.DeletePartition(disk, number); err != nil {
+		log.Error("Delete parttion on disk ", fmt.Sprintf("/dev/%s", diskPath), "failed"+err.Error())
+		return errors.New("Delete parttion on disk failed" + fmt.Sprintf("/dev/%s", diskPath))
+	}
+	delete(ld.CacheParttionNum, name)
+	return nil
 
-	return partitions, nil
+}
+func (ld *LocalPartitionImplement) DeletePartitionByPartNumber(disk disko.Disk, number uint) error {
+	if !ld.Mutex.TryAcquire(DISKMUTEX) {
+		log.Info("wait other task release mutex, please retry...")
+		return errors.New("get global mutex failed")
+	}
+	defer ld.Mutex.Release(DISKMUTEX)
+	if err := mysys.DeletePartition(disk, number); err != nil {
+		log.Error("Delete parttion on disk ", disk.Path, "failed"+err.Error())
+		return errors.New("Delete parttion on disk failed" + disk.Path)
+	}
+	for k, v := range ld.CacheParttionNum {
+		if v == number {
+			delete(ld.CacheParttionNum, k)
+		}
+	}
+
+	return nil
+
 }
 
-//
-func (ld *LocalPartitionImplement) GetUnUsePartitions(device string) (partitions []carinav1beta1.Partition, unusedSpace uint64, err error) {
-	var devicePath string
-	splitDevicePath := strings.Split(device, "/")
-	if len(splitDevicePath) == 1 {
-		devicePath = fmt.Sprintf("/dev/%s", device) //device path for OSD on devices.
-	} else {
-		devicePath = device //use the exact device path (like /mnt/<pvc-name>) in case of PVC block device
+func (ld *LocalPartitionImplement) Wipe(name, groups string) error {
+	if !ld.Mutex.TryAcquire(DISKMUTEX) {
+		log.Info("wait other task release mutex, please retry...")
+		return errors.New("get global mutex failed")
 	}
-	output, err := ld.Executor.ExecuteCommandWithOutput("parted", "-s", fmt.Sprintf("/dev/%s", devicePath), "p", "free")
-	log.Infof("Output: %+v", output)
+	defer ld.Mutex.Release(DISKMUTEX)
+
+	selectDeviceGroup := strings.Split(groups, "-")[1]
+	diskPath := strings.Split(selectDeviceGroup, "/")[1]
+	disk, err := mysys.ScanDisk(fmt.Sprintf("/dev/%s", diskPath))
 	if err != nil {
-		return partitions, 0, fmt.Errorf("failed to get device %s partitions. %+v", device, err)
+		log.Error("scanDisk path ", fmt.Sprintf("/dev/%s", diskPath), "failed"+err.Error())
+		return err
 	}
-	partitions, unusedSpace = parsePartitionUnUseString(output)
-	return partitions, unusedSpace, nil
+	if err := mysys.Wipe(disk); err != nil {
+		return err
+	}
+	return ld.UdevSettle()
 }
-
-// GetUdevInfo gets udev information
-func (ld *LocalPartitionImplement) GetUdevInfo(device string) (map[string]string, error) {
-	output, err := ld.Executor.ExecuteCommandWithOutput("udevadm", "info", "--query=property", fmt.Sprintf("/dev/%s", device))
+func (ld *LocalPartitionImplement) UdevSettle() error {
+	_, err := ld.Executor.ExecuteCommandWithOutput("udevadm", "settle")
 	if err != nil {
-		return nil, err
+		return err
 	}
-
-	return parseUdevInfo(output), nil
-}
-
-// IsPartType returns if a device is owned by lvm or partition
-func (ld *LocalPartitionImplement) IsPartType(device string) (bool, error) {
-	devProps, err := ld.LocalDeviceImplement.ListDevicesDetail(device)
-	if err != nil {
-		return false, fmt.Errorf("failed to get device properties for %q: %+v", device, err)
-	}
-	return devProps[0].Type == PartType, nil
-}
-
-//Filesystem      Size  Used Avail Use% Mounted on
-//none            3.9G     0  3.9G   0% /dev
-func (ld *LocalPartitionImplement) GetDiskInfo(device string) (map[string]string, error) {
-	var devicePath string
-	splitDevicePath := strings.Split(device, "/")
-	if len(splitDevicePath) == 1 {
-		devicePath = fmt.Sprintf("/dev/%s", device) //device path for OSD on devices.
-	} else {
-		devicePath = device //use the exact device path (like /mnt/<pvc-name>) in case of PVC block device
-	}
-	output, err := ld.Executor.ExecuteCommandWithOutput("df", "-h", devicePath)
-	props := strings.Split(output, "\n")
-	propMap := make(map[string]string, len(props))
-	if err != nil {
-		log.Error("exec df -h " + fmt.Sprintf("/dev/%s", device) + err.Error())
-		return propMap, err
-	}
-
-	for k, v := range props {
-		kvp := strings.Split(v, " ")
-		fmt.Println(k, "=>", v, "=>", kvp)
-		if k == 1 {
-			propMap[kvp[0]] = strings.Replace(kvp[1], `"`, "", -1)
-		}
-	}
-	return propMap, nil
-}
-
-// GetDiskPartitionType look up parttion type GPT or MBR
-func (ld *LocalPartitionImplement) GetDiskPartitionType(device string) (string, error) {
-
-	output, err := ld.Executor.ExecuteCommandWithOutput("parted", "-s", device, "p")
-	log.Infof("Output: %+v", output)
-	fmt.Println("------------------------", err)
-	if err != nil {
-
-		log.Error("exec parted failed" + err.Error())
-		return "", err
-	}
-
-	lines := strings.Split(output, "\n")
-	for _, line := range lines {
-		if strings.Contains(line, "Partition Table") {
-			words := strings.Split(line, ":")
-			return words[1], nil
-		}
-	}
-
-	return "", fmt.Errorf("uuid not found for device %s. output=%s", device, output)
-}
-
-func parsePartitionString(partitionString string) []carinav1beta1.Partition {
-	resp := []carinav1beta1.Partition{}
-	if partitionString == "" {
-		return resp
-	}
-	partitionString = strings.ReplaceAll(partitionString, "\"", "")
-	partitionsList := strings.Split(partitionString, "\n")
-	locationNum := 0
-	for i, partitions := range partitionsList {
-
-		if strings.Contains(partitions, "Number") {
-			locationNum = i
-		}
-		if locationNum == 0 || i <= locationNum {
-			continue
-		}
-		partitions = strings.ReplaceAll(partitions, "", "")
-		fmt.Println("partitions", partitions)
-		partitions = strings.TrimSpace(partitions)
-		tmp := strings.Split(partitions, " ")
-		fmt.Println("tmp", tmp)
-		part := carinav1beta1.Partition{
-			Number:     tmp[0],
-			Start:      tmp[1],
-			End:        tmp[2],
-			Size:       tmp[3],
-			Filesystem: tmp[4],
-			Name:       tmp[5],
-			Flags:      tmp[6],
-		}
-		fmt.Println(part)
-		resp = append(resp, part)
-
-	}
-
-	return resp
-
-}
-
-func parsePartitionUnUseString(partitionString string) (partitions []carinav1beta1.Partition, unusedSpace uint64) {
-	resp := []carinav1beta1.Partition{}
-	if partitionString == "" {
-		return resp, 0
-	}
-	partitionString = strings.ReplaceAll(partitionString, "\"", "")
-	partitionsList := strings.Split(partitionString, "\n")
-	for i, partitions := range partitionsList {
-		partition := carinav1beta1.Partition{}
-		if !strings.Contains(partitions, "Free Space") {
-			continue
-		}
-
-		log.Infof("found partition Free Space in line %s %s", i, partitions)
-		tmp := strings.Split(partitions, " ")
-		partition.Number = tmp[0]
-		partition.Start = tmp[1]
-		partition.End = tmp[2]
-		partition.Size = tmp[3]
-		partition.Filesystem = tmp[4]
-		partition.Name = tmp[5]
-		partition.Flags = tmp[6]
-		resp = append(resp, partition)
-		size, _ := strconv.Atoi(partition.Size)
-		unusedSpace += uint64(size)
-
-	}
-	return resp, unusedSpace
-
-}
-
-func parseUdevInfo(output string) map[string]string {
-	lines := strings.Split(output, "\n")
-	result := make(map[string]string, len(lines))
-	for _, v := range lines {
-		pairs := strings.Split(v, "=")
-		if len(pairs) > 1 {
-			result[pairs[0]] = pairs[1]
-		}
-	}
-	return result
+	return err
 }

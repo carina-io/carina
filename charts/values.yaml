@@ -112,9 +112,9 @@ node:
   bcache: false
   initContainer:
     modprobe: 
-      - dm_snapshot 
-      - dm_mirror 
-      - dm_thin_pool
+      # - dm_snapshot 
+      # - dm_mirror 
+      # - dm_thin_pool
   enablePerfOptimization: true
   tolerations:
     # - key: "node-role.kubernetes.io/master"

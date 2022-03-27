@@ -21,13 +21,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io/ioutil"
+	"net/http"
+
 	"github.com/carina-io/carina/api"
 	"github.com/carina-io/carina/pkg/devicemanager/types"
 	"github.com/carina-io/carina/utils/log"
 	"github.com/labstack/echo/v4"
-	"io/ioutil"
 	corev1 "k8s.io/api/core/v1"
-	"net/http"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -136,7 +137,7 @@ func volumeList(c echo.Context) error {
 func getEndpoints() ([]carinaNode, error) {
 	result := []carinaNode{}
 	endpoints := corev1.Endpoints{}
-	err := kCache.Get(context.Background(), client.ObjectKey{"kube-system", "carina-node"}, &endpoints)
+	err := kCache.Get(context.Background(), client.ObjectKey{Namespace: "kube-system", Name: "carina-node"}, &endpoints)
 	if err != nil {
 		return result, err
 	}

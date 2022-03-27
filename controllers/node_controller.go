@@ -298,7 +298,7 @@ func (r *NodeReconciler) clearPod(ctx context.Context, nodeName string) error {
 		if err != nil {
 			return err
 		}
-		
+
 	}
 
 	return nil

@@ -23,12 +23,13 @@ import (
 )
 
 var (
-	localUnix string 
-	localAddr string 
+	localUnix string
+	localAddr string
 )
+
 func init() {
 	flag.StringVar(&localUnix, "csi-address", "/tmp/csi/csi-provisioner.sock", "csi.sock path")
-	flag.StringVar(&localAddr, "local-addr", "0.0.0.0:8888","server 地址")	
+	flag.StringVar(&localAddr, "local-addr", "0.0.0.0:8888", "server 地址")
 }
 
 func main() {

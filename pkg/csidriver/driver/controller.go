@@ -159,7 +159,11 @@ func (s controllerService) CreateVolume(ctx context.Context, req *csi.CreateVolu
 	log.Infof("CreateVolume: Starting to Create %s volume %s with: pvcName(%s), pvcNameSpace(%s), nodeSelected(%s), storageSelected(%s)", volumeType, req.GetName(), pvcName, namespace, nodeName, deviceGroup)
 	// pv csi VolumeAttributes
 	annotation := map[string]string{}
-	annotation["carina.storage.io/disk-type"] = volumeType
+	annotation[utils.VolumeManagerType] = volumeType
+	exclusivityDisk := req.GetParameters()[utils.ExclusivityDisk] == "true"
+	if exclusivityDisk {
+		annotation[utils.ExclusivityDisk] = "true"
+	}
 	volumeContext := req.GetParameters()
 	// 不是调度器完成pv调度，则采用controller调度
 	if node == "" {
@@ -183,7 +187,7 @@ func (s controllerService) CreateVolume(ctx context.Context, req *csi.CreateVolu
 
 		case utils.RawVolumeType:
 			log.Info("decide node because accessibility_requirements not found")
-			exclusivityDisk := req.GetParameters()[utils.ExclusivityDisk] == "true"
+
 			nodeName, group, segments, err = s.nodeService.SelectDeviceNode(ctx, requestGb, deviceGroup, requirements, exclusivityDisk)
 			if err != nil {
 				return nil, status.Errorf(codes.Internal, "failed to get max capacity node %v", err)
@@ -195,9 +199,6 @@ func (s controllerService) CreateVolume(ctx context.Context, req *csi.CreateVolu
 				return nil, status.Error(codes.Internal, "can not find any device group")
 			}
 
-			if req.GetParameters()[utils.ExclusivityDisk] == "true" {
-				annotation["carina.storage.io/exclusivity-disk"] = "true"
-			}
 		default:
 			log.Errorf("CreateVolume: Create with no support volume type %s", volumeType)
 			return nil, status.Error(codes.InvalidArgument, "Create with no support type "+volumeType)

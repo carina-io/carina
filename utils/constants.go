@@ -36,6 +36,8 @@ const (
 	//ExclusivityDisk  true or false  is the key indicates that only the disk is used by one pod
 	ExclusivityDisk = "carina.storage.io/exclusivity-disk"
 
+	VolumeManagerType = "carina.io/volume-manage-type"
+
 	// DeviceDiskKey storage class
 	// DeviceDiskKey is the key used in CSI volume create requests to specify a DeviceDiskKey support carina-vg-ssd carina-vg-hdd
 	DeviceDiskKey = "carina.storage.io/disk-type"
@@ -81,6 +83,6 @@ const (
 	CarinaSchedule = "carina-scheduler"
 
 	// DeviceVolumeType type
-	LvmVolumeType = "LVM"
-	RawVolumeType = "Raw"
+	LvmVolumeType = "lvm"
+	RawVolumeType = "raw"
 )

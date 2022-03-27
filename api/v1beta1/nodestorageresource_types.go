@@ -15,6 +15,7 @@ limitations under the License.
 package v1beta1
 
 import (
+	"github.com/anuvu/disko"
 	"github.com/carina-io/carina/api"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -50,7 +51,7 @@ type NodeStorageResourceStatus struct {
 	// +optional
 	VgGroups []api.VgGroup `json:"vgGroups,omitempty"`
 	// +optional
-	Disks []api.Disk `json:"disks,,omitempty"`
+	Disks []disko.Disk `json:"disks,,omitempty"`
 	// +optional
 	RAIDs []api.Raid `json:"raids,omitempty"`
 }

@@ -26,7 +26,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/carina-io/carina/api"
+	"github.com/anuvu/disko"
 	carinav1beta1 "github.com/carina-io/carina/api/v1beta1"
 	"github.com/carina-io/carina/utils/log"
 
@@ -510,14 +510,13 @@ func (s NodeService) SelectDeviceNode(ctx context.Context, requestGb int64, devi
 				}
 
 				//匹配节点磁盘可用分区
-				device, err := s.selectParttionOrRaw(status.Disks, requestGb, exclusivityDisk, re)
+				device, free, err := s.selectParttionOrRaw(status.Disks, requestGb, exclusivityDisk, re)
 				if err != nil {
 					return "", "", segments, err
 				}
-				size, _ := strconv.ParseInt(device.Available, 10, 64)
 				preselectNode = append(preselectNode, paris{
-					Key:   node.Name + "-" + device.Name,
-					Value: size,
+					Key:   node.Name + "-" + deviceGroup + "/" + device.Name + "/" + strconv.FormatUint(free.Start, 10),
+					Value: int64(free.Size()),
 				})
 
 			}
@@ -560,115 +559,107 @@ func (s NodeService) SelectDeviceNode(ctx context.Context, requestGb int64, devi
 	return nodeName, selectDeviceGroup, segments, nil
 }
 
-func (s NodeService) selectParttionOrRaw(rawdevices []api.Disk, requestGb int64, exclusivityDisk bool, re []string) (deviceName api.Disk, err error) {
-	avaiableRawdevices := []api.Disk{}
-	avaiablePartitionDevices := []api.Disk{}
-	for _, device := range rawdevices {
+func (s NodeService) selectParttionOrRaw(disks []disko.Disk, requestGb int64, exclusivityDisk bool, re []string) (deviceName disko.Disk, free disko.FreeSpace, err error) {
+	avaiableRawdevices := []disko.Disk{}
+	avaiablePartitionDevices := []disko.Disk{}
+	for _, device := range disks {
 
 		diskSelector, err := regexp.Compile(strings.Join(re, "|"))
 		if err != nil {
 			log.Warnf("disk regex %s error %v ", strings.Join(re, "|"), err)
-			return deviceName, err
+			return deviceName, free, err
 		}
 		if !diskSelector.MatchString(device.Name) {
 			continue
 		}
 
-		avaiableRaw, _ := strconv.ParseInt(device.Available, 10, 64)
-		if avaiableRaw < requestGb {
+		if len(device.FreeSpacesWithMin(uint64(requestGb))) < 1 {
 			continue
 		}
 
 		//如果是独占磁盘，筛选没有分区的磁盘，满足不同的调度策略
 		if exclusivityDisk {
-			if len(device.Partition) > 1 {
-				continue
-			}
-			size, _ := strconv.ParseInt(device.Available, 10, 64)
-			if size < requestGb {
+			if len(device.Partitions) > 1 {
 				continue
 			}
 			avaiableRawdevices = append(avaiableRawdevices, device)
+			continue
 		}
 
 		//如果不是独占磁盘，优先筛选有分区的磁盘去满足调度策略，如果没有匹配则筛选空白磁盘满足调度策略
-		if len(device.Partition) > 1 {
-			tmpFreeParttionSlice := []int64{}
-			for _, v := range device.FreeSpace {
-				size, _ := strconv.ParseInt(v.Size, 10, 64)
-				if size < requestGb {
-					continue
-				}
-				tmpFreeParttionSlice = append(tmpFreeParttionSlice, size)
-			}
-			if len(tmpFreeParttionSlice) < 1 {
-				log.Error(err, " this deive has no free space ", device.Name)
-				continue
-			}
+		if len(device.Partitions) > 1 {
 			//有满足有分区的可用磁盘
 			avaiablePartitionDevices = append(avaiablePartitionDevices, device)
-		}
-		//空白磁盘
-		size, _ := strconv.ParseInt(device.Available, 10, 64)
-		if size < requestGb {
 			continue
 		}
+		//空白磁盘
 		avaiableRawdevices = append(avaiableRawdevices, device)
 	}
 
 	switch {
 	case exclusivityDisk == true && len(avaiableRawdevices) < 1:
 		log.Error(err, " has not match avaiable device for  exclusivity pod")
-		return deviceName, errors.New(fmt.Sprintf("no support exclusivity scheduler strategy %s", configuration.SchedulerStrategy()))
-	case exclusivityDisk == true && len(avaiableRawdevices) > 1:
-		//有可用独占磁盘
+		return deviceName, free, errors.New(fmt.Sprintf("no support exclusivity scheduler strategy %s", configuration.SchedulerStrategy()))
+	case (exclusivityDisk == true && len(avaiableRawdevices) > 1), (exclusivityDisk == false && len(avaiablePartitionDevices) < 1 && len(avaiableRawdevices) >= 1):
+		//有可用独占磁盘使用无分区裸盘||无可用共享磁盘使用无分区裸盘
 		sort.Slice(avaiableRawdevices, func(i, j int) bool {
-			return avaiableRawdevices[i].Available < avaiableRawdevices[j].Available
+			freei := avaiableRawdevices[i].FreeSpacesWithMin(uint64(requestGb))
+			freej := avaiableRawdevices[j].FreeSpacesWithMin(uint64(requestGb))
+			sort.Slice(freei, func(a, b int) bool {
+				return freei[a].Size() < freei[b].Size()
+			})
+			sort.Slice(freej, func(a, b int) bool {
+				return freej[a].Size() < freej[b].Size()
+			})
+
+			return freei[0].Size() < freej[0].Size()
 		})
 		// 根据配置文件中设置算法进行节点选择最小适配还是最大优选
 		if configuration.SchedulerStrategy() == configuration.SchedulerBinpack {
 			deviceName = avaiableRawdevices[0]
+			free = avaiableRawdevices[0].FreeSpacesWithMin(uint64(requestGb))[0]
 		} else if configuration.SchedulerStrategy() == configuration.Schedulerspreadout {
 			deviceName = avaiableRawdevices[len(avaiableRawdevices)-1]
+			free = avaiableRawdevices[0].FreeSpacesWithMin(uint64(requestGb))[len(avaiableRawdevices[0].FreeSpacesWithMin(uint64(requestGb)))-1]
 		} else {
 			deviceName = avaiableRawdevices[0]
+			free = avaiableRawdevices[0].FreeSpacesWithMin(uint64(requestGb))[0]
 		}
-		return deviceName, nil
+		return deviceName, free, nil
 
 	case exclusivityDisk == false && len(avaiablePartitionDevices) < 1 && len(avaiableRawdevices) < 1:
 		//无可用共享磁盘
 		log.Error(err, " has not match avaiable device for  pod ")
-		return deviceName, errors.New(fmt.Sprintf("no support  scheduler strategy %s", configuration.SchedulerStrategy()))
-	case exclusivityDisk == false && len(avaiablePartitionDevices) < 1 && len(avaiableRawdevices) >= 1:
-		//无可用共享磁盘使用无分区裸盘
-		sort.Slice(avaiableRawdevices, func(i, j int) bool {
-			return avaiableRawdevices[i].Available < avaiableRawdevices[j].Available
-		})
-		// 根据配置文件中设置算法进行节点选择最小适配还是最大优选
-		if configuration.SchedulerStrategy() == configuration.SchedulerBinpack {
-			deviceName = avaiableRawdevices[0]
-		} else if configuration.SchedulerStrategy() == configuration.Schedulerspreadout {
-			deviceName = avaiableRawdevices[len(avaiableRawdevices)-1]
-		} else {
-			deviceName = avaiableRawdevices[0]
-		}
-		return deviceName, nil
+		return deviceName, free, errors.New(fmt.Sprintf("no support  scheduler strategy %s", configuration.SchedulerStrategy()))
+
 	case exclusivityDisk == false && len(avaiablePartitionDevices) > 1:
 		//有可用共享磁盘使用有分区磁盘；
 		sort.Slice(avaiablePartitionDevices, func(i, j int) bool {
-			return avaiablePartitionDevices[i].Available < avaiablePartitionDevices[j].Available
+			freei := avaiablePartitionDevices[i].FreeSpacesWithMin(uint64(requestGb))
+			freej := avaiablePartitionDevices[j].FreeSpacesWithMin(uint64(requestGb))
+			sort.Slice(freei, func(a, b int) bool {
+				return freei[a].Size() < freei[b].Size()
+			})
+			sort.Slice(freej, func(a, b int) bool {
+				return freej[a].Size() < freej[b].Size()
+			})
+
+			return freei[0].Size() < freej[0].Size()
 		})
 		if configuration.SchedulerStrategy() == configuration.SchedulerBinpack {
 			deviceName = avaiablePartitionDevices[0]
+			free = avaiablePartitionDevices[0].FreeSpacesWithMin(uint64(requestGb))[0]
 		} else if configuration.SchedulerStrategy() == configuration.Schedulerspreadout {
 			deviceName = avaiablePartitionDevices[len(avaiablePartitionDevices)-1]
+			free = avaiablePartitionDevices[len(avaiablePartitionDevices)-1].FreeSpacesWithMin(uint64(requestGb))[len(avaiablePartitionDevices[len(avaiablePartitionDevices)-1].FreeSpacesWithMin(uint64(requestGb)))-1]
 		} else {
 			deviceName = avaiablePartitionDevices[0]
+			free = avaiablePartitionDevices[0].FreeSpacesWithMin(uint64(requestGb))[0]
 		}
-		return deviceName, nil
+		return deviceName, free, nil
 	default:
 		log.Error(err, " has not match avaiable device")
-		return deviceName, fmt.Errorf("has not match avaiable device %s", configuration.SchedulerStrategy())
+		return deviceName, free, fmt.Errorf("has not match avaiable device %s", configuration.SchedulerStrategy())
 	}
 
 }

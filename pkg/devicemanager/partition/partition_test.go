@@ -2,61 +2,86 @@ package partition
 
 import (
 	"fmt"
+	"sort"
 	"testing"
 
-	"github.com/carina-io/carina/pkg/devicemanager/device"
-	"github.com/carina-io/carina/utils/exec"
+	"github.com/anuvu/disko"
+	"github.com/anuvu/disko/partid"
 	"github.com/stretchr/testify/assert"
 )
 
-var (
-	executor  = &exec.CommandExecutor{}
-	deviceImp = &device.LocalDeviceImplement{Executor: executor}
-	parttion  = &LocalPartitionImplement{LocalDeviceImplement: *deviceImp, Executor: executor}
-)
+func TestScanAllDisk(t *testing.T) {
+	diskSet, err := mysys.ScanAllDisks(matchAll)
+	assert.NoError(t, err)
+	fmt.Println(diskSet)
+}
+func TestScanDisks(t *testing.T) {
+
+	diskSet, err := mysys.ScanDisks(matchAll, "/dev/loop2")
+	assert.NoError(t, err)
+	fmt.Println(diskSet)
+}
+func TestScanDisk(t *testing.T) {
+	fname := "/dev/loop2"
+	disk, err := mysys.ScanDisk(fname)
+	assert.NoError(t, err)
+	fmt.Println(disk.UdevInfo.Properties)
+	fmt.Println(disk.Name)
+	fmt.Println(disk.Partitions)
+
+}
+
+func TestGetDiskPartMaxNum(t *testing.T) {
+	fname := "/dev/loop2"
+	disk, err := mysys.ScanDisk(fname)
+	assert.NoError(t, err)
+
+	number := []int{}
+	for k, _ := range disk.Partitions {
+		number = append(number, int(k))
+	}
+	sort.Ints(number)
+	fmt.Println(number[0], number[len(number)-1])
+	for _, v := range disk.FreeSpaces() {
+		fmt.Println(v.Size())
+	}
+
+}
 
 func TestAddPartition(t *testing.T) {
-	parttion, err := parttion.AddPartition("/dev/loop2", "test", "2M", "10M")
+	fname := "/dev/loop2"
+	var size uint64 = 50
+	disk, err := mysys.ScanDisk(fname)
 	assert.NoError(t, err)
-	fmt.Println(parttion)
+	fs := disk.FreeSpacesWithMin(size)
+	fmt.Println(fs)
+	number := []int{}
+	for k, _ := range disk.Partitions {
+		number = append(number, int(k))
+	}
+	sort.Ints(number)
+	myGUID := disko.GenGUID()
+	part := disko.Partition{
+		Start:  fs[0].Start,
+		Last:   fs[0].Last,
+		Type:   partid.LinuxLVM,
+		Name:   "test6",
+		ID:     myGUID,
+		Number: uint(number[len(number)-1]) + 1,
+	}
+
+	err = mysys.CreatePartition(disk, part)
+	assert.NoError(t, err)
+	disk, err = mysys.ScanDisk(fname)
+	assert.NoError(t, err)
+
+	fmt.Printf("%s\n", disk.Details())
+	assert.NoError(t, err)
+
 }
 func TestGetPartitions(t *testing.T) {
-	parttion, err := parttion.GetPartitions("/dev/loop2")
+	fname := "/dev/loop2"
+	disk, err := mysys.ScanDisk(fname)
 	assert.NoError(t, err)
-	fmt.Println(parttion)
-}
-
-func TestListDiskPartitions(t *testing.T) {
-	disks, err := parttion.ListDiskPartitions()
-	if err != nil {
-		return
-	}
-	//assert.NoError(t, err)
-	fmt.Println(disks)
-}
-
-func TestListPartitions(t *testing.T) {
-	partitions, err := parttion.ListPartitions()
-	if err != nil {
-		return
-	}
-	fmt.Println(partitions)
-}
-
-func TestGetDiskInfo(t *testing.T) {
-	disk, err := parttion.GetDiskInfo("loop1")
-	if err != nil {
-		return
-	}
-	//assert.NoError(t, err)
-	fmt.Println(disk)
-}
-
-func TestGetUdevInfo(t *testing.T) {
-	disk, err := parttion.GetUdevInfo("loop1")
-	if err != nil {
-		return
-	}
-	assert.NoError(t, err)
-	fmt.Println(disk)
+	fmt.Println(disk.Partitions)
 }

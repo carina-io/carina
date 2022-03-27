@@ -25,14 +25,13 @@ import (
 )
 
 var (
-	clientUnix string 
-	ServerAddr string 
+	clientUnix string
+	ServerAddr string
 )
-
 
 func init() {
 	flag.StringVar(&clientUnix, "csi-address", "/var/lib/kubelet/plugins/csi.carina.com/csi.sock", "csi.sock path")
-	flag.StringVar(&ServerAddr, "server-address", "0.0.0.0:8888","server 地址")	
+	flag.StringVar(&ServerAddr, "server-address", "0.0.0.0:8888", "server 地址")
 }
 
 func main() {

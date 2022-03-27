@@ -63,7 +63,7 @@ type DeviceManager struct {
 	// 配置变更即触发搜索本地磁盘逻辑
 	configModifyChan chan struct{}
 	//磁盘分区
-	Partition partition.LocalPartition
+	Partition partition.LocalPartitionImplement
 }
 
 func NewDeviceManager(nodeName string, cache cache.Cache, stopChan <-chan struct{}) *DeviceManager {
@@ -81,9 +81,9 @@ func NewDeviceManager(nodeName string, cache cache.Cache, stopChan <-chan struct
 		nodeName:         nodeName,
 		trouble:          &troubleshoot.Trouble{},
 		configModifyChan: make(chan struct{}),
-		Partition:        &partition.LocalPartitionImplement{Executor: executor},
+		Partition:        *partition.NewLocalPartitionImplement(),
 	}
-	dm.trouble = troubleshoot.NewTroubleObject(dm.VolumeManager, cache, nodeName)
+	dm.trouble = troubleshoot.NewTroubleObject(dm.VolumeManager, dm.Partition, cache, nodeName)
 	// 注册监听配置变更
 	dm.configModifyChan = make(chan struct{}, 1)
 	configuration.RegisterListenerChan(dm.configModifyChan)
@@ -385,6 +385,7 @@ func (dm *DeviceManager) VolumeConsistencyCheck() {
 			case <-t.C:
 				log.Info("volume consistency check...")
 				dm.trouble.CleanupOrphanVolume()
+				dm.trouble.CleanupOrphanPartition()
 			case <-dm.stopChan:
 				log.Info("stop volume consistency check...")
 				return
