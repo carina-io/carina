@@ -29,10 +29,16 @@ require (
 )
 
 require (
+	github.com/fatih/color v1.13.0 // indirect
+	github.com/gobuffalo/flect v0.2.0 // indirect
 	github.com/patrickmn/go-cache v2.1.0+incompatible // indirect
 	github.com/rekby/gpt v0.0.0-20200614112001-7da10aec5566 // indirect
 	github.com/rekby/mbr v0.0.0-20190325193910-2b19b9cdeebc // indirect
 	github.com/satori/go.uuid v1.2.0 // indirect
+	golang.org/x/mod v0.4.2 // indirect
+	golang.org/x/tools v0.1.6-0.20210820212750-d4cc65f0b2ff // indirect
+	golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1 // indirect
+	sigs.k8s.io/controller-tools v0.2.5 // indirect
 )
 
 require (

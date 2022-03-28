@@ -154,59 +154,13 @@ spec:
                 type: object
               type: array
             raids:
-              items:
-                description: Raid defines raid details
-                type: object
+              items: {}
               type: array
             syncTime:
               format: date-time
               type: string
             vgGroups:
-              items:
-                description: VgGroup defines the observed state of NodeStorageResourceStatus
-                properties:
-                  lvCount:
-                    format: int64
-                    type: integer
-                  pvCount:
-                    format: int64
-                    type: integer
-                  pvName:
-                    type: string
-                  pvs:
-                    items:
-                      description: PVInfo defines pv details
-                      properties:
-                        pvAttr:
-                          type: string
-                        pvFmt:
-                          type: string
-                        pvFree:
-                          format: int64
-                          type: integer
-                        pvName:
-                          type: string
-                        pvSize:
-                          format: int64
-                          type: integer
-                        vgName:
-                          type: string
-                      type: object
-                    type: array
-                  snapCount:
-                    format: int64
-                    type: integer
-                  vgAttr:
-                    type: string
-                  vgFree:
-                    format: int64
-                    type: integer
-                  vgName:
-                    type: string
-                  vgSize:
-                    format: int64
-                    type: integer
-                type: object
+              items: {}
               type: array
           type: object
       type: object

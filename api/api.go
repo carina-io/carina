@@ -1,4 +1,4 @@
-package api
+package v1beta1
 
 // VgGroup defines the observed state of NodeStorageResourceStatus
 type VgGroup struct {
@@ -24,41 +24,95 @@ type PVInfo struct {
 }
 
 // Disk defines disk details
-// type Disk struct {
-// 	Name string `json:"name"`
-// 	// mount point
-// 	MountPoint string `json:"mountPoint"`
-// 	// Size is the device capacity in byte
-// 	Size uint64 `json:"size"`
-// 	// status
-// 	State string `json:"state"`
-// 	// Type is disk type
-// 	Type string `json:"type"`
-// 	// 1 for hdd, 0 for ssd and nvme
-// 	Rotational string `json:"rotational"`
-// 	// ReadOnly is the boolean whether the device is readonly
-// 	Readonly bool `json:"readOnly"`
-// 	// Filesystem is the filesystem currently on the device
-// 	Filesystem string `json:"filesystem"`
-// 	// has used
-// 	Used uint64 `json:"used"`
+type Disk struct {
+	// Name is the kernel name of the disk.
+	Name string `json:"name"`
 
-// 	Capacity  string      `json:"capacity,omitempty"`
-// 	Available string      `json:"available,omitempty"`
-// 	Partition []Partition `json:"partition,omitempty"`
-// 	FreeSpace []Partition `json:"freespace,omitempty"`
-// }
+	// Path is the device path of the disk.
+	Path string `json:"path"`
 
-// Partition defines disk partition details
-// type Partition struct {
-// 	Number     string `json:"number,omitempty"`
-// 	Start      string `json:"start,omitempty"`
-// 	End        string `json:"end,omitempty"`
-// 	Size       string `json:"size,omitempty"`
-// 	Filesystem string `json:"filesystem,omitempty"`
-// 	Name       string `json:"name,omitempty"`
-// 	Flags      string `json:"flags,omitempty"`
-// }
+	// Size is the size of the disk in bytes.
+	Size uint64 `json:"size"`
+
+	// SectorSize is the sector size of the device, if its unknown or not
+	// applicable it will return 0.
+	SectorSize uint `json:"sectorSize"`
+
+	// ReadOnly - cannot be written to.
+	ReadOnly bool `json:"read-only"`
+
+	// Type is the DiskType indicating the type of this disk. This value
+	// can be used to determine if the disk is of a particular media type like
+	// HDD, SSD or NVMe.
+	Type DiskType `json:"type"`
+
+	// Attachment is the type of storage card this disk is attached to.
+	// For example: RAID, ATA or PCIE.
+	Attachment AttachmentType `json:"attachment"`
+
+	// Partitions is the set of partitions on this disk.
+	Partitions PartitionSet `json:"partitions"`
+
+	// TableType is the type of the table
+	Table TableType `json:"table"`
+
+	// Properties are a set of properties of this disk.
+	Properties PropertySet `json:"properties"`
+
+	// UdevInfo is the disk's udev information.
+	UdevInfo UdevInfo `json:"udevInfo"`
+}
+type DiskType int
+type AttachmentType int
+type TableType int
+type Property string
+
+const (
+	// Ephemeral - A cloud ephemeral disk.
+	Ephemeral Property = "EPHEMERAL"
+)
+
+// PropertySet - a group of properties of a disk
+type PropertySet map[Property]bool
+
+type PartitionSet map[uint]Partition
+type GUID []byte
+type PartType GUID
+
+// Partition wraps the disk partition information.
+type Partition struct {
+	// Start is the offset in bytes of the start of this partition.
+	Start uint64 `json:"start"`
+
+	// Last is the last byte that is part of this partition.
+	Last uint64 `json:"last"`
+
+	// ID is the partition id.
+	ID GUID `json:"id"`
+
+	// Type is the partition type.
+	Type PartType `json:"type"`
+
+	// Name is the name of this partition.
+	Name string `json:"name"`
+
+	// Number is the number of this partition.
+	Number uint `json:"number"`
+}
+
+type UdevInfo struct {
+	// Name of the disk
+	Name string `json:"name"`
+
+	// SysPath is the system path of this device.
+	SysPath string `json:"sysPath"`
+
+	// Symlinks for the disk.
+	Symlinks []string `json:"symLinks"`
+
+	// Properties is udev information as a map of key, value pairs.
+	Properties map[string]string `json:"properties"`
+}
 
 // Raid defines raid details
 type Raid struct {
