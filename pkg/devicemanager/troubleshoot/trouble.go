@@ -22,6 +22,7 @@ import (
 	"strings"
 
 	"github.com/anuvu/disko"
+	"github.com/carina-io/carina/api"
 	carinav1 "github.com/carina-io/carina/api/v1"
 	"github.com/carina-io/carina/pkg/devicemanager/partition"
 	"github.com/carina-io/carina/pkg/devicemanager/volume"
@@ -33,14 +34,14 @@ import (
 
 type Trouble struct {
 	volumeManager volume.LocalVolume
-	partition     partition.LocalPartitionImplement
+	partition     partition.LocalPartition
 	cache         cache.Cache
 	nodeName      string
 }
 
 const logPrefix = "clean orphan volume:"
 
-func NewTroubleObject(volumeManager volume.LocalVolume, partition partition.LocalPartitionImplement, cache cache.Cache, nodeName string) *Trouble {
+func NewTroubleObject(volumeManager volume.LocalVolume, partition partition.LocalPartition, cache cache.Cache, nodeName string) *Trouble {
 
 	if cache == nil {
 		return nil
@@ -152,6 +153,8 @@ func (t *Trouble) CleanupOrphanPartition() {
 	}
 
 	for _, disk := range diskSet {
+		tmp := api.Disk{}
+		utils.Fill(disk, &tmp)
 		for _, p := range disk.Partitions {
 			if !strings.Contains(p.Name, "carina.io") {
 				log.Infof("skip parttions %s", p.Name)
@@ -159,7 +162,7 @@ func (t *Trouble) CleanupOrphanPartition() {
 			}
 			if _, ok := mapLvList[p.Name]; !ok {
 				log.Warnf("remove parttions %s %s %s", p.Name, p.Start, p.Last)
-				if err := t.partition.DeletePartitionByPartNumber(disk, p.Number); err != nil {
+				if err := t.partition.DeletePartitionByPartNumber(tmp, p.Number); err != nil {
 					log.Errorf("%s delete parttions in  %s device %s error %s", disk.Name, p.Number, err.Error())
 				}
 

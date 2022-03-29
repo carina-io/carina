@@ -63,12 +63,13 @@ type DeviceManager struct {
 	// 配置变更即触发搜索本地磁盘逻辑
 	configModifyChan chan struct{}
 	//磁盘分区
-	Partition partition.LocalPartitionImplement
+	Partition partition.LocalPartition
 }
 
 func NewDeviceManager(nodeName string, cache cache.Cache, stopChan <-chan struct{}) *DeviceManager {
 	executor := &exec.CommandExecutor{}
 	mutex := mutx.NewGlobalLocks()
+
 	dm := DeviceManager{
 		Cache:            cache,
 		Executor:         executor,
@@ -81,7 +82,7 @@ func NewDeviceManager(nodeName string, cache cache.Cache, stopChan <-chan struct
 		nodeName:         nodeName,
 		trouble:          &troubleshoot.Trouble{},
 		configModifyChan: make(chan struct{}),
-		Partition:        *partition.NewLocalPartitionImplement(),
+		Partition:        &partition.LocalPartitionImplement{Mutex: mutex, CacheParttionNum: make(map[string]uint), Executor: executor},
 	}
 	dm.trouble = troubleshoot.NewTroubleObject(dm.VolumeManager, dm.Partition, cache, nodeName)
 	// 注册监听配置变更
@@ -90,7 +91,7 @@ func NewDeviceManager(nodeName string, cache cache.Cache, stopChan <-chan struct
 	return &dm
 }
 
-func (dm *DeviceManager) GetNodeVg() map[string]configuration.DiskSelectorItem {
+func (dm *DeviceManager) GetNodeDiskSelectGroup() map[string]configuration.DiskSelectorItem {
 	diskClass := map[string]configuration.DiskSelectorItem{}
 	currentDiskSelector := configuration.DiskSelector()
 
@@ -114,7 +115,7 @@ func (dm *DeviceManager) GetNodeVg() map[string]configuration.DiskSelectorItem {
 
 // AddAndRemoveDevice 定时巡检磁盘，是否有新磁盘加入
 func (dm *DeviceManager) AddAndRemoveDevice() {
-	diskClass := dm.GetNodeVg()
+	diskClass := dm.GetNodeDiskSelectGroup()
 	ActuallyVg, err := dm.VolumeManager.GetCurrentVgStruct()
 	if err != nil {
 		log.Error("get current vg struct failed: " + err.Error())
@@ -275,7 +276,7 @@ func (dm *DeviceManager) DiscoverDisk(diskClass map[string]configuration.DiskSel
 			}
 
 			if d.Readonly || d.Size < 10<<30 || d.Filesystem != "" || d.MountPoint != "" {
-				log.Infof("mismatched disk: %s filesystem:%s mountpoint:%s readonly:%t, size:%d", d.Name, d.Filesystem, d.MountPoint, d.Readonly, d.Size)
+				//		log.Infof("mismatched disk: %s filesystem:%s mountpoint:%s readonly:%t, size:%d", d.Name, d.Filesystem, d.MountPoint, d.Readonly, d.Size)
 				continue
 			}
 
@@ -335,6 +336,9 @@ func (dm *DeviceManager) DiscoverPv(diskClass map[string]configuration.DiskSelec
 		return nil, err
 	}
 	for _, ds := range diskClass {
+		if strings.ToLower(ds.Policy) == "raw" {
+			continue
+		}
 		diskSelector, err := regexp.Compile(strings.Join(ds.Re, "|"))
 		if err != nil {
 			log.Warnf("disk regex %s error %v ", strings.Join(ds.Re, "|"), err)

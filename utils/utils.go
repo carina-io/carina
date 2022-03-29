@@ -17,6 +17,7 @@
 package utils
 
 import (
+	"encoding/json"
 	"errors"
 	"os"
 	"reflect"
@@ -120,7 +121,7 @@ func UntilMaxRetry(f func() error, maxRetry int, interval time.Duration) error {
 
 func Fill(src interface{}, dst interface{}) error {
 	srcType := reflect.TypeOf(src)
-	srcValue := reflect.ValueOf(src)
+
 	dstValue := reflect.ValueOf(dst)
 
 	if srcType.Kind() != reflect.Struct {
@@ -130,12 +131,10 @@ func Fill(src interface{}, dst interface{}) error {
 		return errors.New("dst must be a point")
 	}
 
-	for i := 0; i < srcType.NumField(); i++ {
-		dstField := dstValue.Elem().FieldByName(srcType.Field(i).Name)
-		if dstField.CanSet() {
-			dstField.Set(srcValue.Field(i))
-		}
+	jsonStu, err := json.Marshal(src)
+	if err != nil {
+		return errors.New("json Marshal fail")
 	}
+	return json.Unmarshal(jsonStu, &dst)
 
-	return nil
 }

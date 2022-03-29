@@ -19,11 +19,16 @@ package controllers
 import (
 	"context"
 	"fmt"
+	"regexp"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/anuvu/disko"
-	"github.com/anuvu/disko/linux"
+	"github.com/carina-io/carina/api"
+	deviceManager "github.com/carina-io/carina/pkg/devicemanager"
+	"github.com/carina-io/carina/pkg/devicemanager/partition"
+	"github.com/carina-io/carina/pkg/devicemanager/types"
 	"github.com/carina-io/carina/pkg/devicemanager/volume"
 	"github.com/carina-io/carina/utils"
 	"github.com/carina-io/carina/utils/log"
@@ -54,8 +59,10 @@ type NodeStorageResourceReconciler struct {
 	Scheme   *runtime.Scheme
 	nodeName string
 	// stop
-	StopChan <-chan struct{}
-	volume   volume.LocalVolume
+	StopChan  <-chan struct{}
+	volume    volume.LocalVolume
+	partition partition.LocalPartition
+	dm        *deviceManager.DeviceManager
 }
 
 //+kubebuilder:rbac:groups=carina.storage.io,resources=nodestorageresources,verbs=get;list;watch;create;update;patch;delete
@@ -66,14 +73,18 @@ func NewNodeStorageResourceReconciler(
 	scheme *runtime.Scheme, nodeName string,
 	volume volume.LocalVolume,
 	stopChan <-chan struct{},
+	partition partition.LocalPartition,
+	dm *deviceManager.DeviceManager,
 ) *NodeStorageResourceReconciler {
 
 	return &NodeStorageResourceReconciler{
-		Client:   client,
-		Scheme:   scheme,
-		nodeName: nodeName,
-		volume:   volume,
-		StopChan: stopChan,
+		Client:    client,
+		Scheme:    scheme,
+		nodeName:  nodeName,
+		volume:    volume,
+		StopChan:  stopChan,
+		partition: partition,
+		dm:        dm,
 	}
 }
 
@@ -110,9 +121,8 @@ func (r *NodeStorageResourceReconciler) Reconcile(ctx context.Context, req ctrl.
 
 	if lvmNeed || diskNeed || raidNeed {
 		nsr.Status.SyncTime = metav1.Now()
-		fmt.Println(">>>>>>>>>>>>>>>>>", nsr.Status)
+
 		if err := r.Client.Status().Update(ctx, nsr); err != nil {
-			fmt.Println(">>>>>>>>>>>>>>>>>", nsr.Status.Disks)
 			log.Error(err, " failed to update nodeStorageResource status name ", nsr.Name)
 		}
 	}
@@ -294,8 +304,8 @@ func (r *NodeStorageResourceReconciler) needUpdateLvmStatus(status *carinav1beta
 			if status.Allocatable == nil {
 				status.Allocatable = make(map[string]resource.Quantity)
 			}
-			status.Capacity[fmt.Sprintf("%s%s/%s", utils.DeviceCapacityKeyPrefix, utils.LvmVolumeType, v.VGName)] = *resource.NewQuantity(int64(sizeGb), resource.BinarySI)
-			status.Allocatable[fmt.Sprintf("%s%s/%s", utils.DeviceCapacityKeyPrefix, utils.LvmVolumeType, v.VGName)] = *resource.NewQuantity(int64(freeGb), resource.BinarySI)
+			status.Capacity[fmt.Sprintf("%s%s", utils.DeviceCapacityKeyPrefix, v.VGName)] = *resource.NewQuantity(int64(sizeGb), resource.BinarySI)
+			status.Allocatable[fmt.Sprintf("%s%s", utils.DeviceCapacityKeyPrefix, v.VGName)] = *resource.NewQuantity(int64(freeGb), resource.BinarySI)
 		}
 		return true
 	}
@@ -305,23 +315,97 @@ func (r *NodeStorageResourceReconciler) needUpdateLvmStatus(status *carinav1beta
 // Determine whether the Disk needs to be updated
 func (r *NodeStorageResourceReconciler) needUpdateDiskStatus(status *carinav1beta1.NodeStorageResourceStatus) bool {
 
-	matchAll := func(d disko.Disk) bool {
-		return true
-	}
-	mysys := linux.System()
-
-	diskSet, err := mysys.ScanAllDisks(matchAll)
+	diskSelectGroup := r.dm.GetNodeDiskSelectGroup()
+	localDisk, err := r.dm.DiskManager.ListDevicesDetail("")
 	if err != nil {
 		log.Errorf("scan  node disk resource error %s", err.Error())
 		return false
 	}
+	blockClass := map[string][]string{}
+	// If the disk has been added to a DiskSelectGroup group, add it to this DiskSelectGroup group
+	hasMatchedDisk := map[string]int8{}
+	for _, ds := range diskSelectGroup {
+		if strings.ToLower(ds.Policy) == "lvm" {
+			continue
+		}
+		diskSelector, err := regexp.Compile(strings.Join(ds.Re, "|"))
+		if err != nil {
+			log.Warnf("disk regex %s error %v ", strings.Join(ds.Re, "|"), err)
+			continue
+		}
+		// 过滤出空块设备
+		for _, d := range localDisk {
+			if d.Type == "part" {
+				continue
+			}
+			if strings.Contains(d.Name, types.KEYWORD) {
+				continue
+			}
 
-	disks := []disko.Disk{}
-	for _, disk := range diskSet {
-		disks = append(disks, disk)
+			if d.Readonly || d.Size < 10<<30 || d.Filesystem != "" || d.MountPoint != "" {
+				//log.Infof("mismatched disk: %s filesystem:%s mountpoint:%s readonly:%t, size:%d", d.Name, d.Filesystem, d.MountPoint, d.Readonly, d.Size)
+				continue
+			}
+
+			if strings.Contains(d.Name, "cache") {
+				continue
+			}
+
+			// 过滤不支持的磁盘类型
+			diskTypeCheck := true
+			for _, t := range []string{types.LVMType, types.CryptType, types.MultiPath, "rom"} {
+				if strings.Contains(d.Type, t) {
+					diskTypeCheck = false
+					break
+				}
+			}
+			if !diskTypeCheck {
+				//log.Infof("mismatched disk:%s, disktype:%s", d.Name, d.Type)
+				continue
+			}
+
+			if !diskSelector.MatchString(d.Name) {
+				//log.Infof("mismatched disk:%s, regex:%s", d.Name, diskSelector.String())
+				continue
+			}
+
+			name := ds.Name
+			//log.Infof("eligible %s device %s", ds.Name, d.Name)
+			if !utils.ContainsString(blockClass[name], d.Name) {
+				if hasMatchedDisk[d.Name] == 1 {
+					continue
+				}
+
+				blockClass[name] = append(blockClass[name], d.Name)
+				hasMatchedDisk[d.Name] = 1
+			}
+		}
 	}
 
+	log.Infof("Get diskSelectGroup group info %s", blockClass)
+
+	if len(blockClass) == 0 {
+		return false
+	}
+	disks := []api.Disk{}
+	//disksMap := make(map[string][]api.Disk)
+	for _, v := range blockClass {
+		diskSet, err := r.partition.ScanAllDisk(v)
+		if err != nil {
+			log.Errorf("scan  node disk resource error %s", err.Error())
+			return false
+		}
+
+		for _, disk := range diskSet {
+			tmp := api.Disk{}
+			utils.Fill(disk, &tmp)
+			disks = append(disks, tmp)
+			//disksMap = append(disksMap, map[group]tmp{})
+		}
+
+	}
 	if !equality.Semantic.DeepEqual(disks, status.Disks) {
+
 		status.Disks = disks
 		if status.Capacity == nil {
 			status.Capacity = make(map[string]resource.Quantity)
@@ -329,17 +413,29 @@ func (r *NodeStorageResourceReconciler) needUpdateDiskStatus(status *carinav1bet
 		if status.Allocatable == nil {
 			status.Allocatable = make(map[string]resource.Quantity)
 		}
+
 		for _, disk := range disks {
+			var diskGroup string
+			for group, v := range blockClass {
+				if utils.ContainsString(v, disk.Path) {
+					diskGroup = group
+				}
+			}
 			var avail uint64
-			fs := disk.FreeSpaces()
+			tmp := disko.Disk{}
+			utils.Fill(disk, &tmp)
+			fs := tmp.FreeSpaces()
 			sort.Slice(fs, func(a, b int) bool {
 				return fs[a].Size() > fs[b].Size()
 			})
 			//剩余容量选择可用分区剩余空间最大容量
 			avail = fs[0].Size()
-			status.Capacity[fmt.Sprintf("%s%s/%s", utils.DeviceCapacityKeyPrefix, utils.RawVolumeType, disk.Name)] = *resource.NewQuantity(int64(disk.Size), resource.BinarySI)
-			status.Allocatable[fmt.Sprintf("%s%s/%s", utils.DeviceCapacityKeyPrefix, utils.RawVolumeType, disk.Name)] = *resource.NewQuantity(int64(avail), resource.BinarySI)
+
+			status.Capacity[fmt.Sprintf("%s%s/%s", utils.DeviceCapacityKeyPrefix, diskGroup, disk.Name)] = *resource.NewQuantity(int64(disk.Size), resource.BinarySI)
+			status.Allocatable[fmt.Sprintf("%s%s/%s", utils.DeviceCapacityKeyPrefix, diskGroup, disk.Name)] = *resource.NewQuantity(int64(avail), resource.BinarySI)
 		}
+
+		//fmt.Println(status)
 
 		return true
 	}

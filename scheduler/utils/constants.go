@@ -31,4 +31,7 @@ const (
 	VolumeCacheDiskType   = "carina.storage.io/cache-disk-type"
 	// VolumeCacheDiskRatio value: 1-100 Cache Capacity Ratio
 	VolumeCacheDiskRatio = "carina.storage.io/cache-disk-ratio"
+	// DeviceVolumeType type
+	LvmVolumeType = "lvm"
+	RawVolumeType = "raw"
 )

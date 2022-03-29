@@ -1,4 +1,4 @@
-package v1beta1
+package api
 
 // VgGroup defines the observed state of NodeStorageResourceStatus
 type VgGroup struct {
@@ -26,41 +26,41 @@ type PVInfo struct {
 // Disk defines disk details
 type Disk struct {
 	// Name is the kernel name of the disk.
-	Name string `json:"name"`
+	Name string `json:"name,omitempty"`
 
 	// Path is the device path of the disk.
-	Path string `json:"path"`
+	Path string `json:"path,omitempty"`
 
 	// Size is the size of the disk in bytes.
 	Size uint64 `json:"size"`
 
 	// SectorSize is the sector size of the device, if its unknown or not
 	// applicable it will return 0.
-	SectorSize uint `json:"sectorSize"`
+	SectorSize uint `json:"sectorSize,omitempty"`
 
 	// ReadOnly - cannot be written to.
-	ReadOnly bool `json:"read-only"`
+	ReadOnly bool `json:"read-only,omitempty"`
 
 	// Type is the DiskType indicating the type of this disk. This value
 	// can be used to determine if the disk is of a particular media type like
 	// HDD, SSD or NVMe.
-	Type DiskType `json:"type"`
+	Type DiskType `json:"type,omitempty"`
 
 	// Attachment is the type of storage card this disk is attached to.
 	// For example: RAID, ATA or PCIE.
-	Attachment AttachmentType `json:"attachment"`
+	Attachment AttachmentType `json:"attachment,omitempty"`
 
 	// Partitions is the set of partitions on this disk.
-	Partitions PartitionSet `json:"partitions"`
+	Partitions PartitionSet `json:"partitions,omitempty"`
 
 	// TableType is the type of the table
-	Table TableType `json:"table"`
+	Table TableType `json:"table,omitempty"`
 
 	// Properties are a set of properties of this disk.
-	Properties PropertySet `json:"properties"`
+	Properties PropertySet `json:"properties,omitempty"`
 
 	// UdevInfo is the disk's udev information.
-	UdevInfo UdevInfo `json:"udevInfo"`
+	UdevInfo UdevInfo `json:"udevInfo,omitempty"`
 }
 type DiskType int
 type AttachmentType int
@@ -75,43 +75,43 @@ const (
 // PropertySet - a group of properties of a disk
 type PropertySet map[Property]bool
 
-type PartitionSet map[uint]Partition
+type PartitionSet map[string]Partition
 type GUID []byte
 type PartType GUID
 
 // Partition wraps the disk partition information.
 type Partition struct {
 	// Start is the offset in bytes of the start of this partition.
-	Start uint64 `json:"start"`
+	Start uint64 `json:"start,omitempty"`
 
 	// Last is the last byte that is part of this partition.
-	Last uint64 `json:"last"`
+	Last uint64 `json:"last,omitempty"`
 
 	// ID is the partition id.
-	ID GUID `json:"id"`
+	ID GUID `json:"id,omitempty"`
 
 	// Type is the partition type.
-	Type PartType `json:"type"`
+	Type PartType `json:"type,omitempty"`
 
 	// Name is the name of this partition.
-	Name string `json:"name"`
+	Name string `json:"name,omitempty"`
 
 	// Number is the number of this partition.
-	Number uint `json:"number"`
+	Number uint `json:"number,omitempty"`
 }
 
 type UdevInfo struct {
 	// Name of the disk
-	Name string `json:"name"`
+	Name string `json:"name,omitempty"`
 
 	// SysPath is the system path of this device.
-	SysPath string `json:"sysPath"`
+	SysPath string `json:"sysPath,omitempty"`
 
 	// Symlinks for the disk.
-	Symlinks []string `json:"symLinks"`
+	Symlinks []string `json:"symLinks,omitempty"`
 
 	// Properties is udev information as a map of key, value pairs.
-	Properties map[string]string `json:"properties"`
+	Properties map[string]string `json:"properties,omitempty"`
 }
 
 // Raid defines raid details

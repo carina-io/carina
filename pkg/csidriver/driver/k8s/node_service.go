@@ -27,6 +27,7 @@ import (
 	"time"
 
 	"github.com/anuvu/disko"
+	"github.com/carina-io/carina/api"
 	carinav1beta1 "github.com/carina-io/carina/api/v1beta1"
 	"github.com/carina-io/carina/utils/log"
 
@@ -559,11 +560,13 @@ func (s NodeService) SelectDeviceNode(ctx context.Context, requestGb int64, devi
 	return nodeName, selectDeviceGroup, segments, nil
 }
 
-func (s NodeService) selectParttionOrRaw(disks []disko.Disk, requestGb int64, exclusivityDisk bool, re []string) (deviceName disko.Disk, free disko.FreeSpace, err error) {
+func (s NodeService) selectParttionOrRaw(disks []api.Disk, requestGb int64, exclusivityDisk bool, re []string) (deviceName disko.Disk, free disko.FreeSpace, err error) {
 	avaiableRawdevices := []disko.Disk{}
 	avaiablePartitionDevices := []disko.Disk{}
-	for _, device := range disks {
+	for _, tmp := range disks {
 
+		device := disko.Disk{}
+		utils.Fill(tmp, &device)
 		diskSelector, err := regexp.Compile(strings.Join(re, "|"))
 		if err != nil {
 			log.Warnf("disk regex %s error %v ", strings.Join(re, "|"), err)

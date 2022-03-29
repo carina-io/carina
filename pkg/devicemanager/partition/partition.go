@@ -27,6 +27,9 @@ import (
 	"github.com/anuvu/disko"
 	"github.com/anuvu/disko/linux"
 	"github.com/anuvu/disko/partid"
+	"github.com/carina-io/carina/api"
+	"github.com/carina-io/carina/pkg/devicemanager/types"
+	"github.com/carina-io/carina/utils"
 	"github.com/carina-io/carina/utils/exec"
 	"github.com/carina-io/carina/utils/log"
 	"github.com/carina-io/carina/utils/mutx"
@@ -49,19 +52,20 @@ var (
 
 type LocalPartition interface {
 	ScanAllDisks(filter disko.DiskFilter) (disko.DiskSet, error)
-	ScanDisk(groups string) (disko.Disk, error)
+	ScanAllDisk(paths []string) (disko.DiskSet, error)
+	ScanDisk(groups string) (api.Disk, error)
 	CreatePartition(name, groups string, size uint64) error
 	UpdatePartition(name, groups string, size uint64) error
 	DeletePartition(name, groups string) error
-	DeletePartitionByPartNumber(disk disko.Disk, number uint)
+	DeletePartitionByPartNumber(disk api.Disk, number uint) error
 	Wipe(name, groups string) error
 	UdevSettle() error
+	ListDevicesDetail(device string) ([]*types.LocalDisk, error)
 }
 
 const DISKMUTEX = "DiskMutex"
 
 type LocalPartitionImplement struct {
-	//	LocalDeviceImplement device.LocalDeviceImplement
 	//	Bcache               bcache.Bcache
 	Mutex            *mutx.GlobalLocks
 	CacheParttionNum map[string]uint
@@ -76,6 +80,80 @@ func NewLocalPartitionImplement() *LocalPartitionImplement {
 		CacheParttionNum: make(map[string]uint),
 		Executor:         executor}
 }
+func (ld *LocalPartitionImplement) ListDevicesDetail(device string) ([]*types.LocalDisk, error) {
+	args := []string{"--pairs", "--paths", "--bytes", "--output", "NAME,FSTYPE,MOUNTPOINT,SIZE,STATE,TYPE,ROTA,RO,PKNAME"}
+	if device != "" {
+		args = append(args, device)
+	}
+	devices, err := ld.Executor.ExecuteCommandWithOutput("lsblk", args...)
+	if err != nil {
+		log.Error("exec lsblk failed" + err.Error())
+		return nil, err
+	}
+
+	return parseDiskString(devices), nil
+}
+func parseDiskString(diskString string) []*types.LocalDisk {
+	resp := []*types.LocalDisk{}
+
+	if diskString == "" {
+		return resp
+	}
+
+	diskString = strings.ReplaceAll(diskString, "\"", "")
+	//diskString = strings.ReplaceAll(diskString, " ", "")
+
+	vgsList := strings.Split(diskString, "\n")
+	for _, vgs := range vgsList {
+		tmp := types.LocalDisk{}
+		vg := strings.Split(vgs, " ")
+		for _, v := range vg {
+			k := strings.Split(v, "=")
+
+			switch k[0] {
+			case "NAME":
+				tmp.Name = k[1]
+			case "MOUNTPOINT":
+				tmp.MountPoint = k[1]
+			case "SIZE":
+				tmp.Size, _ = strconv.ParseUint(k[1], 10, 64)
+			case "STATE":
+				tmp.State = k[1]
+			case "TYPE":
+				tmp.Type = k[1]
+			case "ROTA":
+				tmp.Rotational = k[1]
+			case "RO":
+				if k[1] == "1" {
+					tmp.Readonly = true
+				} else {
+					tmp.Readonly = false
+				}
+			case "FSTYPE":
+				tmp.Filesystem = k[1]
+			case "PKNAME":
+				tmp.ParentName = k[1]
+			default:
+				log.Warnf("undefined filed %s-%s", k[0], k[1])
+			}
+		}
+		resp = append(resp, &tmp)
+	}
+	return resp
+
+}
+
+func (ld *LocalPartitionImplement) ScanAllDisk(paths []string) (disko.DiskSet, error) {
+	matchAll = func(d disko.Disk) bool {
+		return true
+	}
+	diskSet, err := mysys.ScanDisks(matchAll, paths...)
+	if err != nil {
+		log.Errorf("scan  node disk resource error %s", err.Error())
+		return disko.DiskSet{}, err
+	}
+	return diskSet, nil
+}
 
 func (ld *LocalPartitionImplement) ScanAllDisks(filter disko.DiskFilter) (disko.DiskSet, error) {
 	diskSet, err := mysys.ScanAllDisks(filter)
@@ -86,15 +164,17 @@ func (ld *LocalPartitionImplement) ScanAllDisks(filter disko.DiskFilter) (disko.
 	return diskSet, nil
 }
 
-func (ld *LocalPartitionImplement) ScanDisk(groups string) (disko.Disk, error) {
+func (ld *LocalPartitionImplement) ScanDisk(groups string) (api.Disk, error) {
 	selectDeviceGroup := strings.Split(groups, "-")[1]
 	diskPath := strings.Split(selectDeviceGroup, "/")[1]
+	dst := api.Disk{}
 	disk, err := mysys.ScanDisk(fmt.Sprintf("/dev/%s", diskPath))
 	if err != nil {
 		log.Error("scanDisk path ", fmt.Sprintf("/dev/%s", diskPath), "failed"+err.Error())
-		return disko.Disk{}, err
+		return dst, err
 	}
-	return disk, nil
+	utils.Fill(disk, &dst)
+	return dst, nil
 
 }
 func (ld *LocalPartitionImplement) CreatePartition(name, groups string, size uint64) error {
@@ -116,11 +196,13 @@ func (ld *LocalPartitionImplement) CreatePartition(name, groups string, size uin
 	}
 	defer ld.Mutex.Release(DISKMUTEX)
 
-	disk, err := ld.ScanDisk(groups)
+	tmp, err := ld.ScanDisk(groups)
 	if err != nil {
 		log.Error("scanDisk path ", fmt.Sprintf("/dev/%s", diskPath), "failed"+err.Error())
 		return err
 	}
+	disk := disko.Disk{}
+	utils.Fill(tmp, &disk)
 	fs := disk.FreeSpacesWithMin(size)
 	if len(fs) < 1 {
 		log.Error("path ", fmt.Sprintf("/dev/%s", diskPath), "has not free size "+err.Error())
@@ -172,11 +254,13 @@ func (ld *LocalPartitionImplement) UpdatePartition(name, groups string, size uin
 	selectDeviceGroup := strings.Split(groups, "-")[1]
 	diskPath := strings.Split(selectDeviceGroup, "/")[1]
 
-	disk, err := ld.ScanDisk(groups)
+	tmp, err := ld.ScanDisk(groups)
 	if err != nil {
 		log.Error("scanDisk path ", fmt.Sprintf("/dev/%s", diskPath), "failed"+err.Error())
 		return err
 	}
+	disk := disko.Disk{}
+	utils.Fill(tmp, &disk)
 	fs := disk.FreeSpacesWithMin(size)
 	if len(fs) < 1 {
 		log.Error("path ", fmt.Sprintf("/dev/%s", diskPath), "has not free size ")
@@ -192,7 +276,9 @@ func (ld *LocalPartitionImplement) UpdatePartition(name, groups string, size uin
 	}
 	if p, ok := disk.Partitions[ld.CacheParttionNum[name]]; ok {
 		p.Last = size
-		if err := mysys.UpdatePartition(disk, p); err != nil {
+		tmp := disko.Disk{}
+		utils.Fill(disk, &tmp)
+		if err := mysys.UpdatePartition(tmp, p); err != nil {
 			log.Error("Update parttion on disk ", fmt.Sprintf("/dev/%s", diskPath), "failed"+err.Error())
 			return errors.New("Update parttion on disk failed" + fmt.Sprintf("/dev/%s", diskPath))
 		}
@@ -231,12 +317,14 @@ func (ld *LocalPartitionImplement) DeletePartition(name, groups string) error {
 	return nil
 
 }
-func (ld *LocalPartitionImplement) DeletePartitionByPartNumber(disk disko.Disk, number uint) error {
+func (ld *LocalPartitionImplement) DeletePartitionByPartNumber(disksrt api.Disk, number uint) error {
 	if !ld.Mutex.TryAcquire(DISKMUTEX) {
 		log.Info("wait other task release mutex, please retry...")
 		return errors.New("get global mutex failed")
 	}
 	defer ld.Mutex.Release(DISKMUTEX)
+	disk := disko.Disk{}
+	utils.Fill(disksrt, &disk)
 	if err := mysys.DeletePartition(disk, number); err != nil {
 		log.Error("Delete parttion on disk ", disk.Path, "failed"+err.Error())
 		return errors.New("Delete parttion on disk failed" + disk.Path)

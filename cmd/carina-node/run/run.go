@@ -113,6 +113,8 @@ func subMain() error {
 		nodeName,
 		dm.VolumeManager,
 		stopChan,
+		dm.Partition,
+		dm,
 	)
 
 	if err := nodeResourceController.SetupWithManager(mgr); err != nil {

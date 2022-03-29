@@ -6,10 +6,10 @@ build:
     context: .
     docker:
       dockerfile: Dockerfile 
-  tagPolicy:
-    dateTime:   #image tag 
-      format: "2006-01-02-15-04-05"
-      timezone: "Local"   
+  # tagPolicy:
+  #   dateTime:   #image tag 
+  #     format: "2006-01-02-15-04-05"
+  #     timezone: "Local"   
   local:
     push: true    
            
@@ -21,7 +21,7 @@ deploy:
         chartPath: ./charts
         setValues:
           image.repository: registry.cn-qingdao.aliyuncs.com/zhangkai8048/scheduler
-          image.tag: 2022-03-27-09-08-44
+          image.tag: v0.9.1-67-g15ccdc4-dirty
           image.pullPolicy: Always
         imageStrategy:
           helm: 

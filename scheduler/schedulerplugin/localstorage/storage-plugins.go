@@ -94,18 +94,45 @@ func (ls *LocalStorage) Filter(ctx context.Context, cycleState *framework.CycleS
 		return framework.NewStatus(framework.Error, "Failed to obtain node storage information")
 	}
 
+	volumeType := utils.LvmVolumeType
+	for key, _ := range pvcMap {
+		if configuration.CheckRawDeviceGroup(key) {
+			volumeType = utils.RawVolumeType
+		}
+	}
 	capacityMap := map[string]int64{}
 	total := int64(0)
+	//裸盘匹配节点裸盘组的最小容量满足，即节点满足
+	//lvm 匹配节点lvm管理的容量
 	for key, v := range nsr.Status.Allocatable {
 		if strings.HasPrefix(key, utils.DeviceCapacityKeyPrefix) {
-			capacityMap[key] = v.Value()
-			total += v.Value()
+			if volumeType == utils.RawVolumeType {
+				strArr := strings.Split(key, "/")
+				if val, ok := capacityMap[strArr[1]]; ok {
+					if v.Value() < val {
+						capacityMap[strArr[1]] = v.Value()
+						total += v.Value()
+					}
+				} else {
+					capacityMap[strArr[1]] = v.Value()
+					total += v.Value()
+
+				}
+
+			}
+
+			if volumeType == utils.LvmVolumeType {
+				capacityMap[key] = v.Value()
+				total += v.Value()
+			}
+
 		}
 	}
 	klog.V(3).Infof("capacityMap: %v", capacityMap)
-	klog.V(3).Infof("total: %v", total)
+	klog.V(3).Infof("type:%s,total: %v", volumeType, total)
 	// 检查节点容量是否充足
 	for key, pvs := range pvcMap {
+
 		sort.Slice(pvs, func(i, j int) bool {
 			return pvs[i].Spec.Resources.Requests.Storage().Value() > pvs[j].Spec.Resources.Requests.Storage().Value()
 		})
@@ -171,6 +198,12 @@ func (ls *LocalStorage) Score(ctx context.Context, state *framework.CycleState, 
 	if len(pvcMap) == 0 {
 		return 5, framework.NewStatus(framework.Success, "")
 	}
+	volumeType := utils.LvmVolumeType
+	for key, _ := range pvcMap {
+		if configuration.CheckRawDeviceGroup(key) {
+			volumeType = utils.RawVolumeType
+		}
+	}
 
 	nsr, err := getNodeStorageResource(ls.dynamicClient, nodeName)
 	if err != nil {
@@ -180,10 +213,30 @@ func (ls *LocalStorage) Score(ctx context.Context, state *framework.CycleState, 
 
 	capacityMap := map[string]int64{}
 	total := int64(0)
+	//裸盘匹配节点裸盘组的最小容量满足，即节点满足
+	//lvm 匹配节点lvm管理的容量
 	for key, v := range nsr.Status.Allocatable {
 		if strings.HasPrefix(key, utils.DeviceCapacityKeyPrefix) {
-			capacityMap[key] = v.Value()
-			total += v.Value()
+			if volumeType == utils.RawVolumeType {
+				strArr := strings.Split(key, "/")
+				if val, ok := capacityMap[strArr[1]]; ok {
+					if v.Value() < val {
+						capacityMap[strArr[1]] = v.Value()
+						total += v.Value()
+					}
+				} else {
+					capacityMap[strArr[1]] = v.Value()
+					total += v.Value()
+
+				}
+
+			}
+
+			if volumeType == utils.LvmVolumeType {
+				capacityMap[key] = v.Value()
+				total += v.Value()
+			}
+
 		}
 	}
 	var score int64
