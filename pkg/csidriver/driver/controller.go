@@ -449,18 +449,7 @@ func (s controllerService) CreateBcacheVolume(ctx context.Context, req *csi.Crea
 	}
 
 	backendDiskType = strings.ToLower(backendDiskType)
-	if backendDiskType != "" {
-		if !strings.HasPrefix(backendDiskType, "carina-vg-") {
-			backendDiskType = fmt.Sprintf("carina-vg-%s", backendDiskType)
-		}
-	}
-
 	cacheDiskType = strings.ToLower(cacheDiskType)
-	if cacheDiskType != "" {
-		if !strings.HasPrefix(cacheDiskType, "carina-vg-") {
-			cacheDiskType = fmt.Sprintf("carina-vg-%s", cacheDiskType)
-		}
-	}
 
 	if !utils.ContainsString([]string{"writethrough", "writeback", "writearound"}, cachepolicy) {
 		cachepolicy = "writethrough"
