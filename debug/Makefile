@@ -33,7 +33,7 @@ run: certs
 	@hack/csi-node-register.sh
 	
 node:  
-	NODE_NAME=kind-worker   go run ../cmd/carina-node/main.go --http-addr 0.0.0.0:8091 --metrics-addr :8081
+	NODE_NAME=e2e-worker3   go run ../cmd/carina-node/main.go --http-addr 0.0.0.0:8091 --metrics-addr :8081
 
 controller:
 	 go run ../cmd/carina-controller/main.go --http-addr :8090 --metrics-addr :8080

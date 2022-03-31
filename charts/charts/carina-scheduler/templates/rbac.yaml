@@ -48,6 +48,10 @@ rules:
   - apiGroups: ["events.k8s.io"]
     resources: ["events"]
     verbs: ["create", "patch", "update"]
+  - apiGroups: ["carina.storage.io"]
+    resources: ["nodestorageresources", "nodestorageresources/status"]
+    verbs: ["get", "list", "watch", "update", "patch", "delete", "create"]  
+  
 
 
 ---

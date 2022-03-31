@@ -96,36 +96,38 @@ func (ls *LocalStorage) Filter(ctx context.Context, cycleState *framework.CycleS
 
 	volumeType := utils.LvmVolumeType
 	for key, _ := range pvcMap {
-		if configuration.CheckRawDeviceGroup(key) {
+		strArr := strings.Split(key, "/")
+		if configuration.CheckRawDeviceGroup(strArr[1]) {
 			volumeType = utils.RawVolumeType
 		}
 	}
 	capacityMap := map[string]int64{}
 	total := int64(0)
-	//裸盘匹配节点裸盘组的最小容量满足，即节点满足
+	//裸盘匹配节点裸盘组的可用磁盘最大分区容量满足，即节点满足
 	//lvm 匹配节点lvm管理的容量
 	for key, v := range nsr.Status.Allocatable {
 		if strings.HasPrefix(key, utils.DeviceCapacityKeyPrefix) {
+			strArr := strings.Split(key, "/")
 			if volumeType == utils.RawVolumeType {
-				strArr := strings.Split(key, "/")
-				if val, ok := capacityMap[strArr[1]]; ok {
-					if v.Value() < val {
-						capacityMap[strArr[1]] = v.Value()
+				if configuration.CheckRawDeviceGroup(strArr[1]) {
+					if val, ok := capacityMap[strArr[1]]; ok {
+						if v.Value() < val {
+							capacityMap[strArr[0]+"/"+strArr[1]] = v.Value()
+							total += v.Value()
+						}
+					} else {
+						capacityMap[strArr[0]+"/"+strArr[1]] = v.Value()
 						total += v.Value()
 					}
-				} else {
-					capacityMap[strArr[1]] = v.Value()
-					total += v.Value()
-
 				}
 
 			}
-
 			if volumeType == utils.LvmVolumeType {
-				capacityMap[key] = v.Value()
-				total += v.Value()
+				if configuration.CheckRawDeviceGroup(strArr[1]) {
+					capacityMap[key] = v.Value()
+					total += v.Value()
+				}
 			}
-
 		}
 	}
 	klog.V(3).Infof("capacityMap: %v", capacityMap)
@@ -168,7 +170,7 @@ func (ls *LocalStorage) Filter(ctx context.Context, cycleState *framework.CycleS
 				requestTotalGb += (value-1)>>30 + 1
 			}
 			if requestTotalGb > capacityMap[key] {
-				klog.V(3).Infof("mismatch pod: %v, node: %v, request: %d, capacity: %d", pod.Name, node.Node().Name, requestTotalGb, capacityMap[key])
+				klog.V(3).Infof("mismatch pod: %v, node: %v, request: %d, key:%s,capacity: %d", pod.Name, node.Node().Name, requestTotalGb, key, capacityMap[key])
 				return framework.NewStatus(framework.UnschedulableAndUnresolvable, "node storage resource insufficient")
 			}
 		}
@@ -200,7 +202,8 @@ func (ls *LocalStorage) Score(ctx context.Context, state *framework.CycleState, 
 	}
 	volumeType := utils.LvmVolumeType
 	for key, _ := range pvcMap {
-		if configuration.CheckRawDeviceGroup(key) {
+		strArr := strings.Split(key, "/")
+		if configuration.CheckRawDeviceGroup(strArr[1]) {
 			volumeType = utils.RawVolumeType
 		}
 	}
@@ -217,26 +220,27 @@ func (ls *LocalStorage) Score(ctx context.Context, state *framework.CycleState, 
 	//lvm 匹配节点lvm管理的容量
 	for key, v := range nsr.Status.Allocatable {
 		if strings.HasPrefix(key, utils.DeviceCapacityKeyPrefix) {
+			strArr := strings.Split(key, "/")
 			if volumeType == utils.RawVolumeType {
-				strArr := strings.Split(key, "/")
-				if val, ok := capacityMap[strArr[1]]; ok {
-					if v.Value() < val {
-						capacityMap[strArr[1]] = v.Value()
+				if configuration.CheckRawDeviceGroup(strArr[1]) {
+					if val, ok := capacityMap[strArr[0]+"/"+strArr[1]]; ok {
+						if v.Value() < val {
+							capacityMap[strArr[0]+"/"+strArr[1]] = v.Value()
+							total += v.Value()
+						}
+					} else {
+						capacityMap[strArr[0]+"/"+strArr[1]] = v.Value()
 						total += v.Value()
 					}
-				} else {
-					capacityMap[strArr[1]] = v.Value()
-					total += v.Value()
-
 				}
 
 			}
-
 			if volumeType == utils.LvmVolumeType {
-				capacityMap[key] = v.Value()
-				total += v.Value()
+				if configuration.CheckRawDeviceGroup(strArr[1]) {
+					capacityMap[key] = v.Value()
+					total += v.Value()
+				}
 			}
-
 		}
 	}
 	var score int64

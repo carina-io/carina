@@ -3,8 +3,9 @@ Kind=v1.20.2
 kversion ?=v1.20.2
 
 
-all:
+all: kc
 	@echo "e2e"
+	E2ETEST=1 /root/go/ginkgo --failFast -v .
 test:
 	go clean -testcache
 	go test -v .
@@ -17,14 +18,11 @@ kc:
 		for i in `seq 1 5`; \
 		do \
 			docker exec $$n truncate --size=200G /tmp/disk$$i.device && \
-			sleep 1 &&\
+			sleep 2 &&\
 			docker exec $$n losetup -f /tmp/disk$$i.device --show; \
 		done \
 	done
 	
 kd:
 	kind delete cluster --name e2e
-	for name in `lsblk --paths --output NAME |grep loop`; \
-	do \
-		losetup -d $$name; \
-	done
+	losetup -D

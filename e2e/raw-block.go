@@ -19,13 +19,14 @@ package e2e
 import (
 	"encoding/json"
 	"fmt"
+	"strconv"
+	"strings"
+	"time"
+
 	"github.com/carina-io/carina/utils/log"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
-	"strconv"
-	"strings"
-	"time"
 )
 
 var rawPvc = `
@@ -41,7 +42,7 @@ spec:
   resources:
     requests:
       storage: 13Gi
-  storageClassName: csi-carina-sc1
+  storageClassName: csi-carina-raw
 `
 
 var rawPod = `
@@ -70,13 +71,28 @@ spec:
 func rawBlockPod() {
 	podName := "carina-block-pod"
 	It("create block pod", func() {
+
 		log.Info("create block pvc")
-		stdout, stderr, err := kubectlWithInput([]byte(rawPvc), "apply", "-f", "-")
+		stdout, stderr, err := kubectlWithInput([]byte(rawPvc), "-n", NameSpace, "apply", "-f", "-")
 		Expect(err).ShouldNot(HaveOccurred(), "stdout=%s, stderr=%s", stdout, stderr)
 
 		log.Info("Waiting for pod running")
-		stdout, stderr, err = kubectlWithInput([]byte(rawPod), "apply", "-f", "-")
+		stdout, stderr, err = kubectlWithInput([]byte(rawPod), "-n", NameSpace, "apply", "-f", "-")
 		Expect(err).ShouldNot(HaveOccurred(), "stdout=%s, stderr=%s", stdout, stderr)
+		By("confirming that the pvc is bound")
+		Eventually(func() error {
+			stdout, stderr, err := kubectl("-n", NameSpace, "get", "pvc", "raw-block-pvc", "-o=template", "--template={{.status.phase}}")
+			if err != nil {
+				return fmt.Errorf("failed to get pvc. stdout: %s, stderr: %s, err: %v", stdout, stderr, err)
+			}
+			phase := strings.TrimSpace(string(stdout))
+			if phase != "Bound" {
+				return fmt.Errorf("pvc %s is not bind", "pvc-raw-device")
+			}
+			return nil
+		}).Should(Succeed())
+
+		By("confirming that the pod is running")
 		Eventually(func() error {
 			stdout, stderr, err = kubectl("get", "pods", podName, "-o", "json", "-n", NameSpace)
 			if err != nil {

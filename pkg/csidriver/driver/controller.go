@@ -136,6 +136,12 @@ func (s controllerService) CreateVolume(ctx context.Context, req *csi.CreateVolu
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "can not find pvc %s %s", namespace, name)
 	}
+	if node != "" {
+		group, err = s.nodeService.SelectDeviceGroup(ctx, requestGb, node, volumeType)
+		if err != nil {
+			return nil, status.Errorf(codes.Internal, "failed to get device group %v", err)
+		}
+	}
 
 	// if bcache type, need create two lvm volume
 	cacheDiskRatio := req.GetParameters()[utils.VolumeCacheDiskRatio]
@@ -145,25 +151,17 @@ func (s controllerService) CreateVolume(ctx context.Context, req *csi.CreateVolu
 
 	// sc parameter未设置device group
 	if node != "" && deviceGroup == "" {
-		group, err := s.nodeService.SelectDeviceGroup(ctx, requestGb, node)
-		if err != nil {
-			return nil, status.Errorf(codes.Internal, "failed to get device group %v", err)
-		}
-		if group == "" {
-			return nil, status.Errorf(codes.Internal, "can not find any device group")
-		}
 		deviceGroup = group
 	}
 
 	//check  Parameters done
-	log.Infof("CreateVolume: Starting to Create %s volume %s with: pvcName(%s), pvcNameSpace(%s), nodeSelected(%s), storageSelected(%s)", volumeType, req.GetName(), pvcName, namespace, nodeName, deviceGroup)
+	log.Infof("CreateVolume: Starting to Create %s volume %s with: pvcName(%s), pvcNameSpace(%s), node(%s),nodeSelected(%s), storageSelected(%s)", volumeType, req.GetName(), pvcName, namespace, node, nodeName, deviceGroup)
 	// pv csi VolumeAttributes
 	annotation := map[string]string{}
 	annotation[utils.VolumeManagerType] = volumeType
 	exclusivityDisk := req.GetParameters()[utils.ExclusivityDisk] == "true"
-	if exclusivityDisk {
-		annotation[utils.ExclusivityDisk] = "true"
-	}
+	annotation[utils.ExclusivityDisk] = fmt.Sprint(exclusivityDisk)
+
 	volumeContext := req.GetParameters()
 	// 不是调度器完成pv调度，则采用controller调度
 	if node == "" {

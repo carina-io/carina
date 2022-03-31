@@ -52,13 +52,14 @@ type LogicVolumeReconciler struct {
 // +kubebuilder:rbac:groups=carina.storage.io,resources=logicvolumes,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=carina.storage.io,resources=logicvolumes/status,verbs=get;update;patch
 
-func NewLogicVolumeReconciler(client client.Client, scheme *runtime.Scheme, recorder record.EventRecorder, nodeName string, volume volume.LocalVolume) *LogicVolumeReconciler {
+func NewLogicVolumeReconciler(client client.Client, scheme *runtime.Scheme, recorder record.EventRecorder, nodeName string, volume volume.LocalVolume, partition partition.LocalPartition) *LogicVolumeReconciler {
 	return &LogicVolumeReconciler{
-		Client:   client,
-		Scheme:   scheme,
-		Recorder: recorder,
-		nodeName: nodeName,
-		volume:   volume,
+		Client:    client,
+		Scheme:    scheme,
+		Recorder:  recorder,
+		nodeName:  nodeName,
+		volume:    volume,
+		partition: partition,
 	}
 }
 
@@ -159,7 +160,7 @@ func (r *LogicVolumeReconciler) createLV(ctx context.Context, lv *carinav1.Logic
 	}
 	reqBytes := lv.Spec.Size.Value()
 
-	switch lv.Annotations["carina.storage.io/disk-type"] {
+	switch lv.Annotations[utils.VolumeManagerType] {
 	case utils.LvmVolumeType:
 		err := utils.UntilMaxRetry(func() error {
 			return r.volume.CreateVolume(lv.Name, lv.Spec.DeviceGroup, uint64(reqBytes), 1)
@@ -191,12 +192,12 @@ func (r *LogicVolumeReconciler) createLV(ctx context.Context, lv *carinav1.Logic
 		}
 
 	case utils.RawVolumeType:
-		if _, ok := lv.Annotations["carina.storage.io/exclusivity-disk"]; !ok {
+		if _, ok := lv.Annotations[utils.ExclusivityDisk]; !ok {
 			log.Info("Create lv using an exclusive disk")
 		}
-
 		err := utils.UntilMaxRetry(func() error {
-			return r.partition.CreatePartition(lv.Name, lv.Spec.DeviceGroup, uint64(reqBytes))
+			log.Info("name: ", utils.PartitionName(lv.Name), " group: ", lv.Spec.DeviceGroup, " size: ", uint64(reqBytes))
+			return r.partition.CreatePartition(utils.PartitionName(lv.Name), lv.Spec.DeviceGroup, uint64(reqBytes))
 		}, 5, 12*time.Second)
 
 		if err != nil {
@@ -260,10 +261,10 @@ func (r *LogicVolumeReconciler) expandLV(ctx context.Context, lv *carinav1.Logic
 	origBytes := (*lv.Status.CurrentSize).Value()
 	reqBytes := lv.Spec.Size.Value()
 
-	switch lv.Annotations["carina.storage.io/disk-type"] {
+	switch lv.Annotations[utils.VolumeManagerType] {
 	case utils.LvmVolumeType:
-		if _, ok := lv.Annotations["carina.storage.io/exclusivity-disk"]; !ok {
-			return fmt.Errorf("Extend lv doesn't using an exclusive disk")
+		if _, ok := lv.Annotations[utils.ExclusivityDisk]; !ok {
+			return fmt.Errorf("Extend lv %s doesn't using an exclusive disk", lv.Name)
 		}
 		err := utils.UntilMaxRetry(func() error {
 			return r.volume.ResizeVolume(lv.Name, lv.Spec.DeviceGroup, uint64(reqBytes), 1)
@@ -288,11 +289,11 @@ func (r *LogicVolumeReconciler) expandLV(ctx context.Context, lv *carinav1.Logic
 		}
 
 	case utils.RawVolumeType:
-		if _, ok := lv.Annotations["carina.storage.io/exclusivity-disk"]; !ok {
+		if _, ok := lv.Annotations[utils.ExclusivityDisk]; !ok {
 			return fmt.Errorf("Extend lv: %s doesn't using an exclusive disk", lv.Name)
 		}
 		err := utils.UntilMaxRetry(func() error {
-			return r.partition.UpdatePartition(lv.Name, lv.Spec.DeviceGroup, uint64(reqBytes))
+			return r.partition.UpdatePartition(utils.PartitionName(lv.Name), lv.Spec.DeviceGroup, uint64(reqBytes))
 		}, 10, 12*time.Second)
 		if err != nil {
 			lv.Status.Code = codes.Internal

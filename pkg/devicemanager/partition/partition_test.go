@@ -7,8 +7,11 @@ import (
 
 	"github.com/anuvu/disko"
 	"github.com/anuvu/disko/partid"
+	"github.com/carina-io/carina/utils"
 	"github.com/stretchr/testify/assert"
 )
+
+var localparttion = NewLocalPartitionImplement()
 
 func TestScanAllDisk(t *testing.T) {
 	diskSet, err := mysys.ScanAllDisks(matchAll)
@@ -22,12 +25,13 @@ func TestScanDisks(t *testing.T) {
 	fmt.Println(diskSet)
 }
 func TestScanDisk(t *testing.T) {
-	fname := "/dev/loop2"
+	fname := "/dev/loop3"
 	disk, err := mysys.ScanDisk(fname)
 	assert.NoError(t, err)
 	fmt.Println(disk.UdevInfo.Properties)
 	fmt.Println(disk.Name)
 	fmt.Println(disk.Partitions)
+	fmt.Println(disk.FreeSpacesWithMin(5000))
 
 }
 
@@ -80,8 +84,41 @@ func TestAddPartition(t *testing.T) {
 
 }
 func TestGetPartitions(t *testing.T) {
-	fname := "/dev/loop2"
+	fname := "/dev/loop3"
 	disk, err := mysys.ScanDisk(fname)
 	assert.NoError(t, err)
 	fmt.Println(disk.Partitions)
+
+}
+
+func TestCreatePartition(t *testing.T) {
+	localparttion := NewLocalPartitionImplement()
+	//name: 54cd2f39cf95 group: carina-raw-loop size: 13958643712
+	size := 4747316223
+	lvName := "pvc-58ad162c-1815-476b-9b3d-4735f652842e"
+	err := localparttion.CreatePartition(utils.PartitionName(lvName), "carina-raw-loop/loop3", uint64(size))
+	assert.NoError(t, err)
+	disk, err := mysys.ScanDisk("/dev/loop3")
+	assert.NoError(t, err)
+	fmt.Println(disk.Partitions)
+}
+
+func TestUpdatePartition(t *testing.T) {
+	size := 5747316223
+	lvName := "pvc-58ad162c-1815-476b-9b3d-4735f652842e"
+	group := "carina-raw-loop/loop3"
+	err := localparttion.UpdatePartition(utils.PartitionName(lvName), group, uint64(size))
+	assert.NoError(t, err)
+	_, err = mysys.ScanDisk("/dev/loop3")
+	assert.NoError(t, err)
+
+}
+
+func TestDeletePartition(t *testing.T) {
+	lvName := "pvc-58ad162c-1815-476b-9b3d-4735f652842e"
+	err := localparttion.DeletePartition(utils.PartitionName(lvName), "carina-raw-loop/loop3")
+	assert.NoError(t, err)
+	_, err = mysys.ScanDisk("/dev/loop3")
+	assert.NoError(t, err)
+
 }

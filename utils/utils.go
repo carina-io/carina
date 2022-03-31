@@ -21,6 +21,7 @@ import (
 	"errors"
 	"os"
 	"reflect"
+	"strings"
 	"time"
 )
 
@@ -137,4 +138,9 @@ func Fill(src interface{}, dst interface{}) error {
 	}
 	return json.Unmarshal(jsonStu, &dst)
 
+}
+
+func PartitionName(lv string) string {
+	strtemp := strings.Split(lv, "-")
+	return strtemp[len(strtemp)-1]
 }

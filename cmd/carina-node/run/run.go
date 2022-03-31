@@ -100,6 +100,7 @@ func subMain() error {
 		mgr.GetEventRecorderFor("logicvolume-node"),
 		nodeName,
 		dm.VolumeManager,
+		dm.Partition,
 	)
 
 	if err := lvController.SetupWithManager(mgr); err != nil {

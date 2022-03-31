@@ -94,6 +94,10 @@ func (t *Trouble) CleanupOrphanVolume() {
 	log.Infof("%s cleanup orphan volume", logPrefix)
 	mapLvList := map[string]bool{}
 	for _, v := range lvList.Items {
+		//skip raw logicVolume
+		if v.Annotations[utils.VolumeManagerType] == utils.RawVolumeType {
+			continue
+		}
 		mapLvList[v.Name] = true
 		mapLvList[fmt.Sprintf("thin-%s", v.Name)] = true
 		mapLvList[fmt.Sprintf("volume-%s", v.Name)] = true
@@ -146,10 +150,12 @@ func (t *Trouble) CleanupOrphanPartition() {
 	log.Infof("%s cleanup orphan parttions", logPrefix)
 	mapLvList := map[string]bool{}
 	for _, v := range lvList.Items {
-		if _, ok := v.Annotations[utils.VolumeManagerType]; !ok || v.Annotations[utils.VolumeManagerType] == utils.LvmVolumeType {
+		//skip lvm logicVolume
+		if v.Annotations[utils.VolumeManagerType] == utils.LvmVolumeType {
 			continue
 		}
-		mapLvList["carina.io/"+v.Name] = true
+
+		mapLvList["carina.io/"+utils.PartitionName(v.Name)] = true
 	}
 
 	for _, disk := range diskSet {

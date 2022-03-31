@@ -335,7 +335,7 @@ func (r *NodeStorageResourceReconciler) needUpdateDiskStatus(status *carinav1bet
 		}
 		// 过滤出空块设备
 		for _, d := range localDisk {
-			if d.Type == "part" {
+			if d.Type == "part" || d.ParentName != "" {
 				continue
 			}
 			if strings.Contains(d.Name, types.KEYWORD) {
@@ -404,6 +404,7 @@ func (r *NodeStorageResourceReconciler) needUpdateDiskStatus(status *carinav1bet
 		}
 
 	}
+
 	if !equality.Semantic.DeepEqual(disks, status.Disks) {
 
 		status.Disks = disks

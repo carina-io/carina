@@ -53,7 +53,7 @@ var (
 type LocalPartition interface {
 	ScanAllDisks(filter disko.DiskFilter) (disko.DiskSet, error)
 	ScanAllDisk(paths []string) (disko.DiskSet, error)
-	ScanDisk(groups string) (api.Disk, error)
+	ScanDisk(groups string) (disko.Disk, error)
 	CreatePartition(name, groups string, size uint64) error
 	UpdatePartition(name, groups string, size uint64) error
 	DeletePartition(name, groups string) error
@@ -164,83 +164,62 @@ func (ld *LocalPartitionImplement) ScanAllDisks(filter disko.DiskFilter) (disko.
 	return diskSet, nil
 }
 
-func (ld *LocalPartitionImplement) ScanDisk(groups string) (api.Disk, error) {
-	selectDeviceGroup := strings.Split(groups, "-")[1]
-	diskPath := strings.Split(selectDeviceGroup, "/")[1]
-	dst := api.Disk{}
-	disk, err := mysys.ScanDisk(fmt.Sprintf("/dev/%s", diskPath))
-	if err != nil {
-		log.Error("scanDisk path ", fmt.Sprintf("/dev/%s", diskPath), "failed"+err.Error())
-		return dst, err
-	}
-	utils.Fill(disk, &dst)
-	return dst, nil
-
+func (ld *LocalPartitionImplement) ScanDisk(groups string) (disko.Disk, error) {
+	//selectDeviceGroup := strings.Split(groups, "-")[1]
+	diskPath := strings.Split(groups, "/")[1]
+	return mysys.ScanDisk(fmt.Sprintf("/dev/%s", diskPath))
 }
 func (ld *LocalPartitionImplement) CreatePartition(name, groups string, size uint64) error {
-	//DeviceGroup=node.Name + "-" + deviceGroup + "/" + device.Name + "/" + start,
+	//DeviceGroup=deviceGroup + "/" + device.Name
 
-	selectDeviceGroup := strings.Split(groups, "-")[1]
-	diskPath := strings.Split(selectDeviceGroup, "/")[1]
-
-	startString := strings.Split(selectDeviceGroup, "/")[2]
-	start, err := strconv.ParseInt(startString, 10, 64)
-	if err != nil {
-		log.Error(" transfer startString ", "failed"+err.Error())
-		return err
-	}
-
+	//selectDeviceGroup := strings.Split(groups, "-")[1]
+	diskPath := strings.Split(groups, "/")[1]
+	log.Info("create parttion: group:", groups, "path:", diskPath, "size", size)
 	if !ld.Mutex.TryAcquire(DISKMUTEX) {
 		log.Info("wait other task release mutex, please retry...")
 		return errors.New("get global mutex failed")
 	}
 	defer ld.Mutex.Release(DISKMUTEX)
 
-	tmp, err := ld.ScanDisk(groups)
+	disk, err := ld.ScanDisk(groups)
 	if err != nil {
 		log.Error("scanDisk path ", fmt.Sprintf("/dev/%s", diskPath), "failed"+err.Error())
 		return err
 	}
-	disk := disko.Disk{}
-	utils.Fill(tmp, &disk)
+
 	fs := disk.FreeSpacesWithMin(size)
 	if len(fs) < 1 {
 		log.Error("path ", fmt.Sprintf("/dev/%s", diskPath), "has not free size "+err.Error())
 		return err
 	}
-	//check start location is in fs
-	var inFreeSizeSpace bool = false
-	for _, f := range fs {
-		if f.Start == uint64(start) {
-			inFreeSizeSpace = true
+	var partitionNum uint = 1
+	if len(disk.Partitions) > 0 {
+		number := []int{}
+		for k, _ := range disk.Partitions {
+			number = append(number, int(k))
 		}
-	}
-	if !inFreeSizeSpace {
-		start = int64(fs[0].Start)
+		sort.Ints(number)
+		partitionNum = uint(number[len(number)-1]) + 1
 	}
 
-	number := []int{}
-	for k, _ := range disk.Partitions {
-		number = append(number, int(k))
-	}
-	sort.Ints(number)
 	myGUID := disko.GenGUID()
-	partitionNum := uint(number[len(number)-1]) + 1
+
 	part := disko.Partition{
-		Start:  uint64(start),
-		Last:   uint64(size),
+		Start:  fs[0].Start,
+		Last:   fs[0].Start + uint64(size),
 		Type:   partid.LinuxLVM,
-		Name:   name,
+		Name:   "carina.io/" + name,
 		ID:     myGUID,
 		Number: partitionNum,
 	}
-
+	log.Info("create parttion", part)
 	err = mysys.CreatePartition(disk, part)
 	if err != nil {
 		log.Error("create parttion on disk ", fmt.Sprintf("/dev/%s", diskPath), "failed"+err.Error())
 		return err
 	}
 	ld.CacheParttionNum[name] = partitionNum
+	log.Info("create parttion success", partitionNum)
 	return nil
 }
 
@@ -251,16 +230,15 @@ func (ld *LocalPartitionImplement) UpdatePartition(name, groups string, size uin
 		return errors.New("get global mutex failed")
 	}
 	defer ld.Mutex.Release(DISKMUTEX)
-	selectDeviceGroup := strings.Split(groups, "-")[1]
-	diskPath := strings.Split(selectDeviceGroup, "/")[1]
+	//selectDeviceGroup := strings.Split(groups, "-")[1]
+	diskPath := strings.Split(groups, "/")[1]
 
-	tmp, err := ld.ScanDisk(groups)
+	disk, err := ld.ScanDisk(groups)
 	if err != nil {
 		log.Error("scanDisk path ", fmt.Sprintf("/dev/%s", diskPath), "failed"+err.Error())
 		return err
 	}
-	disk := disko.Disk{}
-	utils.Fill(tmp, &disk)
+
 	fs := disk.FreeSpacesWithMin(size)
 	if len(fs) < 1 {
 		log.Error("path ", fmt.Sprintf("/dev/%s", diskPath), "has not free size ")
@@ -294,13 +272,14 @@ func (ld *LocalPartitionImplement) DeletePartition(name, groups string) error {
 	}
 	defer ld.Mutex.Release(DISKMUTEX)
 
-	selectDeviceGroup := strings.Split(groups, "-")[1]
-	diskPath := strings.Split(selectDeviceGroup, "/")[1]
+	//selectDeviceGroup := strings.Split(groups, "-")[1]
+	diskPath := strings.Split(groups, "/")[1]
 	disk, err := mysys.ScanDisk(fmt.Sprintf("/dev/%s", diskPath))
 	if err != nil {
 		log.Error("scanDisk path ", fmt.Sprintf("/dev/%s", diskPath), "failed"+err.Error())
 		return err
 	}
+	log.Info("delete parttion: group:", groups, "path:", diskPath, "cacheParttionNum", ld.CacheParttionNum)
 	if _, ok := ld.CacheParttionNum[name]; !ok {
 		log.Error("path", fmt.Sprintf("/dev/%s", diskPath), "cacheParttionMap has no parttion number")
 		return errors.New("cacheParttionMap has no parttion number" + fmt.Sprintf("/dev/%s", diskPath))
