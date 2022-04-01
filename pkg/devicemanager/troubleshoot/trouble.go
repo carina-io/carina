@@ -155,7 +155,7 @@ func (t *Trouble) CleanupOrphanPartition() {
 			continue
 		}
 
-		mapLvList["carina.io/"+utils.PartitionName(v.Name)] = true
+		mapLvList[utils.PartitionName(v.Name)] = true
 	}
 
 	for _, disk := range diskSet {

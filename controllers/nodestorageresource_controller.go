@@ -404,7 +404,7 @@ func (r *NodeStorageResourceReconciler) needUpdateDiskStatus(status *carinav1bet
 		}
 
 	}
-
+	log.Info("compare", disks)
 	if !equality.Semantic.DeepEqual(disks, status.Disks) {
 
 		status.Disks = disks

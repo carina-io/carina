@@ -9,7 +9,7 @@ parameters:
   # file system
   csi.storage.k8s.io/fstype: {{ .Values.storage.fstype }}
   # disk group
-  carina.storage.io/disk-type: "carina-raw-loop"
+  carina.storage.io/disk-type: "carina-raw-ssd"
   carina.storage.io/exclusivity-disk: "false" 
 reclaimPolicy: {{ .Values.storage.reclaimPolicy }}
 allowVolumeExpansion: true

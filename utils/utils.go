@@ -142,5 +142,5 @@ func Fill(src interface{}, dst interface{}) error {
 
 func PartitionName(lv string) string {
 	strtemp := strings.Split(lv, "-")
-	return strtemp[len(strtemp)-1]
+	return "carina.io/" + strtemp[len(strtemp)-1]
 }

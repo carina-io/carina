@@ -40,13 +40,19 @@ func TestScanDisks(t *testing.T) {
 	assert.NoError(t, err)
 	fmt.Println(diskSet)
 }
+
 func TestScanDisk(t *testing.T) {
 	fname := "/dev/loop3"
+	//kname := linux.GetPartitionKname("/dev/loop3p1", 1)
+	//fmt.Println(kname)
+	//devadminfo, err := linux.GetUdevInfo(kname)
+	//assert.NoError(t, err)
+	//fmt.Println(devadminfo)
 	disk, err := mysys.ScanDisk(fname)
 	assert.NoError(t, err)
 	fmt.Println(disk.UdevInfo.Properties)
 	fmt.Println(disk.Name)
-	fmt.Println(disk.Partitions)
+
 	fmt.Println(disk.FreeSpacesWithMin(5000))
 
 }
@@ -99,16 +105,16 @@ func TestAddPartition(t *testing.T) {
 	assert.NoError(t, err)
 
 }
-func TestGetPartitions(t *testing.T) {
-	fname := "/dev/loop3"
-	disk, err := mysys.ScanDisk(fname)
-	assert.NoError(t, err)
-	fmt.Println(disk.Partitions)
 
+func TestGetPartitions(t *testing.T) {
+	lvName := "pvc-b78bbe12-3398-4ad9-bb45-cf15f1603af3"
+	group := "csi-carina-raw/loop3"
+	partinfo, err := localparttion.GetPartition(utils.PartitionName(lvName), group)
+	assert.NoError(t, err)
+	fmt.Println(partinfo)
 }
 
 func TestCreatePartition(t *testing.T) {
-	localparttion := NewLocalPartitionImplement()
 	//name: 54cd2f39cf95 group: carina-raw-loop size: 13958643712
 	size := 4747316223
 	lvName := "pvc-58ad162c-1815-476b-9b3d-4735f652842e"

@@ -506,6 +506,8 @@ github.com/rekby/gpt v0.0.0-20200614112001-7da10aec5566 h1:U4d0m0NdADC5sjaWXeZpD
 github.com/rekby/gpt v0.0.0-20200614112001-7da10aec5566/go.mod h1:scrOqOnnHVKCHENvFw8k9ajCb88uqLQDA4BvuJNJ2ew=
 github.com/rekby/mbr v0.0.0-20190325193910-2b19b9cdeebc h1:LIhcsQ01OzuCmjqcggpWhs8GBGNqVPycFbBpY3suBbI=
 github.com/rekby/mbr v0.0.0-20190325193910-2b19b9cdeebc/go.mod h1:omSwqul59wlKxf3OVbxhOiSjxM1at3GsfDbgnghKyeA=
+github.com/ricochet2200/go-disk-usage/du v0.0.0-20210707232629-ac9918953285 h1:d54EL9l+XteliUfUCGsEwwuk65dmmxX85VXF+9T6+50=
+github.com/ricochet2200/go-disk-usage/du v0.0.0-20210707232629-ac9918953285/go.mod h1:fxIDly1xtudczrZeOOlfaUvd2OPb2qZAPuWdU2BsBTk=
 github.com/rogpeppe/fastuuid v0.0.0-20150106093220-6724a57986af/go.mod h1:XWv6SoW27p1b0cqNHllgS5HIMJraePCO15w5zCzIWYg=
 github.com/rogpeppe/fastuuid v1.2.0/go.mod h1:jVj6XXZzXRy/MSR5jhDC/2q6DgLz+nrA6LYCDYWNEvQ=
 github.com/rogpeppe/go-internal v1.3.0/go.mod h1:M8bDsm7K2OlrFYOpmOWEs/qY81heoFRclV5y23lUDJ4=

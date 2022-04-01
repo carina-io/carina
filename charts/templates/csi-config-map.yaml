@@ -16,7 +16,7 @@ data:
           "nodeLabel": "kubernetes.io/hostname"
         },
         {
-          "name": "carina-raw-hdd",
+          "name": "carina-raw-ssd",
           "re": ["loop3+"],
           "policy": "RAW",
           "nodeLabel": "kubernetes.io/hostname"

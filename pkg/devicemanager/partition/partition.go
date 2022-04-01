@@ -54,6 +54,7 @@ type LocalPartition interface {
 	ScanAllDisk(paths []string) (disko.DiskSet, error)
 	ScanDisk(groups string) (disko.Disk, error)
 	CreatePartition(name, groups string, size uint64) error
+	GetPartition(name, groups string) (disko.Partition, error)
 	UpdatePartition(name, groups string, size uint64) error
 	DeletePartition(name, groups string) error
 	DeletePartitionByPartNumber(disk api.Disk, number uint) error
@@ -168,6 +169,38 @@ func (ld *LocalPartitionImplement) ScanDisk(groups string) (disko.Disk, error) {
 	diskPath := strings.Split(groups, "/")[1]
 	return mysys.ScanDisk(fmt.Sprintf("/dev/%s", diskPath))
 }
+
+func (ld *LocalPartitionImplement) GetPartition(name, groups string) (disko.Partition, error) {
+	diskPath := strings.Split(groups, "/")[1]
+	disk, err := ld.ScanDisk(groups)
+	if err != nil {
+		log.Error("scanDisk path ", fmt.Sprintf("/dev/%s", diskPath), "failed"+err.Error())
+		return disko.Partition{}, err
+	}
+	if len(disk.Partitions) < 1 {
+		return disko.Partition{}, nil
+	}
+	partitionName := name
+	for _, part := range disk.Partitions {
+		if part.Name == partitionName {
+			return part, nil
+		}
+	}
+	return disko.Partition{}, nil
+
+}
+
+func parseUdevInfo(output string) map[string]string {
+	lines := strings.Split(output, "\n")
+	result := make(map[string]string, len(lines))
+	for _, v := range lines {
+		pairs := strings.Split(v, "=")
+		if len(pairs) > 1 {
+			result[pairs[0]] = pairs[1]
+		}
+	}
+	return result
+}
 func (ld *LocalPartitionImplement) CreatePartition(name, groups string, size uint64) error {
 	//DeviceGroup=deviceGroup + "/" + device.Name
 
@@ -208,7 +241,7 @@ func (ld *LocalPartitionImplement) CreatePartition(name, groups string, size uin
 	if (last - fs[0].Start) > uint64(size) {
 		last = fs[0].Start + uint64(size) - 1
 	}
-	partitionName := "carina.io/" + name
+	partitionName := name
 	part := disko.Partition{
 		Start:  fs[0].Start,
 		Last:   last,
@@ -223,7 +256,7 @@ func (ld *LocalPartitionImplement) CreatePartition(name, groups string, size uin
 		return err
 	}
 	ld.CacheParttionNum[partitionName] = partitionNum
-	log.Info("create parttion success", partitionNum)
+	log.Info("create parttion success", partitionNum, ld.CacheParttionNum)
 	return nil
 }
 
@@ -252,7 +285,7 @@ func (ld *LocalPartitionImplement) UpdatePartition(name, groups string, size uin
 		log.Error("path", fmt.Sprintf("/dev/%s", diskPath), "disk has mutipod used")
 		return errors.New("disk has mutipod used" + fmt.Sprintf("/dev/%s", diskPath))
 	}
-	partitionName := "carina.io/" + name
+	partitionName := name
 	if _, ok := ld.CacheParttionNum[partitionName]; !ok {
 		log.Error("path", fmt.Sprintf("/dev/%s", diskPath), "cacheParttionMap has no parttion number")
 		return errors.New("cacheParttionMap has no parttion number" + fmt.Sprintf("/dev/%s", diskPath))
@@ -285,7 +318,7 @@ func (ld *LocalPartitionImplement) DeletePartition(name, groups string) error {
 		return err
 	}
 	log.Info("delete parttion: group:", groups, "path:", diskPath, "cacheParttionNum", ld.CacheParttionNum)
-	partitionName := "carina.io/" + name
+	partitionName := name
 	if _, ok := ld.CacheParttionNum[partitionName]; !ok {
 		log.Error("path", fmt.Sprintf("/dev/%s", diskPath), "cacheParttionMap has no parttion number")
 		return errors.New("cacheParttionMap has no parttion number" + fmt.Sprintf("/dev/%s", diskPath))

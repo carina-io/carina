@@ -94,7 +94,6 @@ func NewDeviceManager(nodeName string, cache cache.Cache, stopChan <-chan struct
 func (dm *DeviceManager) GetNodeDiskSelectGroup() map[string]configuration.DiskSelectorItem {
 	diskClass := map[string]configuration.DiskSelectorItem{}
 	currentDiskSelector := configuration.DiskSelector()
-
 	node := &corev1.Node{}
 	err := dm.Cache.Get(context.Background(), client.ObjectKey{Name: dm.nodeName}, node)
 	if err != nil {
