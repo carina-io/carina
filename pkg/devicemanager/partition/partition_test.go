@@ -22,6 +22,7 @@ import (
 	"testing"
 
 	"github.com/anuvu/disko"
+	"github.com/anuvu/disko/linux"
 	"github.com/anuvu/disko/partid"
 	"github.com/carina-io/carina/utils"
 	"github.com/stretchr/testify/assert"
@@ -107,11 +108,18 @@ func TestAddPartition(t *testing.T) {
 }
 
 func TestGetPartitions(t *testing.T) {
-	lvName := "pvc-b78bbe12-3398-4ad9-bb45-cf15f1603af3"
+	lvName := "pvc-e11aa51b-2c8f-4de2-bee7-73a1af0a0c36"
 	group := "csi-carina-raw/loop3"
-	partinfo, err := localparttion.GetPartition(utils.PartitionName(lvName), group)
+	part, err := localparttion.GetPartition(utils.PartitionName(lvName), group)
+	assert.NoError(t, err)
+	disk, err := localparttion.ScanDisk(group)
+	assert.NoError(t, err)
+	name := linux.GetPartitionKname(disk.Path, part.Number)
+	fmt.Println(name)
+	partinfo, err := linux.GetUdevInfo(name)
 	assert.NoError(t, err)
 	fmt.Println(partinfo)
+
 }
 
 func TestCreatePartition(t *testing.T) {

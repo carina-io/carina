@@ -19,7 +19,6 @@ package driver
 import (
 	"context"
 	"errors"
-	"fmt"
 	"io"
 	"os"
 	"path"
@@ -149,14 +148,18 @@ func (s *nodeService) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		if err != nil {
 			return nil, err
 		}
-		log.Infof("touch partittion name:%s,num:%s,start:%s,size:%d", partition.Name, partition.Number, partition.Start, partition.Size())
+		disk, err := s.partition.ScanDisk(lvr.Spec.DeviceGroup)
+		if err != nil {
+			return nil, err
+		}
+		log.Infof("touch partittion name:%s,num:%d,start:%d,size:%d", partition.Name, partition.Number, partition.Start, partition.Size())
 		if partition.Name == "" {
 			return nil, status.Errorf(codes.NotFound, "failed to find partition: %s", utils.PartitionName(volumeID))
 		}
 		if isBlockVol {
-			_, err = s.nodePublishRawBlockVolume(req, &partition)
+			_, err = s.nodePublishRawBlockVolume(req, disk, &partition)
 		} else if isFsVol {
-			_, err = s.nodePublishRawFilesystemVolume(req, &partition)
+			_, err = s.nodePublishRawFilesystemVolume(req, disk, &partition)
 		}
 
 		if err != nil {
@@ -204,9 +207,10 @@ func (s *nodeService) nodePublishLvmBlockVolume(req *csi.NodePublishVolumeReques
 		" target_path ", target)
 	return &csi.NodePublishVolumeResponse{}, nil
 }
-func (s *nodeService) nodePublishRawBlockVolume(req *csi.NodePublishVolumeRequest, part *disko.Partition) (*csi.NodePublishVolumeResponse, error) {
+func (s *nodeService) nodePublishRawBlockVolume(req *csi.NodePublishVolumeRequest, disk disko.Disk, part *disko.Partition) (*csi.NodePublishVolumeResponse, error) {
 	// Find parttion and create a block device with it
-	partinfo, err := linux.GetUdevInfo(fmt.Sprintf("/dev/%s", part.Name))
+	name := linux.GetPartitionKname(disk.Path, part.Number)
+	partinfo, err := linux.GetUdevInfo(name)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "failed to get partinfo %s", err)
 	}
@@ -319,7 +323,7 @@ func (s *nodeService) nodePublishLvmFilesystemVolume(req *csi.NodePublishVolumeR
 
 	return &csi.NodePublishVolumeResponse{}, nil
 }
-func (s *nodeService) nodePublishRawFilesystemVolume(req *csi.NodePublishVolumeRequest, part *disko.Partition) (*csi.NodePublishVolumeResponse, error) {
+func (s *nodeService) nodePublishRawFilesystemVolume(req *csi.NodePublishVolumeRequest, disk disko.Disk, part *disko.Partition) (*csi.NodePublishVolumeResponse, error) {
 	// Check request
 	mountOption := req.GetVolumeCapability().GetMount()
 	if mountOption.FsType == "" {
@@ -330,8 +334,8 @@ func (s *nodeService) nodePublishRawFilesystemVolume(req *csi.NodePublishVolumeR
 		modeName := csi.VolumeCapability_AccessMode_Mode_name[int32(accessMode)]
 		return nil, status.Errorf(codes.FailedPrecondition, "unsupported access mode: %s", modeName)
 	}
-
-	partinfo, err := linux.GetUdevInfo(fmt.Sprintf("/dev/%s", part.Name))
+	name := linux.GetPartitionKname(disk.Path, part.Number)
+	partinfo, err := linux.GetUdevInfo(name)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "failed to get partinfo %s", err)
 	}
@@ -693,11 +697,15 @@ func (s *nodeService) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandV
 		if err != nil {
 			return nil, err
 		}
-
 		if partition.Name == "" {
 			return nil, status.Errorf(codes.NotFound, "failed to find partition: %s", vid)
 		}
-		partinfo, err := linux.GetUdevInfo(fmt.Sprintf("/dev/%s", partition.Name))
+		disk, err := s.partition.ScanDisk(lvr.Spec.DeviceGroup)
+		if err != nil {
+			return nil, err
+		}
+		name := linux.GetPartitionKname(disk.Path, partition.Number)
+		partinfo, err := linux.GetUdevInfo(name)
 		if err != nil {
 			return nil, status.Errorf(codes.Internal, "failed to get partinfo %s", err)
 		}

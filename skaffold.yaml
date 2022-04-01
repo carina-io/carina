@@ -16,12 +16,12 @@ deploy:
         chartPath: ./charts
         setValues:
           image.carina.repository: registry.cn-qingdao.aliyuncs.com/zhangkai8048/carina
-          image.carina.tag: v0.9.1-73-g7e36886-dirty
-          image.carina.pullPolicy: Always
+          image.carina.tag: v0.9.1-74-g90ac002-dirty
+          image.carina.pullPolicy: IfNotPresent
           carina-scheduler.enabled: true
           carina-scheduler.image.repository: registry.cn-qingdao.aliyuncs.com/zhangkai8048/scheduler
           carina-scheduler.image.tag: v0.9.1-72-g15624df
-          carina-scheduler.image.pullPolicy: Always
+          carina-scheduler.image.pullPolicy: IfNotPresent
         imageStrategy:
           helm: 
            explicitRegistry: true
