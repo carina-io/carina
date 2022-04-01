@@ -140,12 +140,27 @@ func (r *LogicVolumeReconciler) SetupWithManager(mgr ctrl.Manager) error {
 func (r *LogicVolumeReconciler) removeLVIfExists(ctx context.Context, lv *carinav1.LogicVolume) error {
 	// Finalizer's process ( RemoveLV then removeString ) is not atomic,
 	// so checking existence of LV to ensure its idempotence
-	err := utils.UntilMaxRetry(func() error {
-		return r.volume.DeleteVolume(lv.Name, lv.Spec.DeviceGroup)
-	}, 10, 12*time.Second)
-	if err != nil {
-		log.Error(err, " failed to remove LV name ", lv.Name, " uid ", lv.Spec.DeviceGroup)
+
+	switch lv.Annotations[utils.VolumeManagerType] {
+	case utils.LvmVolumeType:
+		err := utils.UntilMaxRetry(func() error {
+			return r.volume.DeleteVolume(lv.Name, lv.Spec.DeviceGroup)
+		}, 10, 12*time.Second)
+		if err != nil {
+			log.Error(err, " failed to remove LV name ", lv.Name, " uid ", lv.Spec.DeviceGroup)
+		}
+	case utils.RawVolumeType:
+		err := utils.UntilMaxRetry(func() error {
+			return r.partition.DeletePartition(utils.PartitionName(lv.Name), lv.Spec.DeviceGroup)
+		}, 10, 12*time.Second)
+		if err != nil {
+			log.Error(err, " failed to remove Parttition name ", lv.Name, " uid ", lv.Spec.DeviceGroup)
+		}
+	default:
+		log.Errorf("Delete LogicVolume: Create with no support volume type undefined")
+		return fmt.Errorf("Create with no support type ")
 	}
+
 	r.volume.NoticeUpdateCapacity([]string{lv.Spec.DeviceGroup})
 	log.Info("LV already removed name ", lv.Name, " uid ", lv.UID)
 	return nil
