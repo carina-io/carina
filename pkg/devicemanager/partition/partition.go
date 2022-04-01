@@ -20,7 +20,6 @@ import (
 	"errors"
 	"fmt"
 	"regexp"
-	"sort"
 	"strconv"
 	"strings"
 
@@ -192,24 +191,29 @@ func (ld *LocalPartitionImplement) CreatePartition(name, groups string, size uin
 		log.Error("path ", fmt.Sprintf("/dev/%s", diskPath), "has not free size "+err.Error())
 		return err
 	}
-	var partitionNum uint = 1
+	var partitionNum uint
 	if len(disk.Partitions) > 0 {
-		number := []int{}
-		for k, _ := range disk.Partitions {
-			number = append(number, int(k))
+		for i := uint(1); i < 128; i++ {
+			if _, exists := disk.Partitions[i]; !exists {
+				partitionNum = i
+				break
+			}
 		}
-		sort.Ints(number)
-		partitionNum = uint(number[len(number)-1]) + 1
+	}
+	if partitionNum == 0 {
+		return fmt.Errorf("failed to find an open partition number")
 	}
 
-	myGUID := disko.GenGUID()
-
+	last := fs[0].Last
+	if (last - fs[0].Start) > uint64(size) {
+		last = fs[0].Start + uint64(size) - 1
+	}
+	partitionName := "carina.io/" + name
 	part := disko.Partition{
 		Start:  fs[0].Start,
-		Last:   fs[0].Start + uint64(size),
-		Type:   partid.LinuxLVM,
-		Name:   "carina.io/" + name,
-		ID:     myGUID,
+		Last:   last,
+		Type:   partid.LinuxFS,
+		Name:   partitionName,
 		Number: partitionNum,
 	}
 	log.Info("create parttion", part)
@@ -218,7 +222,7 @@ func (ld *LocalPartitionImplement) CreatePartition(name, groups string, size uin
 		log.Error("create parttion on disk ", fmt.Sprintf("/dev/%s", diskPath), "failed"+err.Error())
 		return err
 	}
-	ld.CacheParttionNum[name] = partitionNum
+	ld.CacheParttionNum[partitionName] = partitionNum
 	log.Info("create parttion success", partitionNum)
 	return nil
 }
@@ -248,11 +252,12 @@ func (ld *LocalPartitionImplement) UpdatePartition(name, groups string, size uin
 		log.Error("path", fmt.Sprintf("/dev/%s", diskPath), "disk has mutipod used")
 		return errors.New("disk has mutipod used" + fmt.Sprintf("/dev/%s", diskPath))
 	}
-	if _, ok := ld.CacheParttionNum[name]; !ok {
+	partitionName := "carina.io/" + name
+	if _, ok := ld.CacheParttionNum[partitionName]; !ok {
 		log.Error("path", fmt.Sprintf("/dev/%s", diskPath), "cacheParttionMap has no parttion number")
 		return errors.New("cacheParttionMap has no parttion number" + fmt.Sprintf("/dev/%s", diskPath))
 	}
-	if p, ok := disk.Partitions[ld.CacheParttionNum[name]]; ok {
+	if p, ok := disk.Partitions[ld.CacheParttionNum[partitionName]]; ok {
 		p.Last = size
 		tmp := disko.Disk{}
 		utils.Fill(disk, &tmp)
@@ -280,11 +285,12 @@ func (ld *LocalPartitionImplement) DeletePartition(name, groups string) error {
 		return err
 	}
 	log.Info("delete parttion: group:", groups, "path:", diskPath, "cacheParttionNum", ld.CacheParttionNum)
-	if _, ok := ld.CacheParttionNum[name]; !ok {
+	partitionName := "carina.io/" + name
+	if _, ok := ld.CacheParttionNum[partitionName]; !ok {
 		log.Error("path", fmt.Sprintf("/dev/%s", diskPath), "cacheParttionMap has no parttion number")
 		return errors.New("cacheParttionMap has no parttion number" + fmt.Sprintf("/dev/%s", diskPath))
 	}
-	number := ld.CacheParttionNum[name]
+	number := ld.CacheParttionNum[partitionName]
 	if _, ok := disk.Partitions[number]; !ok {
 		return fmt.Errorf("partition %d does not exist", number)
 	}
@@ -292,7 +298,7 @@ func (ld *LocalPartitionImplement) DeletePartition(name, groups string) error {
 		log.Error("Delete parttion on disk ", fmt.Sprintf("/dev/%s", diskPath), "failed"+err.Error())
 		return errors.New("Delete parttion on disk failed" + fmt.Sprintf("/dev/%s", diskPath))
 	}
-	delete(ld.CacheParttionNum, name)
+	delete(ld.CacheParttionNum, partitionName)
 	return nil
 
 }
