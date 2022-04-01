@@ -19,7 +19,8 @@ deploy:
           image.carina.tag: v0.9.1-68-g6465938-dirty
           image.carina.pullPolicy: Always
           carina-scheduler.enabled: true
-          carina-scheduler.image.tag: v0.9.1-68-g6465938-dirty
+          carina-scheduler.image.repository: registry.cn-qingdao.aliyuncs.com/zhangkai8048/scheduler
+          carina-scheduler.image.tag: v0.9.1-72-g15624df
           carina-scheduler.image.pullPolicy: Always
         imageStrategy:
           helm: 
