@@ -203,8 +203,10 @@ func parseUdevInfo(output string) map[string]string {
 }
 func (ld *LocalPartitionImplement) CreatePartition(name, groups string, size uint64) error {
 	//DeviceGroup=deviceGroup + "/" + device.Name
-
-	//selectDeviceGroup := strings.Split(groups, "-")[1]
+	partitionName := name
+	if _, ok := ld.CacheParttionNum[partitionName]; ok {
+		return nil
+	}
 	diskPath := strings.Split(groups, "/")[1]
 	log.Info("create parttion: group:", groups, "path:", diskPath, "size", size)
 	if !ld.Mutex.TryAcquire(DISKMUTEX) {
@@ -241,7 +243,7 @@ func (ld *LocalPartitionImplement) CreatePartition(name, groups string, size uin
 	if (last - fs[0].Start) > uint64(size) {
 		last = fs[0].Start + uint64(size) - 1
 	}
-	partitionName := name
+
 	part := disko.Partition{
 		Start:  fs[0].Start,
 		Last:   last,

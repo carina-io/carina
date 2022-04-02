@@ -3,6 +3,7 @@ module github.com/carina-io/carina
 go 1.17
 
 require (
+	github.com/anuvu/disko v0.0.8
 	github.com/container-storage-interface/spec v1.5.0
 	github.com/fsnotify/fsnotify v1.5.1
 	github.com/go-logr/logr v1.2.2
@@ -37,7 +38,6 @@ require (
 
 require (
 	cloud.google.com/go v0.99.0 // indirect
-	github.com/anuvu/disko v0.0.8
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cespare/xxhash/v2 v2.1.2 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
@@ -98,3 +98,5 @@ require (
 	sigs.k8s.io/structured-merge-diff/v4 v4.2.1 // indirect
 	sigs.k8s.io/yaml v1.3.0 // indirect
 )
+
+replace github.com/anuvu/disko v0.0.8 => github.com/carina-io/disko v0.0.8

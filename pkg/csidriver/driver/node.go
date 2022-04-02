@@ -334,27 +334,28 @@ func (s *nodeService) nodePublishRawFilesystemVolume(req *csi.NodePublishVolumeR
 		modeName := csi.VolumeCapability_AccessMode_Mode_name[int32(accessMode)]
 		return nil, status.Errorf(codes.FailedPrecondition, "unsupported access mode: %s", modeName)
 	}
-	name := linux.GetPartitionKname(disk.Path, part.Number)
-	partinfo, err := linux.GetUdevInfo(name)
-	if err != nil {
-		return nil, status.Errorf(codes.Internal, "failed to get partinfo %s", err)
-	}
-	var MAJOR uint64
-	var MINOR uint64
-	if str, ok := partinfo.Properties["MAJOR"]; !ok {
-		MAJOR, err = strconv.ParseUint(str, 10, 32)
-	}
+	device := linux.GetPartitionKname(disk.Path, part.Number)
 
-	if str, ok := partinfo.Properties["MINOR"]; !ok {
-		MINOR, err = strconv.ParseUint(str, 10, 32)
+	// partinfo, err := linux.GetUdevInfo(name)
+	// if err != nil {
+	// 	return nil, status.Errorf(codes.Internal, "failed to get partinfo %s", err)
+	// }
+	// var MAJOR uint64
+	// var MINOR uint64
+	// if str, ok := partinfo.Properties["MAJOR"]; !ok {
+	// 	MAJOR, err = strconv.ParseUint(str, 10, 32)
+	// }
 
-	}
+	// if str, ok := partinfo.Properties["MINOR"]; !ok {
+	// 	MINOR, err = strconv.ParseUint(str, 10, 32)
+
+	// }
 	// Find lv and create a block device with it
-	device := filepath.Join(DeviceDirectory, req.GetVolumeId())
-	err = s.createDeviceIfNeeded(device, uint32(MAJOR), uint32(MINOR))
-	if err != nil {
-		return nil, err
-	}
+	//device := filepath.Join(DeviceDirectory, req.GetVolumeId())
+	// err = s.createDeviceIfNeeded(device, uint32(MAJOR), uint32(MINOR))
+	// if err != nil {
+	// 	return nil, err
+	// }
 
 	var mountOptions []string
 	if req.GetReadonly() {
@@ -368,7 +369,7 @@ func (s *nodeService) nodePublishRawFilesystemVolume(req *csi.NodePublishVolumeR
 		mountOptions = append(mountOptions, m)
 	}
 
-	err = os.MkdirAll(req.GetTargetPath(), 0755)
+	err := os.MkdirAll(req.GetTargetPath(), 0755)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "mkdir failed: target=%s, error=%v", req.GetTargetPath(), err)
 	}
@@ -448,8 +449,30 @@ func (s *nodeService) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	device := filepath.Join(DeviceDirectory, volID)
-	backendDevice := ""
+	lvr, err := s.k8sLVService.GetLogicVolume(ctx, volID)
+	if err != nil {
+		return nil, err
+	}
+	var device string
+	var backendDevice string = ""
+	switch lvr.Annotations[utils.VolumeManagerType] {
+	case utils.LvmVolumeType:
+		device = filepath.Join(DeviceDirectory, volID)
+	case utils.RawVolumeType:
+		partition, err := s.getPartitionFromContext(lvr.Spec.DeviceGroup, volID)
+		if err != nil {
+			return nil, err
+		}
+		disk, err := s.partition.ScanDisk(lvr.Spec.DeviceGroup)
+		if err != nil {
+			return nil, err
+		}
+		device = linux.GetPartitionKname(disk.Path, partition.Number)
+
+	default:
+		log.Errorf("Create LogicVolume: Create with no support volume type undefined")
+		return nil, status.Errorf(codes.InvalidArgument, "Create with no support type ")
+	}
 
 	bcacheDevice, err := s.getBcacheDevice(volID)
 	if err == nil && bcacheDevice != nil {
@@ -674,7 +697,7 @@ func (s *nodeService) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandV
 		return &csi.NodeExpandVolumeResponse{}, nil
 	}
 
-	device := filepath.Join(DeviceDirectory, vid)
+	var device string
 	lvr, err := s.k8sLVService.GetLogicVolume(ctx, vid)
 	if err != nil {
 		return nil, err
@@ -688,6 +711,7 @@ func (s *nodeService) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandV
 		if lv == nil {
 			return nil, status.Errorf(codes.NotFound, "failed to find LV: %s", vid)
 		}
+		device = filepath.Join(DeviceDirectory, vid)
 		err = s.createDeviceIfNeeded(device, lv.LVKernelMajor, lv.LVKernelMinor)
 		if err != nil {
 			return nil, err
@@ -704,25 +728,26 @@ func (s *nodeService) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandV
 		if err != nil {
 			return nil, err
 		}
-		name := linux.GetPartitionKname(disk.Path, partition.Number)
-		partinfo, err := linux.GetUdevInfo(name)
-		if err != nil {
-			return nil, status.Errorf(codes.Internal, "failed to get partinfo %s", err)
-		}
-		var MAJOR uint64
-		var MINOR uint64
-		if str, ok := partinfo.Properties["MAJOR"]; !ok {
-			MAJOR, err = strconv.ParseUint(str, 10, 32)
-		}
+		device = linux.GetPartitionKname(disk.Path, partition.Number)
 
-		if str, ok := partinfo.Properties["MINOR"]; !ok {
-			MINOR, err = strconv.ParseUint(str, 10, 32)
+		// partinfo, err := linux.GetUdevInfo(name)
+		// if err != nil {
+		// 	return nil, status.Errorf(codes.Internal, "failed to get partinfo %s", err)
+		// }
+		// var MAJOR uint64
+		// var MINOR uint64
+		// if str, ok := partinfo.Properties["MAJOR"]; !ok {
+		// 	MAJOR, err = strconv.ParseUint(str, 10, 32)
+		// }
 
-		}
-		err = s.createDeviceIfNeeded(device, uint32(MAJOR), uint32(MINOR))
-		if err != nil {
-			return nil, err
-		}
+		// if str, ok := partinfo.Properties["MINOR"]; !ok {
+		// 	MINOR, err = strconv.ParseUint(str, 10, 32)
+
+		// }
+		// err = s.createDeviceIfNeeded(device, uint32(MAJOR), uint32(MINOR))
+		// if err != nil {
+		// 	return nil, err
+		// }
 
 	default:
 		log.Errorf("Create LogicVolume: Create with no support volume type undefined")
