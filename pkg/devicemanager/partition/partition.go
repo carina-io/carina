@@ -225,16 +225,16 @@ func (ld *LocalPartitionImplement) CreatePartition(name, groups string, size uin
 		return err
 	}
 	var partitionNum uint
-	if len(disk.Partitions) > 0 {
-		for i := uint(1); i < 128; i++ {
-			if _, exists := disk.Partitions[i]; !exists {
-				partitionNum = i
-				break
-			}
+
+	for i := uint(1); i < 128; i++ {
+		if _, exists := disk.Partitions[i]; !exists {
+			partitionNum = i
+			break
 		}
 	}
+
 	if partitionNum == 0 {
-		return fmt.Errorf("failed to find an open partition number")
+		return fmt.Errorf("failed to find an open partition number %d", partitionNum)
 	}
 
 	last := fs[0].Last
