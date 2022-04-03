@@ -28,7 +28,6 @@ import (
 	"github.com/carina-io/carina/api"
 	deviceManager "github.com/carina-io/carina/pkg/devicemanager"
 	"github.com/carina-io/carina/pkg/devicemanager/partition"
-	"github.com/carina-io/carina/pkg/devicemanager/types"
 	"github.com/carina-io/carina/pkg/devicemanager/volume"
 	"github.com/carina-io/carina/utils"
 	"github.com/carina-io/carina/utils/log"
@@ -316,7 +315,7 @@ func (r *NodeStorageResourceReconciler) needUpdateLvmStatus(status *carinav1beta
 func (r *NodeStorageResourceReconciler) needUpdateDiskStatus(status *carinav1beta1.NodeStorageResourceStatus) bool {
 
 	diskSelectGroup := r.dm.GetNodeDiskSelectGroup()
-	localDisk, err := r.dm.DiskManager.ListDevicesDetail("")
+	localDisk, err := r.partition.ListDevicesDetail("")
 	if err != nil {
 		log.Errorf("scan  node disk resource error %s", err.Error())
 		return false
@@ -335,37 +334,9 @@ func (r *NodeStorageResourceReconciler) needUpdateDiskStatus(status *carinav1bet
 		}
 		// 过滤出空块设备
 		for _, d := range localDisk {
-			if d.Type == "part" || d.ParentName != "" {
-				continue
-			}
-			if strings.Contains(d.Name, types.KEYWORD) {
-				continue
-			}
-
-			if d.Readonly || d.Size < 10<<30 || d.Filesystem != "" || d.MountPoint != "" {
-				//log.Infof("mismatched disk: %s filesystem:%s mountpoint:%s readonly:%t, size:%d", d.Name, d.Filesystem, d.MountPoint, d.Readonly, d.Size)
-				continue
-			}
-
-			if strings.Contains(d.Name, "cache") {
-				continue
-			}
-
-			// 过滤不支持的磁盘类型
-			diskTypeCheck := true
-			for _, t := range []string{types.LVMType, types.CryptType, types.MultiPath, "rom"} {
-				if strings.Contains(d.Type, t) {
-					diskTypeCheck = false
-					break
-				}
-			}
-			if !diskTypeCheck {
-				//log.Infof("mismatched disk:%s, disktype:%s", d.Name, d.Type)
-				continue
-			}
 
 			if !diskSelector.MatchString(d.Name) {
-				//log.Infof("mismatched disk:%s, regex:%s", d.Name, diskSelector.String())
+				log.Infof("mismatched disk:%s, regex:%s", d.Name, diskSelector.String())
 				continue
 			}
 

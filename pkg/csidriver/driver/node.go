@@ -152,7 +152,7 @@ func (s *nodeService) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		if err != nil {
 			return nil, err
 		}
-		log.Infof("touch partittion name:%s,num:%d,start:%d,size:%d", partition.Name, partition.Number, partition.Start, partition.Size())
+		log.Infof(" IsBlockVol: %s ,Touch partittion name:%s,num:%d,start:%d,size:%d", isBlockVol, partition.Name, partition.Number, partition.Start, partition.Size())
 		if partition.Name == "" {
 			return nil, status.Errorf(codes.NotFound, "failed to find partition: %s", utils.PartitionName(volumeID))
 		}
@@ -208,7 +208,7 @@ func (s *nodeService) nodePublishLvmBlockVolume(req *csi.NodePublishVolumeReques
 	return &csi.NodePublishVolumeResponse{}, nil
 }
 func (s *nodeService) nodePublishRawBlockVolume(req *csi.NodePublishVolumeRequest, disk disko.Disk, part *disko.Partition) (*csi.NodePublishVolumeResponse, error) {
-	// Find parttion and create a block device with it
+	// Find parttion
 	name := linux.GetPartitionKname(disk.Path, part.Number)
 	partinfo, err := linux.GetUdevInfo(name)
 	if err != nil {
@@ -216,20 +216,25 @@ func (s *nodeService) nodePublishRawBlockVolume(req *csi.NodePublishVolumeReques
 	}
 	var MAJOR uint64
 	var MINOR uint64
-	if str, ok := partinfo.Properties["MAJOR"]; !ok {
-		MAJOR, err = strconv.ParseUint(str, 10, 32)
+	if str, ok := partinfo.Properties["MAJOR"]; ok {
+		MAJOR, _ = strconv.ParseUint(str, 10, 32)
 	}
 
-	if str, ok := partinfo.Properties["MINOR"]; !ok {
-		MINOR, err = strconv.ParseUint(str, 10, 32)
+	if str, ok := partinfo.Properties["MINOR"]; ok {
+		MINOR, _ = strconv.ParseUint(str, 10, 32)
 
 	}
+
 	var stat unix.Stat_t
 	target := req.GetTargetPath()
 	err = filesystem.Stat(target, &stat)
+	isBlock := (stat.Mode & unix.S_IFMT) == unix.S_IFBLK
+
+	log.Info("targetpath is block:", isBlock, MAJOR, MINOR, stat, "err:", err)
 	switch err {
 	case nil:
 		if stat.Rdev == unix.Mkdev(uint32(MAJOR), uint32(MINOR)) && stat.Mode&devicePermission == devicePermission {
+			log.Info("stat.Rdev%s", stat.Rdev, unix.Mkdev(uint32(MAJOR), uint32(MINOR)), "stat.Mode", stat.Mode)
 			return &csi.NodePublishVolumeResponse{}, nil
 		}
 		if err := os.Remove(target); err != nil {
@@ -325,6 +330,7 @@ func (s *nodeService) nodePublishLvmFilesystemVolume(req *csi.NodePublishVolumeR
 }
 func (s *nodeService) nodePublishRawFilesystemVolume(req *csi.NodePublishVolumeRequest, disk disko.Disk, part *disko.Partition) (*csi.NodePublishVolumeResponse, error) {
 	// Check request
+	log.Info("NodePublishVolume device: Filesystem")
 	mountOption := req.GetVolumeCapability().GetMount()
 	if mountOption.FsType == "" {
 		mountOption.FsType = "ext4"
@@ -335,27 +341,28 @@ func (s *nodeService) nodePublishRawFilesystemVolume(req *csi.NodePublishVolumeR
 		return nil, status.Errorf(codes.FailedPrecondition, "unsupported access mode: %s", modeName)
 	}
 	device := linux.GetPartitionKname(disk.Path, part.Number)
+	log.Info("NodePublishVolume device: ", device)
 
-	// partinfo, err := linux.GetUdevInfo(name)
-	// if err != nil {
-	// 	return nil, status.Errorf(codes.Internal, "failed to get partinfo %s", err)
-	// }
-	// var MAJOR uint64
-	// var MINOR uint64
-	// if str, ok := partinfo.Properties["MAJOR"]; !ok {
-	// 	MAJOR, err = strconv.ParseUint(str, 10, 32)
-	// }
+	partinfo, err := linux.GetUdevInfo(device)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to get partinfo %s", err)
+	}
+	var MAJOR uint64
+	var MINOR uint64
+	if str, ok := partinfo.Properties["MAJOR"]; ok {
+		MAJOR, _ = strconv.ParseUint(str, 10, 32)
+	}
 
-	// if str, ok := partinfo.Properties["MINOR"]; !ok {
-	// 	MINOR, err = strconv.ParseUint(str, 10, 32)
+	if str, ok := partinfo.Properties["MINOR"]; ok {
+		MINOR, _ = strconv.ParseUint(str, 10, 32)
 
-	// }
+	}
 	// Find lv and create a block device with it
 	//device := filepath.Join(DeviceDirectory, req.GetVolumeId())
-	// err = s.createDeviceIfNeeded(device, uint32(MAJOR), uint32(MINOR))
-	// if err != nil {
-	// 	return nil, err
-	// }
+	err = s.createDeviceIfNeeded(device, uint32(MAJOR), uint32(MINOR))
+	if err != nil {
+		return nil, err
+	}
 
 	var mountOptions []string
 	if req.GetReadonly() {
@@ -369,7 +376,7 @@ func (s *nodeService) nodePublishRawFilesystemVolume(req *csi.NodePublishVolumeR
 		mountOptions = append(mountOptions, m)
 	}
 
-	err := os.MkdirAll(req.GetTargetPath(), 0755)
+	err = os.MkdirAll(req.GetTargetPath(), 0755)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "mkdir failed: target=%s, error=%v", req.GetTargetPath(), err)
 	}

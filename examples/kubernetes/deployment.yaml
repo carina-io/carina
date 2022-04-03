@@ -30,5 +30,5 @@ spec:
       volumes:
         - name: mypvc
           persistentVolumeClaim:
-            claimName: csi-carina-pvc
+            claimName: csi-carina-raw
             readOnly: false

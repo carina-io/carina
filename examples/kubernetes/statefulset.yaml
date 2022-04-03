@@ -33,7 +33,7 @@ spec:
         name: db
       spec:
         accessModes: [ "ReadWriteOnce" ]
-        storageClassName: csi-carina-sc
+        storageClassName: csi-carina-raw
         resources:
           requests:
             storage: 3Gi

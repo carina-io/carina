@@ -19,6 +19,7 @@ package partition
 import (
 	"fmt"
 	"sort"
+	"strings"
 	"testing"
 
 	"github.com/anuvu/disko"
@@ -33,13 +34,13 @@ var localparttion = NewLocalPartitionImplement()
 func TestScanAllDisk(t *testing.T) {
 	diskSet, err := mysys.ScanAllDisks(matchAll)
 	assert.NoError(t, err)
-	fmt.Println(diskSet)
+	t.Log(diskSet)
 }
 func TestScanDisks(t *testing.T) {
 
 	diskSet, err := mysys.ScanDisks(matchAll, "/dev/loop2")
 	assert.NoError(t, err)
-	fmt.Println(diskSet)
+	t.Log(diskSet)
 }
 
 func TestScanDisk(t *testing.T) {
@@ -51,10 +52,10 @@ func TestScanDisk(t *testing.T) {
 	//fmt.Println(devadminfo)
 	disk, err := mysys.ScanDisk(fname)
 	assert.NoError(t, err)
-	fmt.Println(disk.UdevInfo.Properties)
-	fmt.Println(disk.Name)
+	t.Log(disk.UdevInfo.Properties)
+	t.Log(disk.Name)
 
-	fmt.Println(disk.FreeSpacesWithMin(5000))
+	t.Log(disk.FreeSpacesWithMin(5000))
 
 }
 
@@ -64,11 +65,11 @@ func TestGetDiskPartMaxNum(t *testing.T) {
 	assert.NoError(t, err)
 
 	number := []int{}
-	for k, _ := range disk.Partitions {
+	for k := range disk.Partitions {
 		number = append(number, int(k))
 	}
 	sort.Ints(number)
-	fmt.Println(number[0], number[len(number)-1])
+	t.Log(number[0], number[len(number)-1])
 	for _, v := range disk.FreeSpaces() {
 		fmt.Println(v.Size())
 	}
@@ -81,12 +82,15 @@ func TestAddPartition(t *testing.T) {
 	disk, err := mysys.ScanDisk(fname)
 	assert.NoError(t, err)
 	fs := disk.FreeSpacesWithMin(size)
-	fmt.Println(fs)
-	number := []int{}
-	for k, _ := range disk.Partitions {
-		number = append(number, int(k))
+	t.Log(fs)
+	var partitionNum uint
+
+	for i := uint(1); i < 128; i++ {
+		if _, exists := disk.Partitions[i]; !exists {
+			partitionNum = i
+			break
+		}
 	}
-	sort.Ints(number)
 	myGUID := disko.GenGUID()
 	part := disko.Partition{
 		Start:  fs[0].Start,
@@ -94,7 +98,7 @@ func TestAddPartition(t *testing.T) {
 		Type:   partid.LinuxLVM,
 		Name:   "test6",
 		ID:     myGUID,
-		Number: uint(number[len(number)-1]) + 1,
+		Number: partitionNum,
 	}
 
 	err = mysys.CreatePartition(disk, part)
@@ -102,7 +106,7 @@ func TestAddPartition(t *testing.T) {
 	disk, err = mysys.ScanDisk(fname)
 	assert.NoError(t, err)
 
-	fmt.Printf("%s\n", disk.Details())
+	t.Logf("%s\n", disk.Details())
 	assert.NoError(t, err)
 
 }
@@ -115,10 +119,10 @@ func TestGetPartitions(t *testing.T) {
 	disk, err := localparttion.ScanDisk(group)
 	assert.NoError(t, err)
 	name := linux.GetPartitionKname(disk.Path, part.Number)
-	fmt.Println(name)
+	t.Log(name)
 	partinfo, err := linux.GetUdevInfo(name)
 	assert.NoError(t, err)
-	fmt.Println(partinfo)
+	t.Log(partinfo)
 
 }
 
@@ -130,7 +134,7 @@ func TestCreatePartition(t *testing.T) {
 	assert.NoError(t, err)
 	disk, err := mysys.ScanDisk("/dev/loop3")
 	assert.NoError(t, err)
-	fmt.Println(disk.Partitions)
+	t.Log(disk.Partitions)
 }
 
 func TestUpdatePartition(t *testing.T) {
@@ -141,6 +145,19 @@ func TestUpdatePartition(t *testing.T) {
 	assert.NoError(t, err)
 	_, err = mysys.ScanDisk("/dev/loop3")
 	assert.NoError(t, err)
+
+}
+func TestDeletePartitionByNumber(t *testing.T) {
+	disk, err := mysys.ScanDisk("/dev/loop4")
+	assert.NoError(t, err)
+	for _, v := range disk.Partitions {
+		err := localparttion.DeletePartitionByPartNumber(disk, v.Number)
+		assert.NoError(t, err)
+	}
+
+	disk, err = mysys.ScanDisk("/dev/loop4")
+	assert.NoError(t, err)
+	t.Log(disk)
 
 }
 
@@ -175,6 +192,40 @@ func TestDelDiskLoop(t *testing.T) {
 	_, err := localparttion.Executor.ExecuteCommandWithOutput("losetup", args...)
 	if err != nil {
 		t.Errorf("run command losetup  fail %s", err)
+	}
+
+}
+
+func TestClearPartition(t *testing.T) {
+
+	disklist, err := localparttion.ListDevicesDetail("")
+	if err != nil {
+		t.Errorf("run command losetup  fail %s", err)
+	}
+
+	for _, d := range disklist {
+		disk, err := mysys.ScanDisk(d.Name)
+		if err != nil {
+			t.Errorf("get disk info error %s", err.Error())
+
+		}
+		fmt.Println(disk.Partitions)
+		t.Logf("disk path: %s ,parttions len %d", d.Name, len(disk.Partitions))
+		if len(disk.Partitions) < 1 {
+			continue
+		}
+		for _, p := range disk.Partitions {
+			t.Logf("parttions %s", p.Name)
+			if !strings.Contains(p.Name, "carina.io") {
+				continue
+			}
+			t.Logf("remove parttions %s %d %d", p.Name, p.Start, p.Last)
+			if err := localparttion.DeletePartitionByPartNumber(disk, p.Number); err != nil {
+				t.Errorf("delete parttions in  %s device %d error %s", disk.Name, p.Number, err.Error())
+			}
+
+		}
+
 	}
 
 }
