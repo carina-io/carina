@@ -21,8 +21,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/anuvu/disko"
-	"github.com/carina-io/carina/api"
+	"github.com/anuvu/disko/linux"
 	carinav1 "github.com/carina-io/carina/api/v1"
 	"github.com/carina-io/carina/pkg/devicemanager/partition"
 	"github.com/carina-io/carina/pkg/devicemanager/volume"
@@ -124,13 +123,10 @@ func (t *Trouble) CleanupOrphanVolume() {
 
 //清理裸盘分区和logicVolume的对应关系
 func (t *Trouble) CleanupOrphanPartition() {
-	t.volumeManager.HealthCheck()
 	// step.1 获取所有本地 磁盘分区，一个lv其实就是对应一个分区
 	log.Infof("%s get all local partition", "CleanupOrphanPartition")
-	matchAll := func(d disko.Disk) bool {
-		return true
-	}
-	diskSet, err := t.partition.ScanAllDisks(matchAll)
+
+	disklist, err := t.partition.ListDevicesDetail("")
 	if err != nil {
 		log.Errorf("fail get all local parttions failed %s", err.Error())
 	}
@@ -155,21 +151,27 @@ func (t *Trouble) CleanupOrphanPartition() {
 			continue
 		}
 
-		mapLvList["carina.io/"+utils.PartitionName(v.Name)] = true
+		mapLvList[utils.PartitionName(v.Name)] = true
 	}
 
-	for _, disk := range diskSet {
-		tmp := api.Disk{}
-		utils.Fill(disk, &tmp)
+	for _, d := range disklist {
+		disk, err := linux.System().ScanDisk(d.Name)
+		if err != nil {
+			log.Errorf("%s get disk info error %s", logPrefix, err.Error())
+			return
+		}
+		if len(disk.Partitions) < 1 {
+			continue
+		}
 		for _, p := range disk.Partitions {
 			if !strings.Contains(p.Name, "carina.io") {
 				log.Infof("skip parttions %s", p.Name)
 				continue
 			}
 			if _, ok := mapLvList[p.Name]; !ok {
-				log.Warnf("remove parttions %s %s %s", p.Name, p.Start, p.Last)
-				if err := t.partition.DeletePartitionByPartNumber(tmp, p.Number); err != nil {
-					log.Errorf("%s delete parttions in  %s device %s error %s", disk.Name, p.Number, err.Error())
+				log.Warnf("remove parttions %s %d %d", p.Name, p.Start, p.Last)
+				if err := t.partition.DeletePartitionByPartNumber(disk, p.Number); err != nil {
+					log.Errorf("delete parttions in  %s device %d error %s", disk.Name, p.Number, err.Error())
 				}
 
 			}

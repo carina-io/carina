@@ -2,7 +2,7 @@
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: csi-carina-pvc
+  name: csi-carina-raw
   namespace: carina
 spec:
   accessModes:
@@ -10,5 +10,5 @@ spec:
   resources:
     requests:
       storage: 1Gi
-  storageClassName: csi-carina-sc
+  storageClassName: csi-carina-raw
   volumeMode: Filesystem

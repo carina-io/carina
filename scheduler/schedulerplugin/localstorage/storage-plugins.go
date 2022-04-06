@@ -47,6 +47,7 @@ type LocalStorage struct {
 	dynamicClient dynamic.Interface
 }
 
+var exclusivityDisk bool
 var _ framework.FilterPlugin = &LocalStorage{}
 var _ framework.ScorePlugin = &LocalStorage{}
 
@@ -101,10 +102,14 @@ func (ls *LocalStorage) Filter(ctx context.Context, cycleState *framework.CycleS
 			volumeType = utils.RawVolumeType
 		}
 	}
+
+	exclusivityDiskMap := map[string]int64{}
+	//when monopolizing the disk, check whether there is an empty disk
+
 	capacityMap := map[string]int64{}
 	total := int64(0)
-	//裸盘匹配节点裸盘组的可用磁盘最大分区容量满足，即节点满足
-	//lvm 匹配节点lvm管理的容量
+	//The maximum partition capacity of the available disk of the raw disk matching node raw disk group meets,
+	// that is, the node meets;LVM matches the capacity managed by node LVM
 	for key, v := range nsr.Status.Allocatable {
 		if strings.HasPrefix(key, utils.DeviceCapacityKeyPrefix) {
 			strArr := strings.Split(key, "/")
@@ -118,6 +123,16 @@ func (ls *LocalStorage) Filter(ctx context.Context, cycleState *framework.CycleS
 					} else {
 						capacityMap[strArr[0]+"/"+strArr[1]] = v.Value()
 						total += v.Value()
+					}
+
+					if exclusivityDisk {
+						for _, disk := range nsr.Status.Disks {
+							if strings.Contains(key, disk.Name) && len(disk.Partition) < 1 {
+								exclusivityDiskMap[key] = 1
+							}
+
+						}
+
 					}
 				}
 
@@ -173,6 +188,7 @@ func (ls *LocalStorage) Filter(ctx context.Context, cycleState *framework.CycleS
 				klog.V(3).Infof("mismatch pod: %v, node: %v, request: %d, key:%s,capacity: %d", pod.Name, node.Node().Name, requestTotalGb, key, capacityMap[key])
 				return framework.NewStatus(framework.UnschedulableAndUnresolvable, "node storage resource insufficient")
 			}
+
 		}
 	}
 
@@ -183,6 +199,11 @@ func (ls *LocalStorage) Filter(ctx context.Context, cycleState *framework.CycleS
 			klog.V(3).Infof("mismatch pod: %v, node: %v, request: %d, capacity: %d", pod.Name, node.Node().Name, requestTotalGb, capacityMap[key])
 			return framework.NewStatus(framework.UnschedulableAndUnresolvable, "node cache storage resource insufficient")
 		}
+	}
+
+	if len(exclusivityDiskMap) < 1 {
+		klog.V(3).Infof("No spare disk in this node information pod: %v, node: %v, err: %v", pod.Name, node.Node().Name, err.Error())
+		return framework.NewStatus(framework.Error, "Failed to obtain node storage information")
 	}
 
 	klog.V(3).Infof("filter success pod: %v, node: %v", pod.Name, node.Node().Name)
@@ -358,6 +379,7 @@ func (ls *LocalStorage) getLocalStoragePvc(pod *v1.Pod) (map[string][]*v1.Persis
 			deviceGroup = utils.DeviceCapacityKeyPrefix + configuration.GetDeviceGroup(deviceGroup)
 		}
 		localPvc[deviceGroup] = append(localPvc[deviceGroup], pvc)
+		exclusivityDisk = sc.Parameters[utils.ExclusivityDisk] == "true"
 	}
 	return localPvc, nodeName, cacheDeviceRequest, nil
 }

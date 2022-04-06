@@ -17,9 +17,9 @@ data:
           "nodeLabel": "kubernetes.io/hostname"
         },
         {
-          "name": "carina-vg-hdd",
+          "name": "carina-raw-ssd",
           "re": ["loop3+"],
-          "policy": "LVM",
+          "policy": "RAW",
           "nodeLabel": "kubernetes.io/hostname"
         }
       ],

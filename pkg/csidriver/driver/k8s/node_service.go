@@ -315,7 +315,7 @@ func (s NodeService) GetTotalCapacity(ctx context.Context, deviceGroup string, t
 	return capacity, nil
 }
 
-func (s NodeService) SelectDeviceGroup(ctx context.Context, request int64, nodeName string, volumeType string) (string, error) {
+func (s NodeService) SelectDeviceGroup(ctx context.Context, request int64, nodeName string, volumeType string, exclusivityDisk bool) (string, error) {
 	var selectDeviceGroup string
 
 	nl, err := s.getNodes(ctx)
@@ -350,6 +350,18 @@ func (s NodeService) SelectDeviceGroup(ctx context.Context, request int64, nodeN
 				strArr := strings.Split(key, "/")
 				if volumeType == utils.RawVolumeType {
 					if version.CheckRawDeviceGroup(strArr[1]) {
+
+						device := disko.Disk{}
+						utils.Fill(status.Disks, &device)
+						//check freespace size
+						if len(device.FreeSpacesWithMin(uint64(request))) < 1 {
+							continue
+						}
+
+						//如果是独占磁盘，筛选没有分区的磁盘
+						if exclusivityDisk && len(device.Partitions) > 1 {
+							continue
+						}
 						preselectNode = append(preselectNode, pairs{
 							Key:   key,
 							Value: value.Value(),
@@ -376,7 +388,7 @@ func (s NodeService) SelectDeviceGroup(ctx context.Context, request int64, nodeN
 	sort.Slice(preselectNode, func(i, j int) bool {
 		return preselectNode[i].Value < preselectNode[j].Value
 	})
-
+	log.Info("select device grouplist ", preselectNode)
 	// 这里只能选最小满足的，因为可能存在一个pod多个pv都需要落在这个节点
 	for _, p := range preselectNode {
 		if p.Value >= request {

@@ -34,4 +34,6 @@ const (
 	// DeviceVolumeType type
 	LvmVolumeType = "lvm"
 	RawVolumeType = "raw"
+	//ExclusivityDisk  true or false  is the key indicates that only the disk is used by one pod
+	ExclusivityDisk = "carina.storage.io/exclusivity-disk"
 )
