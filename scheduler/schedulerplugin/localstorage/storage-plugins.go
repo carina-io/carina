@@ -202,7 +202,7 @@ func (ls *LocalStorage) Filter(ctx context.Context, cycleState *framework.CycleS
 	}
 
 	if len(exclusivityDiskMap) < 1 {
-		klog.V(3).Infof("No spare disk in this node information pod: %v, node: %v", pod.Name, node.Node().Name)
+		klog.V(3).Infof("No spare disk in this node information pod: %v, node: %v,exclusivity:%v", pod.Name, node.Node().Name, exclusivityDisk)
 		return framework.NewStatus(framework.Error, "create pods with exclusivityDisk but node has no disk whit no parttion ")
 	}
 
