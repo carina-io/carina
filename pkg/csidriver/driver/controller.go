@@ -54,7 +54,10 @@ func (s controllerService) CreateVolume(ctx context.Context, req *csi.CreateVolu
 	capabilities := req.GetVolumeCapabilities()
 	source := req.GetVolumeContentSource()
 	deviceGroup := req.GetParameters()[utils.DeviceDiskKey]
-	exclusivityDisk := req.GetParameters()[utils.ExclusivityDisk] == "true"
+	var exclusivityDisk bool = false
+	if req.GetParameters()[utils.ExclusivityDisk] == "true" {
+		exclusivityDisk = true
+	}
 	name := req.GetName()
 	if name == "" {
 		return nil, status.Error(codes.InvalidArgument, "invalid name")

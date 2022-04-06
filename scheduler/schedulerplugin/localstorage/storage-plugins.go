@@ -47,7 +47,7 @@ type LocalStorage struct {
 	dynamicClient dynamic.Interface
 }
 
-var exclusivityDisk bool
+var exclusivityDisk bool = false
 var _ framework.FilterPlugin = &LocalStorage{}
 var _ framework.ScorePlugin = &LocalStorage{}
 
@@ -201,9 +201,9 @@ func (ls *LocalStorage) Filter(ctx context.Context, cycleState *framework.CycleS
 		}
 	}
 
-	if len(exclusivityDiskMap) < 1 {
+	if len(exclusivityDiskMap) > 1 {
 		klog.V(3).Infof("No spare disk in this node information pod: %v, node: %v,exclusivity:%v", pod.Name, node.Node().Name, exclusivityDisk)
-		return framework.NewStatus(framework.Error, "create pods with exclusivityDisk but node has no disk whit no parttion ")
+		return framework.NewStatus(framework.Error, "create pods with exclusivityDisk but node has not free partitioned disk ")
 	}
 
 	klog.V(3).Infof("filter success pod: %v, node: %v", pod.Name, node.Node().Name)
@@ -379,7 +379,10 @@ func (ls *LocalStorage) getLocalStoragePvc(pod *v1.Pod) (map[string][]*v1.Persis
 			deviceGroup = utils.DeviceCapacityKeyPrefix + configuration.GetDeviceGroup(deviceGroup)
 		}
 		localPvc[deviceGroup] = append(localPvc[deviceGroup], pvc)
-		exclusivityDisk = sc.Parameters[utils.ExclusivityDisk] == "true"
+		if sc.Parameters[utils.ExclusivityDisk] == "true" {
+			exclusivityDisk = true
+		}
+
 	}
 	return localPvc, nodeName, cacheDeviceRequest, nil
 }

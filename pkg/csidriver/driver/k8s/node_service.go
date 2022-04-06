@@ -350,22 +350,30 @@ func (s NodeService) SelectDeviceGroup(ctx context.Context, request int64, nodeN
 				strArr := strings.Split(key, "/")
 				if volumeType == utils.RawVolumeType {
 					if version.CheckRawDeviceGroup(strArr[1]) {
+						for _, disk := range status.Disks {
+							if strings.Contains(key, disk.Name) {
+								device := disko.Disk{}
+								utils.Fill(disk, &device)
+								log.Info(nodeName, ": select disk", disk.Path, " exclusivityDisk: ", exclusivityDisk, " partitions: ", len(device.Partitions))
+								//check freespace
+								log.Info("disk:", device)
 
-						device := disko.Disk{}
-						utils.Fill(status.Disks, &device)
-						//check freespace size
-						if len(device.FreeSpacesWithMin(uint64(request))) < 1 {
-							continue
+								log.Info("FreeSpaces: ", device.FreeSpacesWithMin(uint64(request)), " size:", uint64(request))
+								if len(device.FreeSpacesWithMin(uint64(request))) < 1 {
+									continue
+								}
+								//if it is an exclusive disk, filter the disks that do not have partitions
+								if exclusivityDisk && len(device.Partitions) > 1 {
+									continue
+								}
+								preselectNode = append(preselectNode, pairs{
+									Key:   key,
+									Value: value.Value(),
+								})
+							}
+
 						}
 
-						//如果是独占磁盘，筛选没有分区的磁盘
-						if exclusivityDisk && len(device.Partitions) > 1 {
-							continue
-						}
-						preselectNode = append(preselectNode, pairs{
-							Key:   key,
-							Value: value.Value(),
-						})
 					}
 
 				}
@@ -381,6 +389,8 @@ func (s NodeService) SelectDeviceGroup(ctx context.Context, request int64, nodeN
 			}
 		}
 	}
+
+	log.Info("select device grouplist ", preselectNode)
 	if len(preselectNode) < 1 {
 		return "", ErrNodeNotFound
 	}
@@ -388,7 +398,7 @@ func (s NodeService) SelectDeviceGroup(ctx context.Context, request int64, nodeN
 	sort.Slice(preselectNode, func(i, j int) bool {
 		return preselectNode[i].Value < preselectNode[j].Value
 	})
-	log.Info("select device grouplist ", preselectNode)
+
 	// 这里只能选最小满足的，因为可能存在一个pod多个pv都需要落在这个节点
 	for _, p := range preselectNode {
 		if p.Value >= request {
