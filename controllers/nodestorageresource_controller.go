@@ -361,6 +361,7 @@ func (r *NodeStorageResourceReconciler) needUpdateDiskStatus(status *carinav1bet
 	disks := []api.Disk{}
 	//disksMap := make(map[string][]api.Disk)
 	for _, v := range blockClass {
+		fmt.Println("path:", v)
 		diskSet, err := r.partition.ScanAllDisk(v)
 		if err != nil {
 			log.Errorf("scan  node disk resource error %s", err.Error())
@@ -371,7 +372,6 @@ func (r *NodeStorageResourceReconciler) needUpdateDiskStatus(status *carinav1bet
 			tmp := api.Disk{}
 			utils.Fill(disk, &tmp)
 			disks = append(disks, tmp)
-			//disksMap = append(disksMap, map[group]tmp{})
 		}
 
 	}

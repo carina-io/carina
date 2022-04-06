@@ -54,6 +54,7 @@ func (s controllerService) CreateVolume(ctx context.Context, req *csi.CreateVolu
 	capabilities := req.GetVolumeCapabilities()
 	source := req.GetVolumeContentSource()
 	deviceGroup := req.GetParameters()[utils.DeviceDiskKey]
+	exclusivityDisk := req.GetParameters()[utils.ExclusivityDisk] == "true"
 	name := req.GetName()
 	if name == "" {
 		return nil, status.Error(codes.InvalidArgument, "invalid name")
@@ -137,7 +138,7 @@ func (s controllerService) CreateVolume(ctx context.Context, req *csi.CreateVolu
 		return nil, status.Errorf(codes.Internal, "can not find pvc %s %s", namespace, name)
 	}
 	if node != "" {
-		group, err = s.nodeService.SelectDeviceGroup(ctx, requestGb, node, volumeType)
+		group, err = s.nodeService.SelectDeviceGroup(ctx, requestGb, node, volumeType, exclusivityDisk)
 		if err != nil {
 			return nil, status.Errorf(codes.Internal, "failed to get device group %v", err)
 		}
@@ -159,7 +160,7 @@ func (s controllerService) CreateVolume(ctx context.Context, req *csi.CreateVolu
 	// pv csi VolumeAttributes
 	annotation := map[string]string{}
 	annotation[utils.VolumeManagerType] = volumeType
-	exclusivityDisk := req.GetParameters()[utils.ExclusivityDisk] == "true"
+
 	annotation[utils.ExclusivityDisk] = fmt.Sprint(exclusivityDisk)
 
 	volumeContext := req.GetParameters()

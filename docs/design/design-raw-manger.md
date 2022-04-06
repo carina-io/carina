@@ -27,7 +27,7 @@ config.json: |-
         },
         {
           "name": "carina-raw-hdd",
-          "re": ["loop*+"],#当前匹配多块，按顺序取取第一块盘
+          "re": ["loop*+"],#可以匹配多块磁盘
           "policy": "RAW",
           "nodeLabel": "kubernetes.io/hostname"
         }
@@ -113,10 +113,8 @@ df -h  /dev/loop2p1
 #### 3. 创建分区
  >默认创建GPT分区 ，检测裸盘已有分区。查看可分配空间节点位置，采用最佳适应算法（Best Fit），分区删除和增加必然造成很多不连续的空余空间。这就要求将所有的空闲区按容量递增顺序排成一个空白链。这样每次找到的第一个满足要求的空闲区，必然是最优的
 
-使用脚本创建或者分区命令创建，
+使用分区命令创建如下：
 ```
-./parted.sh /dev/loop2 ext4 1000 1100  myloop1
-
 # parted /dev/loop2 mklable gpt #设置分区格式
 # parted /dev/loop2 mkpart myloop1 0 10G
 # parted /dev/loop2 mkpart myloop2 10G 20G 

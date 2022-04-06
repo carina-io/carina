@@ -45,11 +45,6 @@ func TestScanDisks(t *testing.T) {
 
 func TestScanDisk(t *testing.T) {
 	fname := "/dev/loop3"
-	//kname := linux.GetPartitionKname("/dev/loop3p1", 1)
-	//fmt.Println(kname)
-	//devadminfo, err := linux.GetUdevInfo(kname)
-	//assert.NoError(t, err)
-	//fmt.Println(devadminfo)
 	disk, err := mysys.ScanDisk(fname)
 	assert.NoError(t, err)
 	t.Log(disk.UdevInfo.Properties)
