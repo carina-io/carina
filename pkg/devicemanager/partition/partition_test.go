@@ -51,6 +51,7 @@ func TestScanDisk(t *testing.T) {
 	t.Log(disk.Name)
 
 	t.Log(disk.FreeSpacesWithMin(5000))
+	t.Log(disk.FreeSpaces()[0].Size())
 
 }
 

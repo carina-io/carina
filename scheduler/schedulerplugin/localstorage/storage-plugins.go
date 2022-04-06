@@ -116,7 +116,7 @@ func (ls *LocalStorage) Filter(ctx context.Context, cycleState *framework.CycleS
 			if volumeType == utils.RawVolumeType {
 				if configuration.CheckRawDeviceGroup(strArr[1]) {
 					if val, ok := capacityMap[strArr[1]]; ok {
-						if v.Value() < val {
+						if v.Value() > val {
 							capacityMap[strArr[0]+"/"+strArr[1]] = v.Value()
 							total += v.Value()
 						}
@@ -202,8 +202,8 @@ func (ls *LocalStorage) Filter(ctx context.Context, cycleState *framework.CycleS
 	}
 
 	if len(exclusivityDiskMap) < 1 {
-		klog.V(3).Infof("No spare disk in this node information pod: %v, node: %v, err: %v", pod.Name, node.Node().Name, err.Error())
-		return framework.NewStatus(framework.Error, "Failed to obtain node storage information")
+		klog.V(3).Infof("No spare disk in this node information pod: %v, node: %v", pod.Name, node.Node().Name)
+		return framework.NewStatus(framework.Error, "create pods with exclusivityDisk but node has no disk whit no parttion ")
 	}
 
 	klog.V(3).Infof("filter success pod: %v, node: %v", pod.Name, node.Node().Name)
@@ -245,7 +245,7 @@ func (ls *LocalStorage) Score(ctx context.Context, state *framework.CycleState, 
 			if volumeType == utils.RawVolumeType {
 				if configuration.CheckRawDeviceGroup(strArr[1]) {
 					if val, ok := capacityMap[strArr[0]+"/"+strArr[1]]; ok {
-						if v.Value() < val {
+						if v.Value() > val {
 							capacityMap[strArr[0]+"/"+strArr[1]] = v.Value()
 							total += v.Value()
 						}
