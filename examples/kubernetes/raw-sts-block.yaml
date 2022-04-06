@@ -4,6 +4,7 @@ metadata:
   name: nginx-device-block
   labels:
     app: nginx-device
+  namespace: carina  
 spec:
   ports:
   - port: 80
@@ -16,6 +17,7 @@ apiVersion: apps/v1
 kind: StatefulSet
 metadata:
   name: nginx-device-block
+  namespace: carina
   labels:
     app: nginx-device-block
 spec:
