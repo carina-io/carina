@@ -153,7 +153,7 @@ func (t *Trouble) CleanupOrphanPartition() {
 
 		mapLvList[utils.PartitionName(v.Name)] = true
 	}
-	log.Infof("mapLvList", mapLvList)
+	log.Infof("mapLvList:%s", mapLvList)
 	for _, d := range disklist {
 		disk, err := linux.System().ScanDisk(d.Name)
 		if err != nil {
@@ -168,6 +168,7 @@ func (t *Trouble) CleanupOrphanPartition() {
 				log.Infof("skip parttions %s", p.Name)
 				continue
 			}
+			log.Infof("check parttions %s %d %d", p.Name, p.Start, p.Last)
 			if _, ok := mapLvList[p.Name]; !ok {
 				log.Warnf("remove parttions %s %d %d", p.Name, p.Start, p.Last)
 				if err := t.partition.DeletePartitionByPartNumber(disk, p.Number); err != nil {
@@ -175,13 +176,7 @@ func (t *Trouble) CleanupOrphanPartition() {
 				}
 
 			}
-			// if _, ok := mapLvList[p.Name]; ok {
-			// 	log.Warnf("add parttions %s %d %d", p.Name, p.Start, p.Last)
-			// 	if err := t.partition.UpdatePartitionCache(p.Name, p.Number); err != nil {
-			// 		log.Errorf("update parttions in disk name: %s  number: %d error: %s", disk.Name, p.Number, err.Error())
-			// 	}
 
-			// }
 		}
 	}
 

@@ -213,6 +213,10 @@ func parseUdevInfo(output string) map[string]string {
 	return result
 }
 func (ld *LocalPartitionImplement) CreatePartition(name, groups string, size uint64) error {
+	partition, _ := ld.GetPartition(name, groups)
+	if partition.Name == name {
+		return nil
+	}
 	//DeviceGroup=deviceGroup + "/" + device.Name
 	partitionName := name
 	if _, ok := ld.CacheParttionNum[partitionName]; ok {
