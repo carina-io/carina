@@ -19,6 +19,7 @@ package controllers
 import (
 	"context"
 	"fmt"
+	"github.com/carina-io/carina/pkg/configuration"
 	"regexp"
 	"sort"
 	"strings"
@@ -131,13 +132,20 @@ func (r *NodeStorageResourceReconciler) Reconcile(ctx context.Context, req ctrl.
 // SetupWithManager sets up the controller with the Manager.
 func (r *NodeStorageResourceReconciler) SetupWithManager(mgr ctrl.Manager) error {
 
+	// 注册监听配置变更
+	configModifyChan := make(chan struct{}, 1)
+	configuration.RegisterListenerChan(configModifyChan)
+
 	ticker1 := time.NewTicker(600 * time.Second)
 	go func(t *time.Ticker) {
+		defer close(configModifyChan)
 		defer ticker1.Stop()
 		for {
 			select {
 			case <-t.C:
 				_ = r.ensureNodeStorageResourceExist()
+			case <-configModifyChan:
+				go time.AfterFunc(10*time.Second, r.triggerReconcile)
 			case <-r.StopChan:
 				_ = r.deleteNodeStorageResource(context.TODO())
 				log.Info("delete nodestorageresource...")
@@ -361,7 +369,6 @@ func (r *NodeStorageResourceReconciler) needUpdateDiskStatus(status *carinav1bet
 	disks := []api.Disk{}
 	//disksMap := make(map[string][]api.Disk)
 	for _, v := range blockClass {
-		fmt.Println("path:", v)
 		diskSet, err := r.partition.ScanAllDisk(v)
 		if err != nil {
 			log.Errorf("scan  node disk resource error %s", err.Error())

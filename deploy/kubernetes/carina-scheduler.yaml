@@ -5,7 +5,7 @@ metadata:
 rules:
   - apiGroups: [""]
     resources: ["endpoints", "events"]
-    verbs: ["create", "get", "update"]
+    verbs: ["create", "get", "update", "patch"]
   - apiGroups: [""]
     resources: ["nodes"]
     verbs: ["get", "list", "watch"]
