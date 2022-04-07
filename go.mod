@@ -3,6 +3,7 @@ module github.com/carina-io/carina
 go 1.17
 
 require (
+	github.com/zhangkai8048/disko v0.0.9
 	github.com/container-storage-interface/spec v1.5.0
 	github.com/fsnotify/fsnotify v1.5.1
 	github.com/go-logr/logr v1.2.2
@@ -16,7 +17,6 @@ require (
 	github.com/spf13/cobra v1.4.0
 	github.com/spf13/viper v1.10.1
 	github.com/stretchr/testify v1.7.0
-	github.com/zhangkai8048/disko v0.0.8
 	go.uber.org/zap v1.21.0
 	golang.org/x/sys v0.0.0-20220310020820-b874c991c1a5
 	google.golang.org/grpc v1.45.0
@@ -38,7 +38,6 @@ require (
 
 require (
 	cloud.google.com/go v0.99.0 // indirect
-	github.com/anuvu/disko v0.0.8 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cespare/xxhash/v2 v2.1.2 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
@@ -100,4 +99,3 @@ require (
 	sigs.k8s.io/yaml v1.3.0 // indirect
 )
 
-replace github.com/zhangkai8048/disko v0.0.8 => github.com/zhangkai8048/disko v0.0.9
