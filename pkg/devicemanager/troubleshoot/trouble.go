@@ -21,12 +21,12 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/anuvu/disko/linux"
 	carinav1 "github.com/carina-io/carina/api/v1"
 	"github.com/carina-io/carina/pkg/devicemanager/partition"
 	"github.com/carina-io/carina/pkg/devicemanager/volume"
 	"github.com/carina-io/carina/utils"
 	"github.com/carina-io/carina/utils/log"
-	"github.com/zhangkai8048/disko/linux"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )

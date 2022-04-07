@@ -25,10 +25,10 @@ import (
 	"strings"
 	"time"
 
+	"github.com/anuvu/disko"
 	"github.com/carina-io/carina/api"
 	carinav1beta1 "github.com/carina-io/carina/api/v1beta1"
 	"github.com/carina-io/carina/utils/log"
-	"github.com/zhangkai8048/disko"
 
 	"github.com/carina-io/carina/pkg/configuration"
 	"github.com/carina-io/carina/pkg/version"
