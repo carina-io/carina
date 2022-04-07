@@ -126,24 +126,27 @@ func TestCreatePartition(t *testing.T) {
 	//name: 54cd2f39cf95 group: carina-raw-loop size: 13958643712
 	size := 4747316223
 	lvName := "pvc-58ad162c-1815-476b-9b3d-4735f652842e"
-	err := localparttion.CreatePartition(utils.PartitionName(lvName), "carina-raw-loop/loop3", uint64(size))
+	err := localparttion.CreatePartition(utils.PartitionName(lvName), "carina-raw-loop/loop2", uint64(size))
 	assert.NoError(t, err)
-	disk, err := mysys.ScanDisk("/dev/loop3")
+	disk, err := mysys.ScanDisk("/dev/loop2")
 	assert.NoError(t, err)
 	t.Log(disk.Partitions)
 }
 
 func TestUpdatePartition(t *testing.T) {
-	size := 5747316223
+	size := 10747316223
 	lvName := "pvc-58ad162c-1815-476b-9b3d-4735f652842e"
-	group := "carina-raw-ssd/loop3"
+	group := "carina-raw-ssd/loop2"
 	part, err := localparttion.GetPartition(utils.PartitionName(lvName), group)
 	t.Log("number", part.Number, " name:", part.Name, " size ", part.Size())
 	assert.NoError(t, err)
 	err = localparttion.UpdatePartition(utils.PartitionName(lvName), group, uint64(size))
 	assert.NoError(t, err)
-	_, err = mysys.ScanDisk("/dev/loop3")
+	disk, err := mysys.ScanDisk("/dev/loop2")
 	assert.NoError(t, err)
+	for _, v := range disk.Partitions {
+		t.Log(v.Name, v.Number, v.Start, v.Last)
+	}
 
 }
 func TestDeletePartitionByNumber(t *testing.T) {
