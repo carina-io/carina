@@ -27,8 +27,6 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/anuvu/disko"
-	"github.com/anuvu/disko/linux"
 	"github.com/carina-io/carina/pkg/configuration"
 	"github.com/carina-io/carina/pkg/csidriver/driver/k8s"
 	"github.com/carina-io/carina/pkg/csidriver/filesystem"
@@ -38,6 +36,8 @@ import (
 	"github.com/carina-io/carina/utils"
 	"github.com/carina-io/carina/utils/log"
 	"github.com/container-storage-interface/spec/lib/go/csi"
+	"github.com/zhangkai8048/disko"
+	"github.com/zhangkai8048/disko/linux"
 
 	"golang.org/x/sys/unix"
 	"google.golang.org/grpc/codes"

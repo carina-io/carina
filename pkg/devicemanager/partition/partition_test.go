@@ -22,11 +22,11 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/anuvu/disko"
-	"github.com/anuvu/disko/linux"
-	"github.com/anuvu/disko/partid"
 	"github.com/carina-io/carina/utils"
 	"github.com/stretchr/testify/assert"
+	"github.com/zhangkai8048/disko"
+	"github.com/zhangkai8048/disko/linux"
+	"github.com/zhangkai8048/disko/partid"
 )
 
 var localparttion = NewLocalPartitionImplement()

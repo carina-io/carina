@@ -24,7 +24,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/anuvu/disko"
 	"github.com/carina-io/carina/api"
 	deviceManager "github.com/carina-io/carina/pkg/devicemanager"
 	"github.com/carina-io/carina/pkg/devicemanager/partition"
@@ -32,6 +31,7 @@ import (
 	"github.com/carina-io/carina/utils"
 	"github.com/carina-io/carina/utils/log"
 	"github.com/go-logr/logr"
+	"github.com/zhangkai8048/disko"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/equality"
 	apierrs "k8s.io/apimachinery/pkg/api/errors"

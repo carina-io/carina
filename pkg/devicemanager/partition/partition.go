@@ -22,14 +22,14 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/anuvu/disko"
-	"github.com/anuvu/disko/linux"
-	"github.com/anuvu/disko/partid"
 	"github.com/carina-io/carina/pkg/devicemanager/types"
 	"github.com/carina-io/carina/utils"
 	"github.com/carina-io/carina/utils/exec"
 	"github.com/carina-io/carina/utils/log"
 	"github.com/carina-io/carina/utils/mutx"
+	"github.com/zhangkai8048/disko"
+	"github.com/zhangkai8048/disko/linux"
+	"github.com/zhangkai8048/disko/partid"
 )
 
 var (
