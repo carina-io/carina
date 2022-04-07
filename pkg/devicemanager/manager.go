@@ -411,6 +411,7 @@ func (dm *DeviceManager) DeviceCheckTask() {
 
 	ticker1 := time.NewTicker(time.Duration(monitorInterval) * time.Second)
 	func(t *time.Ticker) {
+		defer close(dm.configModifyChan)
 		defer ticker1.Stop()
 		for {
 			select {
