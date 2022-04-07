@@ -367,6 +367,10 @@ func (s controllerService) ControllerExpandVolume(ctx context.Context, req *csi.
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 
+	if lv.Annotations[utils.VolumeManagerType] == "raw" && lv.Annotations[utils.ExclusivityDisk] == "false" {
+		return nil, status.Error(codes.Internal, "can not exclusivityDisk pods")
+	}
+
 	requestGb, err := convertRequestCapacity(req.GetCapacityRange().GetRequiredBytes(), req.GetCapacityRange().GetLimitBytes())
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())

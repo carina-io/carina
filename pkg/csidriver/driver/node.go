@@ -152,7 +152,7 @@ func (s *nodeService) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		if err != nil {
 			return nil, err
 		}
-		log.Infof(" IsBlockVol: %s ,Touch partittion name:%s,num:%d,start:%d,size:%d", isBlockVol, partition.Name, partition.Number, partition.Start, partition.Size())
+		log.Infof(" IsBlockVol: %v ,Touch partittion name:%s,num:%d,start:%d,size:%d", isBlockVol, partition.Name, partition.Number, partition.Start, partition.Size())
 		if partition.Name == "" {
 			return nil, status.Errorf(codes.NotFound, "failed to find partition: %s", utils.PartitionName(volumeID))
 		}

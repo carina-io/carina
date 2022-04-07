@@ -354,16 +354,17 @@ func (s NodeService) SelectDeviceGroup(ctx context.Context, request int64, nodeN
 							if strings.Contains(key, disk.Name) {
 								device := disko.Disk{}
 								utils.Fill(disk, &device)
-								log.Info(nodeName, ": select disk", disk.Path, " exclusivityDisk: ", exclusivityDisk, " partitions: ", len(device.Partitions))
+								log.Info("disk-src:", disk)
+								log.Info(nodeName, ": select disk", disk.Path, " exclusivityDisk: ", exclusivityDisk, " partitions: ", len(disk.Partitions))
 								//check freespace
-								log.Info("disk:", device)
+								log.Info("disk-dst:", device)
 
 								log.Info("FreeSpaces: ", device.FreeSpacesWithMin(uint64(request)), " size:", uint64(request))
 								if len(device.FreeSpacesWithMin(uint64(request))) < 1 {
 									continue
 								}
 								//if it is an exclusive disk, filter the disks that do not have partitions
-								if exclusivityDisk && len(device.Partitions) > 1 {
+								if exclusivityDisk && len(disk.Partitions) > 1 {
 									continue
 								}
 								preselectNode = append(preselectNode, pairs{

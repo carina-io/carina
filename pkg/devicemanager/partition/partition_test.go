@@ -136,8 +136,11 @@ func TestCreatePartition(t *testing.T) {
 func TestUpdatePartition(t *testing.T) {
 	size := 5747316223
 	lvName := "pvc-58ad162c-1815-476b-9b3d-4735f652842e"
-	group := "carina-raw-loop/loop3"
-	err := localparttion.UpdatePartition(utils.PartitionName(lvName), group, uint64(size))
+	group := "carina-raw-ssd/loop3"
+	part, err := localparttion.GetPartition(utils.PartitionName(lvName), group)
+	t.Log("number", part.Number, " name:", part.Name, " size ", part.Size())
+	assert.NoError(t, err)
+	err = localparttion.UpdatePartition(utils.PartitionName(lvName), group, uint64(size))
 	assert.NoError(t, err)
 	_, err = mysys.ScanDisk("/dev/loop3")
 	assert.NoError(t, err)

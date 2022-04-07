@@ -115,6 +115,7 @@ func (ls *LocalStorage) Filter(ctx context.Context, cycleState *framework.CycleS
 			strArr := strings.Split(key, "/")
 			if volumeType == utils.RawVolumeType {
 				if configuration.CheckRawDeviceGroup(strArr[1]) {
+					klog.V(3).Infof("capacityMap:%v ; disk: key %v; value:%v", capacityMap, key, v.Value())
 					if val, ok := capacityMap[strArr[1]]; ok {
 						if v.Value() > val {
 							capacityMap[strArr[0]+"/"+strArr[1]] = v.Value()
@@ -127,7 +128,7 @@ func (ls *LocalStorage) Filter(ctx context.Context, cycleState *framework.CycleS
 
 					if exclusivityDisk {
 						for _, disk := range nsr.Status.Disks {
-							if strings.Contains(key, disk.Name) && len(disk.Partition) < 1 {
+							if strings.Contains(key, disk.Name) && len(disk.Partition) > 1 {
 								exclusivityDiskMap[key] = 1
 							}
 

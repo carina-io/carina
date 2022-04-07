@@ -50,7 +50,7 @@ spec:
       containers:
       - name: nginx
         image: nginx
-        imagePullPolicy: Always
+        imagePullPolicy: IfNotPresent
         volumeMounts:
         - mountPath: "/data"
           name: html
