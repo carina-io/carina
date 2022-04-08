@@ -213,6 +213,10 @@ func parseUdevInfo(output string) map[string]string {
 	return result
 }
 func (ld *LocalPartitionImplement) CreatePartition(name, groups string, size uint64) error {
+	partition, _ := ld.GetPartition(name, groups)
+	if partition.Name == name {
+		return nil
+	}
 	//DeviceGroup=deviceGroup + "/" + device.Name
 	partitionName := name
 	if _, ok := ld.CacheParttionNum[partitionName]; ok {
@@ -310,14 +314,22 @@ func (ld *LocalPartitionImplement) UpdatePartition(name, groups string, size uin
 		if p.Name != name {
 			continue
 		}
-		log.Info("Update parttion on disk src: ", fmt.Sprintf("/dev/%s", diskPath), " number:", p.Number, " name:", p.Name, " start:", p.Start, "size: ", p.Size(), " latest:", p.Last)
+		log.Info("Update parttion on disk src: ", fmt.Sprintf("/dev/%s", diskPath), " number:", p.Number, " name:", p.Name, " start:", p.Start, "size: ", p.Size(), " last:", p.Last)
 		p.Last = size
+
+		last := p.Start + uint64(size) - 1
 		partitionNum = p.Number
-		log.Info("Update parttion on disk dst: ", fmt.Sprintf("/dev/%s", diskPath), " number:", p.Number, " name:", p.Name, " start:", p.Start, "size: ", size, " latest:", p.Last)
-		if err := mysys.UpdatePartition(disk, p); err != nil {
-			log.Error("Update parttion on disk ", fmt.Sprintf("/dev/%s", diskPath), "failed"+err.Error())
-			return errors.New("Update parttion on disk failed" + fmt.Sprintf("/dev/%s", diskPath))
+		log.Info("Update parttion on disk dst: ", fmt.Sprintf("/dev/%s", diskPath), " number:", p.Number, " name:", p.Name, " start:", p.Start, " size: ", p.Last, " last:", p.Last, disk.Table)
+		// if err := mysys.UpdatePartition(disk, p); err != nil {
+		// 	log.Error("Update parttion on disk ", fmt.Sprintf("/dev/%s", diskPath), "failed"+err.Error())
+		// 	return errors.New("Update parttion on disk failed" + fmt.Sprintf("/dev/%s", diskPath))
+		// }
+		_, err := ld.Executor.ExecuteCommandWithOutput("parted", "-s", disk.Path, "resizepart", fmt.Sprintf("%d", p.Number), fmt.Sprintf("%vg", last>>30))
+		if err != nil {
+			log.Error("exec parted ", disk.Path, " resizepart ", fmt.Sprintf("%d", p.Number), fmt.Sprintf("%vg", last>>30), "failed"+err.Error())
+			return err
 		}
+
 	}
 	ld.CacheParttionNum[name] = partitionNum
 	log.Info("update parttion success", partitionNum, ld.CacheParttionNum)

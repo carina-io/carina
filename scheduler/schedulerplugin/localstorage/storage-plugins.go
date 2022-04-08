@@ -95,6 +95,11 @@ func (ls *LocalStorage) Filter(ctx context.Context, cycleState *framework.CycleS
 		return framework.NewStatus(framework.Error, "Failed to obtain node storage information")
 	}
 
+	lvs, err := listLogicVolumes(ls.dynamicClient, node.Node().Name)
+	if err != nil {
+		klog.V(3).Infof("Failed to obtain logicVolumes  information pod: %v, node: %v, err: %v", pod.Name, node.Node().Name, err.Error())
+		return framework.NewStatus(framework.Error, "Failed to obtain logicVolumes  information")
+	}
 	volumeType := utils.LvmVolumeType
 	for key, _ := range pvcMap {
 		strArr := strings.Split(key, "/")
@@ -116,12 +121,18 @@ func (ls *LocalStorage) Filter(ctx context.Context, cycleState *framework.CycleS
 			if volumeType == utils.RawVolumeType {
 				if configuration.CheckRawDeviceGroup(strArr[1]) {
 					klog.V(3).Infof("capacityMap:%v ; disk: key %v; value:%v", capacityMap, key, v.Value())
+					//skip exclusivityDisk
+					klog.V(3).Infof("skip:%s ; disk: key %s; value:%v", lvs, strArr[1]+"/"+strArr[2], v.Value())
+					if utils.ContainsString(lvs, strArr[1]+"/"+strArr[2]) && !exclusivityDisk {
+						continue
+					}
 					if val, ok := capacityMap[strArr[1]]; ok {
 						if v.Value() > val {
 							capacityMap[strArr[0]+"/"+strArr[1]] = v.Value()
 							total += v.Value()
 						}
 					} else {
+
 						capacityMap[strArr[0]+"/"+strArr[1]] = v.Value()
 						total += v.Value()
 					}

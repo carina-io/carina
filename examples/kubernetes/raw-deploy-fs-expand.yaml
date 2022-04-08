@@ -24,6 +24,15 @@ spec:
         - name: web-server
           image: nginx:latest
           imagePullPolicy: "IfNotPresent"
+          command:
+          - sh
+          - "-c"
+          - |
+              while true; do
+                echo "huizhi testing";
+                echo "yes ">>/data/yes.txt;
+                sleep 120s
+              done;
           volumeMounts:
             - name: mypvc
               mountPath: /var/lib/www/html
@@ -44,6 +53,6 @@ spec:
     - ReadWriteOnce
   resources:
     requests:
-      storage: 4Gi
+      storage: 1Gi
   storageClassName: csi-carina-raw-exclusivity
   volumeMode: Filesystem

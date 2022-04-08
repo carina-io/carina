@@ -27,6 +27,7 @@ import (
 
 	"github.com/anuvu/disko"
 	"github.com/carina-io/carina/api"
+	v1 "github.com/carina-io/carina/api/v1"
 	carinav1beta1 "github.com/carina-io/carina/api/v1beta1"
 	"github.com/carina-io/carina/utils/log"
 
@@ -124,6 +125,35 @@ func (s NodeService) getNodeStorageResources(ctx context.Context) (map[string]ca
 		}
 	}
 	return readyNSR, nil
+}
+
+func (s NodeService) listLogicVolumes(ctx context.Context) (lvs []string, err error) {
+
+	nl := new(corev1.NodeList)
+	err = s.List(ctx, nl)
+	if err != nil {
+		return []string{}, err
+	}
+	// only ready nodes are returned
+	readyNode := map[string]uint8{}
+	for _, n := range nl.Items {
+		for _, s := range n.Status.Conditions {
+			if s.Type == corev1.NodeReady && s.Status == corev1.ConditionTrue {
+				readyNode[n.Name] = 1
+			}
+		}
+	}
+	lvlist := new(v1.LogicVolumeList)
+	err = s.Client.List(ctx, lvlist)
+	if err != nil {
+		return []string{}, err
+	}
+	for _, lv := range lvlist.Items {
+		if _, exists := readyNode[lv.Spec.NodeName]; exists && lv.Annotations[utils.ExclusivityDisk] == "true" {
+			lvs = append(lvs, lv.Spec.DeviceGroup)
+		}
+	}
+	return lvs, nil
 }
 
 func (s NodeService) SelectVolumeNode(ctx context.Context, requestGb int64, deviceGroup string, requirement *csi.TopologyRequirement) (string, string, map[string]string, error) {
@@ -328,6 +358,10 @@ func (s NodeService) SelectDeviceGroup(ctx context.Context, request int64, nodeN
 		return "", err
 	}
 
+	lvs, err := s.listLogicVolumes(ctx)
+	if err != nil {
+		return "", err
+	}
 	type pairs struct {
 		Key   string
 		Value int64
@@ -350,6 +384,12 @@ func (s NodeService) SelectDeviceGroup(ctx context.Context, request int64, nodeN
 				strArr := strings.Split(key, "/")
 				if volumeType == utils.RawVolumeType {
 					if version.CheckRawDeviceGroup(strArr[1]) {
+						//skip exclusivityDisk
+						log.Infof("skip:%s ; disk: key %s; value:%v", lvs, strArr[1]+"/"+strArr[2], value.Value())
+						if utils.ContainsString(lvs, strArr[1]+"/"+strArr[2]) && !exclusivityDisk {
+							continue
+						}
+
 						for _, disk := range status.Disks {
 							if strings.Contains(key, disk.Name) {
 								device := disko.Disk{}

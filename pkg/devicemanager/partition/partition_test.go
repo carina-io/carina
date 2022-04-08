@@ -142,12 +142,15 @@ func TestUpdatePartition(t *testing.T) {
 	assert.NoError(t, err)
 	err = localparttion.UpdatePartition(utils.PartitionName(lvName), group, uint64(size))
 	assert.NoError(t, err)
-	_, err = mysys.ScanDisk("/dev/loop2")
+	disk, err := mysys.ScanDisk("/dev/loop2")
 	assert.NoError(t, err)
+	for _, v := range disk.Partitions {
+		t.Log(v.Name, v.Number, v.Start, v.Last)
+	}
 
 }
 func TestDeletePartitionByNumber(t *testing.T) {
-	disk, err := mysys.ScanDisk("/dev/loop4")
+	disk, err := mysys.ScanDisk("/dev/loop2")
 	assert.NoError(t, err)
 	for _, v := range disk.Partitions {
 		err := localparttion.DeletePartitionByPartNumber(disk, v.Number)
@@ -162,9 +165,9 @@ func TestDeletePartitionByNumber(t *testing.T) {
 
 func TestDeletePartition(t *testing.T) {
 	lvName := "pvc-58ad162c-1815-476b-9b3d-4735f652842e"
-	err := localparttion.DeletePartition(utils.PartitionName(lvName), "carina-raw-loop/loop3")
+	err := localparttion.DeletePartition(utils.PartitionName(lvName), "carina-raw-loop/loop2")
 	assert.NoError(t, err)
-	_, err = mysys.ScanDisk("/dev/loop3")
+	_, err = mysys.ScanDisk("/dev/loop2")
 	assert.NoError(t, err)
 
 }

@@ -736,25 +736,24 @@ func (s *nodeService) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandV
 			return nil, err
 		}
 		device = linux.GetPartitionKname(disk.Path, partition.Number)
+		partinfo, err := linux.GetUdevInfo(device)
+		if err != nil {
+			return nil, status.Errorf(codes.Internal, "failed to get partinfo %s", err)
+		}
+		var MAJOR uint64
+		var MINOR uint64
+		if str, ok := partinfo.Properties["MAJOR"]; ok {
+			MAJOR, _ = strconv.ParseUint(str, 10, 32)
+		}
 
-		// partinfo, err := linux.GetUdevInfo(name)
-		// if err != nil {
-		// 	return nil, status.Errorf(codes.Internal, "failed to get partinfo %s", err)
-		// }
-		// var MAJOR uint64
-		// var MINOR uint64
-		// if str, ok := partinfo.Properties["MAJOR"]; !ok {
-		// 	MAJOR, err = strconv.ParseUint(str, 10, 32)
-		// }
+		if str, ok := partinfo.Properties["MINOR"]; ok {
+			MINOR, _ = strconv.ParseUint(str, 10, 32)
 
-		// if str, ok := partinfo.Properties["MINOR"]; !ok {
-		// 	MINOR, err = strconv.ParseUint(str, 10, 32)
-
-		// }
-		// err = s.createDeviceIfNeeded(device, uint32(MAJOR), uint32(MINOR))
-		// if err != nil {
-		// 	return nil, err
-		// }
+		}
+		err = s.createDeviceIfNeeded(device, uint32(MAJOR), uint32(MINOR))
+		if err != nil {
+			return nil, err
+		}
 
 	default:
 		log.Errorf("Create LogicVolume: Create with no support volume type undefined")
