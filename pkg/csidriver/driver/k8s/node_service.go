@@ -345,7 +345,7 @@ func (s NodeService) GetTotalCapacity(ctx context.Context, deviceGroup string, t
 	return capacity, nil
 }
 
-func (s NodeService) SelectDeviceGroup(ctx context.Context, request int64, nodeName string, volumeType string, exclusivityDisk bool) (string, error) {
+func (s NodeService) SelectDeviceGroup(ctx context.Context, request int64, nodeName string, volumeType string, exclusivityDisk bool, deviceGroup string) (string, error) {
 	var selectDeviceGroup string
 
 	nl, err := s.getNodes(ctx)
@@ -447,6 +447,9 @@ func (s NodeService) SelectDeviceGroup(ctx context.Context, request int64, nodeN
 				selectDeviceGroup = strings.Split(p.Key, "/")[1]
 			}
 			if volumeType == utils.RawVolumeType {
+				if strings.Contains(p.Key, deviceGroup) {
+					return p.Key, nil
+				}
 				selectDeviceGroup = strings.Split(p.Key, "/")[1] + "/" + strings.Split(p.Key, "/")[2]
 			}
 

@@ -412,8 +412,8 @@ func (r *NodeStorageResourceReconciler) needUpdateDiskStatus(status *carinav1bet
 				//剩余容量选择可用分区剩余空间最大容量
 				avail = fs[0].Size()
 				log.Info("disk:", disk.Path, " size:", disk.Size, " avail:", avail, " free:", fs)
-				status.Capacity[fmt.Sprintf("%s%s/%s", utils.DeviceCapacityKeyPrefix, diskGroup, disk.Name)] = *resource.NewQuantity(int64(disk.Size), resource.BinarySI)
-				status.Allocatable[fmt.Sprintf("%s%s/%s", utils.DeviceCapacityKeyPrefix, diskGroup, disk.Name)] = *resource.NewQuantity(int64(avail), resource.BinarySI)
+				status.Capacity[fmt.Sprintf("%s%s/%s", utils.DeviceCapacityKeyPrefix, diskGroup, disk.Name)] = *resource.NewQuantity(int64(disk.Size>>30), resource.BinarySI)
+				status.Allocatable[fmt.Sprintf("%s%s/%s", utils.DeviceCapacityKeyPrefix, diskGroup, disk.Name)] = *resource.NewQuantity(int64(avail>>30), resource.BinarySI)
 
 			}
 		}
