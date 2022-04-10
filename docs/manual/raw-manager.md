@@ -140,19 +140,22 @@ spec:
 - diskScanInterval：磁盘扫描间隔，0表示关闭本地磁盘扫描
 - diskGroupPolicy：磁盘分组策略，只支持按照磁盘类型分组，更改成其他值无效
 
-#### 配置变更场景
+#### 测试实例演示
 
-假设初始`"diskSelector": ["loop+", "vd+"]`则创建的VG卷组如下：
-
-```shell
-$  kubectl exec -it csi-carina-node-cmgmm -c csi-carina-node -n kube-system bash
-$ pvs
-  PV         VG            Fmt  Attr PSize   PFree  
-  /dev/loop0   carina-vg-hdd lvm2 a--  <80.00g <79.95g
-  /dev/loop1   carina-vg-hdd lvm2 a--  <80.00g  79.98g
-$ vgs
-  VG            #PV #LV #SN Attr   VSize   VFree   
-  carina-vg-hdd   2  10   0 wz--n- 159.99g <121.93g
+kubectl apply -f ./examples/kubernetes/storageclass-raw-exclusivity.yaml
+kubectl apply -f ./examples/kubernetes/storageclass-raw.yaml
+```
+ kubectl get sc 
+NAME                         PROVISIONER          RECLAIMPOLICY   VOLUMEBINDINGMODE      ALLOWVOLUMEEXPANSION   AGE
+csi-carina-lvm               carina.storage.io    Delete          WaitForFirstConsumer   true                   4h57m
+csi-carina-raw               carina.storage.io    Delete          WaitForFirstConsumer   true                   4h57m
+csi-carina-raw-exclusivity   carina.storage.io    Delete          WaitForFirstConsumer   true                   30h
+hostpath (default)           docker.io/hostpath   Delete          Immediate              false                  45h
 ```
 
+#### 创建块实例
+kubectl create ns carina
+kubectl apply -f examples/kubernetes/raw-sts-block.yaml
 
+#### 创建文件实例
+kubectl apply -f examples/kubernetes/raw-sts-fs.yaml

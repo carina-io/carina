@@ -131,8 +131,13 @@ fdisk -lu /dev/loop2
 - ② 多个pods共享磁盘不支持扩容
 - ③ 扩展已有GPT分区
 ```
+
+dump -0u -f /tmp/loopbak.dump /dev/loop2p1
+export path=$(findmnt -S /dev/loop2p1 --output=target --noheading)
+umount path
 parted /dev/loop2 resizepart 1（分区号）  600（end位置）
 parted /dev/loop2 p
+mount  /dev/loop2p1  path
 ```
 
 #### 删除分区

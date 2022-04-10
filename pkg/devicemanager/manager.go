@@ -380,7 +380,7 @@ func (dm *DeviceManager) DiscoverPv(diskClass map[string]configuration.DiskSelec
 
 func (dm *DeviceManager) VolumeConsistencyCheck() {
 
-	ticker1 := time.NewTicker(200 * time.Second)
+	ticker1 := time.NewTicker(600 * time.Second)
 	go func(t *time.Ticker) {
 		defer ticker1.Stop()
 		for {
