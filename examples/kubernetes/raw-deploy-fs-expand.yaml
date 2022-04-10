@@ -30,7 +30,7 @@ spec:
           - |
               while true; do
                 echo "huizhi testing";
-                echo "yes ">>/data/yes.txt;
+                echo "yes ">>/var/lib/www/html/yes.txt;
                 sleep 120s
               done;
           volumeMounts:
@@ -53,6 +53,6 @@ spec:
     - ReadWriteOnce
   resources:
     requests:
-      storage: 1Gi
+      storage: 20Gi
   storageClassName: csi-carina-raw-exclusivity
   volumeMode: Filesystem

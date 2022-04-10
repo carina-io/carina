@@ -19,13 +19,13 @@ package controllers
 import (
 	"context"
 	"fmt"
-	"github.com/carina-io/carina/pkg/configuration"
 	"regexp"
 	"sort"
 	"strings"
 	"time"
 
-	"github.com/anuvu/disko"
+	"github.com/carina-io/carina/pkg/configuration"
+
 	"github.com/carina-io/carina/api"
 	deviceManager "github.com/carina-io/carina/pkg/devicemanager"
 	"github.com/carina-io/carina/pkg/devicemanager/partition"
@@ -367,7 +367,6 @@ func (r *NodeStorageResourceReconciler) needUpdateDiskStatus(status *carinav1bet
 		return false
 	}
 	disks := []api.Disk{}
-	//disksMap := make(map[string][]api.Disk)
 	for _, v := range blockClass {
 		diskSet, err := r.partition.ScanAllDisk(v)
 		if err != nil {
@@ -382,9 +381,9 @@ func (r *NodeStorageResourceReconciler) needUpdateDiskStatus(status *carinav1bet
 		}
 
 	}
-	log.Info("compare", disks)
-	if !equality.Semantic.DeepEqual(disks, status.Disks) {
 
+	if !equality.Semantic.DeepEqual(disks, status.Disks) {
+		log.Info("update disks", disks)
 		status.Disks = disks
 		if status.Capacity == nil {
 			status.Capacity = make(map[string]resource.Quantity)
@@ -393,28 +392,31 @@ func (r *NodeStorageResourceReconciler) needUpdateDiskStatus(status *carinav1bet
 			status.Allocatable = make(map[string]resource.Quantity)
 		}
 
-		for _, disk := range disks {
+		for group, v := range blockClass {
+			diskSet, err := r.partition.ScanAllDisk(v)
+			if err != nil {
+				log.Errorf("scan  node disk resource error %s", err.Error())
+				return false
+			}
 			var diskGroup string
-			for group, v := range blockClass {
+			for _, disk := range diskSet {
 				if utils.ContainsString(v, disk.Path) {
 					diskGroup = group
 				}
+				var avail uint64
+
+				fs := disk.FreeSpaces()
+				sort.Slice(fs, func(a, b int) bool {
+					return fs[a].Size() > fs[b].Size()
+				})
+				//剩余容量选择可用分区剩余空间最大容量
+				avail = fs[0].Size()
+				log.Info("disk:", disk.Path, " size:", disk.Size, " avail:", avail, " free:", fs)
+				status.Capacity[fmt.Sprintf("%s%s/%s", utils.DeviceCapacityKeyPrefix, diskGroup, disk.Name)] = *resource.NewQuantity(int64(disk.Size), resource.BinarySI)
+				status.Allocatable[fmt.Sprintf("%s%s/%s", utils.DeviceCapacityKeyPrefix, diskGroup, disk.Name)] = *resource.NewQuantity(int64(avail), resource.BinarySI)
+
 			}
-			var avail uint64
-			tmp := disko.Disk{}
-			utils.Fill(disk, &tmp)
-			fs := tmp.FreeSpaces()
-			sort.Slice(fs, func(a, b int) bool {
-				return fs[a].Size() > fs[b].Size()
-			})
-			//剩余容量选择可用分区剩余空间最大容量
-			avail = fs[0].Size()
-
-			status.Capacity[fmt.Sprintf("%s%s/%s", utils.DeviceCapacityKeyPrefix, diskGroup, disk.Name)] = *resource.NewQuantity(int64(disk.Size), resource.BinarySI)
-			status.Allocatable[fmt.Sprintf("%s%s/%s", utils.DeviceCapacityKeyPrefix, diskGroup, disk.Name)] = *resource.NewQuantity(int64(avail), resource.BinarySI)
 		}
-
-		//fmt.Println(status)
 
 		return true
 	}

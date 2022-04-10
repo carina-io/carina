@@ -736,24 +736,40 @@ func (s *nodeService) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandV
 			return nil, err
 		}
 		device = linux.GetPartitionKname(disk.Path, partition.Number)
-		partinfo, err := linux.GetUdevInfo(device)
-		if err != nil {
-			return nil, status.Errorf(codes.Internal, "failed to get partinfo %s", err)
-		}
-		var MAJOR uint64
-		var MINOR uint64
-		if str, ok := partinfo.Properties["MAJOR"]; ok {
-			MAJOR, _ = strconv.ParseUint(str, 10, 32)
-		}
+		// mounted, err := filesystem.IsMounted(device, vpath)
+		// if err != nil {
+		// 	return nil, status.Errorf(codes.Internal, "mount check failed: target=%s, error=%v", vpath, err)
+		// }
+		// if mounted {
+		// 	log.Infof("umount %s %s", device, vpath)
+		// 	if err := s.mounter.Unmount(vpath); err != nil {
+		// 		return nil, status.Errorf(codes.Internal, "mount failed: volume=%s, error=%v", req.GetVolumeId(), err)
+		// 	}
 
-		if str, ok := partinfo.Properties["MINOR"]; ok {
-			MINOR, _ = strconv.ParseUint(str, 10, 32)
+		// }
+		// var mountOptions []string
+		// //mountOptions = append(mountOptions, "rw")
+		// fsType, err := filesystem.DetectFilesystem(vpath)
+		// if err != nil {
+		// 	return nil, status.Errorf(codes.Internal, "filesystem check failed: volume=%s, error=%v", req.GetVolumeId(), err)
+		// }
 
-		}
-		err = s.createDeviceIfNeeded(device, uint32(MAJOR), uint32(MINOR))
-		if err != nil {
-			return nil, err
-		}
+		// if fsType == "" {
+		// 	fsType = "ext4"
+		// }
+		// r := filesystem.NewResizeFs(&s.mounter)
+		// if _, err := r.Resize(device, vpath); err != nil {
+		// 	return nil, status.Errorf(codes.Internal, "failed to resize filesystem %s (mounted at: %s): %v", vid, vpath, err)
+		// }
+		// if err := s.mounter.FormatAndMount(device, vpath, fsType, mountOptions); err != nil {
+		// 	return nil, status.Errorf(codes.Internal, "mount failed: volume=%s, error=%v", req.GetVolumeId(), err)
+		// }
+		// log.Info("NodeExpandVolume(fs) is succeeded",
+		// 	" volume_id ", vid,
+		// 	" target_path ", vpath,
+		// )
+
+		//return &csi.NodeExpandVolumeResponse{}, nil
 
 	default:
 		log.Errorf("Create LogicVolume: Create with no support volume type undefined")
@@ -773,7 +789,6 @@ func (s *nodeService) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandV
 
 	s.mu.Lock()
 	defer s.mu.Unlock()
-
 	r := filesystem.NewResizeFs(&s.mounter)
 	if _, err := r.Resize(device, vpath); err != nil {
 		return nil, status.Errorf(codes.Internal, "failed to resize filesystem %s (mounted at: %s): %v", vid, vpath, err)

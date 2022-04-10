@@ -278,7 +278,10 @@ func (ld *LocalPartitionImplement) CreatePartition(name, groups string, size uin
 }
 
 func (ld *LocalPartitionImplement) UpdatePartition(name, groups string, size uint64) error {
-
+	partition, _ := ld.GetPartition(name, groups)
+	if partition.Last-partition.Start >= size {
+		return nil
+	}
 	if !ld.Mutex.TryAcquire(DISKMUTEX) {
 		log.Info("wait other task release mutex, please retry...")
 		return errors.New("get global mutex failed")
@@ -324,9 +327,28 @@ func (ld *LocalPartitionImplement) UpdatePartition(name, groups string, size uin
 		// 	log.Error("Update parttion on disk ", fmt.Sprintf("/dev/%s", diskPath), "failed"+err.Error())
 		// 	return errors.New("Update parttion on disk failed" + fmt.Sprintf("/dev/%s", diskPath))
 		// }
-		_, err := ld.Executor.ExecuteCommandWithOutput("parted", "-s", disk.Path, "resizepart", fmt.Sprintf("%d", p.Number), fmt.Sprintf("%vg", last>>30))
+		targetPathOut, err := ld.Executor.ExecuteCommandWithOutput("/usr/bin/findmnt", "-S", fmt.Sprintf("/dev/%sp%d", diskPath, p.Number), "--noheadings", "--output=target")
+		if err != nil {
+			log.Error("/usr/bin/findmnt", "-S", fmt.Sprintf("/dev/%sp%d", diskPath, p.Number), "--noheadings", "--output=target", "failed"+err.Error())
+			return err
+		}
+		targetpath := strings.TrimSpace(string(strings.TrimSuffix(targetPathOut, "\n")))
+
+		if targetpath != "" {
+			_, err := ld.Executor.ExecuteCommandWithOutput("umount", targetpath)
+			if err != nil {
+				log.Error("umount", targetpath, "failed"+err.Error())
+				return err
+			}
+		}
+		_, err = ld.Executor.ExecuteCommandWithOutput("parted", "-s", disk.Path, "resizepart", fmt.Sprintf("%d", p.Number), fmt.Sprintf("%vg", last>>30))
 		if err != nil {
 			log.Error("exec parted ", disk.Path, " resizepart ", fmt.Sprintf("%d", p.Number), fmt.Sprintf("%vg", last>>30), "failed"+err.Error())
+			return err
+		}
+		_, err = ld.Executor.ExecuteCommandWithOutput("mount", fmt.Sprintf("/dev/%sp%d", diskPath, p.Number), targetpath)
+		if err != nil {
+			log.Error("mount", fmt.Sprintf("/dev/%sp%d", diskPath, p.Number), targetpath, "failed"+err.Error())
 			return err
 		}
 

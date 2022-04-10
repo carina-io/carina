@@ -44,19 +44,19 @@ func TestScanDisks(t *testing.T) {
 }
 
 func TestScanDisk(t *testing.T) {
-	fname := "/dev/loop3"
+	fname := "/dev/loop4"
 	disk, err := mysys.ScanDisk(fname)
 	assert.NoError(t, err)
-	t.Log(disk.UdevInfo.Properties)
+	t.Log(disk.UdevInfo)
 	t.Log(disk.Name)
 
-	t.Log(disk.FreeSpacesWithMin(5000))
-	t.Log(disk.FreeSpaces()[0].Size())
+	//t.Log(disk.FreeSpacesWithMin(5000))
+	t.Log(disk.FreeSpaces()[0].Size(), disk.FreeSpaces()[0].Size()>>30)
 
 }
 
 func TestGetDiskPartMaxNum(t *testing.T) {
-	fname := "/dev/loop2"
+	fname := "/dev/loop3"
 	disk, err := mysys.ScanDisk(fname)
 	assert.NoError(t, err)
 
@@ -67,7 +67,7 @@ func TestGetDiskPartMaxNum(t *testing.T) {
 	sort.Ints(number)
 	t.Log(number[0], number[len(number)-1])
 	for _, v := range disk.FreeSpaces() {
-		fmt.Println(v.Size())
+		t.Log(v.Size())
 	}
 
 }

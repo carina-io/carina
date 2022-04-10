@@ -153,7 +153,7 @@ func (t *Trouble) CleanupOrphanPartition() {
 
 		mapLvList[utils.PartitionName(v.Name)] = true
 	}
-	log.Infof("mapLvList:%s", mapLvList)
+	log.Infof("mapLvList:%v", mapLvList)
 	for _, d := range disklist {
 		disk, err := linux.System().ScanDisk(d.Name)
 		if err != nil {

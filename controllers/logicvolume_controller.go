@@ -311,7 +311,8 @@ func (r *LogicVolumeReconciler) expandLV(ctx context.Context, lv *carinav1.Logic
 			return fmt.Errorf("Extend lv: %s doesn't using an exclusive disk", lv.Name)
 		}
 		err := utils.UntilMaxRetry(func() error {
-			return r.partition.UpdatePartition(utils.PartitionName(lv.Name), lv.Spec.DeviceGroup, uint64(reqBytes))
+			return nil
+			//return r.partition.UpdatePartition(utils.PartitionName(lv.Name), lv.Spec.DeviceGroup, uint64(reqBytes))
 		}, 10, 12*time.Second)
 		if err != nil {
 			lv.Status.Code = codes.Internal
