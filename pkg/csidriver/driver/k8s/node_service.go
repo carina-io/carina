@@ -447,10 +447,11 @@ func (s NodeService) SelectDeviceGroup(ctx context.Context, request int64, nodeN
 				selectDeviceGroup = strings.Split(p.Key, "/")[1]
 			}
 			if volumeType == utils.RawVolumeType {
-				if strings.Contains(p.Key, deviceGroup) {
-					return p.Key, nil
-				}
 				selectDeviceGroup = strings.Split(p.Key, "/")[1] + "/" + strings.Split(p.Key, "/")[2]
+				if strings.Contains(p.Key, deviceGroup) {
+					return selectDeviceGroup, nil
+				}
+
 			}
 
 		}

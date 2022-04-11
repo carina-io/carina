@@ -2,7 +2,7 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: carina-deployment-fs
+  name: carina-deployment-expand
   namespace: carina
   labels:
     app: web-server
@@ -39,20 +39,20 @@ spec:
       volumes:
         - name: mypvc
           persistentVolumeClaim:
-            claimName: csi-carina-raw-fs
+            claimName: csi-carina-raw-expand
             readOnly: false
 
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: csi-carina-raw-fs
+  name: csi-carina-raw-expand
   namespace: carina
 spec:
   accessModes:
     - ReadWriteOnce
   resources:
     requests:
-      storage: 10Gi
-  storageClassName: csi-carina-raw
+      storage: 80Gi
+  storageClassName: csi-carina-raw-exclusivity
   volumeMode: Filesystem

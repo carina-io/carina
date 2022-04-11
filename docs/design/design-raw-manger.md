@@ -132,7 +132,8 @@ fdisk -lu /dev/loop2
 - ③ 扩展已有GPT分区
 ```
 
-dump -0u -f /tmp/loopbak.dump /dev/loop2p1
+dump -0uj -f /tmp/loop2p1bak.bz2 /dev/loop2p1
+restore -r -f /tmp/loop2p1bak.bz2
 export path=$(findmnt -S /dev/loop2p1 --output=target --noheading)
 umount path
 parted /dev/loop2 resizepart 1（分区号）  600（end位置）

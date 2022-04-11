@@ -223,7 +223,7 @@ func (ld *LocalPartitionImplement) CreatePartition(name, groups string, size uin
 		return nil
 	}
 	diskPath := strings.Split(groups, "/")[1]
-	log.Info("create parttion: group:", groups, "path:", diskPath, "size", size)
+	log.Info("create parttion: group:", groups, " path:", diskPath, "size", size)
 	if !ld.Mutex.TryAcquire(DISKMUTEX) {
 		log.Info("wait other task release mutex, please retry...")
 		return errors.New("get global mutex failed")
@@ -296,7 +296,7 @@ func (ld *LocalPartitionImplement) UpdatePartition(name, groups string, size uin
 		return err
 	}
 
-	fs := disk.FreeSpacesWithMin(size)
+	fs := disk.FreeSpacesWithMin(size - partition.Size())
 	if len(fs) < 1 {
 		log.Error("path ", fmt.Sprintf("/dev/%s", diskPath), "has not free size ")
 		return errors.New("disk has not free size" + fmt.Sprintf("/dev/%s", diskPath))
@@ -305,12 +305,6 @@ func (ld *LocalPartitionImplement) UpdatePartition(name, groups string, size uin
 		log.Error("path", fmt.Sprintf("/dev/%s", diskPath), "disk has mutipod used")
 		return errors.New("disk has mutipod used" + fmt.Sprintf("/dev/%s", diskPath))
 	}
-	// partitionName := name
-	// log.Info("path", fmt.Sprintf("/dev/%s", diskPath), "cacheParttionMap:", ld.CacheParttionNum)
-	// if _, ok := ld.CacheParttionNum[partitionName]; !ok {
-	// 	log.Error("path", fmt.Sprintf("/dev/%s", diskPath), " cacheParttionMap has no parttion number")
-	// 	//return errors.New("cacheParttionMap has no parttion number" + fmt.Sprintf("/dev/%s", diskPath))
-	// }
 	var partitionNum uint
 	for _, p := range disk.Partitions {
 		log.Info(p)
@@ -323,10 +317,6 @@ func (ld *LocalPartitionImplement) UpdatePartition(name, groups string, size uin
 		last := p.Start + uint64(size) - 1
 		partitionNum = p.Number
 		log.Info("Update parttion on disk dst: ", fmt.Sprintf("/dev/%s", diskPath), " number:", p.Number, " name:", p.Name, " start:", p.Start, " size: ", p.Last, " last:", p.Last, disk.Table)
-		// if err := mysys.UpdatePartition(disk, p); err != nil {
-		// 	log.Error("Update parttion on disk ", fmt.Sprintf("/dev/%s", diskPath), "failed"+err.Error())
-		// 	return errors.New("Update parttion on disk failed" + fmt.Sprintf("/dev/%s", diskPath))
-		// }
 		targetPathOut, err := ld.Executor.ExecuteCommandWithOutput("/usr/bin/findmnt", "-S", fmt.Sprintf("/dev/%sp%d", diskPath, p.Number), "--noheadings", "--output=target")
 		if err != nil {
 			log.Error("/usr/bin/findmnt", "-S", fmt.Sprintf("/dev/%sp%d", diskPath, p.Number), "--noheadings", "--output=target", "failed"+err.Error())

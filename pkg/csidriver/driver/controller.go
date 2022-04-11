@@ -141,7 +141,7 @@ func (s controllerService) CreateVolume(ctx context.Context, req *csi.CreateVolu
 		return nil, status.Errorf(codes.Internal, "can not find pvc %s %s", namespace, name)
 	}
 	if node != "" {
-		group, err = s.nodeService.SelectDeviceGroup(ctx, requestGb, node, volumeType, exclusivityDisk)
+		group, err = s.nodeService.SelectDeviceGroup(ctx, requestGb, node, volumeType, exclusivityDisk, deviceGroup)
 		if err != nil {
 			return nil, status.Errorf(codes.Internal, "failed to get device group %v", err)
 		}
