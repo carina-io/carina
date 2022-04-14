@@ -91,231 +91,193 @@ docker-desktop   docker-desktop   12m
 
 - diskSelector：该参数为一个正则表达式，carina-node会根据该配置过滤本地磁盘
 - diskScanInterval：磁盘扫描间隔，0表示关闭本地磁盘扫描
-- diskGroupPolicy：磁盘分组策略，只支持按照磁盘类型分组，更改成其他值无效
+- policy：磁盘分组策略，只支持按照裸盘raw,lvm
 
 ### 测试实例演示
+根据自己环境修改storageclass的配置参数选择磁盘组名称，测试当前我的测试环境选择的是磁盘carina-raw-ssd 匹配的是/dev/loop3;
+独占磁盘carina-raw-loop匹配的是/dev/loop4，为了简单这里只配置了一个磁盘匹配。
+
 ```
 kubectl apply -f ./examples/kubernetes/storageclass-raw-exclusivity.yaml
 kubectl apply -f ./examples/kubernetes/storageclass-raw.yaml
 ```
+这里可以看到已经有了两个storage
 ```
  kubectl get sc 
 NAME                         PROVISIONER          RECLAIMPOLICY   VOLUMEBINDINGMODE      ALLOWVOLUMEEXPANSION   AGE
-csi-carina-lvm               carina.storage.io    Delete          WaitForFirstConsumer   true                   4h57m
 csi-carina-raw               carina.storage.io    Delete          WaitForFirstConsumer   true                   4h57m
 csi-carina-raw-exclusivity   carina.storage.io    Delete          WaitForFirstConsumer   true                   30h
 ```
 
-#### 1. 创建块实例
+#### 1. 创建statefuleset 卷是block的实例
 ```
 kubectl create ns carina
 kubectl apply -f examples/kubernetes/raw-sts-block.yaml
 ```
 ```
+$ kubectl get pods -n carina
 NAME                   READY   STATUS    RESTARTS   AGE
 nginx-device-block-0   1/1     Running   0          2m5s
 ```
-实例运行正常
-#### 2. 创建字符实例
-```
-kubectl apply -f examples/kubernetes/raw-sts-fs.yaml
-kubectl apply -f examples/kubernetes/raw-deploy-fs-expand.yaml
-```
-```
-nginx-device-block-0   1/1     Running   0          3m15s
-nginx-device-fs-0      1/1     Running   0          45s
-```
-实例运行正常
-#### 3. 创建独占磁盘实例
-```
-kubectl apply -f examples/kubernetes/raw-deploy-fs-expand-exclusivity.yaml
-```
-```
-carina-deployment-expand-59874c95f6-p5vgt   1/1     Running   0          32s
-nginx-device-block-0                        1/1     Running   0          4m51s
-nginx-device-fs-0                           1/1     Running   0          2m21s
-```
- kubectl get lv 
-``` 
-NAME                                       SIZE   GROUP                   NODE             STATUS
-pvc-00776663-03ba-4e76-9c4a-9e710d60ea98   5Gi    carina-raw-ssd/loop3    docker-desktop   Success
-pvc-68461f4b-d12a-4001-b93c-d3ab0bc3018c   10Gi   carina-raw-ssd/loop3    docker-desktop   Success
-pvc-e810bd63-e917-4308-aa39-07652cd9eafc   65Gi   carina-raw-loop/loop4   docker-desktop   Success
-```
-
-#### 4. 扩容独占磁盘实例
-扩容实例资源，edit raw-deploy-fs-expand-exclusivity.yaml ....
-```
-kubectl apply -f examples/kubernetes/raw-deploy-fs-expand-exclusivity.yaml
-```
-
-kubectl get lv 
-```
-pvc-e810bd63-e917-4308-aa39-07652cd9eafc   80Gi   carina-raw-loop/loop4   docker-desktop   Success
-```
-kubectl get pv -n carina
-```
-persistentvolume/pvc-e810bd63-e917-4308-aa39-07652cd9eafc   80Gi       RWO            Delete           Bound    carina/csi-carina-raw-expand       csi-carina-raw-exclusivity            17m
-```
-kubectl get nodestorageresource -oyaml
-```
-    allocatable:
-      carina.storage.io/carina-raw-loop/loop4: "25"
-      carina.storage.io/carina-raw-ssd/loop3: "184"
-    capacity:
-      carina.storage.io/carina-raw-loop/loop4: "100"
-      carina.storage.io/carina-raw-ssd/loop3: "200"
-    disks:
-    - name: loop3
-      partitions:
-        "1":
-          last: 5369757695
-          name: carina.io/9e710d60ea98
-          number: 1
-          start: 1048576
-        "2":
-          last: 16107175935
-          name: carina.io/d3ab0bc3018c
-          number: 2
-          start: 5369757696
-      path: /dev/loop3
-      sectorSize: 512
-      size: 214748364800
-      udevInfo:
-        name: loop3
-        properties:
-          DEVNAME: /dev/loop3
-          DEVPATH: /devices/virtual/block/loop3
-          DEVTYPE: disk
-          MAJOR: "7"
-          MINOR: "3"
-          SUBSYSTEM: block
-        sysPath: /devices/virtual/block/loop3
-    - name: loop4
-      partitions:
-        "1":
-          last: 80000000511
-          name: carina.io/07652cd9eafc
-          number: 1
-          start: 1048576
-      path: /dev/loop4
-      sectorSize: 512
-      size: 107374182400
-      udevInfo:
-        name: loop4
-        properties:
-          DEVNAME: /dev/loop4
-          DEVPATH: /devices/virtual/block/loop4
-          DEVTYPE: disk
-          MAJOR: "7"
-          MINOR: "4"
-          SUBSYSTEM: block
-        sysPath: /devices/virtual/block/loop4
-    syncTime: "2022-04-11T02:30:05Z"
+实例运行正常，检查磁盘分区是否创建
 ```
 lsblk
 ```
-loop2       7:2    0   200G  0 loop 
-loop3       7:3    0   200G  0 loop 
-├─loop3p1 259:0    0     5G  0 part 
-└─loop3p2 259:1    0    10G  0 part 
-loop4       7:4    0   100G  0 loop 
-└─loop4p1 259:2    0  74.5G  0 part 
-loop5       7:5    0     5G  0 loop 
 ```
-可以看到独占磁盘的实例支持扩容
-
-#### 5. 清理实例
-```
-kubectl delete -f examples/kubernetes/raw-sts-fs.yaml
-kubectl delete pvc html-nginx-device-fs-0 -n carina
-```
-lsblk 
-```
-lsblk
-NAME      MAJ:MIN RM   SIZE RO TYPE MOUNTPOINT
 loop0       7:0    0 395.1M  1 loop /mnt/wsl/docker-desktop/cli-tools
 loop1       7:1    0 349.4M  1 loop 
 loop2       7:2    0   200G  0 loop 
 loop3       7:3    0   200G  0 loop 
 └─loop3p1 259:0    0     5G  0 part 
 loop4       7:4    0   100G  0 loop 
-└─loop4p1 259:2    0  74.5G  0 part 
 ```
-kubectl get nodestorageresource -oyaml |grep allocatable -A 5
-```
-   allocatable:
-      carina.storage.io/carina-raw-loop/loop4: "25"
-      carina.storage.io/carina-raw-ssd/loop3: "194"
-    capacity:
-      carina.storage.io/carina-raw-loop/loop4: "100"
-      carina.storage.io/carina-raw-ssd/loop3: "200"
-```
-loop3p2 分区释放
-```
-kubectl delete -f examples/kubernetes/raw-sts-block.yaml
-kubectl delete pvc html-nginx-device-block-0  -n carina
-kubectl get nodestorageresource -oyaml |grep allocatable -A 5
-```
- ```
- allocatable:
-      carina.storage.io/carina-raw-loop/loop4: "25"
-      carina.storage.io/carina-raw-ssd/loop3: "199"
-    capacity:
-      carina.storage.io/carina-raw-loop/loop4: "100"
-      carina.storage.io/carina-raw-ssd/loop3: "200"
- ```
- 实例释放后相对应的磁盘分区也会释放
 
-#### 6. 再创建新实例
+#### 2. 创建statefuleset 卷是Filesystem的实例
 ```
-kubectl apply -f examples/kubernetes/raw-deploy-fs-expand.yaml
-kubectl get pods -n carina 
-```
-```
-NAME                                        READY   STATUS    RESTARTS   AGE
-carina-deployment-expand-59874c95f6-p5vgt   1/1     Running   0          43m
-carina-deployment-fs-6d96f88489-v524p       1/1     Running   0          38s
-```
- kubectl get lv 
- ```
-NAME                                       SIZE   GROUP                   NODE             STATUS
-pvc-a162fc6d-0195-4921-ae93-89b8fd8e0f2f   5Gi    carina-raw-ssd/loop3    docker-desktop   Success
-pvc-e810bd63-e917-4308-aa39-07652cd9eafc   80Gi   carina-raw-loop/loop4   docker-desktop   Success
-```
-新建的实例在非独占磁盘上，独占磁盘不接受新调度实例
-#### 7. 扩容新建新实例
-修改实例资源配额后执行
-```
-kubectl apply -f examples/kubernetes/raw-deploy-fs-expand.yaml
+kubectl apply -f examples/kubernetes/raw-sts-fs.yaml
 ```
 ```
-kubectl get pvc,pv -n carina 
-NAME                                          STATUS   VOLUME                                     CAPACITY   ACCESS MODES   STORAGECLASS                 AGE
-persistentvolumeclaim/csi-carina-raw-expand   Bound    pvc-e810bd63-e917-4308-aa39-07652cd9eafc   80Gi       RWO            csi-carina-raw-exclusivity   47m
-persistentvolumeclaim/csi-carina-raw-fs       Bound    pvc-a162fc6d-0195-4921-ae93-89b8fd8e0f2f   5Gi        RWO            csi-carina-raw               4m36s
-
-NAME                                                        CAPACITY   ACCESS MODES   RECLAIM POLICY   STATUS   CLAIM                          STORAGECLASS                 REASON   AGE
-persistentvolume/pvc-a162fc6d-0195-4921-ae93-89b8fd8e0f2f   5Gi        RWO            Delete           Bound    carina/csi-carina-raw-fs       csi-carina-raw                        4m34s
-persistentvolume/pvc-e810bd63-e917-4308-aa39-07652cd9eafc   80Gi       RWO            Delete           Bound    carina/csi-carina-raw-expand   csi-carina-raw-exclusivity            47m
+$ kubectl get pods -n carina
+NAME                   READY   STATUS    RESTARTS   AGE
+nginx-device-block-0   1/1     Running   0          3m15s
+nginx-device-fs-0      1/1     Running   0          45s
 ```
-可以看到没有任何变化,这里就验证了非独占磁盘实例不支持扩容的能力，可以保证分区数据完整性。
-
-```
-kubectl describe pvc csi-carina-raw-fs -n carina
-```
-```
-Warning  ExternalExpanding      63s                    volume_expand                                                                                  Ignoring the PVC: didn't find a plugin capable of expanding the volume; waiting for an external controller to process this PVC.
-  Normal   Resizing               40s (x7 over 63s)      external-resizer carina.storage.io                                                             External resizer is resizing volume pvc-a162fc6d-0195-4921-ae93-89b8fd8e0f2f
-  Warning  VolumeResizeFailed     40s (x7 over 63s)      external-resizer carina.storage.io                                                             resize volume "pvc-a162fc6d-0195-4921-ae93-89b8fd8e0f2f" by resizer "carina.storage.io" failed: rpc error: code = Internal desc = can not exclusivityDisk pods
-```
-#### 8. 清理资源
-```
-kubectl delete -f examples/kubernetes/raw-deploy-fs-expand.yaml 
-kubectl delete -f examples/kubernetes/raw-deploy-fs-expand-exclusivity.yaml
-```
+实例运行正常，检查磁盘分区是否创建
 ```
 lsblk
+```
+```
+loop0       7:0    0 395.1M  1 loop /mnt/wsl/docker-desktop/cli-tools
+loop1       7:1    0 349.4M  1 loop 
+loop2       7:2    0   200G  0 loop 
+loop3       7:3    0   200G  0 loop 
+├─loop3p1 259:0    0     5G  0 part 
+└─loop3p2 259:1    0    10G  0 part 
+loop4       7:4    0   100G  0 loop 
+```
+
+
+#### 3.扩容statefuleset 卷是Filesystem的实例
+进行在线扩容
+
+```shell
+$ kubectl patch pvc/html-nginx-device-fs-0 \
+  --namespace "carina" \
+  --patch '{"spec": {"resources": {"requests": {"storage": "15Gi"}}}}'
+  
+```
+
+进入容器查看容量
+
+```shell
+$ kubectl exec -it nginx-device-fs-0 -n carina bash
+$ df -h
+Filesystem      Size  Used Avail Use% Mounted on
+overlay         251G   32G  207G  14% /
+tmpfs            64M     0   64M   0% /dev
+tmpfs           5.9G     0  5.9G   0% /sys/fs/cgroup
+/dev/loop3p2     10G   33M   10G   1% /data
+/dev/sdd        251G   32G  207G  14% /etc/hosts
+shm              64M     0   64M   0% /dev/shm
+tmpfs           5.9G   12K  5.9G   1% /run/secrets/kubernetes.io/serviceaccount
+tmpfs           5.9G     0  5.9G   0% /proc/acpi
+tmpfs           5.9G     0  5.9G   0% /sys/firmware
+```
+可以看到没有变化，我们再执行检查可以看到,即目前我们方案是不支持非独占磁盘扩容的
+```
+$ kubectl describe pvc html-nginx-device-fs-0 -n carina  |grep failed
+  Warning  VolumeResizeFailed     93s (x10 over 3m)      external-resizer carina.storage.io                                                             resize volume "pvc-c1efe394-3e27-4767-895c-fd31f13d5f6f" by resizer "carina.storage.io" failed: rpc error: code = Internal desc = can not exclusivityDisk pods
+```
+
+#### 4. 清理statefuleset 卷是Filesystem的实例
+```
+$ kubectl delete -f examples/kubernetes/raw-sts-fs.yaml
+$ kubectl delete pvc html-nginx-device-fs-0 -n carina
+```
+在节点主机上执行
+```
+$ lsblk
+loop0       7:0    0 395.1M  1 loop /mnt/wsl/docker-desktop/cli-tools
+loop1       7:1    0 349.4M  1 loop 
+loop2       7:2    0   200G  0 loop 
+loop3       7:3    0   200G  0 loop 
+└─loop3p1 259:0    0     5G  0 part 
+loop4       7:4    0   100G  0 loop 
+```
+可以看到磁盘pods占用的磁盘分区已经被清理了
+
+#### 5. 创建独占磁盘实例
+```
+kubectl apply -f examples/kubernetes/raw-deploy-fs-expand-exclusivity.yaml
+```
+```
+$ kubectl get pods -n carina 
+NAME                                        READY   STATUS    RESTARTS   AGE
+carina-deployment-expand-59874c95f6-fd6wc   1/1     Running   0          50s
+nginx-device-block-0                        1/1     Running   0          123m
+
+$ kubectl get lv 
+
+NAME                                       SIZE   GROUP                   NODE             STATUS
+pvc-49319663-13e7-453f-b412-4edc1a8a2777   20Gi   carina-raw-loop/loop4   docker-desktop   Success
+pvc-d862f14a-2d4b-4128-aef4-8305e77f8b8f   5Gi    carina-raw-ssd/loop3    docker-desktop   Success
+```
+
+#### 6. 扩容独占磁盘实例
+
+进行在线扩容
+
+```shell
+$ kubectl patch pvc/csi-carina-raw-expand \
+  --namespace "carina" \
+  --patch '{"spec": {"resources": {"requests": {"storage": "30Gi"}}}}'
+  
+```
+
+```
+$ kubectl get lv 
+
+NAME                                       SIZE   GROUP                   NODE             STATUS
+pvc-49319663-13e7-453f-b412-4edc1a8a2777   30Gi   carina-raw-loop/loop4   docker-desktop   Success
+pvc-d862f14a-2d4b-4128-aef4-8305e77f8b8f   5Gi    carina-raw-ssd/loop3    docker-desktop   Success
+```
+kubectl get pv -n carina
+```
+AGECLASS                 REASON   AGE
+pvc-49319663-13e7-453f-b412-4edc1a8a2777   30Gi       RWO            Delete           Bound    carina/csi-carina-raw-expand       csi-carina-raw-exclusivity            5m44s
+pvc-d862f14a-2d4b-4128-aef4-8305e77f8b8f   5Gi        RWO            Delete           Bound    carina/html-nginx-device-block-0   csi-carina-raw                        65m
+```
+
+进入容器查看容量
+
+```shell
+$ kubectl exec -it $(kubectl get pods -l  app=web-server -n carina | awk   '{if (NR>1){ print $1}}') -n carina bash
+$ df -h
+Filesystem      Size  Used Avail Use% Mounted on
+overlay         251G   32G  207G  14% /
+tmpfs            64M     0   64M   0% /dev
+tmpfs           5.9G     0  5.9G   0% /sys/fs/cgroup
+/dev/sdd        251G   32G  207G  14% /etc/hosts
+shm              64M     0   64M   0% /dev/shm
+/dev/loop4p1     28G   33M   28G   1% /var/lib/www/html
+tmpfs           5.9G   12K  5.9G   1% /run/secrets/kubernetes.io/serviceaccount
+tmpfs           5.9G     0  5.9G   0% /proc/acpi
+tmpfs           5.9G     0  5.9G   0% /sys/firmware
+```
+
+可以看到独占磁盘的实例已经扩容了
+
+
+
+#### 7. 清理所有资源
+```
+kubectl delete -f examples/kubernetes/raw-deploy-fs-expand-exclusivity.yaml
+kubectl delete -f examples/kubernetes/raw-sts-block.yaml
+kubectl delete pvc/html-nginx-device-block-0 -n carina
+```
+检查节点已经没有分区了
+```
+$ lsblk
 NAME  MAJ:MIN RM   SIZE RO TYPE MOUNTPOINT
 loop0   7:0    0 395.1M  1 loop /mnt/wsl/docker-desktop/cli-tools
 loop1   7:1    0 349.4M  1 loop 

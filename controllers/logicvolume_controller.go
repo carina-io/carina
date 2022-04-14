@@ -305,7 +305,7 @@ func (r *LogicVolumeReconciler) expandLV(ctx context.Context, lv *carinav1.Logic
 
 	case utils.RawVolumeType:
 		if _, ok := lv.Annotations[utils.ExclusivityDisk]; !ok {
-			return fmt.Errorf("Extend lv: %s doesn't get  annotations: carina.storage.io/exclusivity-disk", lv.Name)
+			return fmt.Errorf("Extend lv: %s doesn't get  annotations: carina.storage.io/exclusive-disk", lv.Name)
 		}
 		if lv.Annotations[utils.ExclusivityDisk] == "false" {
 			return fmt.Errorf("Extend lv: %s doesn't using an exclusive disk", lv.Name)

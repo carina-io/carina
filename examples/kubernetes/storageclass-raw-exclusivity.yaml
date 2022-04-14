@@ -8,10 +8,10 @@ parameters:
   # file system
   csi.storage.k8s.io/fstype: xfs
   # disk group
-  carina.storage.io/disk-type: carina-raw-ssd
-  carina.storage.io/exclusivity-disk: "true" 
+  carina.storage.io/disk-type: carina-raw-loop
+  carina.storage.io/exclusive-disk: "true" 
 reclaimPolicy: Delete
 allowVolumeExpansion: true
 # WaitForFirstConsumer表示被容器绑定调度后再创建pv
-volumeBindingMode: WaitForFirstConsumer
+volumeBindingMode: WaitForFirstConsumer #Immediate 
 mountOptions:

@@ -53,6 +53,6 @@ spec:
     - ReadWriteOnce
   resources:
     requests:
-      storage: 80Gi
+      storage: 20Gi
   storageClassName: csi-carina-raw-exclusivity
   volumeMode: Filesystem

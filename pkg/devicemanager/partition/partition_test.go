@@ -41,6 +41,7 @@ func TestScanDisks(t *testing.T) {
 	diskSet, err := mysys.ScanDisks(matchAll, "/dev/loop2")
 	assert.NoError(t, err)
 	t.Log(diskSet)
+
 }
 
 func TestScanDisk(t *testing.T) {
