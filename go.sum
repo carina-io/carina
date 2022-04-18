@@ -575,8 +575,8 @@ github.com/yuin/goldmark v1.1.32/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9de
 github.com/yuin/goldmark v1.2.1/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9decYSb74=
 github.com/yuin/goldmark v1.3.5/go.mod h1:mwnBkeHKe2W/ZEtQ+71ViKU8L12m81fl3OWwC1Zlc8k=
 github.com/yuin/goldmark v1.4.0/go.mod h1:mwnBkeHKe2W/ZEtQ+71ViKU8L12m81fl3OWwC1Zlc8k=
-github.com/zhangkai8048/disko v0.0.9 h1:8rUVAT2pOdGK6u9L+3ZK32GmCRwaFefsZJhWCBhPT4M=
-github.com/zhangkai8048/disko v0.0.9/go.mod h1:jx/uAe72zHK1s2eg2WvN3PBcjEuDyTnbeC73eqOBcBM=
+github.com/zhangkai8048/disko v0.0.9 h1:HdISkyAfgETp3auyZyL1Hb0ULISyFlENNbWhyg1LDAM=
+github.com/zhangkai8048/disko v0.0.9/go.mod h1:Q3i/lBx5ImeKssI83w0K7jSlv27OwuKJu3LbPbRpQTg=
 go.etcd.io/bbolt v1.3.2/go.mod h1:IbVyRI1SCnLcuJnV2u8VeU0CEYM7e686BmAb1XKL+uU=
 go.etcd.io/bbolt v1.3.6/go.mod h1:qXsaaIqmgQH0T+OPdb99Bf+PKfBBQVAdyD6TY9G8XM4=
 go.etcd.io/etcd/api/v3 v3.5.0/go.mod h1:cbVKeC6lCfl7j/8jBhAK6aIYO9XOjdptoxU/nLQcPvs=

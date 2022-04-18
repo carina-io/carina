@@ -37,7 +37,7 @@ spec:
       storageClassName: csi-carina-raw
       resources:
         requests:
-          storage: 5Gi
+          storage: 10Gi
   template:
     metadata:
       labels:
@@ -50,7 +50,7 @@ spec:
       containers:
       - name: nginx
         image: nginx
-        imagePullPolicy: Always
+        imagePullPolicy: IfNotPresent
         volumeMounts:
         - mountPath: "/data"
           name: html

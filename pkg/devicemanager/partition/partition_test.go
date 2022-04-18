@@ -41,22 +41,23 @@ func TestScanDisks(t *testing.T) {
 	diskSet, err := mysys.ScanDisks(matchAll, "/dev/loop2")
 	assert.NoError(t, err)
 	t.Log(diskSet)
+
 }
 
 func TestScanDisk(t *testing.T) {
-	fname := "/dev/loop3"
+	fname := "/dev/loop4"
 	disk, err := mysys.ScanDisk(fname)
 	assert.NoError(t, err)
-	t.Log(disk.UdevInfo.Properties)
+	t.Log(disk.UdevInfo)
 	t.Log(disk.Name)
 
-	t.Log(disk.FreeSpacesWithMin(5000))
-	t.Log(disk.FreeSpaces()[0].Size())
+	//t.Log(disk.FreeSpacesWithMin(5000))
+	t.Log(disk.FreeSpaces()[0].Size(), disk.FreeSpaces()[0].Size()>>30)
 
 }
 
 func TestGetDiskPartMaxNum(t *testing.T) {
-	fname := "/dev/loop2"
+	fname := "/dev/loop3"
 	disk, err := mysys.ScanDisk(fname)
 	assert.NoError(t, err)
 
@@ -67,7 +68,7 @@ func TestGetDiskPartMaxNum(t *testing.T) {
 	sort.Ints(number)
 	t.Log(number[0], number[len(number)-1])
 	for _, v := range disk.FreeSpaces() {
-		fmt.Println(v.Size())
+		t.Log(v.Size())
 	}
 
 }
@@ -126,25 +127,31 @@ func TestCreatePartition(t *testing.T) {
 	//name: 54cd2f39cf95 group: carina-raw-loop size: 13958643712
 	size := 4747316223
 	lvName := "pvc-58ad162c-1815-476b-9b3d-4735f652842e"
-	err := localparttion.CreatePartition(utils.PartitionName(lvName), "carina-raw-loop/loop3", uint64(size))
+	err := localparttion.CreatePartition(utils.PartitionName(lvName), "carina-raw-loop/loop2", uint64(size))
 	assert.NoError(t, err)
-	disk, err := mysys.ScanDisk("/dev/loop3")
+	disk, err := mysys.ScanDisk("/dev/loop2")
 	assert.NoError(t, err)
 	t.Log(disk.Partitions)
 }
 
 func TestUpdatePartition(t *testing.T) {
-	size := 5747316223
+	size := 10747316223
 	lvName := "pvc-58ad162c-1815-476b-9b3d-4735f652842e"
-	group := "carina-raw-loop/loop3"
-	err := localparttion.UpdatePartition(utils.PartitionName(lvName), group, uint64(size))
+	group := "carina-raw-ssd/loop2"
+	part, err := localparttion.GetPartition(utils.PartitionName(lvName), group)
+	t.Log("number", part.Number, " name:", part.Name, " size ", part.Size())
 	assert.NoError(t, err)
-	_, err = mysys.ScanDisk("/dev/loop3")
+	err = localparttion.UpdatePartition(utils.PartitionName(lvName), group, uint64(size))
 	assert.NoError(t, err)
+	disk, err := mysys.ScanDisk("/dev/loop2")
+	assert.NoError(t, err)
+	for _, v := range disk.Partitions {
+		t.Log(v.Name, v.Number, v.Start, v.Last)
+	}
 
 }
 func TestDeletePartitionByNumber(t *testing.T) {
-	disk, err := mysys.ScanDisk("/dev/loop4")
+	disk, err := mysys.ScanDisk("/dev/loop2")
 	assert.NoError(t, err)
 	for _, v := range disk.Partitions {
 		err := localparttion.DeletePartitionByPartNumber(disk, v.Number)
@@ -159,9 +166,9 @@ func TestDeletePartitionByNumber(t *testing.T) {
 
 func TestDeletePartition(t *testing.T) {
 	lvName := "pvc-58ad162c-1815-476b-9b3d-4735f652842e"
-	err := localparttion.DeletePartition(utils.PartitionName(lvName), "carina-raw-loop/loop3")
+	err := localparttion.DeletePartition(utils.PartitionName(lvName), "carina-raw-loop/loop2")
 	assert.NoError(t, err)
-	_, err = mysys.ScanDisk("/dev/loop3")
+	_, err = mysys.ScanDisk("/dev/loop2")
 	assert.NoError(t, err)
 
 }

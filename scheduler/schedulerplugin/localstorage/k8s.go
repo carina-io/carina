@@ -2,6 +2,9 @@ package localstorage
 
 import (
 	"context"
+	"path/filepath"
+
+	v1 "github.com/carina-io/carina-api/api/v1"
 	"github.com/carina-io/carina-api/api/v1beta1"
 	"github.com/carina-io/carina/scheduler/utils"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -11,7 +14,7 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/util/homedir"
-	"path/filepath"
+	"k8s.io/klog/v2"
 )
 
 var gvr = schema.GroupVersionResource{
@@ -70,4 +73,32 @@ func listNodeStorageResources(client dynamic.Interface) (*v1beta1.NodeStorageRes
 		return nil, err
 	}
 	return nsr, nil
+}
+
+func listLogicVolumes(client dynamic.Interface, node string) (lvs []string, err error) {
+	var gvr = schema.GroupVersionResource{
+		Group:    v1.GroupVersion.Group,
+		Version:  v1.GroupVersion.Version,
+		Resource: "logicvolumes",
+	}
+	unstrructObj, err := client.Resource(gvr).Namespace("").List(context.TODO(), metav1.ListOptions{})
+	if err != nil {
+		return nil, err
+	}
+	lvlist := &v1.LogicVolumeList{}
+	err = runtime.DefaultUnstructuredConverter.FromUnstructured(unstrructObj.UnstructuredContent(), lvlist)
+	if err != nil {
+		return nil, err
+	}
+	klog.V(3).Infof("Get lvlist:%v", lvlist)
+	if len(lvlist.Items) == 0 {
+		return lvs, nil
+	}
+	for _, lv := range lvlist.Items {
+		klog.V(3).Infof("Get lv:%v,node:%s, exclusivity: %s", lv.Spec.NodeName, node, lv.Annotations[utils.ExclusivityDisk])
+		if lv.Spec.NodeName == node && lv.Annotations[utils.ExclusivityDisk] == "true" {
+			lvs = append(lvs, lv.Spec.DeviceGroup)
+		}
+	}
+	return lvs, nil
 }

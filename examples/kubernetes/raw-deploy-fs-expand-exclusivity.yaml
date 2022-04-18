@@ -1,0 +1,58 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: carina-deployment-expand
+  namespace: carina
+  labels:
+    app: web-server
+  annotations:
+    carina.io/rebuild-node-notready: "true"  
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: web-server
+  template:
+    metadata:
+      labels:
+        app: web-server
+      annotations:
+        carina.io/rebuild-node-notready: "true"    
+    spec:
+      containers:
+        - name: web-server
+          image: nginx:latest
+          imagePullPolicy: "IfNotPresent"
+          command:
+          - sh
+          - "-c"
+          - |
+              while true; do
+                echo "huizhi testing";
+                echo "yes ">>/var/lib/www/html/yes.txt;
+                sleep 120s
+              done;
+          volumeMounts:
+            - name: mypvc
+              mountPath: /var/lib/www/html
+      volumes:
+        - name: mypvc
+          persistentVolumeClaim:
+            claimName: csi-carina-raw-expand
+            readOnly: false
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: csi-carina-raw-expand
+  namespace: carina
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 20Gi
+  storageClassName: csi-carina-raw-exclusivity
+  volumeMode: Filesystem

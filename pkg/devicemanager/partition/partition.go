@@ -26,7 +26,6 @@ import (
 	"github.com/anuvu/disko/linux"
 	"github.com/anuvu/disko/partid"
 	"github.com/carina-io/carina/pkg/devicemanager/types"
-	"github.com/carina-io/carina/utils"
 	"github.com/carina-io/carina/utils/exec"
 	"github.com/carina-io/carina/utils/log"
 	"github.com/carina-io/carina/utils/mutx"
@@ -48,6 +47,7 @@ type LocalPartition interface {
 	UpdatePartition(name, groups string, size uint64) error
 	DeletePartition(name, groups string) error
 	DeletePartitionByPartNumber(disk disko.Disk, number uint) error
+	UpdatePartitionCache(name string, number uint) error
 	Wipe(name, groups string) error
 	UdevSettle() error
 	ListDevicesDetail(device string) ([]*types.LocalDisk, error)
@@ -213,13 +213,17 @@ func parseUdevInfo(output string) map[string]string {
 	return result
 }
 func (ld *LocalPartitionImplement) CreatePartition(name, groups string, size uint64) error {
+	partition, _ := ld.GetPartition(name, groups)
+	if partition.Name == name {
+		return nil
+	}
 	//DeviceGroup=deviceGroup + "/" + device.Name
 	partitionName := name
 	if _, ok := ld.CacheParttionNum[partitionName]; ok {
 		return nil
 	}
 	diskPath := strings.Split(groups, "/")[1]
-	log.Info("create parttion: group:", groups, "path:", diskPath, "size", size)
+	log.Info("create parttion: group:", groups, " path:", diskPath, "size", size)
 	if !ld.Mutex.TryAcquire(DISKMUTEX) {
 		log.Info("wait other task release mutex, please retry...")
 		return errors.New("get global mutex failed")
@@ -274,7 +278,10 @@ func (ld *LocalPartitionImplement) CreatePartition(name, groups string, size uin
 }
 
 func (ld *LocalPartitionImplement) UpdatePartition(name, groups string, size uint64) error {
-
+	partition, _ := ld.GetPartition(name, groups)
+	if partition.Last-partition.Start >= size {
+		return nil
+	}
 	if !ld.Mutex.TryAcquire(DISKMUTEX) {
 		log.Info("wait other task release mutex, please retry...")
 		return errors.New("get global mutex failed")
@@ -289,7 +296,7 @@ func (ld *LocalPartitionImplement) UpdatePartition(name, groups string, size uin
 		return err
 	}
 
-	fs := disk.FreeSpacesWithMin(size)
+	fs := disk.FreeSpacesWithMin(size - partition.Size())
 	if len(fs) < 1 {
 		log.Error("path ", fmt.Sprintf("/dev/%s", diskPath), "has not free size ")
 		return errors.New("disk has not free size" + fmt.Sprintf("/dev/%s", diskPath))
@@ -298,20 +305,46 @@ func (ld *LocalPartitionImplement) UpdatePartition(name, groups string, size uin
 		log.Error("path", fmt.Sprintf("/dev/%s", diskPath), "disk has mutipod used")
 		return errors.New("disk has mutipod used" + fmt.Sprintf("/dev/%s", diskPath))
 	}
-	partitionName := name
-	if _, ok := ld.CacheParttionNum[partitionName]; !ok {
-		log.Error("path", fmt.Sprintf("/dev/%s", diskPath), "cacheParttionMap has no parttion number")
-		return errors.New("cacheParttionMap has no parttion number" + fmt.Sprintf("/dev/%s", diskPath))
-	}
-	if p, ok := disk.Partitions[ld.CacheParttionNum[partitionName]]; ok {
-		p.Last = size
-		tmp := disko.Disk{}
-		utils.Fill(disk, &tmp)
-		if err := mysys.UpdatePartition(tmp, p); err != nil {
-			log.Error("Update parttion on disk ", fmt.Sprintf("/dev/%s", diskPath), "failed"+err.Error())
-			return errors.New("Update parttion on disk failed" + fmt.Sprintf("/dev/%s", diskPath))
+	var partitionNum uint
+	for _, p := range disk.Partitions {
+		log.Info(p)
+		if p.Name != name {
+			continue
 		}
+		log.Info("Update parttion on disk src: ", fmt.Sprintf("/dev/%s", diskPath), " number:", p.Number, " name:", p.Name, " start:", p.Start, "size: ", p.Size(), " last:", p.Last)
+		p.Last = size
+
+		last := p.Start + uint64(size) - 1
+		partitionNum = p.Number
+		log.Info("Update parttion on disk dst: ", fmt.Sprintf("/dev/%s", diskPath), " number:", p.Number, " name:", p.Name, " start:", p.Start, " size: ", p.Last, " last:", p.Last, disk.Table)
+		targetPathOut, err := ld.Executor.ExecuteCommandWithOutput("/usr/bin/findmnt", "-S", fmt.Sprintf("/dev/%sp%d", diskPath, p.Number), "--noheadings", "--output=target")
+		if err != nil {
+			log.Error("/usr/bin/findmnt", "-S", fmt.Sprintf("/dev/%sp%d", diskPath, p.Number), "--noheadings", "--output=target", "failed"+err.Error())
+			return err
+		}
+		targetpath := strings.TrimSpace(string(strings.TrimSuffix(targetPathOut, "\n")))
+
+		if targetpath != "" {
+			_, err := ld.Executor.ExecuteCommandWithOutput("umount", targetpath)
+			if err != nil {
+				log.Error("umount", targetpath, "failed"+err.Error())
+				return err
+			}
+		}
+		_, err = ld.Executor.ExecuteCommandWithOutput("parted", "-s", disk.Path, "resizepart", fmt.Sprintf("%d", p.Number), fmt.Sprintf("%vg", last>>30))
+		if err != nil {
+			log.Error("exec parted ", disk.Path, " resizepart ", fmt.Sprintf("%d", p.Number), fmt.Sprintf("%vg", last>>30), "failed"+err.Error())
+			return err
+		}
+		_, err = ld.Executor.ExecuteCommandWithOutput("mount", fmt.Sprintf("/dev/%sp%d", diskPath, p.Number), targetpath)
+		if err != nil {
+			log.Error("mount", fmt.Sprintf("/dev/%sp%d", diskPath, p.Number), targetpath, "failed"+err.Error())
+			return err
+		}
+
 	}
+	ld.CacheParttionNum[name] = partitionNum
+	log.Info("update parttion success", partitionNum, ld.CacheParttionNum)
 
 	return nil
 }
@@ -330,21 +363,31 @@ func (ld *LocalPartitionImplement) DeletePartition(name, groups string) error {
 		log.Error("scanDisk path ", fmt.Sprintf("/dev/%s", diskPath), "failed"+err.Error())
 		return err
 	}
-	log.Info("delete parttion: group:", groups, "path:", diskPath, "cacheParttionNum", ld.CacheParttionNum)
-	partitionName := name
-	if _, ok := ld.CacheParttionNum[partitionName]; !ok {
+	log.Info("delete parttion: group:", groups, " path:", diskPath, " name ", name, " cacheParttionNum ", ld.CacheParttionNum)
+	//var partitionNum uint
+	// partitionName := name
+	if _, ok := ld.CacheParttionNum[name]; !ok {
 		log.Error("path", fmt.Sprintf("/dev/%s", diskPath), "cacheParttionMap has no parttion number")
-		return errors.New("cacheParttionMap has no parttion number" + fmt.Sprintf("/dev/%s", diskPath))
+		//return errors.New("cacheParttionMap has no parttion number" + fmt.Sprintf("/dev/%s", diskPath))
 	}
-	number := ld.CacheParttionNum[partitionName]
-	if _, ok := disk.Partitions[number]; !ok {
-		return fmt.Errorf("partition %d does not exist", number)
+	// number := ld.CacheParttionNum[partitionName]
+	// if _, ok := disk.Partitions[number]; !ok {
+	// 	return fmt.Errorf("partition %d does not exist", number)
+	// }
+	for _, p := range disk.Partitions {
+		if p.Name != name {
+			continue
+		}
+		//partitionNum = p.Number
+		log.Info("Delete parttion on disk:", disk, " number:", p.Number)
+		if err := mysys.DeletePartition(disk, p.Number); err != nil {
+			log.Error("Delete parttion on disk ", fmt.Sprintf("/dev/%s", diskPath), "failed"+err.Error())
+			return errors.New("Delete parttion on disk failed" + fmt.Sprintf("/dev/%s", diskPath))
+		}
+
 	}
-	if err := mysys.DeletePartition(disk, number); err != nil {
-		log.Error("Delete parttion on disk ", fmt.Sprintf("/dev/%s", diskPath), "failed"+err.Error())
-		return errors.New("Delete parttion on disk failed" + fmt.Sprintf("/dev/%s", diskPath))
-	}
-	delete(ld.CacheParttionNum, partitionName)
+	delete(ld.CacheParttionNum, name)
+
 	return nil
 
 }
@@ -354,9 +397,9 @@ func (ld *LocalPartitionImplement) DeletePartitionByPartNumber(disk disko.Disk, 
 		return errors.New("get global mutex failed")
 	}
 	defer ld.Mutex.Release(DISKMUTEX)
-
+	log.Info("clean parttion on disk by number:", disk, " number:", number)
 	if err := mysys.DeletePartition(disk, number); err != nil {
-		log.Error("Delete parttion on disk ", disk.Path, "failed"+err.Error())
+		log.Error("Delete parttion on disk ", disk.Path, "failed "+err.Error())
 		return errors.New("Delete parttion on disk failed" + disk.Path)
 	}
 	for k, v := range ld.CacheParttionNum {
@@ -365,6 +408,16 @@ func (ld *LocalPartitionImplement) DeletePartitionByPartNumber(disk disko.Disk, 
 		}
 	}
 
+	return nil
+
+}
+
+func (ld *LocalPartitionImplement) UpdatePartitionCache(name string, number uint) error {
+	log.Info("update CacheParttionNum success", number, ld.CacheParttionNum)
+	if _, ok := ld.CacheParttionNum[name]; !ok {
+		ld.CacheParttionNum[name] = number
+		log.Info("update CacheParttionNum success", number, ld.CacheParttionNum)
+	}
 	return nil
 
 }

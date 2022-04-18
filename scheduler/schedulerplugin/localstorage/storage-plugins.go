@@ -95,6 +95,11 @@ func (ls *LocalStorage) Filter(ctx context.Context, cycleState *framework.CycleS
 		return framework.NewStatus(framework.Error, "Failed to obtain node storage information")
 	}
 
+	lvs, err := listLogicVolumes(ls.dynamicClient, node.Node().Name)
+	if err != nil {
+		klog.V(3).Infof("Failed to obtain logicVolumes  information pod: %v, node: %v, err: %v", pod.Name, node.Node().Name, err.Error())
+		return framework.NewStatus(framework.Error, "Failed to obtain logicVolumes  information")
+	}
 	volumeType := utils.LvmVolumeType
 	for key, _ := range pvcMap {
 		strArr := strings.Split(key, "/")
@@ -115,25 +120,36 @@ func (ls *LocalStorage) Filter(ctx context.Context, cycleState *framework.CycleS
 			strArr := strings.Split(key, "/")
 			if volumeType == utils.RawVolumeType {
 				if configuration.CheckRawDeviceGroup(strArr[1]) {
+					klog.V(3).Infof("capacityMap:%v ; disk: key %v; value:%v; exclusivityDisk:%v", capacityMap, key, v.Value(), exclusivityDisk)
+					//skip exclusivityDisk
+					klog.V(3).Infof("skip:%s ; disk: key %s; value:%v", lvs, strArr[1]+"/"+strArr[2], v.Value())
+					if utils.ContainsString(lvs, strArr[1]+"/"+strArr[2]) && !exclusivityDisk {
+						continue
+					}
 					if val, ok := capacityMap[strArr[1]]; ok {
 						if v.Value() > val {
 							capacityMap[strArr[0]+"/"+strArr[1]] = v.Value()
-							total += v.Value()
+							total += v.Value() - val
 						}
 					} else {
+
+						if exclusivityDisk {
+							partionFlag := false
+							for _, disk := range nsr.Status.Disks {
+								if strings.Contains(key, disk.Name) && len(disk.Partition) > 1 {
+									partionFlag = true
+									exclusivityDiskMap[key] = 1
+								}
+							}
+
+							if partionFlag {
+								continue
+							}
+						}
 						capacityMap[strArr[0]+"/"+strArr[1]] = v.Value()
 						total += v.Value()
 					}
 
-					if exclusivityDisk {
-						for _, disk := range nsr.Status.Disks {
-							if strings.Contains(key, disk.Name) && len(disk.Partition) < 1 {
-								exclusivityDiskMap[key] = 1
-							}
-
-						}
-
-					}
 				}
 
 			}
@@ -147,6 +163,11 @@ func (ls *LocalStorage) Filter(ctx context.Context, cycleState *framework.CycleS
 	}
 	klog.V(3).Infof("capacityMap: %v", capacityMap)
 	klog.V(3).Infof("type:%s,total: %v", volumeType, total)
+
+	if len(capacityMap) < 1 {
+		klog.V(3).Infof("does not have a disk group that satisfies: %v, node: %v,exclusivity:%v", pod.Name, node.Node().Name, exclusivityDisk)
+		return framework.NewStatus(framework.Error, "does not have a disk group that satisfies")
+	}
 	// 检查节点容量是否充足
 	for key, pvs := range pvcMap {
 
@@ -199,11 +220,6 @@ func (ls *LocalStorage) Filter(ctx context.Context, cycleState *framework.CycleS
 			klog.V(3).Infof("mismatch pod: %v, node: %v, request: %d, capacity: %d", pod.Name, node.Node().Name, requestTotalGb, capacityMap[key])
 			return framework.NewStatus(framework.UnschedulableAndUnresolvable, "node cache storage resource insufficient")
 		}
-	}
-
-	if len(exclusivityDiskMap) > 1 {
-		klog.V(3).Infof("No spare disk in this node information pod: %v, node: %v,exclusivity:%v", pod.Name, node.Node().Name, exclusivityDisk)
-		return framework.NewStatus(framework.Error, "create pods with exclusivityDisk but node has not free partitioned disk ")
 	}
 
 	klog.V(3).Infof("filter success pod: %v, node: %v", pod.Name, node.Node().Name)

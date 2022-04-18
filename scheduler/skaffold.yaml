@@ -21,8 +21,8 @@ deploy:
         chartPath: ./charts
         setValues:
           image.repository: registry.cn-qingdao.aliyuncs.com/zhangkai8048/scheduler
-          image.tag: v0.9.1-83-g2f5a786-dirty
-          image.pullPolicy: Always
+          image.tag: v0.9.1-94-g9929e46-dirty
+          image.pullPolicy: IfNotPresent
         imageStrategy:
           helm: 
            explicitRegistry: true
