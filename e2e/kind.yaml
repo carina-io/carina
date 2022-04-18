@@ -1,6 +1,12 @@
 
-apiVersion: kind.x-k8s.io/v1alpha4
 kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+networking:
+  apiServerAddress: "172.18.180.89"
+containerdConfigPatches:
+- |-
+  [plugins."io.containerd.grpc.v1.cri".registry.mirrors."docker.io"]
+    endpoint = ["https://tiaudqrq.mirror.aliyuncs.com"]
 nodes:
 - role: control-plane
 - role: worker
