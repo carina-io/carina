@@ -10,15 +10,20 @@
 
 Storage systems are complex! There are more and more kubernetes native storage systems nowadays and stateful applications are shifting into cloud native world, for example, modern databases and middlewares. However, both modern databases and its storage providers try to solve some common problems in their own way. For example, they both deal with data replications and consistency. This introduces a giant waste of both capacity and performance and needs more mantainness effort. And besides that, stateful applications strive to be more peformant, eliminating every possible latency, which is unavoidable for modern distributed storage systems. Enters carina.
 
-Carina is a standard kubernetes CSI plugin. Users can use standard kubernetes storage resources like storageclass/PVC/PV to request storage media. Its key features includes:
+Carina is a standard kubernetes CSI plugin. Users can use standard kubernetes storage resources like storageclass/PVC/PV to request storage media. The key considerations of carina includes:
 
-* Completely kubernetes native and easy to install
-* Using local disks and partition them into different groups based on disk type, user can provison different type of disks using different storage class.
+* Workloads need different storage systems. Carina will focus on cloudnative database scenario usage only.
+* Completely kubernetes native and easy to install.
+* Using local disks and group them as needed, user can provison different type of disks using different storage class.
 * Scaning physical disks and building a RAID as required. If disk fails, just plugin a new one and it's done.
 * Node capacity and performance aware, so scheduling pods more smartly.
 * Extremly low overhead. Carina sit besides the core data path and provide raw disk performance to applications.
 * Auto tiering. Admins can configure carina to combine the large-capacity-but-low-performant disk and small-capacity-but-high-performant disks as one storageclass, so user can benifit both from capacity and performance.
 * If nodes fails, carina will automatically detach the local volume from pods thus pods can be rescheduled.
+* Middleware runs on baremetals for decades. There are many valueable optimizations and enhancements which are definitely not outdated  even in cloudnative era. Let carina be an DBA expert of the storage domain for cloudnative databases!
+
+
+**In short, Carina strives to provide extremely-low-latency and noOps storage system for cloudnative databases and be DBA expert of the storage domain in cloudnative era!**
 
 # Running Environments
 
@@ -91,7 +96,7 @@ helm install carina-csi-driver carina-csi-driver/carina-csi-driver --namespace k
 * [deployment guide](docs/manual/install.md)
 * [user guide](docs/user-guide.md)
 
-## Carina to upgrade
+## Upgrading
 
 - Uninstall the old version `./deploy.sh uninstall` and then install the new version `./deploy.sh` (uninstalling carina will not affect volume usage)
 
@@ -99,6 +104,10 @@ helm install carina-csi-driver carina-csi-driver/carina-csi-driver --namespace k
 
 * [development guide](docs/manual/development.md)
 * [build local runtime](docs/manual/runtime-container.md)
+
+# Blogs
+
+* [blogs](http://www.opencarina.io/blog)
 
 # Roadmap
 
