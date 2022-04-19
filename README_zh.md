@@ -8,6 +8,8 @@
 
 Carina 是一款基于 Kubernetes CSI 标准实现的存储插件，用户可以使用标准的 storageClass/PVC/PV 原语申请 Carina 提供的存储介质；Carina包含三个主要组件：carina-scheduler、carin-controller以及carina-node，全部以容器化形式运行在Kubernetes中，并且占用极少的资源。Carina是为数据库而生的本地存储方案，编排管理本地磁盘并根据磁盘类型构建多种资源池，为数据库等应用提供极致性能的本地存储。
 
+**Carina致力于为云原生数据库提供高性能、免运维的存储系统，并成为云原生时代数据库存储领域的DBA专家！**
+
 
 # 支持环境
 
@@ -89,6 +91,11 @@ helm install carina-csi-driver carina-csi-driver/carina-csi-driver --namespace k
 
 - [开发文档](docs/manual_zh/development.md)
 - [构建运行时容器](docs/manual_zh/runtime-container.md)
+
+
+# 博客
+
+* [blogs](http://www.opencarina.io/blog)
 
 # 路线图
 
