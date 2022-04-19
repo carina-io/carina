@@ -1,12 +1,13 @@
 
-#### 故障转移
+#### failover
 
-对于本地存储来说，一旦pv调度到某个节点其存储卷便创建到了某个节点，这也意味着POD也只能调度到那个节点，当节点故障时，这些POD将无法成功调度成功，因此该功能的目的主要是为了清理已经被删除节点，并在其他节点重建PVC
+For most of the local storage projects, once pod has been scheduled to node and the pod will use the local pv from that node. That means the pod has been nailed to that node and if node fails, the pod will not migrate to other nodes.
 
-查看一下当前 lv
+With carina, user can allow the pod to migrate in such case with one annotation.
+
+Using LVM backend engine, checking current LV first.
 
 ```shell
-# 示例
 $ kubectl get lv
 NAME                                       SIZE   GROUP           NODE          STATUS
 pvc-177854eb-f811-4612-92c5-b8bb98126b94   5Gi    carina-vg-hdd   10.20.9.154   Success
@@ -15,7 +16,6 @@ pvc-527b5989-3ac3-4d7a-a64d-24e0f665788b   10Gi   carina-vg-hdd   10.20.9.154   
 pvc-b987d27b-39f3-4e74-9465-91b3e6b13837   3Gi    carina-vg-hdd   10.20.9.154   Success
 
 $ kubectl delete node 10.20.9.154
-# volume进行重建，重建会丢失原先的volume数据
 $ kubectl get lv
 NAME                                       SIZE   GROUP           NODE          STATUS
 pvc-177854eb-f811-4612-92c5-b8bb98126b94   5Gi    carina-vg-hdd   10.20.9.153   Success
@@ -24,18 +24,15 @@ pvc-527b5989-3ac3-4d7a-a64d-24e0f665788b   10Gi   carina-vg-hdd   10.20.9.153   
 pvc-b987d27b-39f3-4e74-9465-91b3e6b13837   3Gi    carina-vg-hdd   10.20.9.153   Success
 ```
 
-lv与本地存储卷一一对应，当lv卷与本地存储卷不一致时会清理本地lvm卷
+LV has one:one mapping with local volume.
 
-- 每十分钟会遍历本地volume，然后检查k8s中是否有对应的logicvolume，若是没有则删除本地volume
+* Carina will delete local volume if it does't have an associated LV every 600s. 
+* Carina will delete LV if it doesn't have an associated PV every 600s.
+* If node been deleted, all volumes will be rebuild on other nodes. 
 
-- 每十分钟会遍历k8s中logicvolume，然后检查logicvolume是否有对应的pv，若是没有则删除logicvolume
+#### Allowing pod to migrate in case of node failure
 
-- 当节点被删除时，在这个节点的上的所有volume将在其他节点重建
-
-#### 节点NotReady，容器迁移
-
-- Carina会检测节点状态，当节点进入NotReady状态时，将会触发容器迁移策略
-- 该迁移策略会检查容器是否存在注解`carina.io/rebuild-node-notready`并且其值为"true"则表示该容器希望carina对其进行迁移
-- 众所周知作为本地存储，carina所创建的存储卷全都存在于本地磁盘，如果发生容器迁移则必然的容器所使用的PVC会在其他节点重建，数据是无法跟随；
-- 所以如果想迁移POD依赖于应用本身的数据高可用功能，比如Mysql迁移的话节点重建后会通过binlog日志同步数据
-
+* Carina will track each node's status. If node enters NotReady state, carina will trigger pod migration policy.
+* Carina will allow pod to migrate if it has annotation `carina.io/rebuild-node-notready` with value of `true`.
+* Carina will not copy data from failed node to other node. So the newly borned pod will have an empty PV.
+* The middleware layer should trigger data migration. For example, master-slave mysql cluster should trigger master-slave replication.

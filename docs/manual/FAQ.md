@@ -1,37 +1,37 @@
-#### 答疑
+#### FAQ
 
-- ①该项目总共有哪些组件，各个组件功能职责是怎么样的
+- What are the main conponents of Carina and their resposibility? 
+  
+  - Carina has three main components: carina-scheduler、carina-controller、carina-node.
+    User can get detailed runtime information by checking each components' logs.
 
-  - 共有三个组件，carina-scheduler、carina-controller、carina-node
+  - carina-scheduler：all pods using PVC backed by Carina will be scheduled by carina-scheduler.
+  - carina-controller：Watching the events of PVC and creates LogicVolume internally.
+  - carina-node：Managing local disks and watching events of LogicVolume and create local LVM or raw volumes. 
+  
 
-  - carina-scheduler：自定义调度器，凡是Pod绑定了由该驱动提供服务的Pvc，则由该调度器进行调度
-  - carina-controller：负责监听pvc创建等，当pv调度到指定节点，则创建CRD（logicvolume）
-  - carina-node：负责管理本地磁盘节点，并监听CRD（logicvolume），管理本地lvm卷
-  - 通过查看各个服务日志，可以获取详细的服务运行信息
 
-- ②已知问题，在集群性能极差或者磁盘性能极差情况下，会出现pv无法创建情况
+- Known issue, PV creation may fail if the local disks' performance is really poor. 
 
-  - 操作lvm卷请求会持续一分钟，每隔十秒重试一次，如果多次重试操作无法成功则会操作失败
-  - 可以通过命令`kubectl get lv` 观察到错误响应
+  - Carina will try to create LVM volume every ten seconds. The creation will be failed if retries 10 times. User can learn more details by using `kubectl get lv`. 
 
-- ③pv创建成功后，还能进行Pod迁移吗
+- Once the PV has been created successfully, can the Pod migrate to other nodes. 
 
-  - pv一旦创建成功，Pod只能运行在该节点，无论重启还是删除重建
-  - 不支持pv迁移
+  - For typical local volume solutions, if node failes, the pod using local disks can't migrate to other nodes. But Carina can detect the node status and let pod migrate. The newly-borned Pod will have an empty carina volume however. 
 
-- ④如何让Pod和PVC在指定节点运行
+- How to run a pod using an specified PV on one of the nodes? 
 
-  - 在pod `spec.nodeName`指定节点名称将跳过调度器
-  - 对于`WaitForFirstConsumer`策略的StorageClass，在PVC Annotations增加 `volume.kubernetes.io/selected-node: nodeName`可指定pv调度节点
-  - 除非明确知道该方式的应用场景，否则不建议直接修改Pvc
+  - using `spec.nodeName` to bypass the scheduler.
+  - For StorageClass with `WaitForFirstConsumer`, user can add one annotation `volume.kubernetes.io/selected-node: ${nodeName}` to PVC and then the pod will be scheduled to specified node. 
+  - This is not recommanded unless knowning the machanisums very clearly. 
 
-- ⑤k8s节点删除，应如何处理调度到节点上的pv
+- How to deal with the PVs if it's node been deleted from K8S cluster?
 
-  - 如果确定volume卷不在使用，直接删除pvc在重建便可
+  - Just delete the PVC and rebuild. 
 
-- ⑥如何创建磁盘以方便测试
+- How to create local disks for testing usage? 
 
-  - 可使用如下方法创建`loop device`
+  - user can create loop device if there are not enough physical disks. 
 
   ```shell
   for i in $(seq 1 5); do
@@ -40,7 +40,7 @@
   done
   ```
 
-- ⑦如何模拟SSD磁盘
+- How to simulate local SSD disks? 
 
   ```shell
   $ echo 0 > /sys/block/loop0/queue/rotational
@@ -50,18 +50,18 @@
    loop0     0
   ```
 
-- ⑧关于宿主机bcache
-  - bcache是linux内核模块，有些低版本操作系统内核并没有开启bcahce，可使用如下方法关闭carina对于bcache的支持
+- About bcache of each node. 
+  - bcache is an kernel module. Some the Linux distributions may not enable bcache, you can disable carina's bcache suppport by below methods. 
 
   ```shell
-  # 检查服务器是否支持bcache模块，如果支持情况如下
+  # install bcache
   $ modprobe bcache
   $ lsmod | grep bcache
   bcache                233472  0
   crc64                  16384  1 bcache
-  # 当服务器不支持bcache时，需要删除deploy/kubernetes/csi-carina-node.yaml关于bcache内容
-  # init-container中删除bcache的内核加载
-  # csi-carina-node中删除关于bcahce的目录挂载
+  # When there is no bache module, you need to delete the bcache segment from deploy/kuernetes/csi-carina-node.yaml 
+  # delete loading bcache module in init-container. 
+  # delete bcache diectory in csi-carina-node.yaml 
   - name: host-bcache
     mountPath: /sys/fs/bcache
     
@@ -69,4 +69,5 @@
     hostPath:
       path: /sys/fs/bcache            
   ```
-  
+
+- Enjoy Carina!
