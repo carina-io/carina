@@ -1,22 +1,25 @@
-#### expanding PVC
+#### 磁盘扩容
 
-Carina support expanding PVC online, so user can resize carina pvc as needed.
+对于存储来说随着使用总会有扩容的需求，carina支持在线扩容，如下所示
 
 ```shell
 $ kubectl get pvc -n carina
 NAMESPACE  NAME        STATUS  VOLUME                                    Capacity  STORAGECLASS  AGE
 carina     carina-pvc  Bound   pvc-80ede42a-90c3-4488-b3ca-85dbb8cd6c22  7G        carina-sc     20d
+
+  
 ```
 
-Expanding it online.
+进行在线扩容
 
 ```shell
 $ kubectl patch pvc/carina-pvc \
   --namespace "carina" \
   --patch '{"spec": {"resources": {"requests": {"storage": "15Gi"}}}}'
+  
 ```
 
-Check if expanding works.
+进入容器查看容量
 
 ```shell
 $ kubectl exec -it web-server -n carina bash
@@ -29,4 +32,6 @@ tmpfs                                      64M     0   64M   0% /dev
 tmpfs                                      3.9G     0  3.9G   0% /tmp/k8s-webhook-server/serving-certs
 ```
 
-Note, if using cache tiering PVC, then user need to restart the pod to make the expanding work. 
+#### 注意事项
+
+* 如果创建的磁盘使用了缓存盘即bcache，由于受到bcache底层技术限制设备扩容后需要容器重新启动新的设备容量才会生效
