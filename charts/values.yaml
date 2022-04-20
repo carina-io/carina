@@ -166,19 +166,6 @@ webhook:
 config:  
   schedulerStrategy: spreadout
   diskScanInterval: 300
-  diskSelector: 
-    - name: carina-vg-ssd
-      re: "vdc"
-      nodeLabel: "kubernetes.io/hostname"
-      policy: lvm   
-    - name: carina-raw-ssd
-      re: "loop0+"
-      nodeLabel: "kubernetes.io/hostname"
-      policy: raw
-    - name: carina-raw-ssd-exclusive
-      re: "loop1+"
-      nodeLabel: "kubernetes.io/hostname"
-      policy: raw  
   
 storage:
   # file system

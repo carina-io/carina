@@ -8,7 +8,7 @@ parameters:
   # file system
   csi.storage.k8s.io/fstype: xfs
   # disk group
-  carina.storage.io/disk-type: carina-raw-ssd
+  carina.storage.io/disk-type: carina-raw-loop
   carina.storage.io/exclusive-disk: "true" 
 reclaimPolicy: Delete
 allowVolumeExpansion: true

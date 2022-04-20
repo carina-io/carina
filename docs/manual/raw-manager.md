@@ -286,4 +286,6 @@ loop3   7:3    0   200G  0 loop
 loop4   7:4    0   100G  0 loop 
 ```
 
+<img src="../img/carina-raw.gif" alt="show" />
+
 
