@@ -8,20 +8,8 @@ metadata:
 data:
   config.json: |-
     {
-      "diskSelector": [
-        {
-          "name": "{{ .Values.storage.lvm.disktype }}" ,
-          "re": ["{{ .Values.storage.lvm.re }}"],
-          "policy": "LVM",
-          "nodeLabel": "{{ .Values.storage.lvm.nodeLabel }}"
-        },
-        {
-          "name": "{{ .Values.storage.raw.disktype }}",
-          "re": ["{{ .Values.storage.raw.re }}"],
-          "policy": "RAW",
-          "nodeLabel": "{{ .Values.storage.raw.nodeLabel }}"
-        }         
-      ],
-      "diskScanInterval": "300",
-      "schedulerStrategy": "spreadout"
+      "diskSelector": {{ toJson .Values.config.diskSelector | quote }},
+      "diskScanInterval": {{ .Values.config.diskScanInterval | quote }},
+      "schedulerStrategy": {{ .Values.config.schedulerStrategy | quote }}
     }
+
