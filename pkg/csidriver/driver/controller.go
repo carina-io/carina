@@ -184,6 +184,7 @@ func (s controllerService) CreateVolume(ctx context.Context, req *csi.CreateVolu
 			// - https://github.com/kubernetes-csi/csi-test/blob/6738ab2206eac88874f0a3ede59b40f680f59f43/pkg/sanity/controller.go#L404-L428
 			log.Info("decide node because accessibility_requirements not found")
 			node, deviceGroup, segments, err = s.nodeService.SelectVolumeNode(ctx, requestGb, deviceGroup, requirements)
+			log.Info("node:", node, " deviceGroup:", deviceGroup)
 			if err != nil {
 				return nil, status.Errorf(codes.Internal, "failed to get max capacity node %v", err)
 			}

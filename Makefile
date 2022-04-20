@@ -12,9 +12,9 @@ IMG ?= carina:raw
 # Produce CRDs that work back to Kubernetes 1.11 (no version conversion)
 CRD_OPTIONS ?= "crd:trivialVersions=true"
 
-IMAGE_REPOSITORY=registry.cn-hangzhou.aliyuncs.com/antmoveh
+IMAGE_REPOSITORY=registry.cn-qingdao.aliyuncs.com/zhangkai8048#registry.cn-hangzhou.aliyuncs.com/antmoveh
 VERSION ?= latest
-HELMVERSION:= v0.9.0 v0.9.1 latest
+
 
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
 ifeq (,$(shell go env GOBIN))

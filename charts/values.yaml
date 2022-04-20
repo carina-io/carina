@@ -165,7 +165,17 @@ webhook:
 
 storage:
   # file system
-  fstype: xfs
-  # disk group
-  disktype: carina-vg-ssd
-  reclaimPolicy: Delete
+  lvm: 
+    fstype: xfs
+    disktype: carina-vg-ssd
+    re: "loop0+"
+    nodeLabel: "kubernetes.io/hostname"
+    reclaimPolicy: Delete
+    volumeBindingMode: WaitForFirstConsumer
+  raw: 
+    fstype: xfs
+    disktype: carina-raw-ssd
+    re: "vdc+"
+    nodeLabel: "kubernetes.io/hostname"
+    reclaimPolicy: Delete  
+    volumeBindingMode: WaitForFirstConsumer

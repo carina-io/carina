@@ -10,23 +10,17 @@ data:
     {
       "diskSelector": [
         {
-          "name": "carina-vg-ssd" ,
-          "re": ["loop2+"],
+          "name": "{{ .Values.storage.lvm.disktype }}" ,
+          "re": ["{{ .Values.storage.lvm.re }}"],
           "policy": "LVM",
-          "nodeLabel": "kubernetes.io/hostname"
+          "nodeLabel": "{{ .Values.storage.lvm.nodeLabel }}"
         },
         {
-          "name": "carina-raw-ssd",
-          "re": ["loop3+"],
+          "name": "{{ .Values.storage.raw.disktype }}",
+          "re": ["{{ .Values.storage.raw.re }}"],
           "policy": "RAW",
-          "nodeLabel": "kubernetes.io/hostname"
-        },
-         {
-          "name": "carina-raw-loop",
-          "re": ["loop4","loop5"],
-          "policy": "RAW",
-          "nodeLabel": "kubernetes.io/hostname"
-        }
+          "nodeLabel": "{{ .Values.storage.raw.nodeLabel }}"
+        }         
       ],
       "diskScanInterval": "300",
       "schedulerStrategy": "spreadout"

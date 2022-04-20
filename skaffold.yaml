@@ -16,8 +16,8 @@ deploy:
         chartPath: ./charts
         setValues:
           image.carina.repository: registry.cn-qingdao.aliyuncs.com/zhangkai8048/carina
-          image.carina.tag:  v0.9.1-101-g07031c0-dirty
-          image.carina.pullPolicy: IfNotPresent
+          image.carina.tag:  latest
+          image.carina.pullPolicy: Always
           installCRDs: false 
           carina-scheduler.enabled: true
           carina-scheduler.image.repository: registry.cn-qingdao.aliyuncs.com/zhangkai8048/scheduler
