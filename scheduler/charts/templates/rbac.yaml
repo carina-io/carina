@@ -4,7 +4,7 @@ metadata:
   name: carina-scheduler-clusterrole
 rules:
   - apiGroups: [""]
-    resources: ["endpoints", "events"]
+    resources: ["endpoints", "events","patch"]
     verbs: ["create", "get", "update"]
   - apiGroups: [""]
     resources: ["nodes"]
@@ -49,7 +49,7 @@ rules:
     resources: ["events"]
     verbs: ["create", "patch", "update"]
   - apiGroups: ["carina.storage.io"]
-    resources: ["nodestorageresources", "nodestorageresources/status"]
+    resources: ["logicvolumes", "logicvolumes/status", "nodestorageresources", "nodestorageresources/status"]
     verbs: ["get", "list", "watch", "update", "patch", "delete", "create"]  
 
 
