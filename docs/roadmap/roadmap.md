@@ -8,16 +8,18 @@
   - [v0.10.0](#v0.10.0)
     - [provisioning raw disk](#provisioning-raw-disk)
     - [velero intergration](#velero-intergration)
+  - [v1.0.0](#v1.0.0)
     - [RAID management](#RAID-management)
-  - [v0.11.0](#v0.11.0)
+    - [E2E Testing](#e2e-testing)
+  - [v1.1.0](#v1.1.0)
     - [support NVME disks](#support-NVME-disks)
     - [be SMART aware](#be-SMART-aware)
     - [more comprehensive metrics](#more-comprehensive-metrics)
-  - [v0.12.0](#v0.12.0)
+  - [v1.2.0](#v1.2.0)
     - [PVC auto sizing](#PVC-auto-sizing)
     - [scheduling based on near realtime loading](#scheduling-based-on-near-realtime-loading)
     - [cgroup V2](#cgroup-V2)
-  - [v0.13.0](#v0.13.0)
+  - [v1.3.0](#v1.3.0)
     - [E2E checksum](#E2E-checksum)
     - [data encryption](#data-encryption)
     - [descheduling](#descheduling)
@@ -25,8 +27,6 @@
 
 
 ## v0.9.1
-
-> eta 2021.12
 
 ### Allow pod migrating to other nodes when host is notReady
 
@@ -52,7 +52,6 @@ Currently, carina groups disks with its type. However, some workloads may prefer
 
 ## v0.10.0
 
-> eta 2022.3
 
 ### provisioning raw disk
 
@@ -63,14 +62,14 @@ a raw disk exclusively, or part of disk.
 
 Using velero to backup carina PV to S3.
 
+## v1.0.0
+
 ### RAID management
 
 Using RAID to manage disks on baremetal. User can configure RAID level due to needs. When disk
 fails, carina can find the failed disk and try to rebuild the RAID if new disk is plugged in.
 
-## v0.11.0
-
-> eta 2022.6
+## v1.1.0
 
 ### support NVME disks
 
@@ -85,9 +84,7 @@ SSD is dying.
 
 Report raw disk and PV's comprehensive metrics, likes IOPS、bandwidth、iotop and so on.
 
-## v0.12.0
-
-> eta 2022.9
+## v1.2.0
 
 ### PVC auto sizing
 
@@ -104,9 +101,7 @@ load-aware.
 
 Carina should support cgroup V2 for disk throttling to have better experience for buffered IO.
 
-## v0.13.0
-
-> eta 2022.12
+## v1.3.0
 
 ### E2E checksum
 
