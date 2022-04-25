@@ -120,4 +120,10 @@ allowedTopologies:
         kubernetes.customized/blkio.throttle.read_iops_device: "10000"
         kubernetes.customized/blkio.throttle.write_bps_device: "10485760"
         kubernetes.customized/blkio.throttle.write_iops_device: "100000"
+        carina.io/rebuild-node-notready: true
 ```
+- 注解`kubernetes.customized/blkio.throttle.read_bps_device`表示设置磁盘读bps值
+- 注解`kubernetes.customized/blkio.throttle.write_bps_device`表示设置磁盘写bps值
+- 注解`kubernetes.customized/blkio.throttle.read_iops_device`表示设置磁盘读iops值
+- 注解`kubernetes.customized/blkio.throttle.write_iops_device`表示设置磁盘读iops值
+- 注解`carina.io/rebuild-node-notready`并且其值为"true"则表示该容器希望carina对其进行迁移
