@@ -8,6 +8,8 @@
 
 Carina 是一款基于 Kubernetes CSI 标准实现的存储插件，用户可以使用标准的 storageClass/PVC/PV 原语申请 Carina 提供的存储介质；Carina包含三个主要组件：carina-scheduler、carin-controller以及carina-node，全部以容器化形式运行在Kubernetes中，并且占用极少的资源。Carina是为数据库而生的本地存储方案，编排管理本地磁盘并根据磁盘类型构建多种资源池，为数据库等应用提供极致性能的本地存储。
 
+**Carina致力于为云原生数据库提供高性能、免运维的存储系统，并成为云原生时代数据库存储领域的DBA专家！**
+
 
 # 支持环境
 
@@ -18,7 +20,7 @@ Carina 是一款基于 Kubernetes CSI 标准实现的存储插件，用户可以
 - 如果kubelet以容器化方式运行，需要挂载主机/dev目录
 - 集群每个节点存在1..N块裸盘，支持SSD和HDD磁盘（可使用命令lsblk --output NAME,ROTA查看磁盘类型，ROTA=1为HDD磁盘 ROTA=0为SSD磁盘）
 - 节点单块裸盘容量需要大于10G
-- 如果服务器不支持bcache内核模块，参考[FAQ](docs/manual/FAQ.md)，修改部署yaml
+- 如果服务器不支持bcache内核模块，参考[FAQ](docs/manual_zh/FAQ.md)，修改部署yaml
 
 # 总体架构
 
@@ -33,19 +35,19 @@ Carina 是一款基于 Kubernetes CSI 标准实现的存储插件，用户可以
 
 # 功能列表
 
-- [磁盘管理](docs/manual/disk-manager.md)
-- [设备注册](docs/manual/device-register.md)
-- [基于文件系统使用](docs/manual/pvc-xfs.md)
-- [基于块设备使用](docs/manual/pvc-device.md)
-- [pvc扩容](docs/manual/pvc-expand.md)
-- [基于容量的调度](docs/manual/capacity-scheduler.md)
-- [卷拓扑](docs/manual/topology.md)
-- [磁盘缓存使用](docs/manual/pvc-bcache.md)
-- [raid管理](docs/manual/raid-manager.md)
-- [容灾转移](docs/manual/failover.md)
-- [磁盘限速](docs/manual/disk-speed-limit.md)
-- [指标监控](docs/manual/metrics.md)
-- [API](docs/manual/api.md)
+- [磁盘管理](docs/manual_zh/disk-manager.md)
+- [设备注册](docs/manual_zh/device-register.md)
+- [基于文件系统使用](docs/manual_zh/pvc-xfs.md)
+- [基于块设备使用](docs/manual_zh/pvc-device.md)
+- [pvc扩容](docs/manual_zh/pvc-expand.md)
+- [基于容量的调度](docs/manual_zh/capacity-scheduler.md)
+- [卷拓扑](docs/manual_zh/topology.md)
+- [磁盘缓存使用](docs/manual_zh/pvc-bcache.md)
+- [raid管理](docs/manual_zh/raid-manager.md)
+- [容灾转移](docs/manual_zh/failover.md)
+- [磁盘限速](docs/manual_zh/disk-speed-limit.md)
+- [指标监控](docs/manual_zh/metrics.md)
+- [API](docs/manual_zh/api.md)
 
 
 # 快速开始
@@ -77,7 +79,7 @@ helm search repo -l carina-csi-driver
 helm install carina-csi-driver carina-csi-driver/carina-csi-driver --namespace kube-system --version v0.9.0
 ```
 
-- [部署文档](docs/manual/install.md)
+- [部署文档](docs/manual_zh/install.md)
 - 详细部署及使用参考[使用手册](docs/user-guide.md)
 
 ## Carina 升级
@@ -87,8 +89,13 @@ helm install carina-csi-driver carina-csi-driver/carina-csi-driver --namespace k
 
 # 开发指南
 
-- [开发文档](docs/manual/development.md)
-- [构建运行时容器](docs/manual/runtime-container.md)
+- [开发文档](docs/manual_zh/development.md)
+- [构建运行时容器](docs/manual_zh/runtime-container.md)
+
+
+# 博客
+
+* [blogs](http://www.opencarina.io/blog)
 
 # 路线图
 
@@ -125,7 +132,7 @@ helm install carina-csi-driver carina-csi-driver/carina-csi-driver --namespace k
 - [openebs](https://openebs.io/)
 
 # FAQ
-- [FAQ](docs/manual/FAQ.md)
+- [FAQ](docs/manual_zh/FAQ.md)
 
 # 社区
 - 微信用户扫码进入社区交流群

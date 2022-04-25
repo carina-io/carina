@@ -1,9 +1,8 @@
-#### cache tiering
+#### 本地设备挂载文件系统使用
 
+对于k8s存储卷来说其有一套标准的使用流程，如下我们将展示一下在使用carina存储驱动下这些文件如何配置及创建的
 
-When carina-node starts up, it automatically load kernel module `bcache0` using `modprobe bcache0`. If it's not supportted by kernel, then cache tiering will not be enabled.
-
-Creating storageclass using `kubectl apply -f storageclass.yaml`
+首选创建storageclass `kubectl apply -f storageclass.yaml`
 
 ```yaml
 apiVersion: storage.k8s.io/v1
@@ -15,25 +14,18 @@ parameters:
   # file system
   csi.storage.k8s.io/fstype: xfs
   # disk group
-  carina.storage.io/backend-disk-type: hdd
-  carina.storage.io/cache-disk-type: ssd
-  # 1-100 Cache Capacity Ratio
-  carina.storage.io/cache-disk-ratio: "50"
-  # writethrough/writeback/writearound
-  carina.storage.io/cache-policy: writethrough
+  carina.storage.io/disk-type: hdd
 reclaimPolicy: Delete
 allowVolumeExpansion: true
+# WaitForFirstConsumer表示被容器绑定调度后再创建pv
 volumeBindingMode: WaitForFirstConsumer
 mountOptions:
 ```
 
-- `csi.storage.k8s.io/fstype`: the filesystem formation
-- `carina.storage.io/backend-disk-type`: the cold tier
-- `carina.storage.io/cache-disk-type`: the hot tier
-- `carina.storage.io/cache-disk-ratio`: percentage of hot/cold, ranging (0-100)
-- `carina.storage.io/cache-policy`: `writethrough|writeback|writearound`
+- 要标识创建设备的文件系统使用`csi.storage.k8s.io/fstype`参数
+- 要标识设备使用的磁盘使用`carina.storage.io/disk-type` 支持 `hdd` `ssd`值
 
-Creating PVC using `kubectl apply -f pvc.yaml`
+创建PVC `kubectl apply -f pvc.yaml`
 
 ```yaml
 apiVersion: v1
@@ -43,26 +35,26 @@ metadata:
   namespace: carina
 spec:
   accessModes:
-    - ReadWriteOnce
+    - ReadWriteOnce # 本地存储只能被一个节点上Pod挂载
   resources:
     requests:
       storage: 7Gi
   storageClassName: csi-carina-sc
-  volumeMode: Filesystem
+  volumeMode: Filesystem # block便会创建块设备
 ```
 
-After PVC been created, carina-controller will create an LogicVolume internally and then carina-node will create local volume. For PVC using cache-tiering, carina will create two local volumes, one hot volume and one cold volume, and setup cache tiering using bcache.
+PVC创建完成后，carina-controller会创建LogicVolume，carina-node则负责监听LogicVolume的创建事件，并在本地创建lvm存储卷
 
 ```shell
 $ kubectl get lv
 NAME                                       SIZE   GROUP           NODE          STATUS
 pvc-319c5deb-f637-423b-8b52-42ecfcf0d3b7   7Gi    carina-vg-hdd   10.20.9.154   Success
-cache-9c5deb-f637-423b-8b52-42ecfcf0d3b7   3Gi    carina-vg-ssd   10.20.9.154   Success
 ```
 
-Creating one deployment using that PVC `kubectl apply -f deployment.yaml`
+挂载到容器内使用`kubectl apply -f deployment.yaml`
 
 ```yaml
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
