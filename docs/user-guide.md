@@ -302,10 +302,10 @@ mountOptions:
     ```yaml
         metadata:
           annotations:
-            kubernetes.customized/blkio.throttle.read_bps_device: "10485760"
-            kubernetes.customized/blkio.throttle.read_iops_device: "10000"
-            kubernetes.customized/blkio.throttle.write_bps_device: "10485760"
-            kubernetes.customized/blkio.throttle.write_iops_device: "100000"
+            carina.storage.io/blkio.throttle.read_bps_device: "10485760"
+            carina.storage.io/blkio.throttle.read_iops_device: "10000"
+            carina.storage.io/blkio.throttle.write_bps_device: "10485760"
+            carina.storage.io/blkio.throttle.write_iops_device: "100000"
      ---
      # 该annotations会被设置到如下文件
      /sys/fs/cgroup/blkio/blkio.throttle.read_bps_device

@@ -33,6 +33,6 @@ LV has one:one mapping with local volume.
 #### Allowing pod to migrate in case of node failure
 
 * Carina will track each node's status. If node enters NotReady state, carina will trigger pod migration policy.
-* Carina will allow pod to migrate if it has annotation `carina.io/rebuild-node-notready` with value of `true`.
+* Carina will allow pod to migrate if it has annotation `carina.stroage.io/allow-pod-migration-if-node-notready` with value of `true`.
 * Carina will not copy data from failed node to other node. So the newly borned pod will have an empty PV.
 * The middleware layer should trigger data migration. For example, master-slave mysql cluster should trigger master-slave replication.

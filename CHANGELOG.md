@@ -33,3 +33,26 @@ This project adheres to [Semantic Versioning](https://www.opencarina.io).
 - Fixes configmap  spradout修改为spreadout(<https://github.com/carina-io/carina/issues/12>)
 
 
+
+## [0.10.0] - 2022-04-25
+
+### Added
+
+- provisioning raw disk
+- doc/manual_zh/velero.md
+
+
+### Changed
+
+#### storageclass config
+- replace carina.storage.io/backend-disk-type: hdd   ==> carina.storage.io/backend-disk-group-name: hdd
+- replace carina.storage.io/cache-disk-type: ssd     ==> carina.storage.io/cache-disk-group-name: ssd
+- replace carina.storage.io/disk-type: "hdd"         ==> carina.storage.io/disk-group-name: "hdd"
+
+#### pod config
+
+- replace kubernetes.customized/blkio.throttle.read_bps_device: "10485760"  ==> carina.storage.io/blkio.throttle.read_bps_device: "10485760"
+- replace kubernetes.customized/blkio.throttle.read_iops_device: "10000"    ==> carina.storage.io/blkio.throttle.read_iops_device: "10000"
+- replace kubernetes.customized/blkio.throttle.write_bps_device: "10485760" ==> carina.storage.io/blkio.throttle.write_bps_device: "10485760"
+- replace kubernetes.customized/blkio.throttle.write_iops_device: "100000"  ==> carina.storage.io/blkio.throttle.write_iops_device: "100000"
+- replace carina.io/rebuild-node-notready: true                             ==>  carina.storage.io/allow-pod-migration-if-node-notready: true

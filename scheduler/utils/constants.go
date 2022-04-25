@@ -20,20 +20,20 @@ const (
 	// CSIPluginName PluginName is the name of the CSI plugin.
 	CSIPluginName = "carina.storage.io"
 	// DeviceDiskKey storage class disk group
-	DeviceDiskKey = "carina.storage.io/disk-type"
+	DeviceDiskKey = "carina.storage.io/disk-group-name"
 	// VolumeDeviceNode pv csi VolumeAttributes
 	VolumeDeviceNode = "carina.storage.io/node"
 	// DeviceCapacityKeyPrefix device plugin
 	DeviceCapacityKeyPrefix = "carina.storage.io/"
 
 	// VolumeBackendDiskType bcahce scheduler
-	VolumeBackendDiskType = "carina.storage.io/backend-disk-type"
-	VolumeCacheDiskType   = "carina.storage.io/cache-disk-type"
+	VolumeBackendDiskType = "carina.storage.io/backend-disk-group-name"
+	VolumeCacheDiskType   = "carina.storage.io/cache-disk-group-name"
 	// VolumeCacheDiskRatio value: 1-100 Cache Capacity Ratio
 	VolumeCacheDiskRatio = "carina.storage.io/cache-disk-ratio"
 	// DeviceVolumeType type
 	LvmVolumeType = "lvm"
 	RawVolumeType = "raw"
 	//ExclusivityDisk  true or false  is the key indicates that only the disk is used by one pod
-	ExclusivityDisk = "carina.storage.io/exclusive-disk"
+	ExclusivityDisk = "carina.storage.io/exclusively-raw-disk"
 )

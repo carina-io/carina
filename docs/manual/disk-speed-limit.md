@@ -20,10 +20,10 @@ spec:
   template:
     metadata:
       annotations:
-        kubernetes.customized/blkio.throttle.read_bps_device: "10485760"
-        kubernetes.customized/blkio.throttle.read_iops_device: "10000"
-        kubernetes.customized/blkio.throttle.write_bps_device: "10485760"
-        kubernetes.customized/blkio.throttle.write_iops_device: "100000"
+        carina.storage.io/blkio.throttle.read_bps_device: "10485760"
+        carina.storage.io/blkio.throttle.read_iops_device: "10000"
+        carina.storage.io/blkio.throttle.write_bps_device: "10485760"
+        carina.storage.io/blkio.throttle.write_iops_device: "100000"
       labels:
         app: web-server-speed-limit
     spec:
@@ -58,10 +58,10 @@ spec:
 - Carina will convert those anntoations into carina PV's cgroupfs.
 
   ```shell
-  kubernetes.customized/blkio.throttle.read_bps_device: "10485760"
-  kubernetes.customized/blkio.throttle.read_iops_device: "10000"
-  kubernetes.customized/blkio.throttle.write_bps_device: "10485760"
-  kubernetes.customized/blkio.throttle.write_iops_device: "100000"
+  carina.storage.io/blkio.throttle.read_bps_device: "10485760"
+  carina.storage.io/blkio.throttle.read_iops_device: "10000"
+  carina.storage.io/blkio.throttle.write_bps_device: "10485760"
+  carina.storage.io/blkio.throttle.write_iops_device: "100000"
    ---
    /sys/fs/cgroup/blkio/blkio.throttle.read_bps_device
    /sys/fs/cgroup/blkio/blkio.throttle.read_iops_device

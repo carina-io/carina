@@ -20,25 +20,26 @@ import (
 	"bufio"
 	"context"
 	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
+	"time"
+
 	"github.com/carina-io/carina/utils"
 	"github.com/carina-io/carina/utils/exec"
 	"github.com/carina-io/carina/utils/log"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/client-go/util/workqueue"
-	"os"
-	"path/filepath"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/event"
-	"strings"
-	"time"
 )
 
 const (
 	// KubernetesCustomized pod annotation BlkIOThrottleReadBPS
-	KubernetesCustomized   = "kubernetes.customized"
+	KubernetesCustomized   = "carina.storage.io"
 	BlkIOThrottleReadBPS   = "blkio.throttle.read_bps_device"
 	BlkIOThrottleReadIOPS  = "blkio.throttle.read_iops_device"
 	BlkIOThrottleWriteBPS  = "blkio.throttle.write_bps_device"
