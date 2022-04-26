@@ -289,8 +289,8 @@ func (r *NodeReconciler) clearPod(ctx context.Context, nodeName string) error {
 		return err
 	}
 	for _, p := range podList.Items {
-		// check annotation carina.io/rebuild-node-notready: true
-		if _, ok := p.Annotations["carina.io/rebuild-node-notready"]; !ok || p.Annotations["carina.io/rebuild-node-notready"] == "false" {
+		// check annotation carina.stroage.io/allow-pod-migration-if-node-notready: true
+		if _, ok := p.Annotations[utils.AllowPodMigrationIfNodeNotready]; !ok || p.Annotations[utils.AllowPodMigrationIfNodeNotready] == "false" {
 			continue
 		}
 		log.Infof("not ready node: %s  pod: %s ", p.Spec.NodeName, p.Name)

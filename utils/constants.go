@@ -34,16 +34,16 @@ const (
 	ResizeRequestedAtKey = "carina.storage.io/resize-requested-at"
 
 	//ExclusivityDisk  true or false  is the key indicates that only the disk is used by one pod
-	ExclusivityDisk = "carina.storage.io/exclusive-disk"
+	ExclusivityDisk = "carina.storage.io/exclusively-raw-disk"
 
 	VolumeManagerType = "carina.io/volume-manage-type"
 
 	// DeviceDiskKey storage class
 	// DeviceDiskKey is the key used in CSI volume create requests to specify a DeviceDiskKey support carina-vg-ssd carina-vg-hdd
-	DeviceDiskKey = "carina.storage.io/disk-type"
+	DeviceDiskKey = "carina.storage.io/disk-group-name"
 
-	VolumeBackendDiskType = "carina.storage.io/backend-disk-type"
-	VolumeCacheDiskType   = "carina.storage.io/cache-disk-type"
+	VolumeBackendDiskType = "carina.storage.io/backend-disk-group-name"
+	VolumeCacheDiskType   = "carina.storage.io/cache-disk-group-name"
 	// VolumeCacheDiskRatio value: 1-100 Cache Capacity Ratio
 	VolumeCacheDiskRatio = "carina.storage.io/cache-disk-ratio"
 	// VolumeCachePolicy value: writethrough|writeback|writearound
@@ -85,4 +85,6 @@ const (
 	// DeviceVolumeType type
 	LvmVolumeType = "lvm"
 	RawVolumeType = "raw"
+
+	AllowPodMigrationIfNodeNotready = "carina.stroage.io/allow-pod-migration-if-node-notready"
 )

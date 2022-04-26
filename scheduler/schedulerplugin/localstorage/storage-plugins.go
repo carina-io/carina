@@ -92,13 +92,13 @@ func (ls *LocalStorage) Filter(ctx context.Context, cycleState *framework.CycleS
 	nsr, err := getNodeStorageResource(ls.dynamicClient, node.Node().Name)
 	if err != nil {
 		klog.V(3).Infof("Failed to obtain node storage information pod: %v, node: %v, err: %v", pod.Name, node.Node().Name, err.Error())
-		return framework.NewStatus(framework.Error, "Failed to obtain node storage information")
+		return framework.NewStatus(framework.UnschedulableAndUnresolvable, "Failed to obtain node storage information")
 	}
 
 	lvs, err := listLogicVolumes(ls.dynamicClient, node.Node().Name)
 	if err != nil {
 		klog.V(3).Infof("Failed to obtain logicVolumes  information pod: %v, node: %v, err: %v", pod.Name, node.Node().Name, err.Error())
-		return framework.NewStatus(framework.Error, "Failed to obtain logicVolumes  information")
+		return framework.NewStatus(framework.UnschedulableAndUnresolvable, "Failed to obtain logicVolumes  information")
 	}
 	volumeType := utils.LvmVolumeType
 	for key, _ := range pvcMap {
@@ -166,7 +166,7 @@ func (ls *LocalStorage) Filter(ctx context.Context, cycleState *framework.CycleS
 
 	if len(capacityMap) < 1 {
 		klog.V(3).Infof("does not have a disk group that satisfies: %v, node: %v,exclusivity:%v", pod.Name, node.Node().Name, exclusivityDisk)
-		return framework.NewStatus(framework.Error, "does not have a disk group that satisfies")
+		return framework.NewStatus(framework.UnschedulableAndUnresolvable, "does not have a disk group that satisfies")
 	}
 	// 检查节点容量是否充足
 	for key, pvs := range pvcMap {
@@ -248,7 +248,7 @@ func (ls *LocalStorage) Score(ctx context.Context, state *framework.CycleState, 
 	nsr, err := getNodeStorageResource(ls.dynamicClient, nodeName)
 	if err != nil {
 		klog.V(3).Infof("Failed to obtain node storage information pod: %v, node: %v, err: %v", pod.Name, nodeName, err.Error())
-		return 0, framework.NewStatus(framework.Error, "Failed to obtain node storage information")
+		return 0, framework.NewStatus(framework.UnschedulableAndUnresolvable, "Failed to obtain node storage information")
 	}
 
 	capacityMap := map[string]int64{}

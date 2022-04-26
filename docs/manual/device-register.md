@@ -1,6 +1,8 @@
-#### 设备注册
+#### device registration
 
-  当我们对本地磁盘进行管理时，将本地磁盘卷组当做设备注册到kubelet，每次新的磁盘加入或者pv被创建后会更新设备容量到kubelet，如所示
+> Device registration works for carina versions under v0.9.0.
+
+When carina manages local disks, it treats them as devices and registed them to kubelet. Whenever there is an new local device or PV, the disk usage will be updated.
 
 ```shell
 $ kubectl get node 10.20.9.154 -o template --template={{.status.capacity}}
@@ -28,10 +30,10 @@ pods:110
 ]
 ```
 
-- 设备注册会注册到两个值`.status.capacity`为设备总容量，`.status.allocatable`为设备可用容量，我们预留了10G空间不可使用
-- 当pv创建时会从该node信息中获取当前节点磁盘容量，然后根据pv调度策略进行调度
+- For each device, carina will records its capacity and allocatable. 10G of disk space is reserved for each device. 
+- carina scheduler will do scheduling based on each node's disk usage.
 
-为了使用方便我们将各个节点的设备容量信息收集到了一个configmap里边
+Carina also tracks those informaction in an configmap.
 
 ```shell
 $ kubectl get configmap carina-node-storage -n kube-system -o yaml
@@ -50,4 +52,3 @@ data:
 	"nodeName": "10.20.9.153"
 }]'
 ```
-
