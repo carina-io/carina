@@ -53,7 +53,7 @@ metadata:
   resourceVersion: "50310602"
   uid: 442eeaf0-4d97-44d1-a526-1ddb80a01c27
 parameters:
-  carina.storage.io/disk-type: hdd
+  carina.storage.io/disk-group-name: hdd
   csi.storage.k8s.io/fstype: xfs
 provisioner: carina.storage.io
 reclaimPolicy: Delete

@@ -8,7 +8,7 @@ import (
 	"github.com/carina-io/carina/utils"
 )
 
-// GetDeviceGroup 处理磁盘类型参数，支持carina.storage.io/disk-type:ssd书写方式
+// GetDeviceGroup 处理磁盘类型参数，支持carina.storage.io/disk-group-name:ssd书写方式
 func GetDeviceGroup(diskType string) string {
 	deviceGroup := strings.ToLower(diskType)
 	currentDiskSelector := configuration.DiskSelector()

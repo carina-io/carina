@@ -154,7 +154,7 @@ func (ls *LocalStorage) Filter(ctx context.Context, cycleState *framework.CycleS
 
 			}
 			if volumeType == utils.LvmVolumeType {
-				if configuration.CheckRawDeviceGroup(strArr[1]) {
+				if !configuration.CheckRawDeviceGroup(strArr[1]) {
 					capacityMap[key] = v.Value()
 					total += v.Value()
 				}
@@ -273,7 +273,7 @@ func (ls *LocalStorage) Score(ctx context.Context, state *framework.CycleState, 
 
 			}
 			if volumeType == utils.LvmVolumeType {
-				if configuration.CheckRawDeviceGroup(strArr[1]) {
+				if !configuration.CheckRawDeviceGroup(strArr[1]) {
 					capacityMap[key] = v.Value()
 					total += v.Value()
 				}

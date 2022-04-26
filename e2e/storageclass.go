@@ -31,7 +31,7 @@ parameters:
   # file system
   csi.storage.k8s.io/fstype: xfs
   # disk group
-  carina.storage.io/disk-type: ssd
+  carina.storage.io/disk-group-name: ssd
 reclaimPolicy: Delete
 allowVolumeExpansion: true
 # WaitForFirstConsumer表示被容器绑定调度后再创建pv

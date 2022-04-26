@@ -9,7 +9,7 @@
 
 - 控制节点创建CRD资源和负责维护crd节点状态，节点服务监听CRD资源创建，收到创建事件后维护本地磁盘状态
 - 通过配置文件获取扫描时间间隔和磁盘的匹配条件,检查磁盘是否匹配正则条件，符合条件的磁盘会被节点crd对象nodestorageresource接管。
-- 裸盘按storageclass 参数配置carina.io/exclusive-disk可以分为独占式和共享式。独占式支持扩容，共享式不支持扩容。
+- 裸盘按storageclass 参数配置carina.storage.io/allow-pod-migration-if-node-notready可以分为独占式和共享式。独占式支持扩容，共享式不支持扩容。
 
 ### 实现细节
 - 控制器周期获取节点状态，来维护NodeDeive的状态
@@ -35,7 +35,7 @@ config.json: |-
       "schedulerStrategy": "spreadout"
     }
 ```
-- storageClass新增加参数配置"carina.io/exclusive-disk",true是指pod独占磁盘,false是多个pod共享磁盘；
+- storageClass新增加参数配置"carina.storage.io/allow-pod-migration-if-node-notready",true是指pod独占磁盘,false是多个pod共享磁盘；
 ```yaml
   apiVersion: storage.k8s.io/v1
   kind: StorageClass
@@ -45,8 +45,8 @@ config.json: |-
   parameters:
     # 这是kubernetes内置参数，我们支持xfs,ext4两种文件格式，如果不填则默认ext4
     csi.storage.k8s.io/fstype: xfs
-    carina.storage.io/disk-type: carina-raw-ssd 
-    carina.storage.io/exclusive-disk: false  # 新增加参数是否是独占式，默认fasle
+    carina.storage.io/disk-group-name: carina-raw-ssd 
+    carina.storage.io/exclusively-raw-disk: false  # 新增加参数是否是独占式，默认fasle
   reclaimPolicy: Delete
   allowVolumeExpansion: true # 支持扩容，定为true便可
   # WaitForFirstConsumer表示被容器绑定调度后再创建pv

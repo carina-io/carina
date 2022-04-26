@@ -9,7 +9,7 @@ parameters:
   # file system
   csi.storage.k8s.io/fstype: {{ .Values.storage.lvm.fstype }}
   # disk group
-  carina.storage.io/disk-type: {{ .Values.storage.lvm.disktype }}
+  carina.storage.io/disk-group-name: {{ .Values.storage.lvm.disktype }}
 reclaimPolicy: {{ .Values.storage.lvm.reclaimPolicy }}
 allowVolumeExpansion: true
 # WaitForFirstConsumer表示被容器绑定调度后再创建pv

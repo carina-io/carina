@@ -102,7 +102,7 @@ parameters, which are all required, not optional.
   as its data backend.
 
   ```
-  carina.io/exclusivly-disk-claim: true
+  carina.storage.io/allow-pod-migration-if-node-notready: true
   ```
 * nodeLabel
 

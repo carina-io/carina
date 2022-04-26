@@ -52,7 +52,7 @@ diskSelectors:
   - 磁盘策略，目前支持 `LVM和RAW`两种策略
   - LVM策略表示该diskGroup将会被组建成VG卷组，并以lvm卷的方式提供给容器使用
   - RAW策略表示该diskGroup将会将节点上的裸盘直接提供给容器使用，在该策略下Carina将会根据request.storage大小，对磁盘分区，将该分区提供给容器使用
-  - RAW策略下，用户可以在PVC中增加`carina.io/exclusivly-disk-claim: true` 表示该pvc独占磁盘，其他的pvc将不会在该磁盘上划分新分区
+  - RAW策略下，用户可以在pod中增加`carina.storage.io/allow-pod-migration-if-node-notready: true` 表示该pvc独占磁盘，其他的pvc将不会在该磁盘上划分新分区
 * nodeLabel
   - 该字段表示该磁盘组生效的节点范围，比如`diskAAA`，carina会获取当前节点label并进行对比，存在`diskAAA`的则该配置生效
   - 如果为空，表示该配置在所有节点生效

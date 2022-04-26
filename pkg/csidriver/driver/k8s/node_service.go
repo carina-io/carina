@@ -318,7 +318,7 @@ func (s NodeService) GetTotalCapacity(ctx context.Context, deviceGroup string, t
 
 				}
 				if volumeType == utils.LvmVolumeType {
-					if version.CheckRawDeviceGroup(strArr[1]) {
+					if !version.CheckRawDeviceGroup(strArr[1]) {
 						capacity += v.Value()
 					}
 				}
@@ -333,7 +333,7 @@ func (s NodeService) GetTotalCapacity(ctx context.Context, deviceGroup string, t
 
 				}
 				if volumeType == utils.LvmVolumeType {
-					if version.CheckRawDeviceGroup(strArr[1]) {
+					if !version.CheckRawDeviceGroup(strArr[1]) {
 						capacity += v.Value()
 					}
 				}
@@ -417,7 +417,7 @@ func (s NodeService) SelectDeviceGroup(ctx context.Context, request int64, nodeN
 
 				}
 				if volumeType == utils.LvmVolumeType {
-					if version.CheckRawDeviceGroup(strArr[1]) {
+					if !version.CheckRawDeviceGroup(strArr[1]) {
 						preselectNode = append(preselectNode, pairs{
 							Key:   key,
 							Value: value.Value(),

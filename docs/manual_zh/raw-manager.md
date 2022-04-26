@@ -274,6 +274,8 @@ tmpfs           5.9G     0  5.9G   0% /sys/firmware
 kubectl delete -f examples/kubernetes/raw-deploy-fs-expand-exclusivity.yaml
 kubectl delete -f examples/kubernetes/raw-sts-block.yaml
 kubectl delete pvc/html-nginx-device-block-0 -n carina
+kubectl delete -f ./examples/kubernetes/storageclass-raw-exclusivity.yaml
+kubectl delete -f ./examples/kubernetes/storageclass-raw.yaml
 ```
 检查节点已经没有分区了
 ```
