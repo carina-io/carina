@@ -3,6 +3,8 @@ kind: StatefulSet
 metadata:
   name: carina-stateful
   namespace: carina
+  annotations:
+     carina.stroage.io/allow-pod-migration-if-node-notready : "true"
 spec:
   serviceName: "mysql-service"
   replicas: 2
@@ -13,6 +15,8 @@ spec:
     metadata:
       labels:
         app: mysql
+      annotations:
+        carina.stroage.io/allow-pod-migration-if-node-notready : "true"  
     spec:
       terminationGracePeriodSeconds: 10
       containers:
@@ -33,7 +37,7 @@ spec:
         name: db
       spec:
         accessModes: [ "ReadWriteOnce" ]
-        storageClassName: csi-carina-raw
+        storageClassName: csi-carina-sc
         resources:
           requests:
             storage: 3Gi
