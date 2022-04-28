@@ -12,7 +12,7 @@ data:
     leaderElection:
       leaderElect: true
       resourceName:  carina-scheduler
-      resourceNamespace: kube-system
+      resourceNamespace: {{ .Release.Namespace }}
     profiles:
     - schedulerName: carina-scheduler
       plugins:

@@ -18,11 +18,12 @@ package deviceManager
 import (
 	"bytes"
 	"fmt"
-	"github.com/carina-io/carina/pkg/configuration"
 	"os"
 	"os/exec"
 	"strings"
 	"testing"
+
+	"github.com/carina-io/carina/pkg/configuration"
 )
 
 const deviceDir = "/tmp/disk/"
@@ -91,7 +92,7 @@ func TestDeviceManager(t *testing.T) {
 
 	stopChan := make(chan struct{})
 	defer close(stopChan)
-	dm := NewDeviceManager(nil,"localhost",nil, stopChan)
+	dm := NewDeviceManager("localhost", nil, stopChan)
 	defer func() {
 		// 清理volume
 		_ = cleanVolume(dm)

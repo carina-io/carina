@@ -1,0 +1,65 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: nginx-device-block
+  labels:
+    app: nginx-device
+  namespace: carina  
+spec:
+  ports:
+  - port: 80
+    name: web
+  clusterIP: None
+  selector:
+    app: nginx-device-block
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: nginx-device-block
+  namespace: carina
+  labels:
+    app: nginx-device-block
+spec:
+  selector:
+    matchLabels:
+      app: nginx-device-block
+  podManagementPolicy: Parallel
+  serviceName: "nginx-device"
+  replicas: 1
+  volumeClaimTemplates:
+  - metadata:
+      name: html
+    spec:
+      volumeMode: Block
+      accessModes:
+        - ReadWriteOnce
+      storageClassName: csi-carina-raw
+      resources:
+        requests:
+          storage: 5Gi
+  template:
+    metadata:
+      labels:
+        app: nginx-device-block
+    spec:
+      tolerations:
+        - key: node-role.kubernetes.io/master
+          operator: Exists
+          effect: NoSchedule
+      containers:
+      - name: nginx
+        image: nginx
+        imagePullPolicy: Always
+        volumeDevices:
+        - devicePath: "/dev/sdd"
+          name: html
+        command:
+        - sh
+        - "-c"
+        - |
+            while true; do
+              echo "huizhi testing";
+              echo "yes ">>/data/yes.txt;
+              sleep 120s
+            done;

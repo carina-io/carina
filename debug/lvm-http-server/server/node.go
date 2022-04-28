@@ -17,10 +17,11 @@
 package server
 
 import (
-	deviceManager "github.com/carina-io/carina/pkg/devicemanager"
-	"github.com/labstack/echo/v4"
 	"net/http"
 	"strconv"
+
+	deviceManager "github.com/carina-io/carina/pkg/devicemanager"
+	"github.com/labstack/echo/v4"
 )
 
 var dm *deviceManager.DeviceManager
@@ -29,7 +30,7 @@ var stopChan chan struct{}
 func init() {
 	stopChan = make(chan struct{})
 
-	dm = deviceManager.NewDeviceManager(nil,"localhost", nil, stopChan)
+	dm = deviceManager.NewDeviceManager("localhost", nil, stopChan)
 }
 
 func Start(c echo.Context) error {

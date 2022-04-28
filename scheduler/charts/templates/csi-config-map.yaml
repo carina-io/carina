@@ -9,61 +9,25 @@ data:
  config.json: |-
     {
       "diskSelector": [
-         {
+        {
           "name": "carina-vg-ssd" ,
-          "re": ["vdb"],
-          "policy": "LVM",
-          "nodeLabel": "kubernetes.io/hostname"
-        },
-         {
-          "name": "carina-vg-hdd" ,
-          "re": ["vdc"],
-          "policy": "LVM",
-          "nodeLabel": "kubernetes.io/hostname"
-        },
-         {
-          "name": "carina-vg-test-ssd" ,
-          "re": ["vdd"],
+          "re": ["loop2+"],
           "policy": "LVM",
           "nodeLabel": "kubernetes.io/hostname"
         },
         {
-          "name": "carina-vg-test-vdd" ,
-          "re": ["vdd1"],
-          "policy": "LVM",
-          "nodeLabel": "topology.carina.storage.io/vgs"
-        },
-         {
-          "name": "vdd1" ,
-          "re": ["loop*"],
-          "policy": "LVM",
+          "name": "carina-raw-ssd",
+          "re": ["loop3+"],
+          "policy": "raw",
           "nodeLabel": "kubernetes.io/hostname"
         },
          {
-          "name": "vdd2" ,
-          "re": ["a"],
-          "policy": "LVM",
-          "nodeLabel": "kubernetes.io/hostname"
-        },
-         {
-          "name": "hdd1" ,
-          "re": ["a"],
-          "policy": "LVM",
-          "nodeLabel": "kubernetes.io/hostname"
-        },
-         {
-          "name": "hdd2" ,
-          "re": ["a"],
-          "policy": "LVM",
-          "nodeLabel": "kubernetes.io/hostname"
-        },
-         {
-          "name": "carina-vg-test-raw",
-          "re": ["loop*"],
-          "policy": "RAW",
+          "name": "carina-raw-loop",
+          "re": ["loop4","loop5"],
+          "policy": "raw",
           "nodeLabel": "kubernetes.io/hostname"
         }
       ],
       "diskScanInterval": "300",
-      "schedulerStrategy": "spreadout"    
+      "schedulerStrategy": "spreadout"
     }

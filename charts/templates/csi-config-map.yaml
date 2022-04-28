@@ -8,7 +8,7 @@ metadata:
 data:
   config.json: |-
     {
-      "diskSelector": [
+       "diskSelector": [
         {
           "name": "carina-vg-ssd" ,
           "re": ["loop2+"],
@@ -16,12 +16,19 @@ data:
           "nodeLabel": "kubernetes.io/hostname"
         },
         {
-          "name": "carina-vg-hdd",
+          "name": "carina-raw-ssd",
           "re": ["loop3+"],
-          "policy": "LVM",
+          "policy": "RAW",
+          "nodeLabel": "kubernetes.io/hostname"
+        },
+         {
+          "name": "carina-raw-loop", 
+          "re": ["loop4","loop5"], 
+          "policy": "RAW",        
           "nodeLabel": "kubernetes.io/hostname"
         }
       ],
-      "diskScanInterval": "300",
-      "schedulerStrategy": "spreadout"
+      "diskScanInterval": {{ .Values.config.diskScanInterval | quote }},
+      "schedulerStrategy": {{ .Values.config.schedulerStrategy | quote }}
     }
+

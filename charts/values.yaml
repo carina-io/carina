@@ -112,9 +112,9 @@ node:
   bcache: false
   initContainer:
     modprobe: 
-      - dm_snapshot 
-      - dm_mirror 
-      - dm_thin_pool
+      # - dm_snapshot 
+      # - dm_mirror 
+      # - dm_thin_pool
   enablePerfOptimization: true
   tolerations:
     # - key: "node-role.kubernetes.io/master"
@@ -163,9 +163,19 @@ serviceMonitor:
 webhook:
   enabled: true
 
+config:  
+  schedulerStrategy: spreadout
+  diskScanInterval: 300
+  
 storage:
   # file system
-  fstype: xfs
-  # disk group
-  disktype: carina-vg-hdd
-  reclaimPolicy: Delete
+  lvm: 
+    fstype: xfs
+    disktype: carina-vg-ssd
+    reclaimPolicy: Delete
+    volumeBindingMode: WaitForFirstConsumer
+  raw: 
+    fstype: xfs
+    disktype: carina-raw-ssd
+    reclaimPolicy: Delete  
+    volumeBindingMode: WaitForFirstConsumer    

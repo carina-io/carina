@@ -22,9 +22,9 @@ parameters:
   # file system
   csi.storage.k8s.io/fstype: xfs
   # 数据存储磁盘类型
-  carina.storage.io/backend-disk-type: hdd
+  carina.storage.io/backend-disk-group-name: hdd
   # 缓存磁盘类型
-  carina.storage.io/cache-disk-type: ssd
+  carina.storage.io/cache-disk-group-name: ssd
   # 1-100 Cache Capacity Ratio
   # 假设pvc为10G，则会创建5G的ssd类型的缓存盘
   carina.storage.io/cache-disk-ratio: "50"

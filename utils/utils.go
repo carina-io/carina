@@ -17,7 +17,11 @@
 package utils
 
 import (
+	"encoding/json"
+	"errors"
 	"os"
+	"reflect"
+	"strings"
 	"time"
 )
 
@@ -114,4 +118,29 @@ func UntilMaxRetry(f func() error, maxRetry int, interval time.Duration) error {
 		time.Sleep(interval)
 	}
 	return err
+}
+
+func Fill(src interface{}, dst interface{}) error {
+	srcType := reflect.TypeOf(src)
+
+	dstValue := reflect.ValueOf(dst)
+
+	if srcType.Kind() != reflect.Struct {
+		return errors.New("src must be  a struct")
+	}
+	if dstValue.Kind() != reflect.Ptr {
+		return errors.New("dst must be a point")
+	}
+
+	jsonStu, err := json.Marshal(src)
+	if err != nil {
+		return errors.New("json Marshal fail")
+	}
+	return json.Unmarshal(jsonStu, &dst)
+
+}
+
+func PartitionName(lv string) string {
+	strtemp := strings.Split(lv, "-")
+	return "carina.io/" + strtemp[len(strtemp)-1]
 }

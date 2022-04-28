@@ -5,7 +5,7 @@ metadata:
 rules:
   - apiGroups: [""]
     resources: ["endpoints", "events"]
-    verbs: ["create", "get", "update"]
+    verbs: ["create", "get", "update", "patch"]
   - apiGroups: [""]
     resources: ["nodes"]
     verbs: ["get", "list", "watch"]
@@ -46,7 +46,7 @@ rules:
     resources: ["events"]
     verbs: ["create", "patch", "update"]
   - apiGroups: ["carina.storage.io"]
-    resources: ["nodestorageresources", "nodestorageresources/status"]
+    resources: ["logicvolumes", "logicvolumes/status", "nodestorageresources", "nodestorageresources/status"]
     verbs: ["get", "list", "watch"]
 
 ---

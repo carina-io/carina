@@ -29,6 +29,14 @@ require (
 )
 
 require (
+	github.com/anuvu/disko v0.0.8
+	github.com/patrickmn/go-cache v2.1.0+incompatible // indirect
+	github.com/rekby/gpt v0.0.0-20200614112001-7da10aec5566 // indirect
+	github.com/rekby/mbr v0.0.0-20190325193910-2b19b9cdeebc // indirect
+	github.com/satori/go.uuid v1.2.0 // indirect
+)
+
+require (
 	cloud.google.com/go v0.99.0 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cespare/xxhash/v2 v2.1.2 // indirect
@@ -90,3 +98,5 @@ require (
 	sigs.k8s.io/structured-merge-diff/v4 v4.2.1 // indirect
 	sigs.k8s.io/yaml v1.3.0 // indirect
 )
+
+replace github.com/anuvu/disko => github.com/zhangkai8048/disko v0.0.9

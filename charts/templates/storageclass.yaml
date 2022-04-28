@@ -2,16 +2,16 @@
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
-  name: csi-carina-sc
+  name: csi-carina-lvm
   namespace: {{ .Release.Namespace }}
 provisioner: carina.storage.io
 parameters:
   # file system
-  csi.storage.k8s.io/fstype: {{ .Values.storage.fstype }}
+  csi.storage.k8s.io/fstype: {{ .Values.storage.lvm.fstype }}
   # disk group
-  carina.storage.io/disk-type: {{ .Values.storage.disktype }}
-reclaimPolicy: {{ .Values.storage.reclaimPolicy }}
+  carina.storage.io/disk-group-name: {{ .Values.storage.lvm.disktype }}
+reclaimPolicy: {{ .Values.storage.lvm.reclaimPolicy }}
 allowVolumeExpansion: true
 # WaitForFirstConsumer表示被容器绑定调度后再创建pv
-volumeBindingMode: WaitForFirstConsumer
+volumeBindingMode: {{ .Values.storage.lvm.volumeBindingMode }}
 mountOptions:

@@ -65,7 +65,7 @@
     # 这是选择磁盘分组，该项目会自动将SSD及HDD磁盘分组
     # SSD：ssd HDD: hdd
     # 如果不填会随机选择磁盘类型
-    carina.storage.io/disk-type: hdd
+    carina.storage.io/disk-group-name: hdd
   reclaimPolicy: Delete
   allowVolumeExpansion: true # 支持扩容，定为true便可
   # WaitForFirstConsumer表示被容器绑定调度后再创建pv
@@ -107,9 +107,9 @@ parameters:
   # file system
   csi.storage.k8s.io/fstype: xfs
   # 数据存储磁盘类型
-  carina.storage.io/backend-disk-type: hdd
+  carina.storage.io/backend-disk-group-name: hdd
   # 缓存磁盘类型
-  carina.storage.io/cache-disk-type: ssd
+  carina.storage.io/cache-disk-group-name: ssd
   # 1-100 Cache Capacity Ratio
   # 假设pvc为10G，则会创建5G的ssd类型的缓存盘
   carina.storage.io/cache-disk-ratio: "50"
@@ -302,10 +302,10 @@ mountOptions:
     ```yaml
         metadata:
           annotations:
-            kubernetes.customized/blkio.throttle.read_bps_device: "10485760"
-            kubernetes.customized/blkio.throttle.read_iops_device: "10000"
-            kubernetes.customized/blkio.throttle.write_bps_device: "10485760"
-            kubernetes.customized/blkio.throttle.write_iops_device: "100000"
+            carina.storage.io/blkio.throttle.read_bps_device: "10485760"
+            carina.storage.io/blkio.throttle.read_iops_device: "10000"
+            carina.storage.io/blkio.throttle.write_bps_device: "10485760"
+            carina.storage.io/blkio.throttle.write_iops_device: "100000"
      ---
      # 该annotations会被设置到如下文件
      /sys/fs/cgroup/blkio/blkio.throttle.read_bps_device

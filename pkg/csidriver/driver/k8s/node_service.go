@@ -20,12 +20,17 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	carinav1beta1 "github.com/carina-io/carina/api/v1beta1"
 	"sort"
 	"strings"
 	"time"
 
+	"github.com/anuvu/disko"
+	v1 "github.com/carina-io/carina/api/v1"
+	carinav1beta1 "github.com/carina-io/carina/api/v1beta1"
+	"github.com/carina-io/carina/utils/log"
+
 	"github.com/carina-io/carina/pkg/configuration"
+	"github.com/carina-io/carina/pkg/version"
 	"github.com/carina-io/carina/utils"
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"k8s.io/apimachinery/pkg/labels"
@@ -120,6 +125,35 @@ func (s NodeService) getNodeStorageResources(ctx context.Context) (map[string]ca
 	return readyNSR, nil
 }
 
+func (s NodeService) listLogicVolumes(ctx context.Context) (lvs []string, err error) {
+
+	nl := new(corev1.NodeList)
+	err = s.List(ctx, nl)
+	if err != nil {
+		return []string{}, err
+	}
+	// only ready nodes are returned
+	readyNode := map[string]uint8{}
+	for _, n := range nl.Items {
+		for _, s := range n.Status.Conditions {
+			if s.Type == corev1.NodeReady && s.Status == corev1.ConditionTrue {
+				readyNode[n.Name] = 1
+			}
+		}
+	}
+	lvlist := new(v1.LogicVolumeList)
+	err = s.Client.List(ctx, lvlist)
+	if err != nil {
+		return []string{}, err
+	}
+	for _, lv := range lvlist.Items {
+		if _, exists := readyNode[lv.Spec.NodeName]; exists && lv.Annotations[utils.ExclusivityDisk] == "true" {
+			lvs = append(lvs, lv.Spec.DeviceGroup)
+		}
+	}
+	return lvs, nil
+}
+
 func (s NodeService) SelectVolumeNode(ctx context.Context, requestGb int64, deviceGroup string, requirement *csi.TopologyRequirement) (string, string, map[string]string, error) {
 	// 在并发场景下，兼顾调度效率与调度公平，将pv分配到不同时间段
 	time.Sleep(time.Duration(rand.Int63nRange(1, 30)) * time.Second)
@@ -175,6 +209,10 @@ func (s NodeService) SelectVolumeNode(ctx context.Context, requestGb int64, devi
 					continue
 				}
 				if value.Value() < requestGb {
+					continue
+				}
+				//skip raw
+				if version.CheckRawDeviceGroup(strings.Split(key, "/")[1]) {
 					continue
 				}
 				preselectNode = append(preselectNode, pairs{
@@ -236,6 +274,7 @@ func (s NodeService) GetCapacityByNodeName(ctx context.Context, name, deviceGrou
 
 // GetTotalCapacity returns total VG capacity of all nodes.
 func (s NodeService) GetTotalCapacity(ctx context.Context, deviceGroup string, topology *csi.Topology) (int64, error) {
+
 	nl, err := s.getNodes(ctx)
 	if err != nil {
 		return 0, err
@@ -244,6 +283,12 @@ func (s NodeService) GetTotalCapacity(ctx context.Context, deviceGroup string, t
 	nsr, err := s.getNodeStorageResources(ctx)
 	if err != nil {
 		return 0, err
+	}
+	var volumeType string
+	if version.CheckRawDeviceGroup(deviceGroup) {
+		volumeType = utils.RawVolumeType
+	} else {
+		volumeType = utils.LvmVolumeType
 	}
 
 	capacity := int64(0)
@@ -263,17 +308,42 @@ func (s NodeService) GetTotalCapacity(ctx context.Context, deviceGroup string, t
 		}
 
 		for key, v := range status.Capacity {
+
 			if deviceGroup == "" && strings.HasPrefix(key, utils.DeviceCapacityKeyPrefix) {
-				capacity += v.Value()
+				strArr := strings.Split(key, "/")
+				if volumeType == utils.RawVolumeType {
+					if version.CheckRawDeviceGroup(strArr[1]) {
+						capacity += v.Value()
+					}
+
+				}
+				if volumeType == utils.LvmVolumeType {
+					if !version.CheckRawDeviceGroup(strArr[1]) {
+						capacity += v.Value()
+					}
+				}
+
 			} else if key == deviceGroup || key == utils.DeviceCapacityKeyPrefix+deviceGroup {
-				capacity += v.Value()
+				strArr := strings.Split(key, "/")
+
+				if volumeType == utils.RawVolumeType {
+					if version.CheckRawDeviceGroup(strArr[1]) {
+						capacity += v.Value()
+					}
+
+				}
+				if volumeType == utils.LvmVolumeType {
+					if !version.CheckRawDeviceGroup(strArr[1]) {
+						capacity += v.Value()
+					}
+				}
 			}
 		}
 	}
 	return capacity, nil
 }
 
-func (s NodeService) SelectDeviceGroup(ctx context.Context, request int64, nodeName string) (string, error) {
+func (s NodeService) SelectDeviceGroup(ctx context.Context, request int64, nodeName string, volumeType string, exclusivityDisk bool) (string, error) {
 	var selectDeviceGroup string
 
 	nl, err := s.getNodes(ctx)
@@ -286,6 +356,10 @@ func (s NodeService) SelectDeviceGroup(ctx context.Context, request int64, nodeN
 		return "", err
 	}
 
+	lvs, err := s.listLogicVolumes(ctx)
+	if err != nil {
+		return "", err
+	}
 	type pairs struct {
 		Key   string
 		Value int64
@@ -305,13 +379,57 @@ func (s NodeService) SelectDeviceGroup(ctx context.Context, request int64, nodeN
 		// 经过上层过滤，这里只会有一个节点
 		for key, value := range status.Allocatable {
 			if strings.HasPrefix(key, utils.DeviceCapacityKeyPrefix) {
-				preselectNode = append(preselectNode, pairs{
-					Key:   key,
-					Value: value.Value(),
-				})
+				strArr := strings.Split(key, "/")
+				if volumeType == utils.RawVolumeType {
+					if version.CheckRawDeviceGroup(strArr[1]) {
+						//skip exclusivityDisk
+						log.Infof("skip:%s ; disk: key %s; value:%v", lvs, strArr[1]+"/"+strArr[2], value.Value())
+						if utils.ContainsString(lvs, strArr[1]+"/"+strArr[2]) && !exclusivityDisk {
+							continue
+						}
+
+						for _, disk := range status.Disks {
+							if strings.Contains(key, disk.Name) {
+								device := disko.Disk{}
+								utils.Fill(disk, &device)
+								log.Info("disk-src:", disk)
+								log.Info(nodeName, ": select disk", disk.Path, " exclusivityDisk: ", exclusivityDisk, " partitions: ", len(disk.Partitions))
+								//check freespace
+								log.Info("disk-dst:", device)
+
+								log.Info("FreeSpaces: ", device.FreeSpacesWithMin(uint64(request)<<30), " size:", uint64(request)<<30)
+								if len(device.FreeSpacesWithMin(uint64(request)<<30)) < 1 {
+									continue
+								}
+								//if it is an exclusive disk, filter the disks that do not have partitions
+								if exclusivityDisk && len(disk.Partitions) > 1 {
+									continue
+								}
+								preselectNode = append(preselectNode, pairs{
+									Key:   key,
+									Value: value.Value(),
+								})
+							}
+
+						}
+
+					}
+
+				}
+				if volumeType == utils.LvmVolumeType {
+					if !version.CheckRawDeviceGroup(strArr[1]) {
+						preselectNode = append(preselectNode, pairs{
+							Key:   key,
+							Value: value.Value(),
+						})
+					}
+				}
+
 			}
 		}
 	}
+
+	log.Info("select device grouplist ", preselectNode)
 	if len(preselectNode) < 1 {
 		return "", ErrNodeNotFound
 	}
@@ -319,10 +437,111 @@ func (s NodeService) SelectDeviceGroup(ctx context.Context, request int64, nodeN
 	sort.Slice(preselectNode, func(i, j int) bool {
 		return preselectNode[i].Value < preselectNode[j].Value
 	})
+
 	// 这里只能选最小满足的，因为可能存在一个pod多个pv都需要落在这个节点
 	for _, p := range preselectNode {
 		if p.Value >= request {
-			selectDeviceGroup = strings.Split(p.Key, "/")[1]
+			if volumeType == utils.LvmVolumeType {
+				selectDeviceGroup = strings.Split(p.Key, "/")[1]
+			}
+			if volumeType == utils.RawVolumeType {
+				selectDeviceGroup = strings.Split(p.Key, "/")[1] + "/" + strings.Split(p.Key, "/")[2]
+			}
+
+		}
+	}
+	return selectDeviceGroup, nil
+}
+
+func (s NodeService) SelectDeviceGroupDisk(ctx context.Context, request int64, nodeName string, volumeType string, exclusivityDisk bool, deviceGroup string) (string, error) {
+	var selectDeviceGroup string
+
+	nl, err := s.getNodes(ctx)
+	if err != nil {
+		return "", err
+	}
+
+	nsr, err := s.getNodeStorageResources(ctx)
+	if err != nil {
+		return "", err
+	}
+
+	lvs, err := s.listLogicVolumes(ctx)
+	if err != nil {
+		return "", err
+	}
+	type pairs struct {
+		Key   string
+		Value int64
+	}
+
+	preselectNode := []pairs{}
+
+	for _, node := range nl.Items {
+		if nodeName != node.Name {
+			continue
+		}
+		status, exists := nsr[node.Name]
+		if !exists {
+			continue
+		}
+		// capacity selector
+		// 经过上层过滤，这里只会有一个节点
+		for key, value := range status.Allocatable {
+			if strings.HasPrefix(key, utils.DeviceCapacityKeyPrefix) {
+				log.Infof("skip:%s ; disk:key %s; deviceGroup:%s", lvs, key, deviceGroup)
+				strArr := strings.Split(key, "/")
+				if deviceGroup != "" && !strings.Contains(key, deviceGroup) {
+					continue
+				}
+				if version.CheckRawDeviceGroup(strArr[1]) {
+					if utils.ContainsString(lvs, strArr[1]+"/"+strArr[2]) && !exclusivityDisk {
+						continue
+					}
+
+					for _, disk := range status.Disks {
+						if strings.Contains(key, disk.Name) {
+							device := disko.Disk{}
+							utils.Fill(disk, &device)
+							log.Info("disk-src:", disk)
+							log.Info(nodeName, ": select disk", disk.Path, " exclusivityDisk: ", exclusivityDisk, " partitions: ", len(disk.Partitions))
+							//check freespace
+							log.Info("disk-dst:", device)
+
+							log.Info("FreeSpaces: ", device.FreeSpacesWithMin(uint64(request)<<30), " size:", uint64(request)<<30)
+							if len(device.FreeSpacesWithMin(uint64(request)<<30)) < 1 {
+								continue
+							}
+							//if it is an exclusive disk, filter the disks that do not have partitions
+							if exclusivityDisk && len(disk.Partitions) > 1 {
+								continue
+							}
+							preselectNode = append(preselectNode, pairs{
+								Key:   key,
+								Value: value.Value(),
+							})
+						}
+
+					}
+
+				}
+			}
+		}
+	}
+
+	log.Info("select device grouplist ", preselectNode)
+	if len(preselectNode) < 1 {
+		return "", ErrNodeNotFound
+	}
+
+	sort.Slice(preselectNode, func(i, j int) bool {
+		return preselectNode[i].Value < preselectNode[j].Value
+	})
+
+	// 这里只能选最小满足的，因为可能存在一个pod多个pv都需要落在这个节点
+	for _, p := range preselectNode {
+		if p.Value >= request {
+			selectDeviceGroup = strings.Split(p.Key, "/")[1] + "/" + strings.Split(p.Key, "/")[2]
 		}
 	}
 	return selectDeviceGroup, nil
@@ -445,4 +664,136 @@ func (s NodeService) SelectMultiVolumeNode(ctx context.Context, backendDeviceGro
 	}
 
 	return nodeName, segments, nil
+}
+
+//In the case of bare disk, it is preferential to match the partitioned disk, and if there is no one, then match the raw disk without partition
+func (s NodeService) SelectDeviceNode(ctx context.Context, request int64, deviceGroup string, requirement *csi.TopologyRequirement, exclusivityDisk bool) (string, string, map[string]string, error) {
+	// Locate the disk that matches the current group
+	//re := configuration.GetRawDeviceGroupRe(deviceGroup)
+	time.Sleep(time.Duration(rand.Int63nRange(1, 30)) * time.Second)
+	var nodeName, selectDeviceGroup string
+	segments := map[string]string{}
+	type pairs struct {
+		Key   string
+		Value int64
+	}
+	preselectNode := []pairs{}
+	// ready nodestorage
+	nsr, err := s.getNodeStorageResources(ctx)
+	if err != nil {
+		return "", "", segments, err
+	}
+
+	nl, err := s.getNodes(ctx)
+	if err != nil {
+		return "", "", segments, err
+	}
+
+	lvs, err := s.listLogicVolumes(ctx)
+	if err != nil {
+		return "", "", segments, err
+	}
+
+	for _, node := range nl.Items {
+
+		// topology selector
+		// 若是sc配置了allowedTopologies，在此过滤出符合条件的node
+		if requirement != nil {
+			topologySelector := false
+			for _, topo := range requirement.GetRequisite() {
+				selector := labels.SelectorFromSet(topo.GetSegments())
+				if selector.Matches(labels.Set(node.Labels)) {
+					topologySelector = true
+					break
+				}
+			}
+			// 如果没有通过topology selector则节点不可用
+			if !topologySelector {
+				continue
+			}
+		}
+		// Only ready nodes exist
+		status, exists := nsr[node.Name]
+		if !exists {
+			continue
+		}
+
+		// capacity selector
+		for key, value := range status.Allocatable {
+			if strings.HasPrefix(key, utils.DeviceCapacityKeyPrefix) {
+				log.Infof("skip:%s ; disk:key %s; deviceGroup:%s", lvs, key, deviceGroup)
+				strArr := strings.Split(key, "/")
+				if deviceGroup != "" && !strings.Contains(key, deviceGroup) {
+					continue
+				}
+				if version.CheckRawDeviceGroup(strArr[1]) {
+					if utils.ContainsString(lvs, strArr[1]+"/"+strArr[2]) && !exclusivityDisk {
+						continue
+					}
+
+					for _, disk := range status.Disks {
+						if strings.Contains(key, disk.Name) {
+							device := disko.Disk{}
+							utils.Fill(disk, &device)
+							log.Info("disk-src:", disk)
+							log.Info(nodeName, ": select disk", disk.Path, " exclusivityDisk: ", exclusivityDisk, " partitions: ", len(disk.Partitions))
+							//check freespace
+							log.Info("disk-dst:", device)
+
+							log.Info("FreeSpaces: ", device.FreeSpacesWithMin(uint64(request)<<30), " size:", uint64(request)<<30)
+							if len(device.FreeSpacesWithMin(uint64(request)<<30)) < 1 {
+								continue
+							}
+							//if it is an exclusive disk, filter the disks that do not have partitions
+							if exclusivityDisk && len(disk.Partitions) > 1 {
+								continue
+							}
+							preselectNode = append(preselectNode, pairs{
+								Key:   node.Name + "-*-" + strArr[1] + "/" + strArr[2],
+								Value: value.Value(),
+							})
+
+						}
+
+					}
+
+				}
+			}
+		}
+	}
+	log.Infof("preselectNode:%v", preselectNode)
+	if len(preselectNode) < 1 {
+		return "", "", segments, ErrNodeNotFound
+	}
+
+	sort.Slice(preselectNode, func(i, j int) bool {
+		return preselectNode[i].Value < preselectNode[j].Value
+	})
+
+	//根据配置文件中设置算法进行节点选择
+	if configuration.SchedulerStrategy() == configuration.SchedulerBinpack {
+		nodeName = strings.Split(preselectNode[0].Key, "-*-")[0]
+		selectDeviceGroup = strings.Split(preselectNode[0].Key, "-*-")[1]
+	} else if configuration.SchedulerStrategy() == configuration.Schedulerspreadout {
+		nodeName = strings.Split(preselectNode[len(preselectNode)-1].Key, "-*-")[0]
+		selectDeviceGroup = strings.Split(preselectNode[len(preselectNode)-1].Key, "-*-")[1]
+	} else {
+		return "", "", segments, fmt.Errorf("no support scheduler strategy %s", configuration.SchedulerStrategy())
+	}
+
+	node := new(corev1.Node)
+	err = s.Get(ctx, client.ObjectKey{Name: nodeName}, node)
+	if err != nil {
+		log.Error(err, "unable get node ")
+		return "", "", segments, err
+	}
+
+	// 获取选择节点的label
+	for _, topo := range requirement.GetRequisite() {
+		for k, _ := range topo.GetSegments() {
+			segments[k] = node.Labels[k]
+		}
+	}
+
+	return nodeName, selectDeviceGroup, segments, nil
 }

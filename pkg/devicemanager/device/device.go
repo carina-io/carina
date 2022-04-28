@@ -18,13 +18,14 @@ package device
 
 import (
 	"fmt"
-	"github.com/carina-io/carina/pkg/devicemanager/types"
-	"github.com/carina-io/carina/utils/exec"
-	"github.com/carina-io/carina/utils/log"
 	"os"
 	"strconv"
 	"strings"
 	"syscall"
+
+	"github.com/carina-io/carina/pkg/devicemanager/types"
+	"github.com/carina-io/carina/utils/exec"
+	"github.com/carina-io/carina/utils/log"
 )
 
 type LocalDevice interface {

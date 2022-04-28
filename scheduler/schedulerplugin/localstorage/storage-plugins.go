@@ -19,10 +19,11 @@ package localstorage
 import (
 	"context"
 	"errors"
-	"k8s.io/client-go/dynamic"
 	"sort"
 	"strconv"
 	"strings"
+
+	"k8s.io/client-go/dynamic"
 
 	"github.com/carina-io/carina/scheduler/configuration"
 	"github.com/carina-io/carina/scheduler/utils"
@@ -46,6 +47,7 @@ type LocalStorage struct {
 	dynamicClient dynamic.Interface
 }
 
+var exclusivityDisk bool = false
 var _ framework.FilterPlugin = &LocalStorage{}
 var _ framework.ScorePlugin = &LocalStorage{}
 
@@ -90,21 +92,85 @@ func (ls *LocalStorage) Filter(ctx context.Context, cycleState *framework.CycleS
 	nsr, err := getNodeStorageResource(ls.dynamicClient, node.Node().Name)
 	if err != nil {
 		klog.V(3).Infof("Failed to obtain node storage information pod: %v, node: %v, err: %v", pod.Name, node.Node().Name, err.Error())
-		return framework.NewStatus(framework.Error, "Failed to obtain node storage information")
+		return framework.NewStatus(framework.UnschedulableAndUnresolvable, "Failed to obtain node storage information")
 	}
+
+	lvs, err := listLogicVolumes(ls.dynamicClient, node.Node().Name)
+	if err != nil {
+		klog.V(3).Infof("Failed to obtain logicVolumes  information pod: %v, node: %v, err: %v", pod.Name, node.Node().Name, err.Error())
+		return framework.NewStatus(framework.UnschedulableAndUnresolvable, "Failed to obtain logicVolumes  information")
+	}
+	volumeType := utils.LvmVolumeType
+	for key, _ := range pvcMap {
+		strArr := strings.Split(key, "/")
+		if configuration.CheckRawDeviceGroup(strArr[1]) {
+			volumeType = utils.RawVolumeType
+		}
+	}
+
+	exclusivityDiskMap := map[string]int64{}
+	//when monopolizing the disk, check whether there is an empty disk
 
 	capacityMap := map[string]int64{}
 	total := int64(0)
+	//The maximum partition capacity of the available disk of the raw disk matching node raw disk group meets,
+	// that is, the node meets;LVM matches the capacity managed by node LVM
 	for key, v := range nsr.Status.Allocatable {
 		if strings.HasPrefix(key, utils.DeviceCapacityKeyPrefix) {
-			capacityMap[key] = v.Value()
-			total += v.Value()
+			strArr := strings.Split(key, "/")
+			if volumeType == utils.RawVolumeType {
+				if configuration.CheckRawDeviceGroup(strArr[1]) {
+					klog.V(3).Infof("capacityMap:%v ; disk: key %v; value:%v; exclusivityDisk:%v", capacityMap, key, v.Value(), exclusivityDisk)
+					//skip exclusivityDisk
+					klog.V(3).Infof("skip:%s ; disk: key %s; value:%v", lvs, strArr[1]+"/"+strArr[2], v.Value())
+					if utils.ContainsString(lvs, strArr[1]+"/"+strArr[2]) && !exclusivityDisk {
+						continue
+					}
+					if val, ok := capacityMap[strArr[1]]; ok {
+						if v.Value() > val {
+							capacityMap[strArr[0]+"/"+strArr[1]] = v.Value()
+							total += v.Value() - val
+						}
+					} else {
+
+						if exclusivityDisk {
+							partionFlag := false
+							for _, disk := range nsr.Status.Disks {
+								if strings.Contains(key, disk.Name) && len(disk.Partition) > 1 {
+									partionFlag = true
+									exclusivityDiskMap[key] = 1
+								}
+							}
+
+							if partionFlag {
+								continue
+							}
+						}
+						capacityMap[strArr[0]+"/"+strArr[1]] = v.Value()
+						total += v.Value()
+					}
+
+				}
+
+			}
+			if volumeType == utils.LvmVolumeType {
+				if !configuration.CheckRawDeviceGroup(strArr[1]) {
+					capacityMap[key] = v.Value()
+					total += v.Value()
+				}
+			}
 		}
 	}
 	klog.V(3).Infof("capacityMap: %v", capacityMap)
-	klog.V(3).Infof("total: %v", total)
+	klog.V(3).Infof("type:%s,total: %v", volumeType, total)
+
+	if len(capacityMap) < 1 {
+		klog.V(3).Infof("does not have a disk group that satisfies: %v, node: %v,exclusivity:%v", pod.Name, node.Node().Name, exclusivityDisk)
+		return framework.NewStatus(framework.UnschedulableAndUnresolvable, "does not have a disk group that satisfies")
+	}
 	// 检查节点容量是否充足
 	for key, pvs := range pvcMap {
+
 		sort.Slice(pvs, func(i, j int) bool {
 			return pvs[i].Spec.Resources.Requests.Storage().Value() > pvs[j].Spec.Resources.Requests.Storage().Value()
 		})
@@ -140,9 +206,10 @@ func (ls *LocalStorage) Filter(ctx context.Context, cycleState *framework.CycleS
 				requestTotalGb += (value-1)>>30 + 1
 			}
 			if requestTotalGb > capacityMap[key] {
-				klog.V(3).Infof("mismatch pod: %v, node: %v, request: %d, capacity: %d", pod.Name, node.Node().Name, requestTotalGb, capacityMap[key])
+				klog.V(3).Infof("mismatch pod: %v, node: %v, request: %d, key:%s,capacity: %d", pod.Name, node.Node().Name, requestTotalGb, key, capacityMap[key])
 				return framework.NewStatus(framework.UnschedulableAndUnresolvable, "node storage resource insufficient")
 			}
+
 		}
 	}
 
@@ -170,19 +237,47 @@ func (ls *LocalStorage) Score(ctx context.Context, state *framework.CycleState, 
 	if len(pvcMap) == 0 {
 		return 5, framework.NewStatus(framework.Success, "")
 	}
+	volumeType := utils.LvmVolumeType
+	for key, _ := range pvcMap {
+		strArr := strings.Split(key, "/")
+		if configuration.CheckRawDeviceGroup(strArr[1]) {
+			volumeType = utils.RawVolumeType
+		}
+	}
 
 	nsr, err := getNodeStorageResource(ls.dynamicClient, nodeName)
 	if err != nil {
 		klog.V(3).Infof("Failed to obtain node storage information pod: %v, node: %v, err: %v", pod.Name, nodeName, err.Error())
-		return 0, framework.NewStatus(framework.Error, "Failed to obtain node storage information")
+		return 0, framework.NewStatus(framework.UnschedulableAndUnresolvable, "Failed to obtain node storage information")
 	}
 
 	capacityMap := map[string]int64{}
 	total := int64(0)
+	//裸盘匹配节点裸盘组的最小容量满足，即节点满足
+	//lvm 匹配节点lvm管理的容量
 	for key, v := range nsr.Status.Allocatable {
 		if strings.HasPrefix(key, utils.DeviceCapacityKeyPrefix) {
-			capacityMap[key] = v.Value()
-			total += v.Value()
+			strArr := strings.Split(key, "/")
+			if volumeType == utils.RawVolumeType {
+				if configuration.CheckRawDeviceGroup(strArr[1]) {
+					if val, ok := capacityMap[strArr[0]+"/"+strArr[1]]; ok {
+						if v.Value() > val {
+							capacityMap[strArr[0]+"/"+strArr[1]] = v.Value()
+							total += v.Value()
+						}
+					} else {
+						capacityMap[strArr[0]+"/"+strArr[1]] = v.Value()
+						total += v.Value()
+					}
+				}
+
+			}
+			if volumeType == utils.LvmVolumeType {
+				if !configuration.CheckRawDeviceGroup(strArr[1]) {
+					capacityMap[key] = v.Value()
+					total += v.Value()
+				}
+			}
 		}
 	}
 	var score int64
@@ -300,6 +395,10 @@ func (ls *LocalStorage) getLocalStoragePvc(pod *v1.Pod) (map[string][]*v1.Persis
 			deviceGroup = utils.DeviceCapacityKeyPrefix + configuration.GetDeviceGroup(deviceGroup)
 		}
 		localPvc[deviceGroup] = append(localPvc[deviceGroup], pvc)
+		if sc.Parameters[utils.ExclusivityDisk] == "true" {
+			exclusivityDisk = true
+		}
+
 	}
 	return localPvc, nodeName, cacheDeviceRequest, nil
 }

@@ -111,7 +111,7 @@ func SchedulerStrategy() string {
 	return schedulerStrategy
 }
 
-// GetDeviceGroup 处理磁盘类型参数，支持carina.storage.io/disk-type:ssd书写方式
+// GetDeviceGroup 处理磁盘类型参数，支持carina.storage.io/disk-group-name:ssd书写方式
 func GetDeviceGroup(diskType string) string {
 	deviceGroup := strings.ToLower(diskType)
 	diskSelector := DiskConfig.DiskSelectors
@@ -131,4 +131,20 @@ func GetDeviceGroup(diskType string) string {
 	}
 	return deviceGroup
 
+}
+
+func CheckRawDeviceGroup(diskType string) bool {
+	deviceGroup := strings.ToLower(diskType)
+	currentDiskSelector := DiskConfig.DiskSelectors
+	if utils.ContainsString([]string{"ssd", "hdd"}, deviceGroup) {
+		deviceGroup = fmt.Sprintf("carina-vg-%s", deviceGroup)
+	}
+
+	for _, v := range currentDiskSelector {
+		if v.Name == deviceGroup && strings.ToLower(v.Policy) == "raw" {
+			return true
+		}
+
+	}
+	return false
 }

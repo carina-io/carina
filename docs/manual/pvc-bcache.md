@@ -15,8 +15,8 @@ parameters:
   # file system
   csi.storage.k8s.io/fstype: xfs
   # disk group
-  carina.storage.io/backend-disk-type: hdd
-  carina.storage.io/cache-disk-type: ssd
+  carina.storage.io/backend-disk-group-name: hdd
+  carina.storage.io/cache-disk-group-name: ssd
   # 1-100 Cache Capacity Ratio
   carina.storage.io/cache-disk-ratio: "50"
   # writethrough/writeback/writearound
@@ -28,8 +28,8 @@ mountOptions:
 ```
 
 - `csi.storage.k8s.io/fstype`: the filesystem formation
-- `carina.storage.io/backend-disk-type`: the cold tier
-- `carina.storage.io/cache-disk-type`: the hot tier
+- `carina.storage.io/backend-disk-group-name`: the cold tier
+- `carina.storage.io/cache-disk-group-name`: the hot tier
 - `carina.storage.io/cache-disk-ratio`: percentage of hot/cold, ranging (0-100)
 - `carina.storage.io/cache-policy`: `writethrough|writeback|writearound`
 

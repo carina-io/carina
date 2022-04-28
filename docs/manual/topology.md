@@ -14,7 +14,7 @@ parameters:
   # file system
   csi.storage.k8s.io/fstype: xfs
   # disk group
-  carina.storage.io/disk-type: hdd
+  carina.storage.io/disk-group-name: hdd
 reclaimPolicy: Delete
 allowVolumeExpansion: true
 volumeBindingMode: Immediate

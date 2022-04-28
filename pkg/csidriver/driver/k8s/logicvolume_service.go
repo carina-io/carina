@@ -20,12 +20,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sync"
+	"time"
+
 	carinav1 "github.com/carina-io/carina/api/v1"
 	"github.com/carina-io/carina/utils"
 	"github.com/carina-io/carina/utils/log"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
-	"sync"
-	"time"
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -75,7 +76,7 @@ func NewLogicVolumeService(mgr manager.Manager) (*LogicVolumeService, error) {
 
 // CreateVolume creates volume
 func (s *LogicVolumeService) CreateVolume(ctx context.Context, namespace, pvc, node, deviceGroup, name string, requestGb int64, owner metav1.OwnerReference, annotation map[string]string) (string, uint32, uint32, error) {
-	log.Info("k8s.CreateVolume called name ", name, " node ", node, " size_gb ", requestGb)
+	log.Info("k8s.CreateVolume called name ", name, " node ", node, " deviceGroup ", deviceGroup, " size_gb ", requestGb)
 	s.mu.Lock()
 	defer s.mu.Unlock()
 

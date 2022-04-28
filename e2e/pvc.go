@@ -19,6 +19,7 @@ package e2e
 import (
 	"encoding/json"
 	"fmt"
+
 	"github.com/carina-io/carina/utils/log"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -197,7 +198,7 @@ func testCreatePvc() {
 				return fmt.Errorf("unmarshal error: stdout=%s", stdout)
 			}
 			nodeName = pv.Spec.CSI.VolumeAttributes["carina.storage.io/node"]
-			diskGroup = pv.Spec.CSI.VolumeAttributes["carina.storage.io/disk-type"]
+			diskGroup = pv.Spec.CSI.VolumeAttributes["carina.storage.io/disk-group-name"]
 
 			log.Info("pv check success")
 			return nil

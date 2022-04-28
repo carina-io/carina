@@ -2,7 +2,7 @@
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: raw-block-pvc
+  name: lvm-block-pvc
   namespace: carina
 spec:
   accessModes:
@@ -11,4 +11,4 @@ spec:
   resources:
     requests:
       storage: 13Gi
-  storageClassName: csi-carina-sc
+  storageClassName: csi-carina-lvm

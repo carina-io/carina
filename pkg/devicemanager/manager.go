@@ -18,15 +18,17 @@ package deviceManager
 
 import (
 	"context"
-	"github.com/carina-io/carina/api"
 	"regexp"
 	"strings"
 	"time"
+
+	"github.com/carina-io/carina/api"
 
 	"github.com/carina-io/carina/pkg/configuration"
 	"github.com/carina-io/carina/pkg/devicemanager/bcache"
 	"github.com/carina-io/carina/pkg/devicemanager/device"
 	"github.com/carina-io/carina/pkg/devicemanager/lvmd"
+	"github.com/carina-io/carina/pkg/devicemanager/partition"
 	"github.com/carina-io/carina/pkg/devicemanager/troubleshoot"
 	"github.com/carina-io/carina/pkg/devicemanager/types"
 	"github.com/carina-io/carina/pkg/devicemanager/volume"
@@ -60,11 +62,14 @@ type DeviceManager struct {
 	trouble *troubleshoot.Trouble
 	// 配置变更即触发搜索本地磁盘逻辑
 	configModifyChan chan struct{}
+	//磁盘分区
+	Partition partition.LocalPartition
 }
 
 func NewDeviceManager(nodeName string, cache cache.Cache, stopChan <-chan struct{}) *DeviceManager {
 	executor := &exec.CommandExecutor{}
 	mutex := mutx.NewGlobalLocks()
+
 	dm := DeviceManager{
 		Cache:            cache,
 		Executor:         executor,
@@ -77,18 +82,18 @@ func NewDeviceManager(nodeName string, cache cache.Cache, stopChan <-chan struct
 		nodeName:         nodeName,
 		trouble:          &troubleshoot.Trouble{},
 		configModifyChan: make(chan struct{}),
+		Partition:        &partition.LocalPartitionImplement{Mutex: mutex, CacheParttionNum: make(map[string]uint), Executor: executor},
 	}
-	dm.trouble = troubleshoot.NewTroubleObject(dm.VolumeManager, cache, nodeName)
+	dm.trouble = troubleshoot.NewTroubleObject(dm.VolumeManager, dm.Partition, cache, nodeName)
 	// 注册监听配置变更
 	dm.configModifyChan = make(chan struct{}, 1)
 	configuration.RegisterListenerChan(dm.configModifyChan)
 	return &dm
 }
 
-func (dm *DeviceManager) GetNodeVg() map[string]configuration.DiskSelectorItem {
+func (dm *DeviceManager) GetNodeDiskSelectGroup() map[string]configuration.DiskSelectorItem {
 	diskClass := map[string]configuration.DiskSelectorItem{}
 	currentDiskSelector := configuration.DiskSelector()
-
 	node := &corev1.Node{}
 	err := dm.Cache.Get(context.Background(), client.ObjectKey{Name: dm.nodeName}, node)
 	if err != nil {
@@ -109,7 +114,7 @@ func (dm *DeviceManager) GetNodeVg() map[string]configuration.DiskSelectorItem {
 
 // AddAndRemoveDevice 定时巡检磁盘，是否有新磁盘加入
 func (dm *DeviceManager) AddAndRemoveDevice() {
-	diskClass := dm.GetNodeVg()
+	diskClass := dm.GetNodeDiskSelectGroup()
 	ActuallyVg, err := dm.VolumeManager.GetCurrentVgStruct()
 	if err != nil {
 		log.Error("get current vg struct failed: " + err.Error())
@@ -270,7 +275,7 @@ func (dm *DeviceManager) DiscoverDisk(diskClass map[string]configuration.DiskSel
 			}
 
 			if d.Readonly || d.Size < 10<<30 || d.Filesystem != "" || d.MountPoint != "" {
-				log.Infof("mismatched disk: %s filesystem:%s mountpoint:%s readonly:%t, size:%d", d.Name, d.Filesystem, d.MountPoint, d.Readonly, d.Size)
+				//		log.Infof("mismatched disk: %s filesystem:%s mountpoint:%s readonly:%t, size:%d", d.Name, d.Filesystem, d.MountPoint, d.Readonly, d.Size)
 				continue
 			}
 
@@ -330,6 +335,9 @@ func (dm *DeviceManager) DiscoverPv(diskClass map[string]configuration.DiskSelec
 		return nil, err
 	}
 	for _, ds := range diskClass {
+		if strings.ToLower(ds.Policy) == "raw" {
+			continue
+		}
 		diskSelector, err := regexp.Compile(strings.Join(ds.Re, "|"))
 		if err != nil {
 			log.Warnf("disk regex %s error %v ", strings.Join(ds.Re, "|"), err)
@@ -380,6 +388,7 @@ func (dm *DeviceManager) VolumeConsistencyCheck() {
 			case <-t.C:
 				log.Info("volume consistency check...")
 				dm.trouble.CleanupOrphanVolume()
+				dm.trouble.CleanupOrphanPartition()
 			case <-dm.stopChan:
 				log.Info("stop volume consistency check...")
 				return
@@ -402,6 +411,7 @@ func (dm *DeviceManager) DeviceCheckTask() {
 
 	ticker1 := time.NewTicker(time.Duration(monitorInterval) * time.Second)
 	func(t *time.Ticker) {
+		defer close(dm.configModifyChan)
 		defer ticker1.Stop()
 		for {
 			select {

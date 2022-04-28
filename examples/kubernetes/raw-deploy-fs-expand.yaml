@@ -1,0 +1,58 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: carina-deployment-fs
+  namespace: carina
+  labels:
+    app: web-server
+  annotations:
+    carina.stroage.io/allow-pod-migration-if-node-notready: "true"  
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: web-server
+  template:
+    metadata:
+      labels:
+        app: web-server
+      annotations:
+        carina.stroage.io/allow-pod-migration-if-node-notready: "true"    
+    spec:
+      containers:
+        - name: web-server
+          image: nginx:latest
+          imagePullPolicy: "IfNotPresent"
+          command:
+          - sh
+          - "-c"
+          - |
+              while true; do
+                echo "huizhi testing";
+                echo "yes ">>/var/lib/www/html/yes.txt;
+                sleep 120s
+              done;
+          volumeMounts:
+            - name: mypvc
+              mountPath: /var/lib/www/html
+      volumes:
+        - name: mypvc
+          persistentVolumeClaim:
+            claimName: csi-carina-raw-fs
+            readOnly: false
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: csi-carina-raw-fs
+  namespace: carina
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi
+  storageClassName: csi-carina-raw
+  volumeMode: Filesystem

@@ -19,23 +19,28 @@ package troubleshoot
 import (
 	"context"
 	"fmt"
+	"strings"
+
+	"github.com/anuvu/disko/linux"
 	carinav1 "github.com/carina-io/carina/api/v1"
+	"github.com/carina-io/carina/pkg/devicemanager/partition"
 	"github.com/carina-io/carina/pkg/devicemanager/volume"
+	"github.com/carina-io/carina/utils"
 	"github.com/carina-io/carina/utils/log"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"strings"
 )
 
 type Trouble struct {
 	volumeManager volume.LocalVolume
+	partition     partition.LocalPartition
 	cache         cache.Cache
 	nodeName      string
 }
 
 const logPrefix = "clean orphan volume:"
 
-func NewTroubleObject(volumeManager volume.LocalVolume, cache cache.Cache, nodeName string) *Trouble {
+func NewTroubleObject(volumeManager volume.LocalVolume, partition partition.LocalPartition, cache cache.Cache, nodeName string) *Trouble {
 
 	if cache == nil {
 		return nil
@@ -51,6 +56,7 @@ func NewTroubleObject(volumeManager volume.LocalVolume, cache cache.Cache, nodeN
 
 	return &Trouble{
 		volumeManager: volumeManager,
+		partition:     partition,
 		cache:         cache,
 		nodeName:      nodeName,
 	}
@@ -87,6 +93,10 @@ func (t *Trouble) CleanupOrphanVolume() {
 	log.Infof("%s cleanup orphan volume", logPrefix)
 	mapLvList := map[string]bool{}
 	for _, v := range lvList.Items {
+		//skip raw logicVolume
+		if v.Annotations[utils.VolumeManagerType] == utils.RawVolumeType {
+			continue
+		}
 		mapLvList[v.Name] = true
 		mapLvList[fmt.Sprintf("thin-%s", v.Name)] = true
 		mapLvList[fmt.Sprintf("volume-%s", v.Name)] = true
@@ -105,6 +115,68 @@ func (t *Trouble) CleanupOrphanVolume() {
 					log.Errorf("%s delete volume vg %s lv %s error %s", logPrefix, v.VGName, v.LVName, err.Error())
 				}
 			}
+		}
+	}
+
+	log.Infof("%s volume check finished.", logPrefix)
+}
+
+//清理裸盘分区和logicVolume的对应关系
+func (t *Trouble) CleanupOrphanPartition() {
+	// step.1 获取所有本地 磁盘分区，一个lv其实就是对应一个分区
+	log.Infof("%s get all local partition", "CleanupOrphanPartition")
+
+	disklist, err := t.partition.ListDevicesDetail("")
+	if err != nil {
+		log.Errorf("fail get all local parttions failed %s", err.Error())
+	}
+
+	//TODU step.2 检查磁盘逻辑坏道，物理坏道隔离
+
+	// step.3 获取集群中logicVolume对象
+	log.Infof("%s get all logicVolume in cluster", logPrefix)
+	lvList := &carinav1.LogicVolumeList{}
+	err = t.cache.List(context.Background(), lvList, client.MatchingFields{"nodeName": t.nodeName})
+	if err != nil {
+		log.Errorf("%s list logic volume error %s", logPrefix, err.Error())
+		return
+	}
+
+	// step.4 对比本地分区与logicVolume是否一致， 集群中没有的便删除本地磁盘分区
+	log.Infof("%s cleanup orphan parttions", logPrefix)
+	mapLvList := map[string]bool{}
+	for _, v := range lvList.Items {
+		//skip lvm logicVolume
+		if v.Annotations[utils.VolumeManagerType] == utils.LvmVolumeType {
+			continue
+		}
+
+		mapLvList[utils.PartitionName(v.Name)] = true
+	}
+	log.Infof("mapLvList:%v", mapLvList)
+	for _, d := range disklist {
+		disk, err := linux.System().ScanDisk(d.Name)
+		if err != nil {
+			log.Errorf("%s get disk info error %s", logPrefix, err.Error())
+			return
+		}
+		if len(disk.Partitions) < 1 {
+			continue
+		}
+		for _, p := range disk.Partitions {
+			if !strings.Contains(p.Name, "carina.io") {
+				log.Infof("skip parttions %s", p.Name)
+				continue
+			}
+			log.Infof("check parttions %s %d %d", p.Name, p.Start, p.Last)
+			if _, ok := mapLvList[p.Name]; !ok {
+				log.Warnf("remove parttions %s %d %d", p.Name, p.Start, p.Last)
+				if err := t.partition.DeletePartitionByPartNumber(disk, p.Number); err != nil {
+					log.Errorf("delete parttions in disk name: %s  number: %d error: %s", disk.Name, p.Number, err.Error())
+				}
+
+			}
+
 		}
 	}
 

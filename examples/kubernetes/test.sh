@@ -9,9 +9,11 @@ function install() {
   kubectl apply -f deployment.yaml
   kubectl apply -f statefulset.yaml
   kubectl apply -f topostatefulset.yaml
-  kubectl apply -f raw-block-pvc.yaml
-  kubectl apply -f raw-block-pod.yaml
+  kubectl apply -f lvm-block-pvc.yaml
+  kubectl apply -f lvm-block-pod.yaml
   kubectl apply -f sample.yaml
+  kubectl apply -f raw-sts-block.yaml
+  kubectl apply -f raw-sts-fs.yaml
   kubectl apply -f deploymentspeedlimit.yaml
   kubectl apply -f speedlimit.yaml
   sleep 10s
@@ -28,8 +30,10 @@ function uninstall() {
   kubectl delete -f deployment.yaml
   kubectl delete -f statefulset.yaml
   kubectl delete -f topostatefulset.yaml
-  kubectl delete -f raw-block-pod.yaml
-  kubectl delete -f raw-block-pvc.yaml
+  kubectl delete -f lvm-block-pod.yaml
+  kubectl delete -f lvm-block-pvc.yaml
+  kubectl delete -f raw-sts-block.yaml
+  kubectl delete -f raw-sts-fs.yaml
   kubectl delete -f pvc.yaml
   kubectl delete -f namespace.yaml
   kubectl delete -f storageclass.yaml

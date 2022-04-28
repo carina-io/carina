@@ -14,7 +14,7 @@ parameters:
   # file system
   csi.storage.k8s.io/fstype: xfs
   # disk group
-  carina.storage.io/disk-type: hdd
+  carina.storage.io/disk-group-name: hdd
 reclaimPolicy: Delete
 allowVolumeExpansion: true
 # WaitForFirstConsumer表示被容器绑定调度后再创建pv
@@ -23,7 +23,7 @@ mountOptions:
 ```
 
 - 要标识创建设备的文件系统使用`csi.storage.k8s.io/fstype`参数
-- 要标识设备使用的磁盘使用`carina.storage.io/disk-type` 支持 `hdd` `ssd`值
+- 要标识设备使用的磁盘使用`carina.storage.io/disk-group-name` 支持 `hdd` `ssd`值
 
 创建PVC `kubectl apply -f pvc.yaml`
 

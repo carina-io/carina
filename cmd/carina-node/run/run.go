@@ -19,8 +19,9 @@ package run
 import (
 	"context"
 	"errors"
-	carinav1beta1 "github.com/carina-io/carina/api/v1beta1"
 	"os"
+
+	carinav1beta1 "github.com/carina-io/carina/api/v1beta1"
 
 	carinav1 "github.com/carina-io/carina/api/v1"
 	"github.com/carina-io/carina/controllers"
@@ -99,6 +100,7 @@ func subMain() error {
 		mgr.GetEventRecorderFor("logicvolume-node"),
 		nodeName,
 		dm.VolumeManager,
+		dm.Partition,
 	)
 
 	if err := lvController.SetupWithManager(mgr); err != nil {
@@ -112,6 +114,8 @@ func subMain() error {
 		nodeName,
 		dm.VolumeManager,
 		stopChan,
+		dm.Partition,
+		dm,
 	)
 
 	if err := nodeResourceController.SetupWithManager(mgr); err != nil {
@@ -141,7 +145,7 @@ func subMain() error {
 	}
 	grpcServer := grpc.NewServer()
 	csi.RegisterIdentityServer(grpcServer, driver.NewIdentityService())
-	csi.RegisterNodeServer(grpcServer, driver.NewNodeService(nodeName, dm.VolumeManager, s))
+	csi.RegisterNodeServer(grpcServer, driver.NewNodeService(nodeName, dm.VolumeManager, dm.Partition, s))
 	err = mgr.Add(runners.NewGRPCRunner(grpcServer, config.csiSocket, false))
 	if err != nil {
 		return err

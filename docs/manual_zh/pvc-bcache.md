@@ -18,8 +18,8 @@ parameters:
   # file system
   csi.storage.k8s.io/fstype: xfs
   # disk group
-  carina.storage.io/backend-disk-type: hdd
-  carina.storage.io/cache-disk-type: ssd
+  carina.storage.io/backend-disk-group-name: hdd
+  carina.storage.io/cache-disk-group-name: ssd
   # 1-100 Cache Capacity Ratio
   carina.storage.io/cache-disk-ratio: "50"
   # writethrough/writeback/writearound
@@ -33,8 +33,8 @@ mountOptions:
 
 - 参数`csi.storage.k8s.io/fstype`表示挂载后设备文件格式
 
-- 参数`carina.storage.io/backend-disk-type`表示后端存储设备磁盘类型，填写慢盘类型比如Hdd
-- 参数`carina.storage.io/cache-disk-type`表示缓存设备磁盘类型，填写快盘类型比如ssd
+- 参数`carina.storage.io/backend-disk-group-name`表示后端存储设备磁盘类型，填写慢盘类型比如Hdd
+- 参数`carina.storage.io/cache-disk-group-name`表示缓存设备磁盘类型，填写快盘类型比如ssd
 - 参数`carina.storage.io/cache-disk-ratio`表示缓存比例范围为1-100，该比率计算公式是 `cache-disk = backend * 100 / cache-disk-ratio`
 - 参数`carina.storage.io/cache-policy`表示缓存策略共三种`writethrough|writeback|writearound`
 
