@@ -12,7 +12,7 @@ IMG ?= carina:raw
 # Produce CRDs that work back to Kubernetes 1.11 (no version conversion)
 CRD_OPTIONS ?= "crd:trivialVersions=true"
 
-IMAGE_REPOSITORY=registry.cn-qingdao.aliyuncs.com/zhangkai8048#registry.cn-hangzhou.aliyuncs.com/antmoveh
+IMAGE_REPOSITORY=registry.cn-hangzhou.aliyuncs.com/antmoveh
 VERSION ?= latest
 
 
