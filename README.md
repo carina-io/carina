@@ -27,7 +27,7 @@ Carina is a standard kubernetes CSI plugin. Users can use standard kubernetes st
 
 # Running Environments
 
-* Kubernetes：(CSI_VERSION=1.3.0)
+* Kubernetes：(CSI_VERSION=1.5.0)
 * Node OS：Linux
 * Filesystems：ext4，xfs
 
@@ -86,11 +86,11 @@ $ ./deploy.sh uninstall
 - Support installation of specified versions of Carina
 
 ```bash
-helm repo add carina-csi-driver https://raw.githubusercontent.com/carina-io/charts/main
+helm repo add carina-csi-driver https://carina-io.github.io
 
 helm search repo -l carina-csi-driver
 
-helm install carina-csi-driver carina-csi-driver/carina-csi-driver --namespace kube-system --version v0.9.0
+helm install carina-csi-driver carina-csi-driver/carina-csi-driver --namespace kube-system --version v0.10.0
 ```
 
 * [deployment guide](docs/manual/install.md)
