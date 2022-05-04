@@ -50,6 +50,7 @@ type LocalPartition interface {
 	UpdatePartitionCache(name string, number uint) error
 	Wipe(name, groups string) error
 	UdevSettle() error
+	PartProbe() error
 	ListDevicesDetail(device string) ([]*types.LocalDisk, error)
 }
 
@@ -274,7 +275,7 @@ func (ld *LocalPartitionImplement) CreatePartition(name, groups string, size uin
 	}
 	ld.CacheParttionNum[partitionName] = partitionNum
 	log.Info("create parttion success", partitionNum, ld.CacheParttionNum)
-	return nil
+	return ld.PartProbe()
 }
 
 func (ld *LocalPartitionImplement) UpdatePartition(name, groups string, size uint64) error {
@@ -346,7 +347,7 @@ func (ld *LocalPartitionImplement) UpdatePartition(name, groups string, size uin
 	ld.CacheParttionNum[name] = partitionNum
 	log.Info("update parttion success", partitionNum, ld.CacheParttionNum)
 
-	return nil
+	return ld.PartProbe()
 }
 
 func (ld *LocalPartitionImplement) DeletePartition(name, groups string) error {
@@ -388,7 +389,7 @@ func (ld *LocalPartitionImplement) DeletePartition(name, groups string) error {
 	}
 	delete(ld.CacheParttionNum, name)
 
-	return nil
+	return ld.PartProbe()
 
 }
 func (ld *LocalPartitionImplement) DeletePartitionByPartNumber(disk disko.Disk, number uint) error {
@@ -408,7 +409,7 @@ func (ld *LocalPartitionImplement) DeletePartitionByPartNumber(disk disko.Disk, 
 		}
 	}
 
-	return nil
+	return ld.PartProbe()
 
 }
 
@@ -447,4 +448,8 @@ func (ld *LocalPartitionImplement) UdevSettle() error {
 		return err
 	}
 	return err
+}
+
+func (ld *LocalPartitionImplement) PartProbe() error {
+	return ld.Executor.ExecuteCommand("bash", "-c", "partprobe")
 }
