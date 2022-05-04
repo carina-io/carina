@@ -110,5 +110,18 @@ if [[ ${serverCert} == '' ]]; then
     exit 1
 fi
 echo "${serverCert}" | openssl base64 -d -A -out "${tmpdir}"/tls.crt
+sudo mkdir -p /tmp/k8s-webhook-server/serving-certs
+mv "${tmpdir}"/tls.crt /tmp/k8s-webhook-server/serving-certs/cert
+mv "${tmpdir}"/tls.key /tmp/k8s-webhook-server/serving-certs/key
+sudo mkdir /var/log/carina
+sudo chmod -R 775 /tmp/k8s-webhook-server/serving-certs
+ls /tmp/k8s-webhook-server/serving-certs
+#csi
+sudo mkdir -p /tmp/csi
+sudo touch /tmp/csi/csi-provisioner.sock
+sudo chmod -R 775 /tmp/csi
 
-
+#config 
+sudo mkdir -p  /etc/carina/
+sudo cp hack/config.json /etc/carina/
+sudo chmod -R 775 /etc/carina/

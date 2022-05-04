@@ -485,6 +485,7 @@ func (s NodeService) SelectDeviceGroupDisk(ctx context.Context, request int64, n
 		if !exists {
 			continue
 		}
+		log.Infof("status:%v", status)
 		// capacity selector
 		// 经过上层过滤，这里只会有一个节点
 		for key, value := range status.Allocatable {

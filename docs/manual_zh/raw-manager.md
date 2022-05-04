@@ -101,7 +101,7 @@ docker-desktop   docker-desktop   12m
 kubectl apply -f ./examples/kubernetes/storageclass-raw-exclusivity.yaml
 kubectl apply -f ./examples/kubernetes/storageclass-raw.yaml
 ```
-这里可以看到已经有了两个storage
+这里可以看到已经有了两个storageclass
 ```
  kubectl get sc 
 NAME                         PROVISIONER          RECLAIMPOLICY   VOLUMEBINDINGMODE      ALLOWVOLUMEEXPANSION   AGE
