@@ -2,13 +2,13 @@
   "diskSelector": [
     {
       "name": "carina-vg-ssd" ,
-      "re": ["loop2+"],
+      "re": ["vdc"],
       "policy": "LVM",
       "nodeLabel": "kubernetes.io/hostname"
     },
     {
       "name": "carina-raw-ssd",
-      "re": ["loop3+"],
+      "re": ["vdd"],
       "policy": "RAW",
       "nodeLabel": "kubernetes.io/hostname"
     },

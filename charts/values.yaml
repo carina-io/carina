@@ -11,7 +11,7 @@ carina-scheduler:
 image:
   baseRepo: registry.cn-hangzhou.aliyuncs.com/antmoveh
   carina:
-    repository: registry.cn-hangzhou.aliyuncs.com/antmoveh/carina
+    repository: /carina
     tag: v0.9.1-20211217165406
     pullPolicy: IfNotPresent
   csiProvisioner:
@@ -166,16 +166,28 @@ webhook:
 config:  
   schedulerStrategy: spreadout
   diskScanInterval: 300
+  diskSelector:
+  - name: "carina-vg-ssd" 
+    re: ["loop2+"]
+    policy: "LVM"
+    nodeLabel: "kubernetes.io/hostname"
+  - name: "carina-raw-ssd" 
+    re: ["loop3+"]
+    policy: "RAW"
+    nodeLabel: "kubernetes.io/hostname"
+
   
 storage:
   # file system
   lvm: 
     fstype: xfs
-    disktype: carina-vg-ssd
+    disktype: carina-vg-ssd  # as same as diskSelector[0].name
     reclaimPolicy: Delete
     volumeBindingMode: WaitForFirstConsumer
   raw: 
     fstype: xfs
-    disktype: carina-raw-ssd
+    disktype: carina-raw-ssd #as same as diskSelector[1].name
     reclaimPolicy: Delete  
     volumeBindingMode: WaitForFirstConsumer    
+
+

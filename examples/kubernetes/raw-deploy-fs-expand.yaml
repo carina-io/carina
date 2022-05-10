@@ -18,7 +18,7 @@ spec:
       labels:
         app: web-server
       annotations:
-        carina.stroage.io/allow-pod-migration-if-node-notready: "true"    
+        carina.stroage.io/allow-pod-migration-if-node-notready: "true"  
     spec:
       containers:
         - name: web-server
@@ -54,5 +54,5 @@ spec:
   resources:
     requests:
       storage: 10Gi
-  storageClassName: csi-carina-raw
+  storageClassName: csi-carina-test 
   volumeMode: Filesystem

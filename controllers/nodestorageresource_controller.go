@@ -406,9 +406,14 @@ func (r *NodeStorageResourceReconciler) needUpdateDiskStatus(status *carinav1bet
 				var avail uint64
 
 				fs := disk.FreeSpaces()
+				if len(fs) < 1 {
+					log.Info("disk:", disk.Path, " size:", disk.Size, " avail:", avail, " free:", fs)
+					continue
+				}
 				sort.Slice(fs, func(a, b int) bool {
 					return fs[a].Size() > fs[b].Size()
 				})
+
 				//剩余容量选择可用分区剩余空间最大容量
 				avail = fs[0].Size()
 				log.Info("disk:", disk.Path, " size:", disk.Size, " avail:", avail, " free:", fs)
