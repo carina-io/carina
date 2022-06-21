@@ -1,0 +1,28 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: carina-csi-config
+  namespace: kube-system
+  labels:
+    class: carina
+data:
+  config.json: |-
+    {
+      "diskSelector": [
+        {
+          "name": "carina-vg-ssd" ,
+          "re": ["loop2+"],
+          "policy": "LVM",
+          "nodeLabel": "kubernetes.io/hostname"
+        },
+        {
+          "name": "carina-raw-ssd",
+          "re": ["loop3+"],
+          "policy": "RAW",
+          "nodeLabel": "kubernetes.io/hostname"
+        }
+      ],
+      "diskScanInterval": "300",
+      "schedulerStrategy": "spreadout"
+    }

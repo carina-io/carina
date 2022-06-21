@@ -1,0 +1,272 @@
+---
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  name: csi-carina-provisioner
+  namespace: kube-system
+  labels:
+    app: csi-carina-provisioner
+spec:
+  selector:
+    matchLabels:
+      app: csi-carina-provisioner
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: csi-carina-provisioner
+    spec:
+      serviceAccount: carina-csi-controller
+      containers:
+        - name: csi-provisioner
+          image: registry.cn-hangzhou.aliyuncs.com/antmoveh/csi-provisioner:v2.1.0
+          args:
+            - "--csi-address=$(ADDRESS)"
+            - "--v=5"
+            - "--timeout=150s"
+            - "--leader-election=true"
+            - "--retry-interval-start=500ms"
+            - "--feature-gates=Topology=true"
+            - "--extra-create-metadata=true"
+          env:
+            - name: ADDRESS
+              value: unix:///csi/csi-provisioner.sock
+          imagePullPolicy: "IfNotPresent"
+          volumeMounts:
+            - name: socket-dir
+              mountPath: /csi
+        - name: csi-resizer
+          image: registry.cn-hangzhou.aliyuncs.com/antmoveh/csi-resizer:v1.1.0
+          args:
+            - "--csi-address=$(ADDRESS)"
+            - "--v=5"
+            - "--timeout=150s"
+            - "--leader-election"
+            - "--retry-interval-start=500ms"
+            - "--handle-volume-inuse-error=false"
+          env:
+            - name: ADDRESS
+              value: unix:///csi/csi-provisioner.sock
+          imagePullPolicy: "IfNotPresent"
+          volumeMounts:
+            - name: socket-dir
+              mountPath: /csi
+#        - name: csi-snapshotter
+#          image: antmoveh/csi-snapshotter:v4.0.0
+#          args:
+#            - "--csi-address=$(ADDRESS)"
+#            - "--v=5"
+#            - "--timeout=150s"
+#            - "--leader-election=true"
+#          env:
+#            - name: ADDRESS
+#              value: unix:///csi/csi-provisioner.sock
+#          imagePullPolicy: "IfNotPresent"
+#          securityContext:
+#            privileged: true
+#          volumeMounts:
+#            - name: socket-dir
+#              mountPath: /csi
+        - name: csi-carina-attacher
+          image: registry.cn-hangzhou.aliyuncs.com/antmoveh/csi-attacher:v3.1.0
+          args:
+            - "--v=5"
+            - "--csi-address=$(ADDRESS)"
+            - "--leader-election=true"
+            - "--retry-interval-start=500ms"
+          env:
+            - name: ADDRESS
+              value: /csi/csi-provisioner.sock
+          imagePullPolicy: "IfNotPresent"
+          volumeMounts:
+            - name: socket-dir
+              mountPath: /csi
+        - name: csi-carina-controller
+          securityContext:
+            privileged: true
+            capabilities:
+              add: ["SYS_ADMIN"]
+          # for stable functionality replace canary with latest release version
+          image: registry.cn-hangzhou.aliyuncs.com/antmoveh/carina:latest
+          command: ["carina-controller"]
+          args:
+            - "--csi-address=$(ADDRESS)"
+            - "--cert-dir=/certs"
+            - "--metrics-addr=:8080"
+            - "--webhook-addr=:8443"
+            - "--http-addr=:8089"
+          env:
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+            - name: NODE_ID
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+            - name: NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: ADDRESS
+              value: /csi/csi-provisioner.sock
+          ports:
+            - containerPort: 8080
+              name: metrics
+            - containerPort: 8089
+              name: http
+            - containerPort: 8443
+              name: webhook
+          resources:
+            requests:
+              memory: "64Mi"
+              cpu: "300m"
+            limits:
+              memory: "128Mi"
+              cpu: "750m"
+          imagePullPolicy: "Always"
+          volumeMounts:
+            - name: socket-dir
+              mountPath: /csi
+              mountPropagation: Bidirectional
+            - name: config
+              mountPath: /etc/carina/
+            - name: certs
+              mountPath: /certs
+      volumes:
+        - name: socket-dir
+          emptyDir: {
+            medium: "Memory"
+          }
+        - name: config
+          configMap:
+            name: carina-csi-config
+        - name: certs
+          secret:
+            secretName: mutatingwebhook
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: csi-carina-provisioner
+  name: carina-controller
+  namespace: kube-system
+spec:
+  selector:
+    app: csi-carina-provisioner
+  ports:
+    - name: webhook
+      protocol: TCP
+      port: 443
+      targetPort: 8443
+    - name: metrics
+      protocol: TCP
+      port: 8080
+      targetPort: 8080
+    - name: http
+      protocol: TCP
+      port: 8089
+      targetPort: 8089
+
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: MutatingWebhookConfiguration
+metadata:
+  name: carina-hook
+webhooks:
+  - name: pod-hook.carina.storage.io
+    namespaceSelector:
+      matchExpressions:
+        - key: carina.storage.io/webhook
+          operator: NotIn
+          values: ["ignore"]
+    clientConfig:
+      service:
+        name: carina-controller
+        namespace: kube-system
+        path: /pod/mutate
+        port: 443
+    failurePolicy: Ignore
+    matchPolicy: Exact
+    objectSelector: {}
+    reinvocationPolicy: Never
+    rules:
+      - operations: ["CREATE"]
+        apiGroups: [""]
+        apiVersions: ["v1"]
+        resources: ["pods"]
+    admissionReviewVersions: ["v1", "v1beta1"]
+    sideEffects: NoneOnDryRun
+    timeoutSeconds: 30
+
+---
+# Source: admission-webhooks/job-patch/job-createSecret.yaml
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: carina-admission-create
+  namespace: kube-system
+spec:
+  template:
+    metadata:
+      name: carina-admission-create
+    spec:
+      containers:
+        - name: create
+          image: registry.cn-hangzhou.aliyuncs.com/antmoveh/kube-webhook-certgen:v1.1.1
+          imagePullPolicy: IfNotPresent
+          args:
+            - create
+            - --host=carina-controller,carina-controller.$(POD_NAMESPACE).svc
+            - --namespace=$(POD_NAMESPACE)
+            - --secret-name=mutatingwebhook
+          env:
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+      restartPolicy: OnFailure
+      serviceAccountName: carina-csi-controller
+      nodeSelector:
+        kubernetes.io/os: linux
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 2000
+
+---
+# Source: admission-webhooks/job-patch/job-patchWebhook.yaml
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: carina-admission-patch
+  namespace: kube-system
+spec:
+  template:
+    metadata:
+      name: carina-admission-patch
+    spec:
+      containers:
+        - name: patch
+          image: registry.cn-hangzhou.aliyuncs.com/antmoveh/kube-webhook-certgen:v1.1.1
+          imagePullPolicy: IfNotPresent
+          args:
+            - patch
+            - --webhook-name=carina-hook
+            - --namespace=$(POD_NAMESPACE)
+            - --patch-validating=false
+            - --secret-name=mutatingwebhook
+            - --patch-failure-policy=Fail
+          env:
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+      restartPolicy: OnFailure
+      serviceAccountName: carina-csi-controller
+      nodeSelector:
+        kubernetes.io/os: linux
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 2000
