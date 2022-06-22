@@ -1,0 +1,145 @@
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: carina-scheduler-clusterrole
+rules:
+  - apiGroups: [""]
+    resources: ["endpoints", "events"]
+    verbs: ["create", "get", "update", "patch"]
+  - apiGroups: [""]
+    resources: ["nodes"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["delete", "get", "list", "watch", "update"]
+  - apiGroups: [""]
+    resources: ["bindings", "pods/binding"]
+    verbs: ["create"]
+  - apiGroups: [""]
+    resources: ["pods/status"]
+    verbs: ["patch", "update"]
+  - apiGroups: [""]
+    resources: ["replicationcontrollers", "services"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["apps", "extensions"]
+    resources: ["replicasets"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["apps"]
+    resources: ["statefulsets"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["policy"]
+    resources: ["poddisruptionbudgets"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["persistentvolumeclaims", "persistentvolumes"]
+    verbs: ["get", "list", "watch", "update", "patch"]
+  - apiGroups: [""]
+    resources: ["configmaps"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["storage.k8s.io"]
+    resources: ["storageclasses", "csinodes"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["coordination.k8s.io"]
+    resources: ["leases"]
+    verbs: ["create", "get", "list", "update"]
+  - apiGroups: ["events.k8s.io"]
+    resources: ["events"]
+    verbs: ["create", "patch", "update"]
+  - apiGroups: ["carina.storage.io"]
+    resources: ["logicvolumes", "logicvolumes/status", "nodestorageresources", "nodestorageresources/status"]
+    verbs: ["get", "list", "watch"]
+
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: carina-scheduler-sa
+  namespace: kube-system
+---
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: carina-scheduler-clusterrolebinding
+  namespace: kube-system
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: carina-scheduler-clusterrole
+subjects:
+  - kind: ServiceAccount
+    name: carina-scheduler-sa
+    namespace: kube-system
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: carina-scheduler-config
+  namespace: kube-system
+data:
+  scheduler-config.yaml: |-
+    apiVersion: kubescheduler.config.k8s.io/v1beta1
+    kind: KubeSchedulerConfiguration
+    leaderElection:
+      leaderElect: true
+      resourceName:  carina-scheduler
+      resourceNamespace: kube-system
+    profiles:
+    - schedulerName: carina-scheduler
+      plugins:
+        filter:
+          enabled:
+            - name: "local-storage"
+              weight: 1
+        score:
+          enabled:
+            - name: "local-storage"
+              weight: 1
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: carina-scheduler
+  namespace: kube-system
+  labels:
+    component: carina-scheduler
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      component: carina-scheduler
+  template:
+    metadata:
+      labels:
+        component: carina-scheduler
+    spec:
+      serviceAccount: carina-scheduler-sa
+      priorityClassName: system-cluster-critical
+      containers:
+        - name: carina-scheduler
+          image: registry.cn-hangzhou.aliyuncs.com/antmoveh/carina-scheduler:latest
+          imagePullPolicy: "Always"
+          command: ["carina-scheduler"]
+          args:
+            - --config=/etc/kube/scheduler-config.yaml
+            - --v=3
+          resources:
+            requests:
+              memory: "64Mi"
+              cpu: "100m"
+            limits:
+              memory: "128Mi"
+              cpu: "300m"
+          volumeMounts:
+            - name: scheduler-config
+              mountPath: /etc/kube/
+            - name: config
+              mountPath: /etc/carina/
+      volumes:
+        - name: scheduler-config
+          configMap:
+            name: carina-scheduler-config
+        - name: config
+          configMap:
+            name: carina-csi-config
