@@ -43,7 +43,7 @@ This will fix [#14](https://github.com/carina-io/carina/issues/14).
 Use helm chart for ease of installation、uninstallation、upgrade。
 
 
-### Seperate different disks of same type into multiple groups
+### Separate different disks of same type into multiple groups
 
 Currently, carina groups disks with its type. However, some workloads may prefer using spereated disks
  against others. For now the capacity and allocatable resources will remain the same. 
@@ -58,7 +58,7 @@ Currently, carina groups disks with its type. However, some workloads may prefer
 Provides raw disk or partitions to workload, without LVM management. For example, user may request
 a raw disk exclusively, or part of disk.
 
-### velero intergration
+### velero integration
 
 Using velero to backup carina PV to S3.
 
@@ -105,7 +105,7 @@ Carina should support cgroup V2 for disk throttling to have better experience fo
 
 ### E2E checksum
 
-Ensure read out what exactly been writen.
+Ensure read out what exactly been written.
 
 ### data encryption
 
