@@ -1,7 +1,6 @@
 package framework
 
 import (
-	"context"
 	"flag"
 	"fmt"
 	"os"
@@ -9,11 +8,7 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/onsi/ginkgo"
-	"github.com/stretchr/testify/assert"
-	corev1 "k8s.io/api/core/v1"
 	k8sErrors "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	utilnet "k8s.io/apimachinery/pkg/util/net"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/rest"
@@ -51,14 +46,6 @@ func retryWithExponentialBackOff(fn wait.ConditionFunc) error {
 		Steps:    retryBackoffSteps,
 	}
 	return wait.ExponentialBackoff(backoff, fn)
-}
-
-func (f *Framework) GetPvc(namespace string, name string) *corev1.PersistentVolumeClaim {
-
-	pvc, err := f.KubeClientSet.CoreV1().PersistentVolumeClaims(namespace).Get(context.TODO(), name, metav1.GetOptions{})
-	assert.Nil(ginkgo.GinkgoT(), err, "getting pvc")
-	assert.NotNil(ginkgo.GinkgoT(), pvc, "expected an pvc but none returned")
-	return pvc
 }
 
 // GetConfig creates a *rest.Config for talking to a Kubernetes API server.
