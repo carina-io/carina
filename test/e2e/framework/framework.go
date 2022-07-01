@@ -1,15 +1,9 @@
 package framework
 
 import (
-	"context"
-	"fmt"
-
 	"github.com/onsi/ginkgo"
 	"github.com/stretchr/testify/assert"
-	corev1 "k8s.io/api/core/v1"
 	apiextcs "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
-	k8sErrors "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	restclient "k8s.io/client-go/rest"
 )
@@ -99,35 +93,4 @@ func (f *Framework) AfterEach() {
 // Craina wrapper function for ginkgo describe. Adds namespacing.
 func CrainaDescribe(text string, body func()) bool {
 	return ginkgo.Describe(text, body)
-}
-
-// EnsurePvc creates an pvc object and returns it, throws error if it already exists.
-func (f *Framework) EnsurePvc(pvc *corev1.PersistentVolumeClaim) *corev1.PersistentVolumeClaim {
-
-	err := createPvcWithRetries(f.KubeClientSet, pvc.Namespace, pvc)
-	assert.Nil(ginkgo.GinkgoT(), err, "creating pvc")
-
-	pvcResult := f.GetPvc(pvc.Namespace, pvc.Name)
-	return pvcResult
-}
-
-func createPvcWithRetries(c kubernetes.Interface, namespace string, obj *corev1.PersistentVolumeClaim) error {
-	if obj == nil {
-		return fmt.Errorf("object provided to create is empty")
-	}
-	createFunc := func() (bool, error) {
-		_, err := c.CoreV1().PersistentVolumeClaims(namespace).Create(context.TODO(), obj, metav1.CreateOptions{})
-		if err == nil {
-			return true, nil
-		}
-		if k8sErrors.IsAlreadyExists(err) {
-			return false, err
-		}
-		if isRetryableAPIError(err) {
-			return false, nil
-		}
-		return false, fmt.Errorf("failed to create object with non-retriable error: %v", err)
-	}
-
-	return retryWithExponentialBackOff(createFunc)
 }
