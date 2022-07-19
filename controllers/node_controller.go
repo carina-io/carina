@@ -253,14 +253,18 @@ func (r *NodeReconciler) rebuildVolume(ctx context.Context, volumeObjectMap map[
 		}
 
 		err = utils.UntilMaxRetry(func() error {
-			return r.Create(ctx, &newPvc)
+			err = r.Create(ctx, &newPvc)
+			if errors.IsAlreadyExists(err) {
+				return nil
+			}
+			return err
 		}, 12, 10*time.Second)
 		if err != nil {
 			log.Warnf("create pvc failed namespace: %s, name %s, storageClass %s, volumeMode %s, resources: %d, dataSource: %s",
 				newPvc.Namespace, newPvc.Name, *(newPvc.Spec.StorageClassName), *(newPvc.Spec.VolumeMode),
 				newPvc.Spec.Resources.Requests.Storage().Value(),
 			)
-			log.Errorf("retry ten times create pvc error %s, please check", err.Error())
+			log.Errorf("retry twelve times create pvc error %s, please check", err.Error())
 			return err
 		}
 	}
