@@ -5,7 +5,7 @@ kversion ?=v1.20.2
 # Allow limiting the scope of the e2e tests. By default run everything
 FOCUS ?= .*
 # number of parallel test
-E2E_NODES ?= 7
+E2E_NODES ?= 3
 e2e: 
 	@echo "e2e"
 	E2E_NODES='$(E2E_NODES)' FOCUS='$(FOCUS)' E2E_CHECK_LEAKS='$(E2E_CHECK_LEAKS)' ./e2e.sh
@@ -25,9 +25,13 @@ kc:
 			docker exec $$n losetup -f /tmp/disk$$i.device --show; \
 		done \
 	done
-
-	cd deploycarina && ./deploy.sh install
-	
 kd:
 	kind delete cluster --name e2e
 	sudo losetup -D
+
+install:
+	cd deploycarina && ./deploy.sh install
+
+uninstall:
+	cd deploycarina && ./deploy.sh uninstall
+
