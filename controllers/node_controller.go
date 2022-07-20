@@ -18,7 +18,9 @@ package controllers
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	carinav1 "github.com/carina-io/carina/api/v1"
@@ -26,7 +28,7 @@ import (
 	"github.com/carina-io/carina/utils/log"
 	corev1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
+	apierrs "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/util/workqueue"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -253,14 +255,21 @@ func (r *NodeReconciler) rebuildVolume(ctx context.Context, volumeObjectMap map[
 		}
 
 		err = utils.UntilMaxRetry(func() error {
-			return r.Create(ctx, &newPvc)
+			err = r.Create(ctx, &newPvc)
+			if err == nil {
+				return nil
+			}
+			if status := apierrs.APIStatus(nil); errors.As(err, &status) && status.Status().Reason == metav1.StatusReasonAlreadyExists && !strings.HasPrefix(status.Status().Message, "object is being deleted") {
+				return nil
+			}
+			return err
 		}, 12, 10*time.Second)
 		if err != nil {
 			log.Warnf("create pvc failed namespace: %s, name %s, storageClass %s, volumeMode %s, resources: %d, dataSource: %s",
 				newPvc.Namespace, newPvc.Name, *(newPvc.Spec.StorageClassName), *(newPvc.Spec.VolumeMode),
 				newPvc.Spec.Resources.Requests.Storage().Value(),
 			)
-			log.Errorf("retry ten times create pvc error %s, please check", err.Error())
+			log.Errorf("retry twelve times create pvc error %s, please check", err.Error())
 			return err
 		}
 	}
@@ -337,7 +346,7 @@ func (r *NodeReconciler) nodeStatusList(ctx context.Context) (map[string]nodeSta
 func (r *NodeReconciler) killPod(ctx context.Context, pod *corev1.Pod) error {
 	noGracePeriod := int64(0)
 	err := r.Delete(ctx, pod, &client.DeleteOptions{GracePeriodSeconds: &noGracePeriod})
-	if err != nil && !errors.IsNotFound(err) {
+	if err != nil && !apierrs.IsNotFound(err) {
 		return err
 	}
 	log.Infof("delete pod namespace: %s name: %s", pod.Namespace, pod.Name)
@@ -348,7 +357,7 @@ func (r *NodeReconciler) killPod(ctx context.Context, pod *corev1.Pod) error {
 func (r *NodeReconciler) forceDetach(ctx context.Context, va *storagev1.VolumeAttachment) error {
 	noGracePeriod := int64(0)
 	err := r.Delete(ctx, va, &client.DeleteOptions{GracePeriodSeconds: &noGracePeriod})
-	if err != nil && !errors.IsNotFound(err) {
+	if err != nil && !apierrs.IsNotFound(err) {
 		return err
 	}
 	log.Infof("delete VolumeAttachment name: %s", va.Name)
