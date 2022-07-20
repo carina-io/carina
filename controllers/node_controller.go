@@ -52,8 +52,6 @@ type NodeReconciler struct {
 	client.Client
 	// stop
 	StopChan <-chan struct{}
-	// cacheLV
-	cacheNoDeleteLv map[string]uint8
 }
 
 // +kubebuilder:rbac:groups="",resources=nodes,verbs=get;list;watch;update;patch
@@ -64,7 +62,7 @@ type NodeReconciler struct {
 // Reconcile finalize Node
 func (r *NodeReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 
-	log.Infof("node %s reconcile manager...", req.Name)
+	log.Infof("pod %s reconcile manager...", req.Name)
 	// your logic here
 
 	go r.resourceReconcile(ctx)
@@ -74,8 +72,6 @@ func (r *NodeReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.
 
 // SetupWithManager sets up Reconciler with Manager.
 func (r *NodeReconciler) SetupWithManager(mgr ctrl.Manager) error {
-	r.cacheNoDeleteLv = make(map[string]uint8)
-
 	ctx := context.Background()
 	err := mgr.GetFieldIndexer().IndexField(ctx, &corev1.Pod{}, "combinedIndex", func(object client.Object) []string {
 		combinedIndex := fmt.Sprintf("%s-%s", object.(*corev1.Pod).Spec.SchedulerName, object.(*corev1.Pod).Spec.NodeName)
@@ -164,14 +160,13 @@ func (r *NodeReconciler) getNeedRebuildVolume(ctx context.Context) (map[string]c
 		log.Errorf("unable to fetch pv list %s", err.Error())
 		return volumeObjectMap, err
 	}
-	var cacheNodeName = make(map[string]string)
 	for _, lv := range lvList.Items {
 		// bcache logicvolume not be remove
 		if len(lv.OwnerReferences) > 0 {
 			continue
 		}
 		// 删除没有对应pv的logic volume
-		_, ok := pvMap[lv.Name]
+		pvPhase, ok := pvMap[lv.Name]
 		if lv.Status.Status != "" && !ok {
 			if lv.Finalizers != nil && utils.ContainsString(lv.Finalizers, utils.LogicVolumeFinalizer) {
 				log.Infof("remove logic volume %s", lv.Name)
@@ -192,19 +187,19 @@ func (r *NodeReconciler) getNeedRebuildVolume(ctx context.Context) (map[string]c
 
 		// 重建逻辑
 		log.Infof("lv list: %s", lv.Name)
-		if _, ok := r.cacheNoDeleteLv[lv.Name]; ok {
+		if pvPhase != corev1.VolumeBound {
 			continue
 		}
+
 		if v, ok := nodeStatus[lv.Spec.NodeName]; ok && v == "normal" {
 			continue
 		}
+
 		log.Infof("start clear pod: %s", lv.Spec.NodeName)
-		if _, ok := cacheNodeName[lv.Spec.NodeName]; !ok {
-			err := r.clearPod(ctx, lv.Spec.NodeName)
-			if err != nil {
-				log.Errorf("unable to clear pod in not ready node:%s  err:%s", lv.Spec.NodeName, err.Error())
-				return volumeObjectMap, err
-			}
+		err := r.clearPod(ctx, lv.Spec.NodeName)
+		if err != nil {
+			log.Errorf("unable to clear pod in not ready node:%s  err:%s", lv.Spec.NodeName, err.Error())
+			return volumeObjectMap, err
 		}
 		log.Info("Namespace: ", lv.Spec.NameSpace, " Name: ", lv.Spec.Pvc, " Status: ", lv.Status.Status)
 		volumeObjectMap[lv.Name] = client.ObjectKey{Namespace: lv.Spec.NameSpace, Name: lv.Spec.Pvc}
@@ -222,12 +217,10 @@ func (r *NodeReconciler) getNeedRebuildVolume(ctx context.Context) (map[string]c
 }
 
 func (r *NodeReconciler) rebuildVolume(ctx context.Context, volumeObjectMap map[string]client.ObjectKey) error {
-
 	var pvc corev1.PersistentVolumeClaim
-	for key, o := range volumeObjectMap {
+	for _, o := range volumeObjectMap {
 		err := r.Client.Get(ctx, o, &pvc)
 		if err != nil {
-			r.cacheNoDeleteLv[key] = 0
 			log.Warnf("unable to fetch PersistentVolumeClaim %s %s %s", o.Namespace, o.Name, err.Error())
 			continue
 		}
@@ -276,15 +269,16 @@ func (r *NodeReconciler) rebuildVolume(ctx context.Context, volumeObjectMap map[
 	return nil
 }
 
-func (r *NodeReconciler) pvMap(ctx context.Context) (map[string]uint8, error) {
-	result := map[string]uint8{}
+func (r *NodeReconciler) pvMap(ctx context.Context) (map[string]corev1.PersistentVolumePhase, error) {
+	result := map[string]corev1.PersistentVolumePhase{}
+
 	pvList := new(corev1.PersistentVolumeList)
 	err := r.List(ctx, pvList)
 	if err != nil {
 		return result, err
 	}
 	for _, pv := range pvList.Items {
-		result[pv.Name] = 0
+		result[pv.Name] = pv.Status.Phase
 	}
 	return result, nil
 }
@@ -307,7 +301,6 @@ func (r *NodeReconciler) clearPod(ctx context.Context, nodeName string) error {
 		if err != nil {
 			return err
 		}
-
 	}
 
 	return nil
