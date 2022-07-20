@@ -1,6 +1,8 @@
 package lvm
 
 import (
+	"time"
+
 	"github.com/carina-io/carina/test/e2e/framework"
 	"github.com/onsi/ginkgo"
 	appsv1 "k8s.io/api/apps/v1"
@@ -10,16 +12,15 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-var _ = framework.CrainaDescribe("create, resizing, delete LVM pvc", func() {
+var _ = framework.CrainaDescribe("LVM pvc e2e test", func() {
 	f := framework.NewDefaultFramework("lvm-pvc")
-	storageClassName := "csi-carina-lvm"
 	ginkgo.BeforeEach(func() {
 		del := corev1.PersistentVolumeReclaimDelete
 		waitForFirstConsumer := storagev1.VolumeBindingWaitForFirstConsumer
 		t := true
 		s := &storagev1.StorageClass{
 			ObjectMeta: metav1.ObjectMeta{
-				Name: storageClassName,
+				Name: f.Namespace,
 			},
 			Provisioner:          "carina.storage.io",
 			Parameters:           map[string]string{"csi.storage.k8s.io/fstype": "xfs", "carina.storage.io/disk-group-name": "carina-lvm-ssd"},
@@ -31,7 +32,9 @@ var _ = framework.CrainaDescribe("create, resizing, delete LVM pvc", func() {
 		}
 		f.NewStorageClass(s)
 	})
-
+	ginkgo.AfterEach(func() {
+		f.DeleteStorageClass(f.Namespace)
+	})
 	// 1. create LVM pvc
 	ginkgo.It("should create LVM pvc", func() {
 		persistentVolumeBlock := corev1.PersistentVolumeBlock
@@ -43,7 +46,7 @@ var _ = framework.CrainaDescribe("create, resizing, delete LVM pvc", func() {
 			Spec: corev1.PersistentVolumeClaimSpec{
 				AccessModes:      []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
 				VolumeMode:       &persistentVolumeBlock,
-				StorageClassName: &storageClassName,
+				StorageClassName: &f.Namespace,
 				Resources: corev1.ResourceRequirements{
 					Requests: corev1.ResourceList{
 						corev1.ResourceName(corev1.ResourceStorage): resource.MustParse("3Gi"),
@@ -68,7 +71,7 @@ var _ = framework.CrainaDescribe("create, resizing, delete LVM pvc", func() {
 			Spec: corev1.PersistentVolumeClaimSpec{
 				AccessModes:      []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
 				VolumeMode:       &persistentVolumeBlock,
-				StorageClassName: &storageClassName,
+				StorageClassName: &f.Namespace,
 				Resources: corev1.ResourceRequirements{
 					Requests: corev1.ResourceList{
 						corev1.ResourceName(corev1.ResourceStorage): resource.MustParse("3Gi"),
@@ -125,14 +128,42 @@ var _ = framework.CrainaDescribe("create, resizing, delete LVM pvc", func() {
 		}
 
 		deployResult := f.EnsurDeployment(lvmDeploy)
+		f.WaitForPod("web-server1=web-server1", 60*time.Second, false)
 		framework.ExpectEqual(deployResult.Status.AvailableReplicas, replicas)
-		// 2.3 TODO pvc resizing
+		// 2.3 pvc resizing
+		pvcResult.Spec.Resources.Requests = corev1.ResourceList{
+			corev1.ResourceName(corev1.ResourceStorage): resource.MustParse("6Gi"),
+		}
+		f.UpdatePvc(pvcResult)
+		// 2.4 check pvc resized
+		pods := f.GetPods(deployResult.Namespace, "web-server1=web-server1")
+		for _, pod := range pods.Items {
+			stdout, _, _ := f.Kubectl("exec", "-it", pod.Name, "-n", pod.Name, "--", "df", "-h")
+			framework.ExpectConsistOf(string(stdout), "6G")
+		}
+	})
+	// 3.delete LVM pvc
+	ginkgo.It("should delete LVM pvc", func() {
+		persistentVolumeBlock := corev1.PersistentVolumeBlock
+		lvmPvc := &corev1.PersistentVolumeClaim{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "lvm-block-pvc-delete",
+				Namespace: f.Namespace,
+			},
+			Spec: corev1.PersistentVolumeClaimSpec{
+				AccessModes:      []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
+				VolumeMode:       &persistentVolumeBlock,
+				StorageClassName: &f.Namespace,
+				Resources: corev1.ResourceRequirements{
+					Requests: corev1.ResourceList{
+						corev1.ResourceName(corev1.ResourceStorage): resource.MustParse("3Gi"),
+					}},
+			},
+		}
 
-		// 2.4 TODO check
+		pvcResult := f.EnsurePvc(lvmPvc)
+		framework.ExpectEqual(pvcResult.Status.Phase, corev1.ClaimPending)
+		f.DeletePvc(pvcResult.Name, pvcResult.Namespace)
 	})
 
-	// TODO 3.delete LVM pvc
-	ginkgo.AfterEach(func() {
-		f.DeleteStorageClass(storageClassName)
-	})
 })

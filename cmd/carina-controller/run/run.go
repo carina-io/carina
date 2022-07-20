@@ -112,15 +112,6 @@ func subMain() error {
 		return err
 	}
 
-	pvcontroller := &controllers.PersistentVolumeReconciler{
-		Client:    mgr.GetClient(),
-		APIReader: mgr.GetAPIReader(),
-	}
-	if err := pvcontroller.SetupWithManager(mgr, stopChan); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "PersistentVolumeClaim")
-		return err
-	}
-
 	// +kubebuilder:scaffold:builder
 
 	// pre-cache objects
