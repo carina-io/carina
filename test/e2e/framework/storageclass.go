@@ -33,7 +33,7 @@ func createStorageClassWithRetries(c kubernetes.Interface, obj *storagev1.Storag
 			return true, nil
 		}
 		if k8sErrors.IsAlreadyExists(err) {
-			return false, err
+			return true, nil
 		}
 		if isRetryableAPIError(err) {
 			return false, nil
@@ -46,7 +46,7 @@ func createStorageClassWithRetries(c kubernetes.Interface, obj *storagev1.Storag
 
 func (f *Framework) DeleteStorageClass(storageClassName string) {
 	err := deleteStorageClassWithRetries(f.KubeClientSet, storageClassName)
-	assert.Nil(ginkgo.GinkgoT(), err, "creating storageClass")
+	assert.Nil(ginkgo.GinkgoT(), err, "deleting storageClass")
 }
 
 func deleteStorageClassWithRetries(c kubernetes.Interface, storageClassName string) error {
@@ -56,9 +56,7 @@ func deleteStorageClassWithRetries(c kubernetes.Interface, storageClassName stri
 		if err == nil {
 			return true, nil
 		}
-		if k8sErrors.IsAlreadyExists(err) {
-			return false, err
-		}
+
 		if isRetryableAPIError(err) {
 			return false, nil
 		}

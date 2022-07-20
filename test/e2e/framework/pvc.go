@@ -77,3 +77,9 @@ func updatePvcWithRetries(c kubernetes.Interface, namespace string, obj *corev1.
 
 	return retryWithExponentialBackOff(updateFunc)
 }
+
+func (f *Framework) DeletePvc(name, namespace string) error {
+	err := f.KubeClientSet.CoreV1().PersistentVolumeClaims(namespace).Delete(context.TODO(), name, metav1.DeleteOptions{})
+	assert.Nil(ginkgo.GinkgoT(), err, "deleting pvc")
+	return err
+}
