@@ -18,6 +18,7 @@ package configuration
 
 import (
 	"fmt"
+	"k8s.io/klog/v2"
 	"os"
 	"reflect"
 	"strings"
@@ -35,11 +36,11 @@ const (
 	Schedulerspreadout = "spreadout"
 )
 
-var TestAssistDiskSelector []string
+var testAssistDiskSelector []string
 var configModifyNotice []chan<- struct{}
 var err error
 var GlobalConfig *viper.Viper
-var DiskConfig Disk
+var diskConfig Disk
 var opt = viper.DecodeHook(mapstructure.ComposeDecodeHookFunc(
 	mapstructure.StringToTimeDurationHookFunc(),
 	mapstructure.StringToSliceHookFunc(","),
@@ -48,8 +49,8 @@ var opt = viper.DecodeHook(mapstructure.ComposeDecodeHookFunc(
 		if rf != reflect.Map || rt != reflect.Struct {
 			return data, nil
 		}
-		mapstructure.Decode(data.(map[string]interface{}), &DiskConfig)
-		mapstructure.Decode(data.(map[string]interface{})["diskselector"], &DiskConfig.DiskSelectors)
+		mapstructure.Decode(data.(map[string]interface{}), &diskConfig)
+		mapstructure.Decode(data.(map[string]interface{})["diskselector"], &diskConfig.DiskSelectors)
 		return data, err
 	},
 ))
@@ -82,12 +83,13 @@ func initConfig() *viper.Viper {
 	GlobalConfig.AddConfigPath(configPath)
 	GlobalConfig.SetConfigName("config")
 	GlobalConfig.SetConfigType("json")
-	err := GlobalConfig.ReadInConfig()
-	if err != nil {
+	if err := GlobalConfig.ReadInConfig(); err != nil {
+		klog.Errorf("Failed to get the configuration: %s", err)
 		os.Exit(-1)
 	}
-	err = GlobalConfig.Unmarshal(&DiskConfig, opt)
-	if err != nil {
+
+	if err := GlobalConfig.Unmarshal(&diskConfig, opt); err != nil {
+		klog.Errorf("Failed to unmarshal the configuration： %s", err)
 		os.Exit(-1)
 	}
 	return GlobalConfig
@@ -96,7 +98,9 @@ func initConfig() *viper.Viper {
 func dynamicConfig() {
 	GlobalConfig.WatchConfig()
 	GlobalConfig.OnConfigChange(func(event fsnotify.Event) {
-		_ = GlobalConfig.Unmarshal(&DiskConfig, opt)
+		if err := GlobalConfig.Unmarshal(&diskConfig, opt); err != nil {
+			klog.Errorf("Failed to unmarshal the configuration： %s", err)
+		}
 	})
 }
 
@@ -114,7 +118,7 @@ func SchedulerStrategy() string {
 // GetDeviceGroup 处理磁盘类型参数，支持carina.storage.io/disk-group-name:ssd书写方式
 func GetDeviceGroup(diskType string) string {
 	deviceGroup := strings.ToLower(diskType)
-	diskSelector := DiskConfig.DiskSelectors
+	diskSelector := diskConfig.DiskSelectors
 	for _, d := range diskSelector {
 		if strings.ToLower(d.Policy) == "raw" {
 			continue
@@ -135,7 +139,7 @@ func GetDeviceGroup(diskType string) string {
 
 func CheckRawDeviceGroup(diskType string) bool {
 	deviceGroup := strings.ToLower(diskType)
-	currentDiskSelector := DiskConfig.DiskSelectors
+	currentDiskSelector := diskConfig.DiskSelectors
 	if utils.ContainsString([]string{"ssd", "hdd"}, deviceGroup) {
 		deviceGroup = fmt.Sprintf("carina-vg-%s", deviceGroup)
 	}
