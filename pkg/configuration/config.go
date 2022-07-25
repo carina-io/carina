@@ -39,10 +39,10 @@ const (
 	Schedulerspreadout = "spreadout"
 )
 
-var TestAssistDiskSelector []string
+var testAssistDiskSelector []string
 var configModifyNotice []chan<- struct{}
 var GlobalConfig *viper.Viper
-var DiskConfig Disk
+var diskConfig Disk
 var opt = viper.DecodeHook(mapstructure.ComposeDecodeHookFunc(
 	mapstructure.StringToTimeDurationHookFunc(),
 	mapstructure.StringToSliceHookFunc(","),
@@ -51,20 +51,12 @@ var opt = viper.DecodeHook(mapstructure.ComposeDecodeHookFunc(
 		if rf != reflect.Map || rt != reflect.Struct {
 			return data, nil
 		}
-		mapstructure.Decode(data.(map[string]interface{}), &DiskConfig)
-		DiskConfig.DiskSelectors = []DiskSelectorItem{}
-		mapstructure.Decode(data.(map[string]interface{})["diskselector"], &DiskConfig.DiskSelectors)
+		mapstructure.Decode(data.(map[string]interface{}), &diskConfig)
+		diskConfig.DiskSelectors = []DiskSelectorItem{}
+		mapstructure.Decode(data.(map[string]interface{})["diskselector"], &diskConfig.DiskSelectors)
 		return data, nil
 	},
 ))
-
-// ConfigProvider 提供给其他应用获取服务数据
-// 这个configMap理论上应该由Node Server更新，为了实现简单改为有Control Server更新，遍历所有Node信息更新configmap
-// 暂定这些参数字段，不排除会增加一些需要暴露的数据
-type ConfigProvider struct {
-	NodeName string   `json:"nodeName"`
-	Vg       []string `json:"vg"`
-}
 
 type DiskSelectorItem struct {
 	Name      string   `json:"name"`
@@ -82,7 +74,6 @@ type Disk struct {
 func init() {
 	log.Info("Loading global configuration ...")
 	GlobalConfig = initConfig()
-	Validate(DiskConfig)
 	go dynamicConfig()
 
 }
@@ -92,14 +83,18 @@ func initConfig() *viper.Viper {
 	GlobalConfig.AddConfigPath(configPath)
 	GlobalConfig.SetConfigName("config")
 	GlobalConfig.SetConfigType("json")
-	err := GlobalConfig.ReadInConfig()
-	if err != nil {
-		log.Error("Failed to get the configuration", err)
+	if err := GlobalConfig.ReadInConfig(); err != nil {
+		log.Errorf("Failed to get the configuration: %s", err)
 		os.Exit(-1)
 	}
-	err = GlobalConfig.Unmarshal(&DiskConfig, opt)
-	if err != nil {
-		log.Error("Failed to unmarshal the configuration")
+
+	if err := GlobalConfig.Unmarshal(&diskConfig, opt); err != nil {
+		log.Errorf("Failed to unmarshal the configuration： %s", err)
+		os.Exit(-1)
+	}
+
+	if err := validate(diskConfig); err != nil {
+		log.Errorf("Failed to validate the configuration: %s", err)
 		os.Exit(-1)
 	}
 
@@ -110,18 +105,16 @@ func dynamicConfig() {
 	GlobalConfig.WatchConfig()
 	GlobalConfig.OnConfigChange(func(event fsnotify.Event) {
 		log.Infof("Detect config change: %s", event.String())
+		if err := GlobalConfig.Unmarshal(&diskConfig, opt); err != nil {
+			log.Errorf("Failed to unmarshal the configuration: %s, ignore this change", err)
+			return
+		}
+		if err := validate(diskConfig); err != nil {
+			log.Errorf("Failed to validate the configuration: %s, ignore this change", err)
+			return
+		}
 		for _, c := range configModifyNotice {
-			log.Info("generates the configuration change event")
-			err := GlobalConfig.Unmarshal(&DiskConfig, opt)
-			if err != nil {
-				log.Errorf("Failed to unmarshal the configuration: %s", err)
-				os.Exit(-1)
-			}
-			err = Validate(DiskConfig)
-			if err != nil {
-				log.Errorf("Failed to validate the configuration: %s", err)
-				os.Exit(-1)
-			}
+			log.Info("Generates the configuration change event")
 			c <- struct{}{}
 		}
 	})
@@ -136,11 +129,11 @@ func RegisterListenerChan(c chan<- struct{}) {
 // 对于此配置的修改需要非常慎重，如果更改匹配条件，可能会移除正在使用的磁盘
 func DiskSelector() []DiskSelectorItem {
 	// 测试辅助变量，这里入侵了业务逻辑
-	if len(TestAssistDiskSelector) > 0 {
+	if len(testAssistDiskSelector) > 0 {
 		return []DiskSelectorItem{}
 	}
 
-	diskSelector := DiskConfig.DiskSelectors
+	diskSelector := diskConfig.DiskSelectors
 	if len(diskSelector) == 0 {
 		log.Warn("No device is initialized because disk selector is no configuration")
 	}
@@ -178,7 +171,7 @@ func RuntimeNamespace() string {
 	return namespace
 }
 
-func Validate(disk Disk) error {
+func validate(disk Disk) error {
 	vgGroup := make(map[string]bool)
 	var diskNameRegexp = regexp.MustCompile("^([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9]$")
 	var diskScanRegexp = regexp.MustCompile("(?i)^([0-9]*)?$")
@@ -210,7 +203,7 @@ func Validate(disk Disk) error {
 
 func GetRawDeviceGroupRe(diskType string) []string {
 	deviceGroup := strings.ToLower(diskType)
-	currentDiskSelector := DiskConfig.DiskSelectors
+	currentDiskSelector := diskConfig.DiskSelectors
 	if utils.ContainsString([]string{"ssd", "hdd"}, deviceGroup) {
 		deviceGroup = fmt.Sprintf("carina-vg-%s", deviceGroup)
 	}

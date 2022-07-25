@@ -28,16 +28,16 @@ func TestUnmarshalWithDecoderOptions(t *testing.T) {
 			if rf != reflect.Map || rt != reflect.Struct {
 				return data, nil
 			}
-			mapstructure.Decode(data.(map[string]interface{}), &DiskConfig)
-			mapstructure.Decode(data.(map[string]interface{})["diskselector"], &DiskConfig.DiskSelectors)
+			mapstructure.Decode(data.(map[string]interface{}), &diskConfig)
+			mapstructure.Decode(data.(map[string]interface{})["diskselector"], &diskConfig.DiskSelectors)
 			return data, err
 		},
 	))
 
-	err = v.Unmarshal(&DiskConfig, opt)
+	err = v.Unmarshal(&diskConfig, opt)
 	if err != nil {
 		t.Fatalf("unable to decode into struct, %v", err)
 	}
-	log.Info(DiskConfig)
+	log.Info(diskConfig)
 
 }
