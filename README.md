@@ -145,6 +145,11 @@ helm install carina-csi-driver carina-csi-driver/carina-csi-driver --namespace k
 * [csi-driver-host-path](https://github.com/kubernetes-csi/csi-driver-host-path)
 * [local-path-provisioner](https://github.com/rancher/local-path-provisioner)
 
+# Known Users
+Welcome to register the company name in [ADOPTERS.md](ADOPTERS.md)
+
+![bocloud](static/bocloud.png)
+
 # Community
 
 - 微信用户扫码进入社区交流群
