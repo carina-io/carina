@@ -26,7 +26,6 @@ import (
 
 	"github.com/carina-io/carina/pkg/configuration"
 	"github.com/carina-io/carina/pkg/devicemanager/bcache"
-	"github.com/carina-io/carina/pkg/devicemanager/device"
 	"github.com/carina-io/carina/pkg/devicemanager/lvmd"
 	"github.com/carina-io/carina/pkg/devicemanager/partition"
 	"github.com/carina-io/carina/pkg/devicemanager/troubleshoot"
@@ -47,8 +46,6 @@ type DeviceManager struct {
 	Executor exec.Executor
 	// 所有操作本地卷均需获取锁
 	Mutex *mutx.GlobalLocks
-	// 磁盘操作
-	DiskManager device.LocalDevice
 	// LVM 操作
 	LvmManager lvmd.Lvm2
 	// Volume 操作
@@ -74,7 +71,6 @@ func NewDeviceManager(nodeName string, cache cache.Cache, stopChan <-chan struct
 		Cache:            cache,
 		Executor:         executor,
 		Mutex:            mutex,
-		DiskManager:      &device.LocalDeviceImplement{Executor: executor},
 		LvmManager:       &lvmd.Lvm2Implement{Executor: executor},
 		VolumeManager:    &volume.LocalVolumeImplement{Mutex: mutex, Lv: &lvmd.Lvm2Implement{Executor: executor}, Bcache: &bcache.BcacheImplement{Executor: executor}, NoticeServerMap: make(map[string]chan struct{})},
 		Bcache:           &bcache.BcacheImplement{Executor: executor},
@@ -237,7 +233,7 @@ func (dm *DeviceManager) DiscoverDisk(diskClass map[string]configuration.DiskSel
 	blockClass := map[string][]string{}
 	var name string
 	// 列出所有本地磁盘
-	localDisk, err := dm.DiskManager.ListDevicesDetail("")
+	localDisk, err := dm.Partition.ListDevicesDetail("")
 	if err != nil {
 		log.Error("get local disk failed: " + err.Error())
 		return blockClass, err
@@ -302,7 +298,7 @@ func (dm *DeviceManager) DiscoverDisk(diskClass map[string]configuration.DiskSel
 			}
 
 			// 判断设备是否已经存在数据
-			dused, err := dm.DiskManager.GetDiskUsed(d.Name)
+			dused, err := dm.Partition.GetDiskUsed(d.Name)
 			if err != nil {
 				log.Warnf("get disk %s used failed %v", d.Name, err)
 				continue
@@ -359,7 +355,7 @@ func (dm *DeviceManager) DiscoverPv(diskClass map[string]configuration.DiskSelec
 				log.Infof("mismatched pv:%s, regex:%s", pv.PVName, diskSelector.String())
 				continue
 			}
-			disk, err := dm.DiskManager.ListDevicesDetail(pv.PVName)
+			disk, err := dm.Partition.ListDevicesDetail(pv.PVName)
 			if err != nil {
 				log.Errorf("get device failed %s", err.Error())
 				continue
