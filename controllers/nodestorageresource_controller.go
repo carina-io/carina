@@ -76,13 +76,17 @@ func (r *NodeStorageResourceReconciler) reconcile(ve volume.VolumeEvent) {
 				r.triggerReconcile()
 			}
 		}
+		return
 	}
 
 	nsr := nodeStorageResource.DeepCopy()
 	nsr.Status.SyncTime = metav1.Time{}
 
-	if !equality.Semantic.DeepEqual(nsr.Status, r.generateStatus()) {
+	newStatus := r.generateStatus()
+
+	if !equality.Semantic.DeepEqual(nsr.Status, newStatus) {
 		log.Infof("Need to update nodeStorageResource status")
+		nsr.Status = newStatus
 		nsr.Status.SyncTime = metav1.Now()
 		if err := r.Client.Status().Update(ctx, nsr); err != nil {
 			log.Error(err, " failed to update nodeStorageResource status name ", nsr.Name)
@@ -94,6 +98,7 @@ func (r *NodeStorageResourceReconciler) reconcile(ve volume.VolumeEvent) {
 func (r *NodeStorageResourceReconciler) Run() {
 	log.Infof("Starting nodeStorageResource reconciler")
 	defer log.Infof("Shutting down nodeStorageResource reconciler")
+	defer close(r.updateChannel)
 
 	// register volume update notice chan
 	r.dm.VolumeManager.RegisterNoticeChan(r.updateChannel)
@@ -149,16 +154,16 @@ func (r *NodeStorageResourceReconciler) deleteNodeStorageResource(ctx context.Co
 	return r.Client.Delete(ctx, NodeStorageResource)
 }
 
-func (r *NodeStorageResourceReconciler) generateStatus() *carinav1beta1.NodeStorageResourceStatus {
-	status := &carinav1beta1.NodeStorageResourceStatus{
+func (r *NodeStorageResourceReconciler) generateStatus() carinav1beta1.NodeStorageResourceStatus {
+	status := carinav1beta1.NodeStorageResourceStatus{
 		Capacity:    make(map[string]resource.Quantity),
 		Allocatable: make(map[string]resource.Quantity),
 		SyncTime:    metav1.Time{},
 	}
 
-	r.generateLvmStatus(status)
-	r.generateDiskStatus(status)
-	r.generateRaidStatus(status)
+	r.generateLvmStatus(&status)
+	r.generateDiskStatus(&status)
+	r.generateRaidStatus(&status)
 
 	return status
 }
@@ -265,7 +270,7 @@ func (r *NodeStorageResourceReconciler) generateDiskStatus(status *carinav1beta1
 			//剩余容量选择可用分区剩余空间最大容量
 			avail = fs[0].Size()
 			log.Info("Disk:", disk.Path, " size:", disk.Size, " avail:", avail, " free:", fs)
-			status.Capacity[fmt.Sprintf("%s%s/%s", utils.DeviceCapacityKeyPrefix, group, disk.Name)] = *resource.NewQuantity(int64(disk.Size>>30+1), resource.BinarySI)
+			status.Capacity[fmt.Sprintf("%s%s/%s", utils.DeviceCapacityKeyPrefix, group, disk.Name)] = *resource.NewQuantity(int64(disk.Size>>30), resource.BinarySI)
 			status.Allocatable[fmt.Sprintf("%s%s/%s", utils.DeviceCapacityKeyPrefix, group, disk.Name)] = *resource.NewQuantity(int64(avail>>30+1), resource.BinarySI)
 		}
 	}
