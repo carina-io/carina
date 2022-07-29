@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"github.com/anuvu/disko"
 	"github.com/carina-io/carina/pkg/devicemanager/volume"
+	"k8s.io/apimachinery/pkg/api/equality"
 	"regexp"
 	"sort"
 	"strings"
@@ -31,7 +32,6 @@ import (
 	deviceManager "github.com/carina-io/carina/pkg/devicemanager"
 	"github.com/carina-io/carina/utils"
 	"github.com/carina-io/carina/utils/log"
-	"k8s.io/apimachinery/pkg/api/equality"
 	apierrs "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -83,12 +83,10 @@ func (r *NodeStorageResourceReconciler) reconcile(ve volume.VolumeEvent) {
 	}
 
 	nsr := nodeStorageResource.DeepCopy()
+	nsr.Status.SyncTime = metav1.Time{}
 
-	lvmNeed := r.needUpdateLvmStatus(&nsr.Status)
-	diskNeed := r.needUpdateDiskStatus(&nsr.Status)
-	raidNeed := r.needUpdateRaidStatus(&nsr.Status)
-
-	if lvmNeed || diskNeed || raidNeed {
+	if !equality.Semantic.DeepEqual(nsr.Status, r.generateStatus()) {
+		log.Infof("Need to update nodeStorageResource status")
 		nsr.Status.SyncTime = metav1.Now()
 		if err := r.Client.Status().Update(ctx, nsr); err != nil {
 			log.Error(err, " failed to update nodeStorageResource status name ", nsr.Name)
@@ -155,46 +153,54 @@ func (r *NodeStorageResourceReconciler) deleteNodeStorageResource(ctx context.Co
 	return r.Client.Delete(ctx, NodeStorageResource)
 }
 
-// Determine whether the LVM volume needs to be updated
-func (r *NodeStorageResourceReconciler) needUpdateLvmStatus(status *carinav1beta1.NodeStorageResourceStatus) bool {
-	vgs, err := r.dm.VolumeManager.GetCurrentVgStruct()
-	if err != nil {
-		return false
+func (r *NodeStorageResourceReconciler) generateStatus() *carinav1beta1.NodeStorageResourceStatus {
+	status := &carinav1beta1.NodeStorageResourceStatus{
+		Capacity:    make(map[string]resource.Quantity),
+		Allocatable: make(map[string]resource.Quantity),
+		SyncTime:    metav1.Time{},
 	}
 
-	if !equality.Semantic.DeepEqual(vgs, status.VgGroups) {
-		status.VgGroups = vgs
-		for _, v := range vgs {
-			sizeGb := v.VGSize>>30 + 1
-			freeGb := uint64(0)
-			if v.VGFree > utils.DefaultReservedSpace {
-				freeGb = (v.VGFree-utils.DefaultReservedSpace)>>30 + 1
-			}
-			if status.Capacity == nil {
-				status.Capacity = make(map[string]resource.Quantity)
-			}
-			if status.Allocatable == nil {
-				status.Allocatable = make(map[string]resource.Quantity)
-			}
-			status.Capacity[fmt.Sprintf("%s%s", utils.DeviceCapacityKeyPrefix, v.VGName)] = *resource.NewQuantity(int64(sizeGb), resource.BinarySI)
-			status.Allocatable[fmt.Sprintf("%s%s", utils.DeviceCapacityKeyPrefix, v.VGName)] = *resource.NewQuantity(int64(freeGb), resource.BinarySI)
-		}
-		return true
-	}
-	return false
+	r.generateLvmStatus(status)
+	r.generateDiskStatus(status)
+	r.generateRaidStatus(status)
+
+	return status
 }
 
-// Determine whether the Disk needs to be updated
-func (r *NodeStorageResourceReconciler) needUpdateDiskStatus(status *carinav1beta1.NodeStorageResourceStatus) bool {
+func (r *NodeStorageResourceReconciler) generateLvmStatus(status *carinav1beta1.NodeStorageResourceStatus) {
+	diskSelectGroup := r.dm.GetNodeDiskSelectGroup()
+	vgs, err := r.dm.VolumeManager.GetCurrentVgStruct()
+	if err != nil {
+		log.Errorf("Get current vg struct error %s", err.Error())
+		return
+	}
+	for _, vg := range vgs {
+		if _, ok := diskSelectGroup[vg.VGName]; !ok {
+			continue
+		}
+		status.VgGroups = append(status.VgGroups, vg)
+	}
 
+	for _, v := range status.VgGroups {
+		sizeGb := v.VGSize>>30 + 1
+		freeGb := uint64(0)
+		if v.VGFree > utils.DefaultReservedSpace {
+			freeGb = (v.VGFree-utils.DefaultReservedSpace)>>30 + 1
+		}
+		status.Capacity[fmt.Sprintf("%s%s", utils.DeviceCapacityKeyPrefix, v.VGName)] = *resource.NewQuantity(int64(sizeGb), resource.BinarySI)
+		status.Allocatable[fmt.Sprintf("%s%s", utils.DeviceCapacityKeyPrefix, v.VGName)] = *resource.NewQuantity(int64(freeGb), resource.BinarySI)
+	}
+
+}
+
+func (r *NodeStorageResourceReconciler) generateDiskStatus(status *carinav1beta1.NodeStorageResourceStatus) {
 	diskSelectGroup := r.dm.GetNodeDiskSelectGroup()
 	localDisk, err := r.dm.Partition.ListDevicesDetail("")
 	if err != nil {
 		log.Errorf("Scan  node disk resource error %s", err.Error())
-		return false
+		return
 	}
 	blockClass := map[string][]string{}
-	// If the disk has been added to a DiskSelectGroup group, add it to this DiskSelectGroup group
 	hasMatchedDisk := map[string]int8{}
 	for _, ds := range diskSelectGroup {
 		if strings.ToLower(ds.Policy) == "lvm" {
@@ -206,7 +212,6 @@ func (r *NodeStorageResourceReconciler) needUpdateDiskStatus(status *carinav1bet
 			continue
 		}
 		for _, d := range localDisk {
-
 			if !diskSelector.MatchString(d.Name) {
 				log.Infof("Mismatched disk:%s, regex:%s", d.Name, diskSelector.String())
 				continue
@@ -227,75 +232,49 @@ func (r *NodeStorageResourceReconciler) needUpdateDiskStatus(status *carinav1bet
 	log.Infof("Get diskSelectGroup group info %s", blockClass)
 
 	if len(blockClass) == 0 {
-		return false
+		return
 	}
 
-	disks := []api.Disk{}
 	groupDiskos := map[string][]disko.Disk{}
 
 	for group, v := range blockClass {
 		diskSet, err := r.dm.Partition.ScanAllDisk(v)
 		if err != nil {
 			log.Errorf("Scan node disk resource error %s", err.Error())
-			return false
+			return
 		}
 
 		for _, disk := range diskSet {
 			tmp := api.Disk{}
 			utils.Fill(disk, &tmp)
-			disks = append(disks, tmp)
+			status.Disks = append(status.Disks, tmp)
 			groupDiskos[group] = append(groupDiskos[group], disk)
 		}
 	}
 
-	if !equality.Semantic.DeepEqual(disks, status.Disks) {
-		log.Info("Update disks", disks)
-		status.Disks = disks
-		if status.Capacity == nil {
-			status.Capacity = make(map[string]resource.Quantity)
-		}
-		if status.Allocatable == nil {
-			status.Allocatable = make(map[string]resource.Quantity)
-		}
+	for group, diskos := range groupDiskos {
+		for _, disk := range diskos {
+			var avail uint64
 
-		for group, diskos := range groupDiskos {
-			for _, disk := range diskos {
-				var avail uint64
-
-				fs := disk.FreeSpaces()
-				if len(fs) < 1 {
-					log.Info("Disk:", disk.Path, " size:", disk.Size, " avail:", avail, " free:", fs)
-					continue
-				}
-
-				sort.Slice(fs, func(a, b int) bool {
-					return fs[a].Size() > fs[b].Size()
-				})
-
-				//剩余容量选择可用分区剩余空间最大容量
-				avail = fs[0].Size()
+			fs := disk.FreeSpaces()
+			if len(fs) < 1 {
 				log.Info("Disk:", disk.Path, " size:", disk.Size, " avail:", avail, " free:", fs)
-				status.Capacity[fmt.Sprintf("%s%s/%s", utils.DeviceCapacityKeyPrefix, group, disk.Name)] = *resource.NewQuantity(int64(disk.Size>>30+1), resource.BinarySI)
-				status.Allocatable[fmt.Sprintf("%s%s/%s", utils.DeviceCapacityKeyPrefix, group, disk.Name)] = *resource.NewQuantity(int64(avail>>30+1), resource.BinarySI)
+				continue
 			}
-		}
-		return true
-	}
 
-	return false
+			sort.Slice(fs, func(a, b int) bool {
+				return fs[a].Size() > fs[b].Size()
+			})
+
+			//剩余容量选择可用分区剩余空间最大容量
+			avail = fs[0].Size()
+			log.Info("Disk:", disk.Path, " size:", disk.Size, " avail:", avail, " free:", fs)
+			status.Capacity[fmt.Sprintf("%s%s/%s", utils.DeviceCapacityKeyPrefix, group, disk.Name)] = *resource.NewQuantity(int64(disk.Size>>30+1), resource.BinarySI)
+			status.Allocatable[fmt.Sprintf("%s%s/%s", utils.DeviceCapacityKeyPrefix, group, disk.Name)] = *resource.NewQuantity(int64(avail>>30+1), resource.BinarySI)
+		}
+	}
 }
 
-// Determine whether the Raid needs to be updated
-func (r *NodeStorageResourceReconciler) needUpdateRaidStatus(status *carinav1beta1.NodeStorageResourceStatus) bool {
+func (r *NodeStorageResourceReconciler) generateRaidStatus(status *carinav1beta1.NodeStorageResourceStatus) {
 	//TODO
-	// raids, err := r.raids.GetRaids()
-	// if err != nil {
-	// 	return false
-	// }
-	// if !reflect.DeepEqual(raids, status.RAIDs) {
-	// 	status.RAIDs = raids
-
-	// 	return true
-	// }
-	return false
 }
