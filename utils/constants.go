@@ -87,4 +87,6 @@ const (
 	RawVolumeType = "raw"
 
 	AllowPodMigrationIfNodeNotready = "carina.stroage.io/allow-pod-migration-if-node-notready"
+
+	CarinaPrefix = "carina.io"
 )

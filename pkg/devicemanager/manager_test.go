@@ -97,7 +97,7 @@ func TestDeviceManager(t *testing.T) {
 		// 清理volume
 		_ = cleanVolume(dm)
 		configuration.TestAssistDiskSelector = []string{"^o$"}
-		dm.AddAndRemoveDevice()
+		dm.addAndRemoveDevice()
 	}()
 
 	err := deviceAddAndRemove(dm)
@@ -119,7 +119,7 @@ func TestDeviceManager(t *testing.T) {
 }
 
 func deviceAddAndRemove(dm *DeviceManager) error {
-	dm.AddAndRemoveDevice()
+	dm.addAndRemoveDevice()
 
 	pvInfo, err := dm.VolumeManager.GetCurrentPvStruct()
 	if err != nil {

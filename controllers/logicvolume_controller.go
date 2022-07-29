@@ -161,7 +161,7 @@ func (r *LogicVolumeReconciler) removeLVIfExists(ctx context.Context, lv *carina
 		return fmt.Errorf("Create with no support type ")
 	}
 
-	r.volume.NoticeUpdateCapacity([]string{lv.Spec.DeviceGroup})
+	r.volume.NoticeUpdateCapacity(volume.LogicVolumeController)
 	log.Info("LV already removed name ", lv.Name, " uid ", lv.UID)
 	return nil
 }
@@ -192,7 +192,7 @@ func (r *LogicVolumeReconciler) createLV(ctx context.Context, lv *carinav1.Logic
 				log.Error(err2, " failed to update status name ", lv.Name, " uid ", lv.UID)
 			}
 		} else {
-			lv.Status.VolumeID = "volume-" + lv.Name
+			lv.Status.VolumeID = volume.LVVolume + lv.Name
 			lv.Status.CurrentSize = resource.NewQuantity(reqBytes, resource.BinarySI)
 			lv.Status.Code = codes.OK
 			lv.Status.Message = ""
@@ -226,7 +226,7 @@ func (r *LogicVolumeReconciler) createLV(ctx context.Context, lv *carinav1.Logic
 				log.Error(err2, " failed to update status name ", lv.Name, " uid ", lv.UID)
 			}
 		} else {
-			lv.Status.VolumeID = "volume-" + lv.Name
+			lv.Status.VolumeID = volume.LVVolume + lv.Name
 			lv.Status.CurrentSize = resource.NewQuantity(reqBytes, resource.BinarySI)
 			lv.Status.Code = codes.OK
 			lv.Status.Message = ""
@@ -257,8 +257,8 @@ func (r *LogicVolumeReconciler) createLV(ctx context.Context, lv *carinav1.Logic
 		return err
 	}
 
-	r.volume.NoticeUpdateCapacity([]string{lv.Spec.DeviceGroup})
-	log.Info("created new LV name ", lv.Name, " uid ", lv.UID, " status.volumeID ", lv.Status.VolumeID)
+	r.volume.NoticeUpdateCapacity(volume.LogicVolumeController)
+	log.Info("Created new LV name ", lv.Name, " uid ", lv.UID, " status.volumeID ", lv.Status.VolumeID)
 	return nil
 }
 
@@ -343,8 +343,8 @@ func (r *LogicVolumeReconciler) expandLV(ctx context.Context, lv *carinav1.Logic
 		return err
 	}
 
-	r.volume.NoticeUpdateCapacity([]string{lv.Spec.DeviceGroup})
-	log.Info("expanded LV name ", lv.Name, " uid ", lv.UID, " status.volumeID ", lv.Status.VolumeID,
+	r.volume.NoticeUpdateCapacity(volume.LogicVolumeController)
+	log.Info("Expanded LV name ", lv.Name, " uid ", lv.UID, " status.volumeID ", lv.Status.VolumeID,
 		" original status.currentSize ", origBytes, " status.currentSize ", reqBytes)
 	return nil
 }
