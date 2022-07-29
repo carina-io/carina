@@ -40,7 +40,7 @@ import (
 )
 
 type DeviceManager struct {
-	cache cache.Cache
+	Cache cache.Cache
 	// The implementation of executing a console command
 	Executor exec.Executor
 	// 所有操作本地卷均需获取锁
@@ -63,7 +63,7 @@ func NewDeviceManager(nodeName string, cache cache.Cache, stopChan <-chan struct
 	mutex := mutx.NewGlobalLocks()
 
 	dm := DeviceManager{
-		cache:            cache,
+		Cache:            cache,
 		Executor:         executor,
 		Mutex:            mutex,
 		VolumeManager:    &volume.LocalVolumeImplement{Mutex: mutex, Lv: &lvmd.Lvm2Implement{Executor: executor}, Bcache: &bcache.BcacheImplement{Executor: executor}, NoticeUpdate: make(chan volume.VolumeEvent)},
@@ -83,7 +83,7 @@ func (dm *DeviceManager) GetNodeDiskSelectGroup() map[string]configuration.DiskS
 	diskClass := map[string]configuration.DiskSelectorItem{}
 	currentDiskSelector := configuration.DiskSelector()
 	node := &corev1.Node{}
-	err := dm.cache.Get(context.Background(), client.ObjectKey{Name: dm.nodeName}, node)
+	err := dm.Cache.Get(context.Background(), client.ObjectKey{Name: dm.nodeName}, node)
 	if err != nil {
 		log.Errorf("get node %s error %s", dm.nodeName, err.Error())
 		return nil
@@ -374,7 +374,7 @@ func (dm *DeviceManager) VolumeConsistencyCheck() {
 }
 
 func (dm *DeviceManager) DeviceCheckTask() {
-	dm.cache.WaitForCacheSync(context.Background())
+	dm.Cache.WaitForCacheSync(context.Background())
 	log.Info("start device scan...")
 	dm.VolumeManager.RefreshLvmCache()
 	// 服务启动先检查一次

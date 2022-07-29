@@ -104,7 +104,11 @@ func (r *NodeStorageResourceReconciler) Run() {
 	r.dm.VolumeManager.RegisterNoticeChan(r.updateChannel)
 
 	// for startup
-	r.triggerReconcile()
+	if !r.dm.Cache.WaitForCacheSync(context.TODO()) {
+		log.Errorf("Failed to wait for cache sync")
+		return
+	}
+	go r.triggerReconcile()
 
 	for {
 		select {
