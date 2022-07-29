@@ -256,6 +256,10 @@ func (dm *DeviceManager) discoverDisk(diskClass map[string]configuration.DiskSel
 				continue
 			}
 
+			if d.Filesystem == types.Lvm2FsType {
+				continue
+			}
+
 			// 过滤不支持的磁盘类型
 			diskTypeCheck := true
 			for _, t := range []string{types.LVMType, types.CryptType, types.MultiPath, types.RomType} {

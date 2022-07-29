@@ -38,10 +38,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-const (
-	WorkersCount = 3
-)
-
 // NodeStorageResourceReconciler reconciles a NodeStorageResource object
 type NodeStorageResourceReconciler struct {
 	client.Client
