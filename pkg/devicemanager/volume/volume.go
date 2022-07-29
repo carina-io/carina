@@ -466,7 +466,7 @@ func (v *LocalVolumeImplement) RemoveDiskInVg(disk, vgName string) error {
 			}
 		} else {
 			// 移除该Pv,剩余空间不足，则不允许移除
-			if vgInfo.VGSize-vgInfo.VGFree < pvInfo.PVSize {
+			if vgInfo.VGFree < pvInfo.PVSize {
 				log.Warnf("cannot remove the disk %s because there will not enough space", disk)
 				return errors.New("not enough space")
 			}
