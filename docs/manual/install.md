@@ -35,7 +35,7 @@
 ##### helm installation 
 
 ```
-helm repo add carina-csi-driver https://raw.githubusercontent.com/carina-io/charts/main
+helm repo add carina-csi-driver https://carina-io.github.io
 
 helm search repo -l carina-csi-driver
 
