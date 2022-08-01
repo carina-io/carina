@@ -1,10 +1,13 @@
 package lvm
 
 import (
+	"fmt"
+	"strings"
 	"time"
 
 	"github.com/carina-io/carina/test/e2e/framework"
 	"github.com/onsi/ginkgo"
+	"github.com/onsi/gomega"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
@@ -12,8 +15,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-var _ = framework.CrainaDescribe("LVM pvc e2e test", func() {
-	f := framework.NewDefaultFramework("lvm-pvc")
+var _ = framework.CrainaDescribe("Filesystem Mode LVM pvc e2e test", func() {
+	f := framework.NewDefaultFramework("filesystem-lvm-pvc")
 	ginkgo.BeforeEach(func() {
 		del := corev1.PersistentVolumeReclaimDelete
 		waitForFirstConsumer := storagev1.VolumeBindingWaitForFirstConsumer
@@ -23,7 +26,7 @@ var _ = framework.CrainaDescribe("LVM pvc e2e test", func() {
 				Name: f.Namespace,
 			},
 			Provisioner:          "carina.storage.io",
-			Parameters:           map[string]string{"csi.storage.k8s.io/fstype": "xfs", "carina.storage.io/disk-group-name": "carina-lvm-ssd"},
+			Parameters:           map[string]string{"csi.storage.k8s.io/fstype": "xfs", "carina.storage.io/disk-group-name": "carina-vg-ssd"},
 			ReclaimPolicy:        &del,
 			MountOptions:         []string{},
 			AllowVolumeExpansion: &t,
@@ -35,17 +38,17 @@ var _ = framework.CrainaDescribe("LVM pvc e2e test", func() {
 	ginkgo.AfterEach(func() {
 		f.DeleteStorageClass(f.Namespace)
 	})
-	// 1. create LVM pvc
+	// 1. create Filesystem LVM pvc
 	ginkgo.It("should create LVM pvc", func() {
-		persistentVolumeBlock := corev1.PersistentVolumeBlock
+		persistentVolumeFilesystem := corev1.PersistentVolumeFilesystem
 		lvmPvc := &corev1.PersistentVolumeClaim{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      "lvm-block-pvc-create",
+				Name:      "filesystem-lvm-pvc-create",
 				Namespace: f.Namespace,
 			},
 			Spec: corev1.PersistentVolumeClaimSpec{
 				AccessModes:      []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
-				VolumeMode:       &persistentVolumeBlock,
+				VolumeMode:       &persistentVolumeFilesystem,
 				StorageClassName: &f.Namespace,
 				Resources: corev1.ResourceRequirements{
 					Requests: corev1.ResourceList{
@@ -58,19 +61,19 @@ var _ = framework.CrainaDescribe("LVM pvc e2e test", func() {
 		framework.ExpectEqual(pvcResult.Status.Phase, corev1.ClaimPending)
 	})
 
-	// 2.LVM pvc resizing
-	ginkgo.It("should update LVM pvc", func() {
+	// 2.LVM pvc expand
+	ginkgo.It("should expand LVM pvc", func() {
 
-		// 2.1 create a lvm pvc
-		persistentVolumeBlock := corev1.PersistentVolumeBlock
+		// 2.1 create a Filesystem lvm pvc
+		persistentVolumeFilesystem := corev1.PersistentVolumeFilesystem
 		lvmPvc := &corev1.PersistentVolumeClaim{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      "lvm-block-pvc-update",
+				Name:      "filesystem-lvm-pvc-expand",
 				Namespace: f.Namespace,
 			},
 			Spec: corev1.PersistentVolumeClaimSpec{
 				AccessModes:      []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
-				VolumeMode:       &persistentVolumeBlock,
+				VolumeMode:       &persistentVolumeFilesystem,
 				StorageClassName: &f.Namespace,
 				Resources: corev1.ResourceRequirements{
 					Requests: corev1.ResourceList{
@@ -84,10 +87,10 @@ var _ = framework.CrainaDescribe("LVM pvc e2e test", func() {
 
 		// 2.2 create a deployment and bound lvm pvc
 		var replicas int32 = 1
-		podLabels := map[string]string{"web-server1": "web-server1"}
+		podLabels := map[string]string{"web-server1-filesystem": "web-server1-filesystem"}
 		lvmDeploy := &appsv1.Deployment{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      "lvm-deploy-deployment",
+				Name:      "filesystem-lvm-deploy-deployment",
 				Namespace: f.Namespace,
 				Labels:    podLabels,
 			},
@@ -101,8 +104,9 @@ var _ = framework.CrainaDescribe("LVM pvc e2e test", func() {
 					Spec: corev1.PodSpec{
 						Containers: []corev1.Container{
 							{
-								Name:  "web-server1",
-								Image: "docker.io/library/nginx:latest",
+								Name:            "web-server1",
+								Image:           "docker.io/library/nginx:1.23.1",
+								ImagePullPolicy: corev1.PullIfNotPresent,
 								VolumeMounts: []corev1.VolumeMount{
 									{
 										Name:      "mypvc1",
@@ -127,32 +131,39 @@ var _ = framework.CrainaDescribe("LVM pvc e2e test", func() {
 			},
 		}
 
-		deployResult := f.EnsurDeployment(lvmDeploy)
-		f.WaitForPod("web-server1=web-server1", 60*time.Second, false)
+		deployResult := f.EnsurDeployment(lvmDeploy, "web-server1-filesystem=web-server1-filesystem")
+
 		framework.ExpectEqual(deployResult.Status.AvailableReplicas, replicas)
-		// 2.3 pvc resizing
-		pvcResult.Spec.Resources.Requests = corev1.ResourceList{
-			corev1.ResourceName(corev1.ResourceStorage): resource.MustParse("6Gi"),
-		}
-		f.UpdatePvc(pvcResult)
-		// 2.4 check pvc resized
-		pods := f.GetPods(deployResult.Namespace, "web-server1=web-server1")
+		// 2.3 pvc expand
+
+		f.PatchPvc(pvcResult.Namespace, pvcResult.Name, `{"spec": {"resources": {"requests": {"storage": "6Gi"}}}}`)
+		// 2.4 check pvc expand
+		pods := f.GetPods(deployResult.Namespace, "web-server1-filesystem=web-server1-filesystem")
 		for _, pod := range pods.Items {
-			stdout, _, _ := f.Kubectl("exec", "-it", pod.Name, "-n", pod.Name, "--", "df", "-h")
-			framework.ExpectConsistOf(string(stdout), "6G")
+			gomega.Eventually(func() error {
+				ginkgo.By("exec pod ...")
+				stdout, stderr, err := f.Kubectl("exec", "-it", pod.Name, "-n", pod.Namespace, "--", "df", "-h")
+				framework.Logf("stdout: %s, stderr:,%s, err: %v", string(stdout), string(stderr), err)
+				cs := strings.Contains(string(stdout), "6.0G")
+				if !cs {
+					return fmt.Errorf("pvc expand in progress")
+				}
+				return nil
+			}, 5*time.Minute, 60*time.Second).Should(gomega.BeNil())
+
 		}
 	})
 	// 3.delete LVM pvc
 	ginkgo.It("should delete LVM pvc", func() {
-		persistentVolumeBlock := corev1.PersistentVolumeBlock
+		persistentVolumeFilesystem := corev1.PersistentVolumeFilesystem
 		lvmPvc := &corev1.PersistentVolumeClaim{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      "lvm-block-pvc-delete",
+				Name:      "filesystem-lvm-pvc-delete",
 				Namespace: f.Namespace,
 			},
 			Spec: corev1.PersistentVolumeClaimSpec{
 				AccessModes:      []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
-				VolumeMode:       &persistentVolumeBlock,
+				VolumeMode:       &persistentVolumeFilesystem,
 				StorageClassName: &f.Namespace,
 				Resources: corev1.ResourceRequirements{
 					Requests: corev1.ResourceList{
