@@ -28,7 +28,9 @@ const (
 	// CryptType is an encrypted type
 	CryptType = "crypt"
 	// LVMType is an LVM type
-	LVMType = "lvm"
+	LVMType    = "lvm"
+	RomType    = "rom"
+	Lvm2FsType = "LVM2_member"
 	// MultiPath is for multipath devices
 	MultiPath = "mpath"
 )

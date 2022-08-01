@@ -39,7 +39,7 @@ const (
 	Schedulerspreadout = "spreadout"
 )
 
-var testAssistDiskSelector []string
+var TestAssistDiskSelector []string
 var configModifyNotice []chan<- struct{}
 var GlobalConfig *viper.Viper
 var diskConfig Disk
@@ -129,7 +129,7 @@ func RegisterListenerChan(c chan<- struct{}) {
 // 对于此配置的修改需要非常慎重，如果更改匹配条件，可能会移除正在使用的磁盘
 func DiskSelector() []DiskSelectorItem {
 	// 测试辅助变量，这里入侵了业务逻辑
-	if len(testAssistDiskSelector) > 0 {
+	if len(TestAssistDiskSelector) > 0 {
 		return []DiskSelectorItem{}
 	}
 

@@ -37,11 +37,26 @@ import (
 
 const VOLUMEMUTEX = "VolumeMutex"
 
+type Trigger string
+
+const (
+	Dummy                 Trigger = "dummy"
+	ConfigModify          Trigger = "configModify"
+	LVMCheck              Trigger = "lvmCheck"
+	CleanupOrphan         Trigger = "cleanupOrphan"
+	LogicVolumeController Trigger = "logicVolumeController"
+)
+
+type VolumeEvent struct {
+	Trigger   Trigger
+	TriggerAt time.Time
+}
+
 type LocalVolumeImplement struct {
-	Lv              lvmd.Lvm2
-	Bcache          bcache.Bcache
-	Mutex           *mutx.GlobalLocks
-	NoticeServerMap map[string]chan struct{}
+	Lv           lvmd.Lvm2
+	Bcache       bcache.Bcache
+	Mutex        *mutx.GlobalLocks
+	NoticeUpdate chan VolumeEvent
 }
 
 func (v *LocalVolumeImplement) CreateVolume(lvName, vgName string, size, ratio uint64) error {
@@ -451,7 +466,7 @@ func (v *LocalVolumeImplement) RemoveDiskInVg(disk, vgName string) error {
 			}
 		} else {
 			// 移除该Pv,剩余空间不足，则不允许移除
-			if vgInfo.VGSize-vgInfo.VGFree > pvInfo.PVSize {
+			if vgInfo.VGFree < pvInfo.PVSize {
 				log.Warnf("cannot remove the disk %s because there will not enough space", disk)
 				return errors.New("not enough space")
 			}
@@ -503,38 +518,16 @@ func (v *LocalVolumeImplement) RefreshLvmCache() {
 
 }
 
-func (v *LocalVolumeImplement) NoticeUpdateCapacity(vgName []string) {
-
-	// 如果更新不成功，chan会一直阻塞，10s无法更新完成则输出超时日志
-
-	c1 := make(chan byte, 1)
-	go func() {
-		defer func() {
-			if err := recover(); err != nil {
-				log.Errorf("send notice server %s panic", strings.Join(vgName, " "))
-			}
-		}()
-		for k, c := range v.NoticeServerMap {
-			if len(vgName) == 0 {
-				c <- struct{}{}
-			} else if utils.ContainsString(vgName, k) {
-				c <- struct{}{}
-			}
-		}
-		c1 <- 1
-	}()
+func (v *LocalVolumeImplement) NoticeUpdateCapacity(trigger Trigger) {
 	select {
-	case <-c1:
-		log.Info("send all update channel done.")
-		return
+	case v.NoticeUpdate <- VolumeEvent{Trigger: trigger, TriggerAt: time.Now()}:
 	case <-time.After(10 * time.Second):
-		log.Warn("send all update channel timeout.")
-		return
+		log.Debug("Notice channel is full, send all update channel timeout(10s).")
 	}
 }
 
-func (v *LocalVolumeImplement) RegisterNoticeServer(vgName string, notice chan struct{}) {
-	v.NoticeServerMap[vgName] = notice
+func (v *LocalVolumeImplement) RegisterNoticeChan(notice chan VolumeEvent) {
+	v.NoticeUpdate = notice
 }
 
 // CreateBcache bcache
@@ -598,4 +591,8 @@ func (v *LocalVolumeImplement) BcacheDeviceInfo(dev string) (*types.BcacheDevice
 	bcacheInfo.BcachePath = deviceInfo.BcachePath
 
 	return bcacheInfo, nil
+}
+
+func (v *LocalVolumeImplement) GetLv() lvmd.Lvm2 {
+	return v.Lv
 }

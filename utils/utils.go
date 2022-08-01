@@ -19,6 +19,7 @@ package utils
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"os"
 	"reflect"
 	"strings"
@@ -142,5 +143,5 @@ func Fill(src interface{}, dst interface{}) error {
 
 func PartitionName(lv string) string {
 	strtemp := strings.Split(lv, "-")
-	return "carina.io/" + strtemp[len(strtemp)-1]
+	return fmt.Sprintf("%s/%s", CarinaPrefix, strtemp[len(strtemp)-1])
 }

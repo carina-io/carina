@@ -19,8 +19,10 @@ package partition
 import (
 	"errors"
 	"fmt"
+	"os"
 	"strconv"
 	"strings"
+	"syscall"
 
 	"github.com/anuvu/disko"
 	"github.com/anuvu/disko/linux"
@@ -51,7 +53,9 @@ type LocalPartition interface {
 	Wipe(name, groups string) error
 	UdevSettle() error
 	PartProbe() error
+	ListDevicesDetailWithoutFilter(device string) ([]*types.LocalDisk, error)
 	ListDevicesDetail(device string) ([]*types.LocalDisk, error)
+	GetDiskUsed(device string) (uint64, error)
 }
 
 const DISKMUTEX = "DiskMutex"
@@ -71,7 +75,8 @@ func NewLocalPartitionImplement() *LocalPartitionImplement {
 		CacheParttionNum: make(map[string]uint),
 		Executor:         executor}
 }
-func (ld *LocalPartitionImplement) ListDevicesDetail(device string) ([]*types.LocalDisk, error) {
+
+func (ld *LocalPartitionImplement) ListDevicesDetailWithoutFilter(device string) ([]*types.LocalDisk, error) {
 	args := []string{"--pairs", "--paths", "--bytes", "--output", "NAME,FSTYPE,MOUNTPOINT,SIZE,STATE,TYPE,ROTA,RO,PKNAME"}
 	if device != "" {
 		args = append(args, device)
@@ -82,7 +87,15 @@ func (ld *LocalPartitionImplement) ListDevicesDetail(device string) ([]*types.Lo
 		return nil, err
 	}
 
-	return filter(parseDiskString(devices)), nil
+	return parseDiskString(devices), nil
+}
+
+func (ld *LocalPartitionImplement) ListDevicesDetail(device string) ([]*types.LocalDisk, error) {
+	localDisks, err := ld.ListDevicesDetailWithoutFilter(device)
+	if err == nil {
+		return filter(localDisks), nil
+	}
+	return nil, err
 }
 
 func parseDiskString(diskString string) []*types.LocalDisk {
@@ -95,12 +108,12 @@ func parseDiskString(diskString string) []*types.LocalDisk {
 	diskString = strings.ReplaceAll(diskString, "\"", "")
 	//diskString = strings.ReplaceAll(diskString, " ", "")
 
-	vgsList := strings.Split(diskString, "\n")
-	for _, vgs := range vgsList {
+	blksList := strings.Split(diskString, "\n")
+	for _, blks := range blksList {
 		tmp := types.LocalDisk{}
-		vg := strings.Split(vgs, " ")
-		for _, v := range vg {
-			k := strings.Split(v, "=")
+		blk := strings.Split(blks, " ")
+		for _, b := range blk {
+			k := strings.Split(b, "=")
 
 			switch k[0] {
 			case "NAME":
@@ -136,7 +149,7 @@ func parseDiskString(diskString string) []*types.LocalDisk {
 
 }
 
-func filter(disklist []*types.LocalDisk) (DiskList []*types.LocalDisk) {
+func filter(disklist []*types.LocalDisk) (diskList []*types.LocalDisk) {
 	for _, d := range disklist {
 		if d.Type == "part" || d.ParentName != "" {
 			continue
@@ -149,9 +162,25 @@ func filter(disklist []*types.LocalDisk) (DiskList []*types.LocalDisk) {
 			//log.Infof("mismatched disk: %s filesystem:%s mountpoint:%s readonly:%t, size:%d", d.Name, d.Filesystem, d.MountPoint, d.Readonly, d.Size)
 			continue
 		}
-		DiskList = append(DiskList, d)
+		diskList = append(diskList, d)
 	}
-	return DiskList
+	return diskList
+}
+
+// GetDiskUsed
+/*
+# df /dev/sda
+文件系统         1K-块  已用    可用 已用% 挂载点
+udev           8193452     0 8193452    0% /dev
+*/
+func (ld *LocalPartitionImplement) GetDiskUsed(device string) (uint64, error) {
+	_, err := os.Stat(device)
+	if err != nil {
+		return 1, err
+	}
+	var stat syscall.Statfs_t
+	syscall.Statfs(device, &stat)
+	return stat.Blocks - stat.Bavail, nil
 }
 
 func (ld *LocalPartitionImplement) ScanAllDisk(paths []string) (disko.DiskSet, error) {

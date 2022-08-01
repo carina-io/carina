@@ -19,238 +19,111 @@ package controllers
 import (
 	"context"
 	"fmt"
+	"github.com/anuvu/disko"
+	"github.com/carina-io/carina/pkg/devicemanager/volume"
+	"k8s.io/apimachinery/pkg/api/equality"
 	"regexp"
 	"sort"
 	"strings"
 	"time"
 
-	"github.com/carina-io/carina/pkg/configuration"
-
 	"github.com/carina-io/carina/api"
+	carinav1beta1 "github.com/carina-io/carina/api/v1beta1"
 	deviceManager "github.com/carina-io/carina/pkg/devicemanager"
-	"github.com/carina-io/carina/pkg/devicemanager/partition"
-	"github.com/carina-io/carina/pkg/devicemanager/volume"
 	"github.com/carina-io/carina/utils"
 	"github.com/carina-io/carina/utils/log"
-	"github.com/go-logr/logr"
-	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/equality"
 	apierrs "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/client-go/util/workqueue"
-	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/controller"
-	"sigs.k8s.io/controller-runtime/pkg/event"
-	"sigs.k8s.io/controller-runtime/pkg/handler"
-	"sigs.k8s.io/controller-runtime/pkg/predicate"
-	"sigs.k8s.io/controller-runtime/pkg/source"
-
-	carinav1beta1 "github.com/carina-io/carina/api/v1beta1"
 )
 
 // NodeStorageResourceReconciler reconciles a NodeStorageResource object
 type NodeStorageResourceReconciler struct {
 	client.Client
-	Log      logr.Logger
-	Scheme   *runtime.Scheme
-	nodeName string
-	// stop
-	StopChan  <-chan struct{}
-	volume    volume.LocalVolume
-	partition partition.LocalPartition
-	dm        *deviceManager.DeviceManager
+	nodeName      string
+	updateChannel chan volume.VolumeEvent
+	stopChan      <-chan struct{}
+	dm            *deviceManager.DeviceManager
 }
-
-//+kubebuilder:rbac:groups=carina.storage.io,resources=nodestorageresources,verbs=get;list;watch;create;update;patch;delete
-//+kubebuilder:rbac:groups=carina.storage.io,resources=nodestorageresources/status,verbs=get;update;patch
 
 func NewNodeStorageResourceReconciler(
 	client client.Client,
-	scheme *runtime.Scheme, nodeName string,
-	volume volume.LocalVolume,
+	nodeName string,
 	stopChan <-chan struct{},
-	partition partition.LocalPartition,
 	dm *deviceManager.DeviceManager,
 ) *NodeStorageResourceReconciler {
-
 	return &NodeStorageResourceReconciler{
-		Client:    client,
-		Scheme:    scheme,
-		nodeName:  nodeName,
-		volume:    volume,
-		StopChan:  stopChan,
-		partition: partition,
-		dm:        dm,
+		Client:        client,
+		nodeName:      nodeName,
+		updateChannel: make(chan volume.VolumeEvent, 1000), // Buffer up to 1000 statuses
+		stopChan:      stopChan,
+		dm:            dm,
 	}
 }
 
-// Reconcile is part of the main kubernetes reconciliation loop which aims to
-// move the current state of the cluster closer to the desired state.
-// TODO(user): Modify the Reconcile function to compare the state specified by
-// the NodeStorageResource object against the actual cluster state, and then
-// perform operations to make the cluster state reflect the state specified by
-// the user.
-//
-// For more details, check Reconcile and its Result here:
-// - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.6.4/pkg/reconcile
-func (r *NodeStorageResourceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	_ = context.Background()
+func (r *NodeStorageResourceReconciler) reconcile(ve volume.VolumeEvent) {
+	log.Infof("Try to update nodeStorageResource, trigger: %s, trigger at: %v", ve.Trigger, ve.TriggerAt.Format("2006-01-02 15:04:05.000000000"))
 
 	nodeStorageResource := new(carinav1beta1.NodeStorageResource)
-	err := r.Get(ctx, client.ObjectKey{Name: r.nodeName}, nodeStorageResource)
-	if err != nil {
-		if apierrs.IsNotFound(err) {
-			err := r.createNodeStorageResource(ctx)
-			if err != nil {
+	ctx := context.Background()
+	getErr := r.Get(ctx, client.ObjectKey{Name: r.nodeName}, nodeStorageResource)
+	if getErr != nil {
+		if apierrs.IsNotFound(getErr) {
+			if err := r.createNodeStorageResource(ctx); err != nil {
 				log.Error(err, "unable to create NodeStorageResource ", r.nodeName)
+			} else {
+				r.triggerReconcile()
 			}
-			return ctrl.Result{Requeue: true, RequeueAfter: 1 * time.Minute}, err
 		}
-		return ctrl.Result{Requeue: true, RequeueAfter: 1 * time.Minute}, nil
+		return
 	}
 
 	nsr := nodeStorageResource.DeepCopy()
+	nsr.Status.SyncTime = metav1.Time{}
 
-	lvmNeed := r.needUpdateLvmStatus(&nsr.Status)
-	diskNeed := r.needUpdateDiskStatus(&nsr.Status)
-	raidNeed := r.needUpdateRaidStatus(&nsr.Status)
+	newStatus := r.generateStatus()
 
-	if lvmNeed || diskNeed || raidNeed {
+	if !equality.Semantic.DeepEqual(nsr.Status, newStatus) {
+		log.Infof("Need to update nodeStorageResource status")
+		nsr.Status = newStatus
 		nsr.Status.SyncTime = metav1.Now()
-
 		if err := r.Client.Status().Update(ctx, nsr); err != nil {
 			log.Error(err, " failed to update nodeStorageResource status name ", nsr.Name)
 		}
 	}
-	return ctrl.Result{}, nil
 }
 
-// SetupWithManager sets up the controller with the Manager.
-func (r *NodeStorageResourceReconciler) SetupWithManager(mgr ctrl.Manager) error {
+// Run begins watching and syncing.
+func (r *NodeStorageResourceReconciler) Run() {
+	log.Infof("Starting nodeStorageResource reconciler")
+	defer log.Infof("Shutting down nodeStorageResource reconciler")
+	defer close(r.updateChannel)
 
-	// 注册监听配置变更
-	configModifyChan := make(chan struct{}, 1)
-	configuration.RegisterListenerChan(configModifyChan)
+	// register volume update notice chan
+	r.dm.VolumeManager.RegisterNoticeChan(r.updateChannel)
 
-	ticker1 := time.NewTicker(600 * time.Second)
-	go func(t *time.Ticker) {
-		defer close(configModifyChan)
-		defer ticker1.Stop()
-		for {
-			select {
-			case <-t.C:
-				_ = r.ensureNodeStorageResourceExist()
-			case <-configModifyChan:
-				go time.AfterFunc(10*time.Second, r.triggerReconcile)
-			case <-r.StopChan:
-				_ = r.deleteNodeStorageResource(context.TODO())
-				log.Info("delete nodestorageresource...")
-				return
-			}
+	// for startup
+	if !r.dm.Cache.WaitForCacheSync(context.TODO()) {
+		log.Errorf("Failed to wait for cache sync")
+		return
+	}
+	go r.triggerReconcile()
+
+	for {
+		select {
+		case event := <-r.updateChannel:
+			r.reconcile(event)
+		case <-r.stopChan:
+			_ = r.deleteNodeStorageResource(context.TODO())
+			log.Info("Delete nodestorageresource...")
+			return
 		}
-	}(ticker1)
-	go time.AfterFunc(15*time.Second, r.triggerReconcile)
-
-	nodePredicateFn := builder.WithPredicates(
-		predicate.Funcs{
-			CreateFunc: func(e event.CreateEvent) bool {
-				o := e.Object.(*carinav1beta1.NodeStorageResource)
-				if o != nil {
-					if o.Spec.NodeName == r.nodeName {
-						return true
-					}
-					return false
-				}
-				return false
-			},
-			DeleteFunc: func(e event.DeleteEvent) bool {
-				o := e.Object.(*carinav1beta1.NodeStorageResource)
-				if o != nil {
-					if o.Spec.NodeName == r.nodeName {
-						return true
-					}
-					return false
-				}
-				return false
-			},
-			UpdateFunc:  func(event.UpdateEvent) bool { return false },
-			GenericFunc: func(event.GenericEvent) bool { return false },
-		})
-
-	return ctrl.NewControllerManagedBy(mgr).
-		For(&carinav1beta1.NodeStorageResource{}, nodePredicateFn).
-		WithOptions(controller.Options{
-			RateLimiter: workqueue.NewItemFastSlowRateLimiter(10*time.Second, 60*time.Second, 5),
-		}).
-		Watches(&source.Kind{Type: &corev1.PersistentVolume{}}, &handler.EnqueueRequestForObject{}, pvPredicateFn(r.nodeName)).
-		Complete(r)
-}
-
-func pvPredicateFn(nodeName string) builder.Predicates {
-	return builder.WithPredicates(predicate.Funcs{
-		CreateFunc: func(e event.CreateEvent) bool {
-			pv := e.Object.(*corev1.PersistentVolume)
-			if pv != nil && pv.Spec.CSI != nil && pv.Spec.CSI.Driver == utils.CSIPluginName {
-				if pv.Spec.CSI.VolumeAttributes[utils.VolumeDeviceNode] == nodeName {
-					return true
-				}
-			}
-			return false
-		},
-		UpdateFunc: func(e event.UpdateEvent) bool {
-			pv := e.ObjectNew.(*corev1.PersistentVolume)
-			if pv != nil && pv.Spec.CSI != nil && pv.Spec.CSI.Driver == utils.CSIPluginName {
-				if pv.Spec.CSI.VolumeAttributes[utils.VolumeDeviceNode] == nodeName {
-					return true
-				}
-			}
-			return false
-		},
-		DeleteFunc: func(e event.DeleteEvent) bool {
-			pv := e.Object.(*corev1.PersistentVolume)
-			if pv != nil && pv.Spec.CSI != nil && pv.Spec.CSI.Driver == utils.CSIPluginName {
-				if pv.Spec.CSI.VolumeAttributes[utils.VolumeDeviceNode] == nodeName {
-					return true
-				}
-			}
-			return false
-		},
-		GenericFunc: func(event.GenericEvent) bool {
-			return false
-		},
-	})
+	}
 }
 
 func (r *NodeStorageResourceReconciler) triggerReconcile() {
-	log.Info("trigger reconcile logic")
-	ctx := context.Background()
-	err := r.deleteNodeStorageResource(ctx)
-	if err != nil {
-		log.Warnf("delete node resource error %s", err.Error())
-	}
-	err = r.createNodeStorageResource(ctx)
-	if err != nil {
-		log.Warnf("create node resource error %s", err.Error())
-	}
-}
-
-func (r *NodeStorageResourceReconciler) ensureNodeStorageResourceExist() error {
-	ctx := context.Background()
-	nodeStorageResource := new(carinav1beta1.NodeStorageResource)
-	err := r.Get(ctx, client.ObjectKey{Name: r.nodeName}, nodeStorageResource)
-	if err != nil {
-		if apierrs.IsNotFound(err) {
-			err := r.createNodeStorageResource(ctx)
-			if err != nil {
-				log.Error(err, "unable to create NodeStorageResource ", r.nodeName)
-			}
-		}
-	}
-	return nil
+	r.updateChannel <- volume.VolumeEvent{Trigger: volume.Dummy, TriggerAt: time.Now()}
 }
 
 func (r *NodeStorageResourceReconciler) createNodeStorageResource(ctx context.Context) error {
@@ -269,10 +142,7 @@ func (r *NodeStorageResourceReconciler) createNodeStorageResource(ctx context.Co
 			SyncTime: metav1.Now(),
 		},
 	}
-	if err := r.Client.Create(ctx, NodeStorageResource); err != nil {
-		return err
-	}
-	return nil
+	return r.Client.Create(ctx, NodeStorageResource)
 }
 
 func (r *NodeStorageResourceReconciler) deleteNodeStorageResource(ctx context.Context) error {
@@ -285,51 +155,57 @@ func (r *NodeStorageResourceReconciler) deleteNodeStorageResource(ctx context.Co
 			Name: r.nodeName,
 		},
 	}
-	if err := r.Client.Delete(ctx, NodeStorageResource); err != nil {
-		return err
-	}
-	return nil
+	return r.Client.Delete(ctx, NodeStorageResource)
 }
 
-// Determine whether the LVM volume needs to be updated
-func (r *NodeStorageResourceReconciler) needUpdateLvmStatus(status *carinav1beta1.NodeStorageResourceStatus) bool {
-	vgs, err := r.volume.GetCurrentVgStruct()
-	if err != nil {
-		return false
+func (r *NodeStorageResourceReconciler) generateStatus() carinav1beta1.NodeStorageResourceStatus {
+	status := carinav1beta1.NodeStorageResourceStatus{
+		Capacity:    make(map[string]resource.Quantity),
+		Allocatable: make(map[string]resource.Quantity),
+		SyncTime:    metav1.Time{},
 	}
-	if !equality.Semantic.DeepEqual(vgs, status.VgGroups) {
-		status.VgGroups = vgs
-		for _, v := range vgs {
-			sizeGb := v.VGSize>>30 + 1
-			freeGb := uint64(0)
-			if v.VGFree > utils.DefaultReservedSpace {
-				freeGb = (v.VGFree - utils.DefaultReservedSpace) >> 30
-			}
-			if status.Capacity == nil {
-				status.Capacity = make(map[string]resource.Quantity)
-			}
-			if status.Allocatable == nil {
-				status.Allocatable = make(map[string]resource.Quantity)
-			}
-			status.Capacity[fmt.Sprintf("%s%s", utils.DeviceCapacityKeyPrefix, v.VGName)] = *resource.NewQuantity(int64(sizeGb), resource.BinarySI)
-			status.Allocatable[fmt.Sprintf("%s%s", utils.DeviceCapacityKeyPrefix, v.VGName)] = *resource.NewQuantity(int64(freeGb), resource.BinarySI)
-		}
-		return true
-	}
-	return false
+
+	r.generateLvmStatus(&status)
+	r.generateDiskStatus(&status)
+	r.generateRaidStatus(&status)
+
+	return status
 }
 
-// Determine whether the Disk needs to be updated
-func (r *NodeStorageResourceReconciler) needUpdateDiskStatus(status *carinav1beta1.NodeStorageResourceStatus) bool {
-
+func (r *NodeStorageResourceReconciler) generateLvmStatus(status *carinav1beta1.NodeStorageResourceStatus) {
 	diskSelectGroup := r.dm.GetNodeDiskSelectGroup()
-	localDisk, err := r.partition.ListDevicesDetail("")
+	vgs, err := r.dm.VolumeManager.GetCurrentVgStruct()
 	if err != nil {
-		log.Errorf("scan  node disk resource error %s", err.Error())
-		return false
+		log.Errorf("Get current vg struct error %s", err.Error())
+		return
+	}
+	for _, vg := range vgs {
+		if _, ok := diskSelectGroup[vg.VGName]; !ok {
+			continue
+		}
+		status.VgGroups = append(status.VgGroups, vg)
+	}
+
+	for _, v := range status.VgGroups {
+		sizeGb := v.VGSize>>30 + 1
+		freeGb := uint64(0)
+		if v.VGFree > utils.DefaultReservedSpace {
+			freeGb = (v.VGFree-utils.DefaultReservedSpace)>>30 + 1
+		}
+		status.Capacity[fmt.Sprintf("%s%s", utils.DeviceCapacityKeyPrefix, v.VGName)] = *resource.NewQuantity(int64(sizeGb), resource.BinarySI)
+		status.Allocatable[fmt.Sprintf("%s%s", utils.DeviceCapacityKeyPrefix, v.VGName)] = *resource.NewQuantity(int64(freeGb), resource.BinarySI)
+	}
+
+}
+
+func (r *NodeStorageResourceReconciler) generateDiskStatus(status *carinav1beta1.NodeStorageResourceStatus) {
+	diskSelectGroup := r.dm.GetNodeDiskSelectGroup()
+	localDisk, err := r.dm.Partition.ListDevicesDetail("")
+	if err != nil {
+		log.Errorf("Scan  node disk resource error %s", err.Error())
+		return
 	}
 	blockClass := map[string][]string{}
-	// If the disk has been added to a DiskSelectGroup group, add it to this DiskSelectGroup group
 	hasMatchedDisk := map[string]int8{}
 	for _, ds := range diskSelectGroup {
 		if strings.ToLower(ds.Policy) == "lvm" {
@@ -337,19 +213,16 @@ func (r *NodeStorageResourceReconciler) needUpdateDiskStatus(status *carinav1bet
 		}
 		diskSelector, err := regexp.Compile(strings.Join(ds.Re, "|"))
 		if err != nil {
-			log.Warnf("disk regex %s error %v ", strings.Join(ds.Re, "|"), err)
+			log.Warnf("Disk regex %s error %v ", strings.Join(ds.Re, "|"), err)
 			continue
 		}
-		// 过滤出空块设备
 		for _, d := range localDisk {
-
 			if !diskSelector.MatchString(d.Name) {
-				log.Infof("mismatched disk:%s, regex:%s", d.Name, diskSelector.String())
+				log.Infof("Mismatched disk:%s, regex:%s", d.Name, diskSelector.String())
 				continue
 			}
 
 			name := ds.Name
-			//log.Infof("eligible %s device %s", ds.Name, d.Name)
 			if !utils.ContainsString(blockClass[name], d.Name) {
 				if hasMatchedDisk[d.Name] == 1 {
 					continue
@@ -364,82 +237,49 @@ func (r *NodeStorageResourceReconciler) needUpdateDiskStatus(status *carinav1bet
 	log.Infof("Get diskSelectGroup group info %s", blockClass)
 
 	if len(blockClass) == 0 {
-		return false
+		return
 	}
-	disks := []api.Disk{}
-	for _, v := range blockClass {
-		diskSet, err := r.partition.ScanAllDisk(v)
+
+	groupDiskos := map[string][]disko.Disk{}
+
+	for group, v := range blockClass {
+		diskSet, err := r.dm.Partition.ScanAllDisk(v)
 		if err != nil {
-			log.Errorf("scan  node disk resource error %s", err.Error())
-			return false
+			log.Errorf("Scan node disk resource error %s", err.Error())
+			return
 		}
 
 		for _, disk := range diskSet {
 			tmp := api.Disk{}
 			utils.Fill(disk, &tmp)
-			disks = append(disks, tmp)
+			status.Disks = append(status.Disks, tmp)
+			groupDiskos[group] = append(groupDiskos[group], disk)
 		}
-
 	}
 
-	if !equality.Semantic.DeepEqual(disks, status.Disks) {
-		log.Info("update disks", disks)
-		status.Disks = disks
-		if status.Capacity == nil {
-			status.Capacity = make(map[string]resource.Quantity)
-		}
-		if status.Allocatable == nil {
-			status.Allocatable = make(map[string]resource.Quantity)
-		}
+	for group, diskos := range groupDiskos {
+		for _, disk := range diskos {
+			var avail uint64
 
-		for group, v := range blockClass {
-			diskSet, err := r.partition.ScanAllDisk(v)
-			if err != nil {
-				log.Errorf("scan  node disk resource error %s", err.Error())
-				return false
+			fs := disk.FreeSpaces()
+			if len(fs) < 1 {
+				log.Info("Disk:", disk.Path, " size:", disk.Size, " avail:", avail, " free:", fs)
+				continue
 			}
-			var diskGroup string
-			for _, disk := range diskSet {
-				if utils.ContainsString(v, disk.Path) {
-					diskGroup = group
-				}
-				var avail uint64
 
-				fs := disk.FreeSpaces()
-				if len(fs) < 1 {
-					log.Info("disk:", disk.Path, " size:", disk.Size, " avail:", avail, " free:", fs)
-					continue
-				}
-				sort.Slice(fs, func(a, b int) bool {
-					return fs[a].Size() > fs[b].Size()
-				})
+			sort.Slice(fs, func(a, b int) bool {
+				return fs[a].Size() > fs[b].Size()
+			})
 
-				//剩余容量选择可用分区剩余空间最大容量
-				avail = fs[0].Size()
-				log.Info("disk:", disk.Path, " size:", disk.Size, " avail:", avail, " free:", fs)
-				status.Capacity[fmt.Sprintf("%s%s/%s", utils.DeviceCapacityKeyPrefix, diskGroup, disk.Name)] = *resource.NewQuantity(int64(disk.Size>>30), resource.BinarySI)
-				status.Allocatable[fmt.Sprintf("%s%s/%s", utils.DeviceCapacityKeyPrefix, diskGroup, disk.Name)] = *resource.NewQuantity(int64(avail>>30), resource.BinarySI)
-
-			}
+			//剩余容量选择可用分区剩余空间最大容量
+			avail = fs[0].Size()
+			log.Info("Disk:", disk.Path, " size:", disk.Size, " avail:", avail, " free:", fs)
+			status.Capacity[fmt.Sprintf("%s%s/%s", utils.DeviceCapacityKeyPrefix, group, disk.Name)] = *resource.NewQuantity(int64(disk.Size>>30), resource.BinarySI)
+			status.Allocatable[fmt.Sprintf("%s%s/%s", utils.DeviceCapacityKeyPrefix, group, disk.Name)] = *resource.NewQuantity(int64(avail>>30+1), resource.BinarySI)
 		}
-
-		return true
 	}
-
-	return false
 }
 
-// Determine whether the Raid needs to be updated
-func (r *NodeStorageResourceReconciler) needUpdateRaidStatus(status *carinav1beta1.NodeStorageResourceStatus) bool {
+func (r *NodeStorageResourceReconciler) generateRaidStatus(status *carinav1beta1.NodeStorageResourceStatus) {
 	//TODO
-	// raids, err := r.raids.GetRaids()
-	// if err != nil {
-	// 	return false
-	// }
-	// if !reflect.DeepEqual(raids, status.RAIDs) {
-	// 	status.RAIDs = raids
-
-	// 	return true
-	// }
-	return false
 }

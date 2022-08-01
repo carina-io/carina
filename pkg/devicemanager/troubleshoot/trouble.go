@@ -19,16 +19,16 @@ package troubleshoot
 import (
 	"context"
 	"fmt"
-	"strings"
-
 	"github.com/anuvu/disko/linux"
 	carinav1 "github.com/carina-io/carina/api/v1"
 	"github.com/carina-io/carina/pkg/devicemanager/partition"
+	"github.com/carina-io/carina/pkg/devicemanager/types"
 	"github.com/carina-io/carina/pkg/devicemanager/volume"
 	"github.com/carina-io/carina/utils"
 	"github.com/carina-io/carina/utils/log"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"strings"
 )
 
 type Trouble struct {
@@ -38,7 +38,7 @@ type Trouble struct {
 	nodeName      string
 }
 
-const logPrefix = "clean orphan volume:"
+const logPrefix = "Clean orphan volume:"
 
 func NewTroubleObject(volumeManager volume.LocalVolume, partition partition.LocalPartition, cache cache.Cache, nodeName string) *Trouble {
 
@@ -102,20 +102,27 @@ func (t *Trouble) CleanupOrphanVolume() {
 		mapLvList[fmt.Sprintf("volume-%s", v.Name)] = true
 	}
 
+	var deleteVolume bool
 	for _, v := range volumeList {
-		if !strings.Contains(v.VGName, "carina") {
+		if !strings.HasPrefix(v.VGName, types.KEYWORD) {
 			log.Infof("%s skip volume %s", logPrefix, v.LVName)
 			continue
 		}
 		if _, ok := mapLvList[v.LVName]; !ok {
 			log.Warnf("%s remove volume %s %s", logPrefix, v.VGName, v.LVName)
-			if strings.HasPrefix(v.LVName, "volume-") {
+			if strings.HasPrefix(v.LVName, volume.LVVolume) {
 				err := t.volumeManager.DeleteVolume(v.LVName, v.VGName)
 				if err != nil {
 					log.Errorf("%s delete volume vg %s lv %s error %s", logPrefix, v.VGName, v.LVName, err.Error())
+				} else {
+					deleteVolume = true
 				}
 			}
 		}
+	}
+
+	if deleteVolume {
+		t.volumeManager.NoticeUpdateCapacity(volume.CleanupOrphan)
 	}
 
 	log.Infof("%s volume check finished.", logPrefix)
@@ -153,7 +160,8 @@ func (t *Trouble) CleanupOrphanPartition() {
 
 		mapLvList[utils.PartitionName(v.Name)] = true
 	}
-	log.Infof("mapLvList:%v", mapLvList)
+	log.Infof("MapLvList:%v", mapLvList)
+	var deletePartion bool
 	for _, d := range disklist {
 		disk, err := linux.System().ScanDisk(d.Name)
 		if err != nil {
@@ -164,21 +172,23 @@ func (t *Trouble) CleanupOrphanPartition() {
 			continue
 		}
 		for _, p := range disk.Partitions {
-			if !strings.Contains(p.Name, "carina.io") {
-				log.Infof("skip parttions %s", p.Name)
+			if !strings.HasPrefix(p.Name, utils.CarinaPrefix) {
+				log.Infof("Skip parttions %s", p.Name)
 				continue
 			}
-			log.Infof("check parttions %s %d %d", p.Name, p.Start, p.Last)
+			log.Infof("Check parttions %s %d %d", p.Name, p.Start, p.Last)
 			if _, ok := mapLvList[p.Name]; !ok {
-				log.Warnf("remove parttions %s %d %d", p.Name, p.Start, p.Last)
+				log.Warnf("Remove parttions %s %d %d", p.Name, p.Start, p.Last)
 				if err := t.partition.DeletePartitionByPartNumber(disk, p.Number); err != nil {
-					log.Errorf("delete parttions in disk name: %s  number: %d error: %s", disk.Name, p.Number, err.Error())
+					log.Errorf("Delete parttions in disk name: %s  number: %d error: %s", disk.Name, p.Number, err.Error())
+				} else {
+					deletePartion = true
 				}
-
 			}
-
 		}
 	}
-
+	if deletePartion {
+		t.volumeManager.NoticeUpdateCapacity(volume.CleanupOrphan)
+	}
 	log.Infof("%s volume check finished.", logPrefix)
 }

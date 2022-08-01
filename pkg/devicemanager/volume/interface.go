@@ -18,6 +18,7 @@ package volume
 
 import (
 	"github.com/carina-io/carina/api"
+	"github.com/carina-io/carina/pkg/devicemanager/lvmd"
 	"github.com/carina-io/carina/pkg/devicemanager/types"
 )
 
@@ -51,13 +52,14 @@ type LocalVolume interface {
 
 	HealthCheck()
 	RefreshLvmCache()
-	// NoticeUpdateCapacity For Device Plugin
-	NoticeUpdateCapacity(vgName []string)
-	// RegisterNoticeServer 注册通知服务，因为多个vg组，每个组需要不同的channel
-	RegisterNoticeServer(vgName string, notice chan struct{})
+
+	NoticeUpdateCapacity(trigger Trigger)
+	RegisterNoticeChan(notice chan VolumeEvent)
 
 	// CreateBcache bcache
 	CreateBcache(dev, cacheDev string, block, bucket string, cacheMode string) (*types.BcacheDeviceInfo, error)
 	DeleteBcache(dev, cacheDev string) error
 	BcacheDeviceInfo(dev string) (*types.BcacheDeviceInfo, error)
+
+	GetLv() lvmd.Lvm2
 }

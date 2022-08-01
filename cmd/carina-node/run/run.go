@@ -110,18 +110,10 @@ func subMain() error {
 
 	nodeResourceController := controllers.NewNodeStorageResourceReconciler(
 		mgr.GetClient(),
-		mgr.GetScheme(),
 		nodeName,
-		dm.VolumeManager,
 		stopChan,
-		dm.Partition,
 		dm,
 	)
-
-	if err := nodeResourceController.SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "NodeStorageResource")
-		return err
-	}
 
 	if _, err := mgr.GetCache().GetInformer(ctx, &corev1.Node{}); err != nil {
 		return err
@@ -158,6 +150,8 @@ func subMain() error {
 	// http server
 	e := newHttpServer(dm.VolumeManager, stopChan)
 	go e.start()
+
+	go nodeResourceController.Run()
 	setupLog.Info("starting manager")
 	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
 		setupLog.Error(err, "problem running manager")
