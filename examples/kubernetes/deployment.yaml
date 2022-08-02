@@ -7,7 +7,7 @@ metadata:
   labels:
     app: web-server
   annotations:
-    carina.stroage.io/allow-pod-migration-if-node-notready: "true"  
+    carina.storage.io/allow-pod-migration-if-node-notready: "true"
 spec:
   replicas: 1
   selector:
@@ -18,7 +18,7 @@ spec:
       labels:
         app: web-server
       annotations:
-        carina.stroage.io/allow-pod-migration-if-node-notready: "true"    
+        carina.storage.io/allow-pod-migration-if-node-notready: "true"
     spec:
       containers:
         - name: web-server
