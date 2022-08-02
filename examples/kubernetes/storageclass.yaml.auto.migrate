@@ -9,17 +9,10 @@ parameters:
   csi.storage.k8s.io/fstype: xfs
   # disk group
   carina.storage.io/disk-group-name: carina-vg-hdd
+  # auto injector pod annotation
+  carina.stroage.io/allow-pod-migration-if-node-notready: "true"
 reclaimPolicy: Delete
 allowVolumeExpansion: true
 # 创建pvc后立即创建pv,WaitForFirstConsumer表示被容器绑定调度后再创建pv
 volumeBindingMode: Immediate
 mountOptions:
-allowedTopologies:
-  - matchLabelExpressions:
-      - key: beta.kubernetes.io/os
-        values:
-          - linux
-      - key: kubernetes.io/hostname
-        values:
-          - 10.20.9.153
-          - 10.20.9.154
