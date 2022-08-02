@@ -82,6 +82,9 @@ func (m podMutator) Handle(ctx context.Context, req admission.Request) admission
 	}
 	if schedule {
 		pod.Spec.SchedulerName = utils.CarinaSchedule
+		if pod.Annotations == nil {
+			pod.Annotations = map[string]string{}
+		}
 		if _, ok := pod.Annotations[utils.AllowPodMigrationIfNodeNotready]; !ok {
 			for _, sc := range cSC {
 				if _, ok = sc.Annotations[utils.AllowPodMigrationIfNodeNotready]; ok {
