@@ -1,8 +1,7 @@
-package lvm
+package raw
 
 import (
 	"fmt"
-	"strconv"
 	"strings"
 	"time"
 
@@ -16,8 +15,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-var _ = framework.CrainaDescribe("Block Mode LVM pvc e2e test", func() {
-	f := framework.NewDefaultFramework("block-lvm-pvc")
+var _ = framework.CrainaDescribe("Filesystem Mode RAW pvc e2e test", func() {
+	f := framework.NewDefaultFramework("filesystem-raw-pvc")
 	ginkgo.BeforeEach(func() {
 		del := corev1.PersistentVolumeReclaimDelete
 		waitForFirstConsumer := storagev1.VolumeBindingWaitForFirstConsumer
@@ -27,7 +26,7 @@ var _ = framework.CrainaDescribe("Block Mode LVM pvc e2e test", func() {
 				Name: f.Namespace,
 			},
 			Provisioner:          "carina.storage.io",
-			Parameters:           map[string]string{"csi.storage.k8s.io/fstype": "xfs", "carina.storage.io/disk-group-name": "carina-vg-ssd"},
+			Parameters:           map[string]string{"csi.storage.k8s.io/fstype": "xfs", "carina.storage.io/disk-group-name": "carina-raw-ssd", "carina.storage.io/exclusively-raw-disk": "true"},
 			ReclaimPolicy:        &del,
 			MountOptions:         []string{},
 			AllowVolumeExpansion: &t,
@@ -39,17 +38,17 @@ var _ = framework.CrainaDescribe("Block Mode LVM pvc e2e test", func() {
 	ginkgo.AfterEach(func() {
 		f.DeleteStorageClass(f.Namespace)
 	})
-	// 1. create Block LVM pvc
-	ginkgo.It("should create LVM pvc", func() {
-		persistentVolumeBlock := corev1.PersistentVolumeBlock
-		lvmPvc := &corev1.PersistentVolumeClaim{
+	// 1. create Filesystem RAW pvc
+	ginkgo.It("should create RAW pvc", func() {
+		persistentVolumeFilesystem := corev1.PersistentVolumeFilesystem
+		rawPvc := &corev1.PersistentVolumeClaim{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      "block-lvm-pvc-create",
+				Name:      "filesystem-raw-pvc-create",
 				Namespace: f.Namespace,
 			},
 			Spec: corev1.PersistentVolumeClaimSpec{
 				AccessModes:      []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
-				VolumeMode:       &persistentVolumeBlock,
+				VolumeMode:       &persistentVolumeFilesystem,
 				StorageClassName: &f.Namespace,
 				Resources: corev1.ResourceRequirements{
 					Requests: corev1.ResourceList{
@@ -58,23 +57,23 @@ var _ = framework.CrainaDescribe("Block Mode LVM pvc e2e test", func() {
 			},
 		}
 
-		pvcResult := f.EnsurePvc(lvmPvc)
+		pvcResult := f.EnsurePvc(rawPvc)
 		framework.ExpectEqual(pvcResult.Status.Phase, corev1.ClaimPending)
 	})
 
-	// 2.LVM pvc expand
-	ginkgo.It("should expand LVM pvc", func() {
+	// 2.RAW pvc expand
+	ginkgo.It("should expand RAW pvc", func() {
 
-		// 2.1 create a lvm pvc
-		persistentVolumeBlock := corev1.PersistentVolumeBlock
-		lvmPvc := &corev1.PersistentVolumeClaim{
+		// 2.1 create a Filesystem raw pvc
+		persistentVolumeFilesystem := corev1.PersistentVolumeFilesystem
+		rawPvc := &corev1.PersistentVolumeClaim{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      "block-lvm-pvc-expand",
+				Name:      "filesystem-raw-pvc-expand",
 				Namespace: f.Namespace,
 			},
 			Spec: corev1.PersistentVolumeClaimSpec{
 				AccessModes:      []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
-				VolumeMode:       &persistentVolumeBlock,
+				VolumeMode:       &persistentVolumeFilesystem,
 				StorageClassName: &f.Namespace,
 				Resources: corev1.ResourceRequirements{
 					Requests: corev1.ResourceList{
@@ -83,15 +82,15 @@ var _ = framework.CrainaDescribe("Block Mode LVM pvc e2e test", func() {
 			},
 		}
 
-		pvcResult := f.EnsurePvc(lvmPvc)
+		pvcResult := f.EnsurePvc(rawPvc)
 		framework.ExpectEqual(pvcResult.Status.Phase, corev1.ClaimPending)
 
-		// 2.2 create a deployment and bound lvm pvc
+		// 2.2 create a deployment and bound raw pvc
 		var replicas int32 = 1
-		podLabels := map[string]string{"centos-block": "centos-block"}
-		lvmDeploy := &appsv1.Deployment{
+		podLabels := map[string]string{"web-server1-filesystem": "web-server1-filesystem"}
+		rawDeploy := &appsv1.Deployment{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      "block-lvm-deploy-deployment",
+				Name:      "filesystem-raw-deploy-deployment",
 				Namespace: f.Namespace,
 				Labels:    podLabels,
 			},
@@ -105,23 +104,20 @@ var _ = framework.CrainaDescribe("Block Mode LVM pvc e2e test", func() {
 					Spec: corev1.PodSpec{
 						Containers: []corev1.Container{
 							{
-								Name:            "centos",
-								Image:           "centos:latest",
+								Name:            "web-server1",
+								Image:           "docker.io/library/nginx:1.23.1",
 								ImagePullPolicy: corev1.PullIfNotPresent,
-								SecurityContext: &corev1.SecurityContext{
-									Capabilities: &corev1.Capabilities{
-										Add: []corev1.Capability{"SYS_RAWIO"},
+								VolumeMounts: []corev1.VolumeMount{
+									{
+										Name:      "mypvc1",
+										MountPath: "/var/lib/www/html",
 									},
-								},
-								Command: []string{"/bin/sleep", "infinity"},
-								VolumeDevices: []corev1.VolumeDevice{
-									{Name: "data", DevicePath: "/dev/xvda"},
 								},
 							},
 						},
 						Volumes: []corev1.Volume{
 							{
-								Name: "data",
+								Name: "mypvc1",
 								VolumeSource: corev1.VolumeSource{
 									PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
 										ClaimName: pvcResult.Name,
@@ -135,49 +131,39 @@ var _ = framework.CrainaDescribe("Block Mode LVM pvc e2e test", func() {
 			},
 		}
 
-		deployResult := f.EnsurDeployment(lvmDeploy, "centos-block=centos-block")
+		deployResult := f.EnsurDeployment(rawDeploy, "web-server1-filesystem=web-server1-filesystem")
+
 		framework.ExpectEqual(deployResult.Status.AvailableReplicas, replicas)
 		// 2.3 pvc expand
-		f.PatchPvc(pvcResult.Namespace, pvcResult.Name, `{"spec": {"resources": {"requests": {"storage": "6Gi"}}}}`)
+
+		f.PatchPvc(pvcResult.Namespace, pvcResult.Name, `{"spec": {"resources": {"requests": {"storage": "5Gi"}}}}`)
 		// 2.4 check pvc expand
-		pods := f.GetPods(deployResult.Namespace, "centos-block=centos-block")
+		pods := f.GetPods(deployResult.Namespace, "web-server1-filesystem=web-server1-filesystem")
 		for _, pod := range pods.Items {
 			gomega.Eventually(func() error {
 				ginkgo.By("exec pod ...")
-				stdout, stderr, err := f.Kubectl("exec", "-n", pod.Namespace, pod.Name, "--", "blockdev", "--getsize64", "/dev/xvda")
-				if err != nil {
-					framework.Logf("failed to df. stdout: %s, stderr: %s, err: %v", stdout, stderr, err)
-					return fmt.Errorf("failed to df. stdout: %s, stderr: %s, err: %v", stdout, stderr, err)
+				stdout, stderr, err := f.Kubectl("exec", "-it", pod.Name, "-n", pod.Namespace, "--", "df", "-h")
+				framework.Logf("stdout: %s, stderr:,%s, err: %v", string(stdout), string(stderr), err)
+				cs := strings.Contains(string(stdout), "4.7G")
+				if !cs {
+					return fmt.Errorf("pvc expand in progress")
 				}
-
-				ginkgo.By("check device capacity")
-				s := strings.Replace(string(stdout), "\n", "", 1)
-				blockCapacity, err := strconv.Atoi(s)
-				if err != nil {
-					framework.Logf(err.Error())
-				}
-				framework.Logf("block device capacity %d", blockCapacity>>30)
-
-				if (6 - blockCapacity>>30) > 1 {
-					return fmt.Errorf("device expand in progress")
-				}
-
 				return nil
-			}, 5*time.Minute, 20*time.Second).Should(gomega.BeNil())
+			}, 8*time.Minute, 60*time.Second).Should(gomega.BeNil())
 
 		}
 	})
-	// 3.delete LVM pvc
-	ginkgo.It("should delete LVM pvc", func() {
-		persistentVolumeBlock := corev1.PersistentVolumeBlock
-		lvmPvc := &corev1.PersistentVolumeClaim{
+	// 3.delete RAW pvc
+	ginkgo.It("should delete RAW pvc", func() {
+		persistentVolumeFilesystem := corev1.PersistentVolumeFilesystem
+		rawPvc := &corev1.PersistentVolumeClaim{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      "block-lvm-pvc-delete",
+				Name:      "filesystem-raw-pvc-delete",
 				Namespace: f.Namespace,
 			},
 			Spec: corev1.PersistentVolumeClaimSpec{
 				AccessModes:      []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
-				VolumeMode:       &persistentVolumeBlock,
+				VolumeMode:       &persistentVolumeFilesystem,
 				StorageClassName: &f.Namespace,
 				Resources: corev1.ResourceRequirements{
 					Requests: corev1.ResourceList{
@@ -186,7 +172,7 @@ var _ = framework.CrainaDescribe("Block Mode LVM pvc e2e test", func() {
 			},
 		}
 
-		pvcResult := f.EnsurePvc(lvmPvc)
+		pvcResult := f.EnsurePvc(rawPvc)
 		framework.ExpectEqual(pvcResult.Status.Phase, corev1.ClaimPending)
 		f.DeletePvc(pvcResult.Name, pvcResult.Namespace)
 	})
