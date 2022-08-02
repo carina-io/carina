@@ -292,7 +292,7 @@ func (r *NodeReconciler) clearPod(ctx context.Context, nodeName string) error {
 		return err
 	}
 	for _, p := range podList.Items {
-		// check annotation carina.stroage.io/allow-pod-migration-if-node-notready: true
+		// check annotation carina.storage.io/allow-pod-migration-if-node-notready: true
 		if _, ok := p.Annotations[utils.AllowPodMigrationIfNodeNotready]; !ok || p.Annotations[utils.AllowPodMigrationIfNodeNotready] == "false" {
 			continue
 		}

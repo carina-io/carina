@@ -10,7 +10,7 @@ parameters:
   # disk group
   carina.storage.io/disk-group-name: carina-vg-hdd
   # auto injector pod annotation
-  carina.stroage.io/allow-pod-migration-if-node-notready: "true"
+  carina.storage.io/allow-pod-migration-if-node-notready: "true"
 reclaimPolicy: Delete
 allowVolumeExpansion: true
 # 创建pvc后立即创建pv,WaitForFirstConsumer表示被容器绑定调度后再创建pv

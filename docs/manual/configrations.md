@@ -95,7 +95,7 @@ allowedTopologies:
 | `carina.storage.io/blkio.throttle.write_bps_device`       |Yes     |Set the disk is write  BPS value   |               |        |
 | `carina.storage.io/blkio.throttle.read_iops_device`       |Yes     |Set disk read IOPS value  |               |        |
 | `carina.storage.io/blkio.throttle.write_iops_device`       |Yes     |Set the disk is write  IOPS value  |               |        |
-| `carina.stroage.io/allow-pod-migration-if-node-notready` |No     |Whether to migrate when node is down |`true`,`false`|`false`   |
+| `carina.storage.io/allow-pod-migration-if-node-notready` |No     |Whether to migrate when node is down |`true`,`false`|`false`   |
 
 #### example
 ```yaml

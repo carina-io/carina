@@ -4,7 +4,7 @@ metadata:
   name: carina-stateful
   namespace: carina
   annotations:
-     carina.stroage.io/allow-pod-migration-if-node-notready : "true"
+     carina.storage.io/allow-pod-migration-if-node-notready : "true"
 spec:
   serviceName: "mysql-service"
   replicas: 2
@@ -16,7 +16,7 @@ spec:
       labels:
         app: mysql
       annotations:
-        carina.stroage.io/allow-pod-migration-if-node-notready : "true"  
+        carina.storage.io/allow-pod-migration-if-node-notready : "true"
     spec:
       terminationGracePeriodSeconds: 10
       containers:
