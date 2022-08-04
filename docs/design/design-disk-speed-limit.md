@@ -8,7 +8,7 @@
 
 - 磁盘限速只支持块设备限速
 - 不支持文件系统限速，有些文件系统本身支持限速但是其限速条件比较苛刻
-- 使用cgroup v1 实现磁盘限速
+- 支持cgroup v1和cgroup v2，同时支持systemd和cgroupfs俩种cgroup driver
 
 #### 具体实现
 
@@ -66,15 +66,19 @@
     volumeMode: Filesystem
   ```
 
-  - 该注解会被写入cgroup
+  - 该注解值会被写入相应pod层次的cgroup配置文件中
 
     ```shell
-    /sys/fs/cgroup/blkio/blkio.throttle.read_bps_device
-    /sys/fs/cgroup/blkio/blkio.throttle.read_iops_device
-    /sys/fs/cgroup/blkio/blkio.throttle.write_bps_device
-    /sys/fs/cgroup/blkio/blkio.throttle.write_iops_device
+    cgroup v1
+    /sys/fs/cgroup/blkio/kubepods/burstable/pod0b0e005c-39ec-4719-bbfe-78aadbc3e4ad/blkio.throttle.read_bps_device
+    /sys/fs/cgroup/blkio/kubepods/burstable/pod0b0e005c-39ec-4719-bbfe-78aadbc3e4ad/blkio.throttle.read_iops_device
+    /sys/fs/cgroup/blkio/kubepods/burstable/pod0b0e005c-39ec-4719-bbfe-78aadbc3e4ad/blkio.throttle.write_bps_device
+    /sys/fs/cgroup/blkio/kubepods/burstable/pod0b0e005c-39ec-4719-bbfe-78aadbc3e4ad/blkio.throttle.write_iops_device
     ```
-
+    ```shell
+    cgroup v2
+    /sys/fs/cgroup/kubepods/burstable/pod0b0e005c-39ec-4719-bbfe-78aadbc3e4ad/io.max
+    ```
 #### 测试
 
 ```
@@ -85,9 +89,9 @@ $ iostat
 
 - cgroup v1无法限制buffer Io，这就导致在写磁盘时需要显示的指定direct读写磁盘
 - 在kernel 3.10版本直连读写磁盘限速良好，在4.18版本内核无法进行限速
+- 使用cgroup v2必须同时开启memory和io这俩种控制器，否则无法实现buffer io限速
 
-
-### cgroupV2 支持
+### cgroup v2支持
 Linux kernel 3.10 开始提供v2版本cgroup（Linux Control Group v2）。开始是试验特性，隐藏在挂载参数-o __DEVEL__sane_behavior中，直到Linuxe Kernel 4.5.0的时候，cgroup v2才成为正式特性。
 
 Cgroup V2 可限制 Buffered IO 的读写

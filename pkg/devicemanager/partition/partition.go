@@ -19,11 +19,6 @@ package partition
 import (
 	"errors"
 	"fmt"
-	"os"
-	"strconv"
-	"strings"
-	"syscall"
-
 	"github.com/anuvu/disko"
 	"github.com/anuvu/disko/linux"
 	"github.com/anuvu/disko/partid"
@@ -31,6 +26,10 @@ import (
 	"github.com/carina-io/carina/utils/exec"
 	"github.com/carina-io/carina/utils/log"
 	"github.com/carina-io/carina/utils/mutx"
+	"os"
+	"strconv"
+	"strings"
+	"syscall"
 )
 
 var (
@@ -56,6 +55,7 @@ type LocalPartition interface {
 	ListDevicesDetailWithoutFilter(device string) ([]*types.LocalDisk, error)
 	ListDevicesDetail(device string) ([]*types.LocalDisk, error)
 	GetDiskUsed(device string) (uint64, error)
+	GetDevice(deviceNumber string) (*types.LocalDisk, error)
 }
 
 const DISKMUTEX = "DiskMutex"
@@ -74,113 +74,6 @@ func NewLocalPartitionImplement() *LocalPartitionImplement {
 		Mutex:            mutex,
 		CacheParttionNum: make(map[string]uint),
 		Executor:         executor}
-}
-
-func (ld *LocalPartitionImplement) ListDevicesDetailWithoutFilter(device string) ([]*types.LocalDisk, error) {
-	args := []string{"--pairs", "--paths", "--bytes", "--output", "NAME,FSTYPE,MOUNTPOINT,SIZE,STATE,TYPE,ROTA,RO,PKNAME"}
-	if device != "" {
-		args = append(args, device)
-	}
-	devices, err := ld.Executor.ExecuteCommandWithOutput("lsblk", args...)
-	if err != nil {
-		log.Error("exec lsblk failed" + err.Error())
-		return nil, err
-	}
-
-	return parseDiskString(devices), nil
-}
-
-func (ld *LocalPartitionImplement) ListDevicesDetail(device string) ([]*types.LocalDisk, error) {
-	localDisks, err := ld.ListDevicesDetailWithoutFilter(device)
-	if err == nil {
-		return filter(localDisks), nil
-	}
-	return nil, err
-}
-
-func parseDiskString(diskString string) []*types.LocalDisk {
-	resp := []*types.LocalDisk{}
-
-	if diskString == "" {
-		return resp
-	}
-
-	diskString = strings.ReplaceAll(diskString, "\"", "")
-	//diskString = strings.ReplaceAll(diskString, " ", "")
-
-	blksList := strings.Split(diskString, "\n")
-	for _, blks := range blksList {
-		tmp := types.LocalDisk{}
-		blk := strings.Split(blks, " ")
-		for _, b := range blk {
-			k := strings.Split(b, "=")
-
-			switch k[0] {
-			case "NAME":
-				tmp.Name = k[1]
-			case "MOUNTPOINT":
-				tmp.MountPoint = k[1]
-			case "SIZE":
-				tmp.Size, _ = strconv.ParseUint(k[1], 10, 64)
-			case "STATE":
-				tmp.State = k[1]
-			case "TYPE":
-				tmp.Type = k[1]
-			case "ROTA":
-				tmp.Rotational = k[1]
-			case "RO":
-				if k[1] == "1" {
-					tmp.Readonly = true
-				} else {
-					tmp.Readonly = false
-				}
-			case "FSTYPE":
-				tmp.Filesystem = k[1]
-			case "PKNAME":
-				tmp.ParentName = k[1]
-			default:
-				log.Warnf("undefined filed %s-%s", k[0], k[1])
-			}
-		}
-
-		resp = append(resp, &tmp)
-	}
-	return resp
-
-}
-
-func filter(disklist []*types.LocalDisk) (diskList []*types.LocalDisk) {
-	for _, d := range disklist {
-		if d.Type == "part" || d.ParentName != "" {
-			continue
-		}
-		if strings.Contains(d.Name, types.KEYWORD) {
-			continue
-		}
-
-		if d.Readonly || d.Size < 10<<30 || d.Filesystem != "" || d.MountPoint != "" {
-			//log.Infof("mismatched disk: %s filesystem:%s mountpoint:%s readonly:%t, size:%d", d.Name, d.Filesystem, d.MountPoint, d.Readonly, d.Size)
-			continue
-		}
-		diskList = append(diskList, d)
-	}
-	return diskList
-}
-
-// GetDiskUsed
-/*
-# df /dev/sda
-文件系统         1K-块  已用    可用 已用% 挂载点
-udev           8193452     0 8193452    0% /dev
-*/
-func (ld *LocalPartitionImplement) GetDiskUsed(device string) (uint64, error) {
-	_, err := os.Stat(device)
-	if err != nil {
-		return 1, err
-	}
-	var stat syscall.Statfs_t
-	syscall.Statfs(device, &stat)
-	return stat.Blocks - stat.Bavail, nil
 }
 
 func (ld *LocalPartitionImplement) ScanAllDisk(paths []string) (disko.DiskSet, error) {
@@ -481,4 +374,126 @@ func (ld *LocalPartitionImplement) UdevSettle() error {
 
 func (ld *LocalPartitionImplement) PartProbe() error {
 	return ld.Executor.ExecuteCommand("bash", "-c", "partprobe")
+}
+
+func (ld *LocalPartitionImplement) ListDevicesDetailWithoutFilter(device string) ([]*types.LocalDisk, error) {
+	args := []string{"--pairs", "--paths", "--bytes", "--output", "NAME,FSTYPE,MOUNTPOINT,SIZE,STATE,TYPE,ROTA,RO,PKNAME,MAJ:MIN"}
+	if device != "" {
+		args = append(args, device)
+	}
+	devices, err := ld.Executor.ExecuteCommandWithOutput("lsblk", args...)
+	if err != nil {
+		log.Error("exec lsblk failed" + err.Error())
+		return nil, err
+	}
+
+	return parseDiskString(devices), nil
+}
+
+func (ld *LocalPartitionImplement) ListDevicesDetail(device string) ([]*types.LocalDisk, error) {
+	localDisks, err := ld.ListDevicesDetailWithoutFilter(device)
+	if err == nil {
+		return filter(localDisks), nil
+	}
+	return nil, err
+}
+
+func parseDiskString(diskString string) []*types.LocalDisk {
+	resp := []*types.LocalDisk{}
+
+	if diskString == "" {
+		return resp
+	}
+
+	diskString = strings.ReplaceAll(diskString, "\"", "")
+	//diskString = strings.ReplaceAll(diskString, " ", "")
+
+	blksList := strings.Split(diskString, "\n")
+	for _, blks := range blksList {
+		tmp := types.LocalDisk{}
+		blk := strings.Split(blks, " ")
+		for _, b := range blk {
+			k := strings.Split(b, "=")
+
+			switch k[0] {
+			case "NAME":
+				tmp.Name = k[1]
+			case "MOUNTPOINT":
+				tmp.MountPoint = k[1]
+			case "SIZE":
+				tmp.Size, _ = strconv.ParseUint(k[1], 10, 64)
+			case "STATE":
+				tmp.State = k[1]
+			case "TYPE":
+				tmp.Type = k[1]
+			case "ROTA":
+				tmp.Rotational = k[1]
+			case "RO":
+				if k[1] == "1" {
+					tmp.Readonly = true
+				} else {
+					tmp.Readonly = false
+				}
+			case "FSTYPE":
+				tmp.Filesystem = k[1]
+			case "PKNAME":
+				tmp.ParentName = k[1]
+			case "MAJ:MIN":
+				tmp.DeviceNumber = k[1]
+			default:
+				log.Warnf("undefined filed %s-%s", k[0], k[1])
+			}
+		}
+
+		resp = append(resp, &tmp)
+	}
+	return resp
+
+}
+
+func filter(disklist []*types.LocalDisk) (diskList []*types.LocalDisk) {
+	for _, d := range disklist {
+		if d.Type == "part" || d.ParentName != "" {
+			continue
+		}
+		if strings.Contains(d.Name, types.KEYWORD) {
+			continue
+		}
+
+		if d.Readonly || d.Size < 10<<30 || d.Filesystem != "" || d.MountPoint != "" {
+			//log.Infof("mismatched disk: %s filesystem:%s mountpoint:%s readonly:%t, size:%d", d.Name, d.Filesystem, d.MountPoint, d.Readonly, d.Size)
+			continue
+		}
+		diskList = append(diskList, d)
+	}
+	return diskList
+}
+
+// GetDiskUsed
+/*
+# df /dev/sda
+文件系统         1K-块  已用    可用 已用% 挂载点
+udev           8193452     0 8193452    0% /dev
+*/
+func (ld *LocalPartitionImplement) GetDiskUsed(device string) (uint64, error) {
+	_, err := os.Stat(device)
+	if err != nil {
+		return 1, err
+	}
+	var stat syscall.Statfs_t
+	syscall.Statfs(device, &stat)
+	return stat.Blocks - stat.Bavail, nil
+}
+
+func (ld *LocalPartitionImplement) GetDevice(deviceNumber string) (*types.LocalDisk, error) {
+	localDisks, err := ld.ListDevicesDetailWithoutFilter("")
+	if err != nil {
+		return nil, err
+	}
+	for _, localDisk := range localDisks {
+		if localDisk.DeviceNumber == deviceNumber {
+			return localDisk, nil
+		}
+	}
+	return nil, nil
 }
