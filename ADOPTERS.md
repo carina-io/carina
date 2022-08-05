@@ -6,7 +6,7 @@ This page contains a list of organizations who are using Carina in production or
 
 ## Successful Stories
 
-- **[BoCloud](https://www.bocloud.com.cn/):** xxxxxxxxxxxxxxx.
+- **[BoCloud](https://www.bocloud.com.cn/):** BoCloud Cloud Container Platform was awarded by Gratner as the Representative Vendor in China's Cloud Container CaaS segment and was ranked in the top 5 market share in China Mainland (IDC Container Software Market Report). Many of the existing customers have been using carina in production or testing enviroments for years, typically for cloudnative middlewares.
 
 
 ## Adopters
