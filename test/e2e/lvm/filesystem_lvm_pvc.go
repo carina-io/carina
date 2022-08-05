@@ -87,7 +87,7 @@ var _ = framework.CrainaDescribe("Filesystem Mode LVM pvc e2e test", func() {
 
 		// 2.2 create a deployment and bound lvm pvc
 		var replicas int32 = 1
-		podLabels := map[string]string{"web-server1-filesystem": "web-server1-filesystem"}
+		podLabels := map[string]string{"web-server1-filesystem-lvm": "web-server1-filesystem-lvm"}
 		lvmDeploy := &appsv1.Deployment{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      "filesystem-lvm-deploy-deployment",
@@ -131,14 +131,14 @@ var _ = framework.CrainaDescribe("Filesystem Mode LVM pvc e2e test", func() {
 			},
 		}
 
-		deployResult := f.EnsurDeployment(lvmDeploy, "web-server1-filesystem=web-server1-filesystem")
+		deployResult := f.EnsurDeployment(lvmDeploy, "web-server1-filesystem-lvm=web-server1-filesystem-lvm")
 
 		framework.ExpectEqual(deployResult.Status.AvailableReplicas, replicas)
 		// 2.3 pvc expand
 
 		f.PatchPvc(pvcResult.Namespace, pvcResult.Name, `{"spec": {"resources": {"requests": {"storage": "6Gi"}}}}`)
 		// 2.4 check pvc expand
-		pods := f.GetPods(deployResult.Namespace, "web-server1-filesystem=web-server1-filesystem")
+		pods := f.GetPods(deployResult.Namespace, "web-server1-filesystem-lvm=web-server1-filesystem-lvm")
 		for _, pod := range pods.Items {
 			gomega.Eventually(func() error {
 				ginkgo.By("exec pod ...")

@@ -24,6 +24,17 @@ make kd
   这样会对测试效果产生一定影响
   - 由于kind创建的k8s集群运行在一台机器，在执行e2e测试时k8s集群性能对测试结果产生较大影响
   - 所以建议使用多主机节点集群执行测试，实际在使用`vagrant`创建的多个k8s集群中运行良好
+  - 当服务器不支持bcache时，需要删除deploycarina/csi-carina-node.yaml关于bcache内容
+  ```
+  # init-container中删除bcache的内核加载
+  # csi-carina-node中删除关于bcahce的目录挂载
+  - name: host-bcache
+    mountPath: /sys/fs/bcache
+    
+  - name: host-bcache
+    hostPath:
+      path: /sys/fs/bcache  
+
 
 - 安装carina
 ```cassandraql

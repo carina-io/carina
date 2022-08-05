@@ -88,7 +88,7 @@ var _ = framework.CrainaDescribe("Block Mode LVM pvc e2e test", func() {
 
 		// 2.2 create a deployment and bound lvm pvc
 		var replicas int32 = 1
-		podLabels := map[string]string{"centos-block": "centos-block"}
+		podLabels := map[string]string{"centos-block-lvm": "centos-block-lvm"}
 		lvmDeploy := &appsv1.Deployment{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      "block-lvm-deploy-deployment",
@@ -135,12 +135,12 @@ var _ = framework.CrainaDescribe("Block Mode LVM pvc e2e test", func() {
 			},
 		}
 
-		deployResult := f.EnsurDeployment(lvmDeploy, "centos-block=centos-block")
+		deployResult := f.EnsurDeployment(lvmDeploy, "centos-block-lvm=centos-block-lvm")
 		framework.ExpectEqual(deployResult.Status.AvailableReplicas, replicas)
 		// 2.3 pvc expand
 		f.PatchPvc(pvcResult.Namespace, pvcResult.Name, `{"spec": {"resources": {"requests": {"storage": "6Gi"}}}}`)
 		// 2.4 check pvc expand
-		pods := f.GetPods(deployResult.Namespace, "centos-block=centos-block")
+		pods := f.GetPods(deployResult.Namespace, "centos-block-lvm=centos-block-lvm")
 		for _, pod := range pods.Items {
 			gomega.Eventually(func() error {
 				ginkgo.By("exec pod ...")

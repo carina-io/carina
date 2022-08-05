@@ -15,9 +15,15 @@ import (
 
 func (f *Framework) GetPods(ns, labelSelector string) (pods *v1.PodList) {
 	pods, err := f.KubeClientSet.CoreV1().Pods(ns).List(context.TODO(), metav1.ListOptions{LabelSelector: labelSelector})
-	assert.Nil(ginkgo.GinkgoT(), err, "getting pvc")
-	assert.NotNil(ginkgo.GinkgoT(), pods, "expected a pvc but none returned")
+	assert.Nil(ginkgo.GinkgoT(), err, "getting pods")
+	assert.NotNil(ginkgo.GinkgoT(), pods, "expected  pods but none returned")
 	return pods
+}
+
+func (f *Framework) DeletePod(ns, name string) error {
+	err := f.KubeClientSet.CoreV1().Pods(ns).Delete(context.TODO(), name, metav1.DeleteOptions{})
+	assert.Nil(ginkgo.GinkgoT(), err, "deleting pod")
+	return err
 }
 
 // WaitForPod waits for a specific Pod to be ready, using a label selector
