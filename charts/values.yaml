@@ -1,5 +1,5 @@
 carina-scheduler:
-  enabled: false
+  enabled: true
   image:
     repository: registry.cn-hangzhou.aliyuncs.com/antmoveh/scheduler
     pullPolicy: IfNotPresent
@@ -178,6 +178,7 @@ config:
 
   
 storage:
+  create: true
   # file system
   lvm: 
     fstype: xfs
@@ -189,5 +190,3 @@ storage:
     disktype: carina-raw-ssd #as same as diskSelector[1].name
     reclaimPolicy: Delete  
     volumeBindingMode: WaitForFirstConsumer    
-
-
