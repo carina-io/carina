@@ -50,13 +50,14 @@ const (
 type VolumeEvent struct {
 	Trigger   Trigger
 	TriggerAt time.Time
+	Done      chan struct{}
 }
 
 type LocalVolumeImplement struct {
 	Lv           lvmd.Lvm2
 	Bcache       bcache.Bcache
 	Mutex        *mutx.GlobalLocks
-	NoticeUpdate chan VolumeEvent
+	NoticeUpdate chan *VolumeEvent
 }
 
 func (v *LocalVolumeImplement) CreateVolume(lvName, vgName string, size, ratio uint64) error {
@@ -518,15 +519,15 @@ func (v *LocalVolumeImplement) RefreshLvmCache() {
 
 }
 
-func (v *LocalVolumeImplement) NoticeUpdateCapacity(trigger Trigger) {
+func (v *LocalVolumeImplement) NoticeUpdateCapacity(trigger Trigger, done chan struct{}) {
 	select {
-	case v.NoticeUpdate <- VolumeEvent{Trigger: trigger, TriggerAt: time.Now()}:
+	case v.NoticeUpdate <- &VolumeEvent{Trigger: trigger, TriggerAt: time.Now(), Done: done}:
 	case <-time.After(10 * time.Second):
 		log.Debug("Notice channel is full, send all update channel timeout(10s).")
 	}
 }
 
-func (v *LocalVolumeImplement) RegisterNoticeChan(notice chan VolumeEvent) {
+func (v *LocalVolumeImplement) RegisterNoticeChan(notice chan *VolumeEvent) {
 	v.NoticeUpdate = notice
 }
 

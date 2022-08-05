@@ -113,20 +113,7 @@ func (r *LogicVolumeReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	}
 
 	log.Info("start finalizing LogicVolume name ", lv.Name)
-	err := r.removeLVIfExists(ctx, lv)
-	if err != nil {
-		return ctrl.Result{}, err
-	}
-
-	lv2 := lv.DeepCopy()
-	lv2.Finalizers = utils.SliceRemoveString(lv2.Finalizers, utils.LogicVolumeFinalizer)
-	patch := client.MergeFrom(lv)
-	if err := r.Patch(ctx, lv2, patch); err != nil {
-		log.Error(err, " failed to remove finalizer name ", lv.Name)
-		return ctrl.Result{}, err
-	}
-
-	return ctrl.Result{}, nil
+	return ctrl.Result{}, r.removeLVIfExists(ctx, lv)
 }
 
 func (r *LogicVolumeReconciler) SetupWithManager(mgr ctrl.Manager) error {
@@ -161,7 +148,17 @@ func (r *LogicVolumeReconciler) removeLVIfExists(ctx context.Context, lv *carina
 		return fmt.Errorf("Create with no support type ")
 	}
 
-	r.volume.NoticeUpdateCapacity(volume.LogicVolumeController)
+	if err := r.syncNoticeUpdateCapacity(lv); err != nil {
+		return err
+	}
+
+	lv2 := lv.DeepCopy()
+	lv2.Finalizers = utils.SliceRemoveString(lv2.Finalizers, utils.LogicVolumeFinalizer)
+	patch := client.MergeFrom(lv)
+	if err := r.Patch(ctx, lv2, patch); err != nil {
+		log.Error(err, " failed to remove finalizer name ", lv.Name)
+		return err
+	}
 	log.Info("LV already removed name ", lv.Name, " uid ", lv.UID)
 	return nil
 }
@@ -249,15 +246,19 @@ func (r *LogicVolumeReconciler) createLV(ctx context.Context, lv *carinav1.Logic
 
 	default:
 		log.Errorf("Create LogicVolume: Create with no support volume type undefined")
-		return fmt.Errorf("Create with no support type ")
+		return fmt.Errorf("create with no support type ")
 	}
+
+	if err := r.syncNoticeUpdateCapacity(lv); err != nil {
+		return err
+	}
+
 	//update status success
 	if err := r.Status().Update(ctx, lv); err != nil {
 		log.Error(err, " failed to update status name ", lv.Name, " uid ", lv.UID)
 		return err
 	}
 
-	r.volume.NoticeUpdateCapacity(volume.LogicVolumeController)
 	log.Info("Created new LV name ", lv.Name, " uid ", lv.UID, " status.volumeID ", lv.Status.VolumeID)
 	return nil
 }
@@ -337,13 +338,16 @@ func (r *LogicVolumeReconciler) expandLV(ctx context.Context, lv *carinav1.Logic
 		return fmt.Errorf("lv %s Create with no support type ", lv.Name)
 	}
 
+	if err := r.syncNoticeUpdateCapacity(lv); err != nil {
+		return err
+	}
+
 	//update status success
 	if err := r.Status().Update(ctx, lv); err != nil {
 		log.Error(err, " failed to update status name ", lv.Name, " uid ", lv.UID)
 		return err
 	}
 
-	r.volume.NoticeUpdateCapacity(volume.LogicVolumeController)
 	log.Info("Expanded LV name ", lv.Name, " uid ", lv.UID, " status.volumeID ", lv.Status.VolumeID,
 		" original status.currentSize ", origBytes, " status.currentSize ", reqBytes)
 	return nil
@@ -378,4 +382,16 @@ func (f logicVolumeFilter) Update(e event.UpdateEvent) bool {
 
 func (f logicVolumeFilter) Generic(e event.GenericEvent) bool {
 	return f.filter(e.Object.(*carinav1.LogicVolume))
+}
+
+func (r *LogicVolumeReconciler) syncNoticeUpdateCapacity(lv *carinav1.LogicVolume) error {
+	done := make(chan struct{})
+	r.volume.NoticeUpdateCapacity(volume.LogicVolumeController, done)
+	select {
+	case <-done:
+	case <-time.After(5 * time.Second):
+		log.Errorf("Update nsr capacity timeout(5s), LV name ", lv.Name, " uid ", lv.UID)
+		return fmt.Errorf("update nsr capacity timeout(5s)")
+	}
+	return nil
 }
