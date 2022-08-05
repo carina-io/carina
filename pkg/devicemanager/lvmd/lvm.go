@@ -240,7 +240,6 @@ func (lv2 *Lvm2Implement) DeleteThinPool(lv, vg string) error {
 }
 
 func (lv2 *Lvm2Implement) LVCreateFromPool(lv, thin, vg string, size uint64) error {
-
 	return lv2.Executor.ExecuteCommand("lvcreate", "-T", fmt.Sprintf("%s/%s", vg, thin), "-n", lv, "-V", fmt.Sprintf("%vg", size>>30))
 }
 
@@ -285,7 +284,6 @@ func (lv2 *Lvm2Implement) LVDisplay(lv, vg string) (*types.LvInfo, error) {
 		return nil, errors.New("not found")
 	}
 	return &lvInfo[0], nil
-	//return lv2.Executor.ExecuteCommandWithOutput("lvdisplay", fmt.Sprintf("%s/%s", vg, lv))
 }
 
 // LVS

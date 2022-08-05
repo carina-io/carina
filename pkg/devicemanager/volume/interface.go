@@ -22,12 +22,6 @@ import (
 	"github.com/carina-io/carina/pkg/devicemanager/types"
 )
 
-const (
-	THIN     = "thin-"
-	SNAP     = "snap-"
-	LVVolume = "volume-"
-)
-
 // LocalVolume 本接口负责对外提供方法
 // 处理业务逻辑并调用lvm接口
 type LocalVolume interface {
@@ -36,13 +30,6 @@ type LocalVolume interface {
 	ResizeVolume(lvName, vgName string, size, ratio uint64) error
 	VolumeList(lvName, vgName string) ([]types.LvInfo, error)
 	VolumeInfo(lvName, vgName string) (*types.LvInfo, error)
-
-	CreateSnapshot(snapName, lvName, vgName string) error
-	DeleteSnapshot(snapName, vgName string) error
-	RestoreSnapshot(snapName, vgName string) error
-	SnapshotList(lvName, vgName string) ([]types.LvInfo, error)
-
-	CloneVolume(lvName, vgName, newLvName string) error
 
 	// GetCurrentVgStruct 额外的方法
 	GetCurrentVgStruct() ([]api.VgGroup, error)
