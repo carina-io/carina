@@ -56,4 +56,6 @@ type LocalDisk struct {
 	Used uint64 `json:"used"`
 	// parent Name
 	ParentName string `json:"parentName"`
+	// Device number
+	DeviceNumber string `json:"deviceNumber"`
 }

@@ -20,6 +20,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	v1 "k8s.io/api/core/v1"
 	"os"
 	"reflect"
 	"strings"
@@ -96,15 +97,24 @@ func MapEqualMap(src, dst map[string]string) bool {
 	return true
 }
 
-func FileExists(path string) bool {
-	_, err := os.Stat(path) //os.Stat获取文件信息
-	if err != nil {
-		if os.IsExist(err) {
-			return true
-		}
-		return false
+func exists(path string) (os.FileInfo, bool) {
+	info, err := os.Stat(path)
+	if os.IsNotExist(err) {
+		return nil, false
 	}
-	return true
+	return info, true
+}
+
+// FileExists checks if a file exists and is not a directory
+func FileExists(filepath string) bool {
+	info, present := exists(filepath)
+	return present && info.Mode().IsRegular()
+}
+
+// DirExists checks if a directory exists
+func DirExists(path string) bool {
+	info, present := exists(path)
+	return present && info.IsDir()
 }
 
 func UntilMaxRetry(f func() error, maxRetry int, interval time.Duration) error {
@@ -144,4 +154,20 @@ func Fill(src interface{}, dst interface{}) error {
 func PartitionName(lv string) string {
 	strtemp := strings.Split(lv, "-")
 	return fmt.Sprintf("%s/%s", CarinaPrefix, strtemp[len(strtemp)-1])
+}
+
+// IsStaticPod returns true if the pod is a static pod.
+func IsStaticPod(pod *v1.Pod) bool {
+	source, err := GetPodSource(pod)
+	return err == nil && source != ApiserverSource
+}
+
+// GetPodSource returns the source of the pod based on the annotation.
+func GetPodSource(pod *v1.Pod) (string, error) {
+	if pod.Annotations != nil {
+		if source, ok := pod.Annotations[ConfigSourceAnnotationKey]; ok {
+			return source, nil
+		}
+	}
+	return "", fmt.Errorf("cannot get source of pod %q", pod.UID)
 }

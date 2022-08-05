@@ -82,12 +82,11 @@ func subMain() error {
 	defer close(stopChan)
 	dm := deviceManager.NewDeviceManager(nodeName, mgr.GetCache(), stopChan)
 
-	podController := controllers.PodReconciler{
-		Client:   mgr.GetClient(),
-		NodeName: nodeName,
-		Executor: dm.Executor,
-		StopChan: stopChan,
-	}
+	podController := controllers.NewPodReconciler(
+		mgr.GetClient(),
+		nodeName,
+		dm.Partition,
+	)
 
 	if err := podController.SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller ", "controller", "podController")

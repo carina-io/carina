@@ -55,20 +55,22 @@ spec:
   volumeMode: Filesystem
 ```
 
-- Carina will convert those anntoations into carina PV's cgroupfs.
+- Carina will convert those anntoations into pod's cgroupfs hierarchy.
 
   ```shell
-  carina.storage.io/blkio.throttle.read_bps_device: "10485760"
-  carina.storage.io/blkio.throttle.read_iops_device: "10000"
-  carina.storage.io/blkio.throttle.write_bps_device: "10485760"
-  carina.storage.io/blkio.throttle.write_iops_device: "100000"
-   ---
-   /sys/fs/cgroup/blkio/blkio.throttle.read_bps_device
-   /sys/fs/cgroup/blkio/blkio.throttle.read_iops_device
-   /sys/fs/cgroup/blkio/blkio.throttle.write_bps_device
-   /sys/fs/cgroup/blkio/blkio.throttle.write_iops_device
+  cgroup v1
+  /sys/fs/cgroup/blkio/kubepods/burstable/pod0b0e005c-39ec-4719-bbfe-78aadbc3e4ad/blkio.throttle.read_bps_device
+  /sys/fs/cgroup/blkio/kubepods/burstable/pod0b0e005c-39ec-4719-bbfe-78aadbc3e4ad/blkio.throttle.read_iops_device
+  /sys/fs/cgroup/blkio/kubepods/burstable/pod0b0e005c-39ec-4719-bbfe-78aadbc3e4ad/blkio.throttle.write_bps_device
+  /sys/fs/cgroup/blkio/kubepods/burstable/pod0b0e005c-39ec-4719-bbfe-78aadbc3e4ad/blkio.throttle.write_iops_device
+  ```
+  ```shell
+  cgroup v2
+  /sys/fs/cgroup/kubepods/burstable/pod0b0e005c-39ec-4719-bbfe-78aadbc3e4ad/io.max
   ```
 
 * Users can add one or more annotations. Adding or removing annotations will be synced to cgroupfs in about 60s. 
-* Currently, buffered IO is still not supportted. User can test io throttling with command `dd if=/dev/zero of=out.file bs=1M count=512 oflag=dsync`. In future, Carina will support buffered io throttling using cgroup V2. 
+* Currently, only block device disk speed limit is supported. User can test io throttling with command `dd if=/dev/zero of=out.file bs=1M count=512 oflag=dsync`.
+* Carina can automatically decide whether to use cgroup v1 or cgroup v2 according to the system environment.
+* If the system uses cgroup v2, it supports buffer io speed limit (you need to enable io and memory controllers at the same time), otherwise only direct io speed limit is supported.
 * If user can set io throttling too low, it may cause the procedure of formating filesystem hangs there and then the pod will be in pending state forever.

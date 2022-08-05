@@ -2,6 +2,8 @@ package utils
 
 import (
 	"github.com/stretchr/testify/assert"
+	v1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"testing"
 )
 
@@ -97,4 +99,17 @@ func TestMapEqualMap(t *testing.T) {
 	for _, e := range table {
 		a.Equal(MapEqualMap(e.src, e.dst), e.result)
 	}
+}
+
+func TestIsStaticPod(t *testing.T) {
+	pod := &v1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "test-pod",
+			Annotations: map[string]string{
+				ConfigSourceAnnotationKey: "file",
+			},
+		},
+	}
+
+	assert.New(t).True(IsStaticPod(pod))
 }

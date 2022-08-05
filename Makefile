@@ -29,6 +29,7 @@ all: manager
 test:
 	#go test -v ./... -coverprofile cover.out
 	go test -v ./utils
+	go test -v ./utils/iolimit
 	go test -v ./pkg/csidriver/driver
 	go test -v ./pkg/devicemanager
 
