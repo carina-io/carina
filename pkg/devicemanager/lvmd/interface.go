@@ -44,14 +44,11 @@ type Lvm2 interface {
 	// VGReduce vg卷组安全移除pv
 	VGReduce(vg, pv string) error
 
-	// CreateThinPool 每一个Volume对应的是一个thin pool下一个lvm卷
-	// 若是要扩容卷，则必须先扩容池子
 	// 快照占用的是池子剩余的容量
 	CreateThinPool(lv, vg string, size uint64) error
 	ResizeThinPool(lv, vg string, size uint64) error
 	DeleteThinPool(lv, vg string) error
 	LVCreateFromPool(lv, thin, vg string, size uint64) error
-	// LVCreateFromVG 这个方法不用
 	LVCreateFromVG(lv, vg string, size uint64, tags []string, stripe uint, stripeSize string) error
 	LVRemove(lv, vg string) error
 	LVResize(lv, vg string, size uint64) error

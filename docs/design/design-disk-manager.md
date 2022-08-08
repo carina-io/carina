@@ -76,11 +76,11 @@
   }
   ```
 
-- 创建volume，从VG卷组分配容量创建`thin pool`，然后在`thin pool`中创建lvm卷
+- 创建volume，从VG卷组分配容量创建lvm卷
 
   ```text
   +-----------------+                        +--------------------+                   
-  |     VG          |                        |    thin pool       |
+  |     VG          |                        |                    |
   | +-----+ +-----+ |----------------------> |  +-------------+   | 
   | | ssd | | ssd | | distribution capacity  |  | lvm volume  |   |
   | +-----+ +-----+ |----------------------> |  |             |   |
@@ -92,10 +92,7 @@
 
   ```
   vdc                                                                           
-  |-carina-thin--pvc--xxx_tmeta   252:0    0    8M  0 lvm  
-  | `-carina-thin--pvc--xxx-tpool 252:2    0    7G  0 lvm  
-  |   |-carina-thin--pvc--xxx     252:3    0    7G  1 lvm  
-  |   `-carina-volume--pvc--xxx   252:4    0    7G  0 lvm  /var/lib/kubelet/pods/xxx/volumes/kubernetes.io~csi/pvc-xxx/mount
+  |-carina--vg--ssd-volume--pvc--xxx 252:0    0   1G  0 lvm  /var/lib/kubelet/pods/xxx/volumes/kubernetes.io~csi/pvc-xxx/mount
   ```
 
   

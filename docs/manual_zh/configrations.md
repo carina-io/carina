@@ -95,7 +95,7 @@ allowedTopologies:
 | `carina.storage.io/blkio.throttle.write_bps_device`       |是     |设置磁盘写bps值   |               |        |
 | `carina.storage.io/blkio.throttle.read_iops_device`       |是     |设置磁盘读iops值  |               |        |
 | `carina.storage.io/blkio.throttle.write_iops_device`       |是     |设置磁盘读iops值  |               |        |
-| `carina.stroage.io/allow-pod-migration-if-node-notready` |否     |节点故障时是否迁移 |`true`,`false`|`false`   |
+| `carina.storage.io/allow-pod-migration-if-node-notready` |否     |节点故障时是否迁移 |`true`,`false`|`false`   |
 
 #### example
 ```yaml

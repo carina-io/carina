@@ -3,6 +3,7 @@ package framework
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/onsi/ginkgo"
 	"github.com/stretchr/testify/assert"
@@ -20,10 +21,10 @@ func (f *Framework) GetDeployment(namespace string, name string) *appsv1.Deploym
 	return pvc
 }
 
-func (f *Framework) EnsurDeployment(deploy *appsv1.Deployment) *appsv1.Deployment {
+func (f *Framework) EnsurDeployment(deploy *appsv1.Deployment, selector string) *appsv1.Deployment {
 	err := createDeploymentWithRetries(f.KubeClientSet, deploy.Namespace, deploy)
 	assert.Nil(ginkgo.GinkgoT(), err, "creating deployment")
-
+	f.WaitForPod(selector, 360*time.Second, false)
 	deployResult := f.GetDeployment(deploy.Namespace, deploy.Name)
 	return deployResult
 }

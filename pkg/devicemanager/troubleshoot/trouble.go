@@ -22,7 +22,6 @@ import (
 	"github.com/anuvu/disko/linux"
 	carinav1 "github.com/carina-io/carina/api/v1"
 	"github.com/carina-io/carina/pkg/devicemanager/partition"
-	"github.com/carina-io/carina/pkg/devicemanager/types"
 	"github.com/carina-io/carina/pkg/devicemanager/volume"
 	"github.com/carina-io/carina/utils"
 	"github.com/carina-io/carina/utils/log"
@@ -97,26 +96,18 @@ func (t *Trouble) CleanupOrphanVolume() {
 		if v.Annotations[utils.VolumeManagerType] == utils.RawVolumeType {
 			continue
 		}
-		mapLvList[v.Name] = true
-		mapLvList[fmt.Sprintf("thin-%s", v.Name)] = true
-		mapLvList[fmt.Sprintf("volume-%s", v.Name)] = true
+		mapLvList[fmt.Sprintf("%s%s", utils.VolumePrefix, v.Name)] = true
 	}
 
 	var deleteVolume bool
 	for _, v := range volumeList {
-		if !strings.HasPrefix(v.VGName, types.KEYWORD) {
-			log.Infof("%s skip volume %s", logPrefix, v.LVName)
-			continue
-		}
-		if _, ok := mapLvList[v.LVName]; !ok {
-			log.Warnf("%s remove volume %s %s", logPrefix, v.VGName, v.LVName)
-			if strings.HasPrefix(v.LVName, volume.LVVolume) {
-				err := t.volumeManager.DeleteVolume(v.LVName, v.VGName)
-				if err != nil {
-					log.Errorf("%s delete volume vg %s lv %s error %s", logPrefix, v.VGName, v.LVName, err.Error())
-				} else {
-					deleteVolume = true
-				}
+		if _, ok := mapLvList[v.LVName]; !ok && strings.HasPrefix(v.LVName, utils.VolumePrefix) { // filter thin volume
+			log.Infof("%s remove volume %s %s", logPrefix, v.VGName, v.LVName)
+			err := t.volumeManager.DeleteVolume(v.LVName, v.VGName)
+			if err != nil {
+				log.Errorf("%s delete volume vg %s lv %s error %s", logPrefix, v.VGName, v.LVName, err.Error())
+			} else {
+				deleteVolume = true
 			}
 		}
 	}

@@ -7,10 +7,10 @@ import (
 	"github.com/onsi/ginkgo"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/client-go/kubernetes"
-
 	k8sErrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	types "k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/kubernetes"
 )
 
 func (f *Framework) GetPvc(namespace string, name string) *corev1.PersistentVolumeClaim {
@@ -53,6 +53,30 @@ func createPvcWithRetries(c kubernetes.Interface, namespace string, obj *corev1.
 }
 
 // UpdatePvc updates a pvc object and returns the updated object.
+func (f *Framework) PatchPvc(namespace, name, patchStr string) *corev1.PersistentVolumeClaim {
+	err := PatchPvcWithRetries(f.KubeClientSet, namespace, name, patchStr)
+	assert.Nil(ginkgo.GinkgoT(), err, "patching pvc")
+	pvcResult := f.GetPvc(namespace, name)
+	return pvcResult
+}
+
+func PatchPvcWithRetries(c kubernetes.Interface, namespace, name, patchStr string) error {
+
+	patchFunc := func() (bool, error) {
+		_, err := c.CoreV1().PersistentVolumeClaims(namespace).Patch(context.TODO(), name, types.StrategicMergePatchType, []byte(patchStr), metav1.PatchOptions{})
+		if err == nil {
+			return true, nil
+		}
+		if isRetryableAPIError(err) {
+			return false, nil
+		}
+		return false, fmt.Errorf("failed to update object with non-retriable error: %v", err)
+	}
+
+	return retryWithExponentialBackOff(patchFunc)
+}
+
+// UpdatePvc updates a pvc object and returns the updated object.
 func (f *Framework) UpdatePvc(pvc *corev1.PersistentVolumeClaim) *corev1.PersistentVolumeClaim {
 	err := updatePvcWithRetries(f.KubeClientSet, pvc.Namespace, pvc)
 	assert.Nil(ginkgo.GinkgoT(), err, "updating pvc")
@@ -65,7 +89,12 @@ func updatePvcWithRetries(c kubernetes.Interface, namespace string, obj *corev1.
 		return fmt.Errorf("object provided to update is empty")
 	}
 	updateFunc := func() (bool, error) {
-		_, err := c.CoreV1().PersistentVolumeClaims(namespace).Update(context.TODO(), obj, metav1.UpdateOptions{})
+		lastPvc, err := c.CoreV1().PersistentVolumeClaims(namespace).Get(context.TODO(), obj.Name, metav1.GetOptions{})
+		if err != nil {
+			return false, err
+		}
+		obj.ResourceVersion = lastPvc.ResourceVersion
+		_, err = c.CoreV1().PersistentVolumeClaims(namespace).Update(context.TODO(), obj, metav1.UpdateOptions{})
 		if err == nil {
 			return true, nil
 		}

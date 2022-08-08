@@ -188,7 +188,7 @@ func (r *LogicVolumeReconciler) createLV(ctx context.Context, lv *carinav1.Logic
 			lv.Status.Status = "Failed"
 			r.Recorder.Event(lv, corev1.EventTypeWarning, "CreateVolumeFailed", fmt.Sprintf("create volume failed node: %s, time: %s, error: %s", r.nodeName, time.Now().Format("2006-01-02T15:04:05.000Z"), err.Error()))
 		} else {
-			lv.Status.VolumeID = volume.LVVolume + lv.Name
+			lv.Status.VolumeID = utils.VolumePrefix + lv.Name
 			lv.Status.CurrentSize = resource.NewQuantity(reqBytes, resource.BinarySI)
 			lv.Status.Code = codes.OK
 			lv.Status.Message = ""
@@ -217,7 +217,7 @@ func (r *LogicVolumeReconciler) createLV(ctx context.Context, lv *carinav1.Logic
 			lv.Status.Status = "Failed"
 			r.Recorder.Event(lv, corev1.EventTypeWarning, "CreateVolumeFailed", fmt.Sprintf("create volume failed node: %s, time: %s, error: %s", r.nodeName, time.Now().Format("2006-01-02T15:04:05.000Z"), err.Error()))
 		} else {
-			lv.Status.VolumeID = volume.LVVolume + lv.Name
+			lv.Status.VolumeID = utils.VolumePrefix + lv.Name
 			lv.Status.CurrentSize = resource.NewQuantity(reqBytes, resource.BinarySI)
 			lv.Status.Code = codes.OK
 			lv.Status.Message = ""

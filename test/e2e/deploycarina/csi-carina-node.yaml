@@ -24,8 +24,8 @@ spec:
             privileged: true
           image: registry.cn-hangzhou.aliyuncs.com/antmoveh/busybox:1.28
           command: ["sh", "-c"]
-          # args: ["for i in dm_snapshot dm_mirror dm_thin_pool bcache; do modprobe $i; done"]
-          args: ["for i in dm_snapshot dm_mirror dm_thin_pool; do modprobe $i; done"]
+          args: ["for i in dm_snapshot dm_mirror dm_thin_pool bcache; do modprobe $i; done"]
+         # args: ["for i in dm_snapshot dm_mirror dm_thin_pool; do modprobe $i; done"]
           volumeMounts:
             - mountPath: /lib/modules
               name: modules
@@ -106,8 +106,8 @@ spec:
               mountPath: /sys/fs/cgroup
             - name: host-block
               mountPath: /sys/block
-#            - name: host-bcache
-#              mountPath: /sys/fs/bcache
+            - name: host-bcache
+              mountPath: /sys/fs/bcache
             - name: host-dev
               mountPath: /dev
             - name: host-mount
@@ -147,9 +147,9 @@ spec:
         - name: host-block
           hostPath:
             path: /sys/block
-#        - name: host-bcache
-#          hostPath:
-#            path: /sys/fs/bcache
+        - name: host-bcache
+          hostPath:
+            path: /sys/fs/bcache
         - name: modules
           hostPath:
             path: /lib/modules

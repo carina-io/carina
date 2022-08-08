@@ -35,7 +35,9 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-const VOLUMEMUTEX = "VolumeMutex"
+const (
+	VOLUMEMUTEX = "VolumeMutex"
+)
 
 type Trigger string
 
@@ -82,10 +84,7 @@ func (v *LocalVolumeImplement) CreateVolume(lvName, vgName string, size, ratio u
 		return errors.New("don't have enough space")
 	}
 
-	thinName := THIN + lvName
-	name := LVVolume + lvName
-	// 配置pool和volume倍数比例，为了创建快照做准备，快照需要volume同等的存储空间
-	sizePool := size * ratio
+	name := utils.VolumePrefix + lvName
 
 	lvInfo, _ := v.Lv.LVDisplay(name, vgName)
 	if lvInfo != nil && lvInfo.VGName == vgName {
@@ -93,21 +92,8 @@ func (v *LocalVolumeImplement) CreateVolume(lvName, vgName string, size, ratio u
 		return nil
 	}
 
-	thinInfo, _ := v.Lv.LVDisplay(thinName, vgName)
-	if thinInfo == nil {
-		// 首先创建thin pool
-		if err := v.Lv.CreateThinPool(thinName, vgName, sizePool); err != nil {
-			log.Errorf("create thin pool failed %s", err.Error())
-			return err
-		}
-	}
-
 	// 创建volume卷
-	if err := v.Lv.LVCreateFromPool(name, thinName, vgName, size); err != nil {
-		return err
-	}
-
-	return nil
+	return v.Lv.LVCreateFromVG(name, vgName, size, []string{}, 0, "")
 }
 
 func (v *LocalVolumeImplement) DeleteVolume(lvName, vgName string) error {
@@ -116,11 +102,10 @@ func (v *LocalVolumeImplement) DeleteVolume(lvName, vgName string) error {
 		return errors.New("get global mutex failed")
 	}
 	defer v.Mutex.Release(VOLUMEMUTEX)
-	// ToDO: 需要检查pool中是否有快照,存在快照无法删除Volume
 
 	name := lvName
-	if !strings.HasPrefix(lvName, LVVolume) {
-		name = LVVolume + lvName
+	if !strings.HasPrefix(lvName, utils.VolumePrefix) {
+		name = utils.VolumePrefix + lvName
 	}
 
 	lvInfo, err := v.Lv.LVDisplay(name, vgName)
@@ -134,16 +119,17 @@ func (v *LocalVolumeImplement) DeleteVolume(lvName, vgName string) error {
 	}
 	// delete bcache device if exists
 	_ = v.DeleteBcache(fmt.Sprintf("/dev/%s/%s", vgName, name), "")
-	thinName := lvInfo.PoolLV
+
 	if err := v.Lv.LVRemove(name, vgName); err != nil {
 		return err
 	}
 
-	if err := v.Lv.DeleteThinPool(thinName, vgName); err != nil {
-		return err
+	// backward compatible
+	thinInfo, _ := v.Lv.LVDisplay(lvInfo.PoolLV, vgName)
+	if thinInfo == nil {
+		return nil
 	}
-
-	return nil
+	return v.Lv.DeleteThinPool(lvInfo.PoolLV, vgName)
 }
 
 func (v *LocalVolumeImplement) ResizeVolume(lvName, vgName string, size, ratio uint64) error {
@@ -164,7 +150,7 @@ func (v *LocalVolumeImplement) ResizeVolume(lvName, vgName string, size, ratio u
 		return errors.New("cannot find device group info")
 	}
 
-	name := LVVolume + lvName
+	name := utils.VolumePrefix + lvName
 
 	lvInfo, err := v.Lv.LVDisplay(name, vgName)
 	if err != nil {
@@ -186,26 +172,15 @@ func (v *LocalVolumeImplement) ResizeVolume(lvName, vgName string, size, ratio u
 		return errors.New("don't have enough space")
 	}
 
-	// 执行扩容
-	thinName := THIN + lvName
-	sizePool := size * ratio
-	thinInfo, err := v.Lv.LVDisplay(thinName, vgName)
-	if err != nil {
-		log.Errorf("get thin pool failed %s/%s", vgName, lvName)
-		return err
-	}
-
-	if thinInfo.LVSize < size {
-		if err := v.Lv.ResizeThinPool(thinName, vgName, sizePool); err != nil {
+	// backward compatible
+	thinInfo, _ := v.Lv.LVDisplay(lvInfo.PoolLV, vgName)
+	if thinInfo != nil && thinInfo.LVSize < size {
+		if err := v.Lv.ResizeThinPool(lvInfo.PoolLV, vgName, size*ratio); err != nil {
 			return err
 		}
 	}
 
-	if err := v.Lv.LVResize(name, vgName, size); err != nil {
-		return err
-	}
-
-	return nil
+	return v.Lv.LVResize(name, vgName, size)
 }
 
 func (v *LocalVolumeImplement) VolumeList(lvName, vgName string) ([]types.LvInfo, error) {
@@ -231,96 +206,6 @@ func (v *LocalVolumeImplement) VolumeInfo(lvName, vgName string) (*types.LvInfo,
 	return nil, errors.New("not found")
 }
 
-func (v *LocalVolumeImplement) CreateSnapshot(snapName, lvName, vgName string) error {
-
-	if !v.Mutex.TryAcquire(VOLUMEMUTEX) {
-		log.Info("wait other task release mutex, please retry...")
-		return errors.New("get global mutex failed")
-	}
-	defer v.Mutex.Release(VOLUMEMUTEX)
-
-	// TODO: 检查pool容量是否剩余lv一倍，若是pool容量不足需要先扩容
-
-	name := SNAP + snapName
-	if err := v.Lv.CreateSnapshot(name, lvName, vgName); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (v *LocalVolumeImplement) DeleteSnapshot(snapName, vgName string) error {
-
-	if !v.Mutex.TryAcquire(VOLUMEMUTEX) {
-		log.Info("wait other task release mutex, please retry...")
-		return errors.New("get global mutex failed")
-	}
-	defer v.Mutex.Release(VOLUMEMUTEX)
-	if err := v.Lv.DeleteSnapshot(snapName, vgName); err != nil {
-		return nil
-	}
-	return nil
-}
-
-func (v *LocalVolumeImplement) RestoreSnapshot(snapName, vgName string) error {
-
-	if !v.Mutex.TryAcquire(VOLUMEMUTEX) {
-		log.Info("wait other task release mutex, please retry...")
-		return errors.New("get global mutex failed")
-	}
-	defer v.Mutex.Release(VOLUMEMUTEX)
-	// TODO： 需要检查是否已经umount
-	// 恢复快照会导致快照消失
-	if err := v.Lv.RestoreSnapshot(snapName, vgName); err != nil {
-		return err
-	}
-	return nil
-}
-
-func (v *LocalVolumeImplement) SnapshotList(lvName, vgName string) ([]types.LvInfo, error) {
-	lvInfo, err := v.Lv.LVS("")
-	if err != nil {
-		return nil, err
-	}
-	result := []types.LvInfo{}
-	for _, lv := range lvInfo {
-		if strings.HasPrefix(lv.LVName, SNAP) && lv.PoolLV == THIN+lvName {
-			result = append(result, lv)
-		}
-	}
-	return result, nil
-}
-
-func (v *LocalVolumeImplement) CloneVolume(lvName, vgName, newLvName string) error {
-	if !v.Mutex.TryAcquire(VOLUMEMUTEX) {
-		log.Info("wait other task release mutex, please retry...")
-		return errors.New("get global mutex failed")
-	}
-	defer v.Mutex.Release(VOLUMEMUTEX)
-	// 获取pool lv，创建一个和一模一样对池子
-	_, err := v.Lv.LVDisplay(lvName, vgName)
-	if err != nil {
-		return err
-	}
-	// TODO: 获取池子大小
-	size := uint64(100)
-	// 创建thin pool
-	thinName := THIN + lvName
-	if err := v.Lv.CreateThinPool(thinName, vgName, size); err != nil {
-		return err
-	}
-	name := LVVolume + lvName
-	if err := v.Lv.LVCreateFromPool(name, thinName, vgName, size); err != nil {
-		return err
-	}
-
-	// TODO： 分两种情况，若是从快照克隆则挂在快照进行文件拷贝，若是克隆volume则创建快照后挂在拷贝
-
-	// mount -t
-
-	return nil
-}
-
 func (v *LocalVolumeImplement) GetCurrentVgStruct() ([]api.VgGroup, error) {
 
 	resp := []api.VgGroup{}
@@ -331,10 +216,6 @@ func (v *LocalVolumeImplement) GetCurrentVgStruct() ([]api.VgGroup, error) {
 		return nil, err
 	}
 	for i, v := range vgs {
-		//0.9.0 版本只接管有carina前缀的vg,0.9.1 版本里这里逻辑变更为接管所有vg
-		// if !strings.HasPrefix(v.VGName, types.KEYWORD) {
-		// 	continue
-		// }
 		tmp[v.VGName] = &vgs[i]
 	}
 

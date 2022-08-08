@@ -284,7 +284,7 @@ my-cluster-mysql-0   2/4     Running   0          43s   10.245.2.28   dev1-node-
 ```
 podSpec:
      annotations:
-     carina.stroage.io/allow-pod-migration-if-node-notready : "true"
+     carina.storage.io/allow-pod-migration-if-node-notready : "true"
 ```
 -  kubectl apply -f example-cluster.yaml  -f example-cluster-secret.yaml -n carina 
 ```
@@ -295,7 +295,7 @@ secret/my-secret created
 - kubectl get pods my-cluster-mysql-0 -n carina -oyaml |grep allow-pod-migration-if-node-notready
 ```
 
-carina.stroage.io/allow-pod-migration-if-node-notready: "true"
+carina.storage.io/allow-pod-migration-if-node-notready: "true"
 ```
 -  关闭节点dev1-node-2.novalocal 或者执行 systemctl stop kubelet 
 ```

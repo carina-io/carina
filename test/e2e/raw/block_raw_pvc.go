@@ -1,10 +1,14 @@
-package lvm
+package raw
 
 import (
+	"fmt"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/carina-io/carina/test/e2e/framework"
 	"github.com/onsi/ginkgo"
+	"github.com/onsi/gomega"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
@@ -12,8 +16,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-var _ = framework.CrainaDescribe("LVM pvc e2e test", func() {
-	f := framework.NewDefaultFramework("lvm-pvc")
+var _ = framework.CrainaDescribe("Block Mode RAW pvc e2e test", func() {
+	f := framework.NewDefaultFramework("block-raw-pvc")
 	ginkgo.BeforeEach(func() {
 		del := corev1.PersistentVolumeReclaimDelete
 		waitForFirstConsumer := storagev1.VolumeBindingWaitForFirstConsumer
@@ -23,7 +27,7 @@ var _ = framework.CrainaDescribe("LVM pvc e2e test", func() {
 				Name: f.Namespace,
 			},
 			Provisioner:          "carina.storage.io",
-			Parameters:           map[string]string{"csi.storage.k8s.io/fstype": "xfs", "carina.storage.io/disk-group-name": "carina-lvm-ssd"},
+			Parameters:           map[string]string{"csi.storage.k8s.io/fstype": "xfs", "carina.storage.io/disk-group-name": "carina-raw-loop", "carina.storage.io/exclusively-raw-disk": "true"},
 			ReclaimPolicy:        &del,
 			MountOptions:         []string{},
 			AllowVolumeExpansion: &t,
@@ -35,12 +39,12 @@ var _ = framework.CrainaDescribe("LVM pvc e2e test", func() {
 	ginkgo.AfterEach(func() {
 		f.DeleteStorageClass(f.Namespace)
 	})
-	// 1. create LVM pvc
-	ginkgo.It("should create LVM pvc", func() {
+	// 1. create Block RAW pvc
+	ginkgo.It("should create RAW pvc", func() {
 		persistentVolumeBlock := corev1.PersistentVolumeBlock
-		lvmPvc := &corev1.PersistentVolumeClaim{
+		rawPvc := &corev1.PersistentVolumeClaim{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      "lvm-block-pvc-create",
+				Name:      "block-raw-pvc-create",
 				Namespace: f.Namespace,
 			},
 			Spec: corev1.PersistentVolumeClaimSpec{
@@ -54,18 +58,18 @@ var _ = framework.CrainaDescribe("LVM pvc e2e test", func() {
 			},
 		}
 
-		pvcResult := f.EnsurePvc(lvmPvc)
+		pvcResult := f.EnsurePvc(rawPvc)
 		framework.ExpectEqual(pvcResult.Status.Phase, corev1.ClaimPending)
 	})
 
-	// 2.LVM pvc resizing
-	ginkgo.It("should update LVM pvc", func() {
+	// 2.RAW pvc expand
+	ginkgo.It("should expand RAW pvc", func() {
 
-		// 2.1 create a lvm pvc
+		// 2.1 create a raw pvc
 		persistentVolumeBlock := corev1.PersistentVolumeBlock
-		lvmPvc := &corev1.PersistentVolumeClaim{
+		rawPvc := &corev1.PersistentVolumeClaim{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      "lvm-block-pvc-update",
+				Name:      "block-raw-pvc-expand",
 				Namespace: f.Namespace,
 			},
 			Spec: corev1.PersistentVolumeClaimSpec{
@@ -79,15 +83,15 @@ var _ = framework.CrainaDescribe("LVM pvc e2e test", func() {
 			},
 		}
 
-		pvcResult := f.EnsurePvc(lvmPvc)
+		pvcResult := f.EnsurePvc(rawPvc)
 		framework.ExpectEqual(pvcResult.Status.Phase, corev1.ClaimPending)
 
-		// 2.2 create a deployment and bound lvm pvc
+		// 2.2 create a deployment and bound raw pvc
 		var replicas int32 = 1
-		podLabels := map[string]string{"web-server1": "web-server1"}
-		lvmDeploy := &appsv1.Deployment{
+		podLabels := map[string]string{"centos-block-raw": "centos-block-raw"}
+		rawDeploy := &appsv1.Deployment{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      "lvm-deploy-deployment",
+				Name:      "block-raw-deploy-deployment",
 				Namespace: f.Namespace,
 				Labels:    podLabels,
 			},
@@ -101,19 +105,23 @@ var _ = framework.CrainaDescribe("LVM pvc e2e test", func() {
 					Spec: corev1.PodSpec{
 						Containers: []corev1.Container{
 							{
-								Name:  "web-server1",
-								Image: "docker.io/library/nginx:latest",
-								VolumeMounts: []corev1.VolumeMount{
-									{
-										Name:      "mypvc1",
-										MountPath: "/var/lib/www/html",
+								Name:            "centos",
+								Image:           "centos:latest",
+								ImagePullPolicy: corev1.PullIfNotPresent,
+								SecurityContext: &corev1.SecurityContext{
+									Capabilities: &corev1.Capabilities{
+										Add: []corev1.Capability{"SYS_RAWIO"},
 									},
+								},
+								Command: []string{"/bin/sleep", "infinity"},
+								VolumeDevices: []corev1.VolumeDevice{
+									{Name: "data", DevicePath: "/dev/xvda"},
 								},
 							},
 						},
 						Volumes: []corev1.Volume{
 							{
-								Name: "mypvc1",
+								Name: "data",
 								VolumeSource: corev1.VolumeSource{
 									PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
 										ClaimName: pvcResult.Name,
@@ -127,27 +135,44 @@ var _ = framework.CrainaDescribe("LVM pvc e2e test", func() {
 			},
 		}
 
-		deployResult := f.EnsurDeployment(lvmDeploy)
-		f.WaitForPod("web-server1=web-server1", 60*time.Second, false)
+		deployResult := f.EnsurDeployment(rawDeploy, "centos-block-raw=centos-block-raw")
 		framework.ExpectEqual(deployResult.Status.AvailableReplicas, replicas)
-		// 2.3 pvc resizing
-		pvcResult.Spec.Resources.Requests = corev1.ResourceList{
-			corev1.ResourceName(corev1.ResourceStorage): resource.MustParse("6Gi"),
-		}
-		f.UpdatePvc(pvcResult)
-		// 2.4 check pvc resized
-		pods := f.GetPods(deployResult.Namespace, "web-server1=web-server1")
+		// 2.3 pvc expand
+		f.PatchPvc(pvcResult.Namespace, pvcResult.Name, `{"spec": {"resources": {"requests": {"storage": "6Gi"}}}}`)
+		// 2.4 check pvc expand  TODO failed to expand, https://github.com/carina-io/carina/issues/92
+		pods := f.GetPods(deployResult.Namespace, "centos-block-raw=centos-block-raw")
 		for _, pod := range pods.Items {
-			stdout, _, _ := f.Kubectl("exec", "-it", pod.Name, "-n", pod.Name, "--", "df", "-h")
-			framework.ExpectConsistOf(string(stdout), "6G")
+			gomega.Eventually(func() error {
+				ginkgo.By("exec pod ...")
+				stdout, stderr, err := f.Kubectl("exec", "-n", pod.Namespace, pod.Name, "--", "blockdev", "--getsize64", "/dev/xvda")
+				if err != nil {
+					framework.Logf("failed to df. stdout: %s, stderr: %s, err: %v", stdout, stderr, err)
+					return fmt.Errorf("failed to df. stdout: %s, stderr: %s, err: %v", stdout, stderr, err)
+				}
+
+				ginkgo.By("check device capacity")
+				s := strings.Replace(string(stdout), "\n", "", 1)
+				blockCapacity, err := strconv.Atoi(s)
+				if err != nil {
+					framework.Logf(err.Error())
+				}
+				framework.Logf("block device capacity %d", blockCapacity>>30)
+
+				if (6 - blockCapacity>>30) > 1 {
+					return fmt.Errorf("device expand in progress")
+				}
+
+				return nil
+			}, 8*time.Minute, 20*time.Second).Should(gomega.BeNil())
+
 		}
 	})
-	// 3.delete LVM pvc
-	ginkgo.It("should delete LVM pvc", func() {
+	// 3.delete RAW pvc
+	ginkgo.It("should delete RAW pvc", func() {
 		persistentVolumeBlock := corev1.PersistentVolumeBlock
-		lvmPvc := &corev1.PersistentVolumeClaim{
+		rawPvc := &corev1.PersistentVolumeClaim{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      "lvm-block-pvc-delete",
+				Name:      "block-raw-pvc-delete",
 				Namespace: f.Namespace,
 			},
 			Spec: corev1.PersistentVolumeClaimSpec{
@@ -161,7 +186,7 @@ var _ = framework.CrainaDescribe("LVM pvc e2e test", func() {
 			},
 		}
 
-		pvcResult := f.EnsurePvc(lvmPvc)
+		pvcResult := f.EnsurePvc(rawPvc)
 		framework.ExpectEqual(pvcResult.Status.Phase, corev1.ClaimPending)
 		f.DeletePvc(pvcResult.Name, pvcResult.Namespace)
 	})

@@ -75,13 +75,24 @@ func (m podMutator) Handle(ctx context.Context, req admission.Request) admission
 		return admission.Errored(http.StatusInternalServerError, err)
 	}
 
-	schedule, err := m.carinaSchedulePod(ctx, pod, targets)
+	schedule, cSC, err := m.carinaSchedulePod(ctx, pod, targets)
 
 	if err != nil {
 		return admission.Errored(http.StatusInternalServerError, err)
 	}
 	if schedule {
 		pod.Spec.SchedulerName = utils.CarinaSchedule
+		if pod.Annotations == nil {
+			pod.Annotations = map[string]string{}
+		}
+		if _, ok := pod.Annotations[utils.AllowPodMigrationIfNodeNotready]; !ok {
+			for _, sc := range cSC {
+				if _, ok = sc.Annotations[utils.AllowPodMigrationIfNodeNotready]; ok {
+					pod.Annotations[utils.AllowPodMigrationIfNodeNotready] = sc.Annotations[utils.AllowPodMigrationIfNodeNotready]
+					break
+				}
+			}
+		}
 	}
 
 	marshaledPod, err := json.Marshal(pod)
@@ -107,7 +118,8 @@ func (m podMutator) targetStorageClasses(ctx context.Context) (map[string]storag
 	return targets, nil
 }
 
-func (m podMutator) carinaSchedulePod(ctx context.Context, pod *corev1.Pod, targets map[string]storagev1.StorageClass) (bool, error) {
+func (m podMutator) carinaSchedulePod(ctx context.Context, pod *corev1.Pod, targets map[string]storagev1.StorageClass) (bool, []storagev1.StorageClass, error) {
+	cSC := []storagev1.StorageClass{}
 	for _, vol := range pod.Spec.Volumes {
 		if vol.PersistentVolumeClaim == nil {
 			// CSI volume type does not support direct reference from Pod
@@ -125,7 +137,7 @@ func (m podMutator) carinaSchedulePod(ctx context.Context, pod *corev1.Pod, targ
 		if err := m.client.Get(ctx, name, &pvc); err != nil {
 			if !apierrs.IsNotFound(err) {
 				log.Error(err, "failed to get pvc pod", pod.Name, " namespace ", pod.Namespace, " pvc ", pvcName)
-				return false, err
+				return false, cSC, err
 			}
 			// Pods should be created even if their PVCs do not exist yet.
 			continue
@@ -137,10 +149,13 @@ func (m podMutator) carinaSchedulePod(ctx context.Context, pod *corev1.Pod, targ
 			// https://kubernetes.io/docs/concepts/storage/persistent-volumes/#class-1
 			continue
 		}
-		_, ok := targets[*pvc.Spec.StorageClassName]
+		v, ok := targets[*pvc.Spec.StorageClassName]
 		if ok {
-			return true, nil
+			cSC = append(cSC, v)
 		}
 	}
-	return false, nil
+	if len(cSC) > 0 {
+		return true, cSC, nil
+	}
+	return false, cSC, nil
 }

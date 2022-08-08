@@ -86,11 +86,14 @@ const (
 	LvmVolumeType = "lvm"
 	RawVolumeType = "raw"
 
-	AllowPodMigrationIfNodeNotready = "carina.stroage.io/allow-pod-migration-if-node-notready"
+	AllowPodMigrationIfNodeNotready = "carina.storage.io/allow-pod-migration-if-node-notready"
 
 	CarinaPrefix = "carina.io"
 
 	ConfigSourceAnnotationKey = "kubernetes.io/config.source"
 	// Updates from Kubernetes API Server
 	ApiserverSource = "api"
+
+	ThinPrefix   = "thin-"
+	VolumePrefix = "volume-"
 )
