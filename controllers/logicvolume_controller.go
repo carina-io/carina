@@ -77,17 +77,6 @@ func (r *LogicVolumeReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	}
 
 	if lv.ObjectMeta.DeletionTimestamp == nil {
-		if !utils.ContainsString(lv.Finalizers, utils.LogicVolumeFinalizer) {
-			lv2 := lv.DeepCopy()
-			lv2.Finalizers = append(lv2.Finalizers, utils.LogicVolumeFinalizer)
-			patch := client.MergeFrom(lv)
-			if err := r.Patch(ctx, lv2, patch); err != nil {
-				log.Error(err, " failed to add finalizer name ", lv.Name)
-				return ctrl.Result{}, err
-			}
-			return ctrl.Result{Requeue: true}, nil
-		}
-
 		if lv.Status.VolumeID == "" {
 			err := r.createLV(ctx, lv)
 			if err != nil {

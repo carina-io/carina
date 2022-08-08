@@ -89,6 +89,7 @@ func (s *LogicVolumeService) CreateVolume(ctx context.Context, namespace, pvc, n
 			Name:        name,
 			Namespace:   utils.LogicVolumeNamespace,
 			Annotations: annotation,
+			Finalizers:  []string{utils.LogicVolumeFinalizer},
 		},
 		Spec: carinav1.LogicVolumeSpec{
 			NodeName:    node,
