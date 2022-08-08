@@ -93,4 +93,7 @@ const (
 	ConfigSourceAnnotationKey = "kubernetes.io/config.source"
 	// Updates from Kubernetes API Server
 	ApiserverSource = "api"
+
+	ThinPrefix   = "thin-"
+	VolumePrefix = "volume-"
 )

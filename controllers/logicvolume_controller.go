@@ -192,7 +192,7 @@ func (r *LogicVolumeReconciler) createLV(ctx context.Context, lv *carinav1.Logic
 				log.Error(err2, " failed to update status name ", lv.Name, " uid ", lv.UID)
 			}
 		} else {
-			lv.Status.VolumeID = volume.LVVolume + lv.Name
+			lv.Status.VolumeID = utils.VolumePrefix + lv.Name
 			lv.Status.CurrentSize = resource.NewQuantity(reqBytes, resource.BinarySI)
 			lv.Status.Code = codes.OK
 			lv.Status.Message = ""
@@ -226,7 +226,7 @@ func (r *LogicVolumeReconciler) createLV(ctx context.Context, lv *carinav1.Logic
 				log.Error(err2, " failed to update status name ", lv.Name, " uid ", lv.UID)
 			}
 		} else {
-			lv.Status.VolumeID = volume.LVVolume + lv.Name
+			lv.Status.VolumeID = utils.VolumePrefix + lv.Name
 			lv.Status.CurrentSize = resource.NewQuantity(reqBytes, resource.BinarySI)
 			lv.Status.Code = codes.OK
 			lv.Status.Message = ""

@@ -32,10 +32,6 @@ func main() {
 	e.DELETE("/volume/delete", server2.DeleteVolume)
 	e.GET("/volume/list", server2.GetVolume)
 	e.GET("/volume/group", server2.GetVolumeGroup)
-	e.POST("/volume/snapshot/create", server2.CreateSnapshot)
-	e.DELETE("/volume/snapshot/delete", server2.DeleteSnapshot)
-	e.POST("/volume/snapshot/restore", server2.RestoreSnapshot)
-	e.POST("/volume/clone", server2.CloneVolume)
 
 	e.POST("/volume/bcache/create", server2.CreateBcache)
 	e.DELETE("/volume/bcache/delete", server2.DeleteBcache)

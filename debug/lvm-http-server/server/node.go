@@ -96,48 +96,6 @@ func GetVolumeGroup(c echo.Context) error {
 	return c.JSON(http.StatusOK, info)
 }
 
-func CreateSnapshot(c echo.Context) error {
-	lvName := c.FormValue("lv_name")
-	vgName := c.FormValue("vg_name")
-	snapName := c.FormValue("snap_name")
-	err := dm.VolumeManager.CreateSnapshot(snapName, lvName, vgName)
-	if err != nil {
-		return c.JSON(http.StatusInternalServerError, err)
-	}
-	return c.JSON(http.StatusOK, "")
-}
-
-func DeleteSnapshot(c echo.Context) error {
-	vgName := c.FormValue("vg_name")
-	snapName := c.FormValue("snap_name")
-	err := dm.VolumeManager.DeleteSnapshot(snapName, vgName)
-	if err != nil {
-		return c.JSON(http.StatusInternalServerError, err)
-	}
-	return c.JSON(http.StatusOK, "")
-}
-
-func RestoreSnapshot(c echo.Context) error {
-	vgName := c.FormValue("vg_name")
-	snapName := c.FormValue("snap_name")
-	err := dm.VolumeManager.RestoreSnapshot(snapName, vgName)
-	if err != nil {
-		return c.JSON(http.StatusInternalServerError, err)
-	}
-	return c.JSON(http.StatusOK, "")
-}
-
-func CloneVolume(c echo.Context) error {
-	lvName := c.FormValue("lv_name")
-	vgName := c.FormValue("vg_name")
-	newLvName := c.FormValue("new_lv_name")
-	err := dm.VolumeManager.CloneVolume(lvName, vgName, newLvName)
-	if err != nil {
-		return c.JSON(http.StatusInternalServerError, err)
-	}
-	return c.JSON(http.StatusOK, "")
-}
-
 func CreateBcache(c echo.Context) error {
 	dev := c.FormValue("dev")
 	cacheDev := c.FormValue("cache_dev")
