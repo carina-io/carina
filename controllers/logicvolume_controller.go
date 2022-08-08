@@ -76,11 +76,6 @@ func (r *LogicVolumeReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 		return ctrl.Result{}, nil
 	}
 
-	if lv.Spec.NodeName != r.nodeName {
-		log.Info("Unfiltered logic value nodeName ", lv.Spec.NodeName)
-		return ctrl.Result{}, nil
-	}
-
 	if lv.ObjectMeta.DeletionTimestamp == nil {
 		if !utils.ContainsString(lv.Finalizers, utils.LogicVolumeFinalizer) {
 			lv2 := lv.DeepCopy()
@@ -353,7 +348,12 @@ func (f logicVolumeFilter) Delete(e event.DeleteEvent) bool {
 }
 
 func (f logicVolumeFilter) Update(e event.UpdateEvent) bool {
-	return f.filter(e.ObjectNew.(*carinav1.LogicVolume))
+	newLogicVolume := e.ObjectNew.(*carinav1.LogicVolume)
+	oldLogicVolume := e.ObjectOld.(*carinav1.LogicVolume)
+	if newLogicVolume.ResourceVersion == oldLogicVolume.ResourceVersion {
+		return false
+	}
+	return f.filter(newLogicVolume) || f.filter(oldLogicVolume)
 }
 
 func (f logicVolumeFilter) Generic(e event.GenericEvent) bool {
