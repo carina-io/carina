@@ -35,13 +35,13 @@ func TestGetPodBlkIOCgroupPath(t *testing.T) {
 		if getCgroupDriverType() == SystemdDriver {
 			a.Equal("/sys/fs/cgroup/kubepods.slice/kubepods-besteffort.slice/kubepods-besteffort-pod88888888_8888.slice", blkIOPath)
 		} else {
-			a.Equal("/sys/fs/cgroup/kubepods/besteffort/pod88888888_8888", blkIOPath)
+			a.Equal("/sys/fs/cgroup/kubepods/besteffort/pod88888888-8888", blkIOPath)
 		}
 	} else {
 		if getCgroupDriverType() == SystemdDriver {
 			a.Equal("/sys/fs/cgroup/blkio/kubepods.slice/kubepods-besteffort.slice/kubepods-besteffort-pod88888888_8888.slice", blkIOPath)
 		} else {
-			a.Equal("/sys/fs/cgroup/blkio/kubepods/besteffort/pod88888888_8888", blkIOPath)
+			a.Equal("/sys/fs/cgroup/blkio/kubepods/besteffort/pod88888888-8888", blkIOPath)
 		}
 	}
 
@@ -51,13 +51,13 @@ func TestGetPodBlkIOCgroupPath(t *testing.T) {
 		if getCgroupDriverType() == SystemdDriver {
 			a.Equal("/sys/fs/cgroup/kubepods.slice/kubepods-pod88888888_8888.slice", blkIOPath)
 		} else {
-			a.Equal("/sys/fs/cgroup/kubepods/pod88888888_8888", blkIOPath)
+			a.Equal("/sys/fs/cgroup/kubepods/pod88888888-8888", blkIOPath)
 		}
 	} else {
 		if getCgroupDriverType() == SystemdDriver {
 			a.Equal("/sys/fs/cgroup/blkio/kubepods.slice/kubepods-pod88888888_8888.slice", blkIOPath)
 		} else {
-			a.Equal("/sys/fs/cgroup/blkio/kubepods/pod88888888_8888", blkIOPath)
+			a.Equal("/sys/fs/cgroup/blkio/kubepods/pod88888888-8888", blkIOPath)
 		}
 	}
 
@@ -67,13 +67,13 @@ func TestGetPodBlkIOCgroupPath(t *testing.T) {
 		if getCgroupDriverType() == SystemdDriver {
 			a.Equal("/sys/fs/cgroup/kubepods.slice/kubepods-burstable.slice/kubepods-burstable-pod88888888_8888.slice", blkIOPath)
 		} else {
-			a.Equal("/sys/fs/cgroup/kubepods/burstable/pod88888888_8888", blkIOPath)
+			a.Equal("/sys/fs/cgroup/kubepods/burstable/pod88888888-8888", blkIOPath)
 		}
 	} else {
 		if getCgroupDriverType() == SystemdDriver {
 			a.Equal("/sys/fs/cgroup/blkio/kubepods.slice/kubepods-burstable.slice/kubepods-burstable-pod88888888_8888.slice", blkIOPath)
 		} else {
-			a.Equal("/sys/fs/cgroup/blkio/kubepods/burstable/pod88888888_8888", blkIOPath)
+			a.Equal("/sys/fs/cgroup/blkio/kubepods/burstable/pod88888888-8888", blkIOPath)
 		}
 	}
 }
