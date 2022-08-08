@@ -89,7 +89,6 @@ func (s *LogicVolumeService) CreateVolume(ctx context.Context, namespace, pvc, n
 			Name:        name,
 			Namespace:   utils.LogicVolumeNamespace,
 			Annotations: annotation,
-			Finalizers:  []string{utils.LogicVolumeFinalizer},
 		},
 		Spec: carinav1.LogicVolumeSpec{
 			NodeName:    node,
@@ -100,6 +99,8 @@ func (s *LogicVolumeService) CreateVolume(ctx context.Context, namespace, pvc, n
 		},
 	}
 
+	lv.Finalizers = []string{utils.LogicVolumeFinalizer}
+	
 	if owner.Name != "" {
 		lv.OwnerReferences = []metav1.OwnerReference{owner}
 	}
