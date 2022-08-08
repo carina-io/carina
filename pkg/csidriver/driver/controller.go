@@ -170,8 +170,9 @@ func (s controllerService) CreateVolume(ctx context.Context, req *csi.CreateVolu
 	// pv csi VolumeAttributes
 	annotation := map[string]string{}
 	annotation[utils.VolumeManagerType] = volumeType
-
-	annotation[utils.ExclusivityDisk] = fmt.Sprint(exclusivityDisk)
+	if volumeType == utils.RawVolumeType {
+		annotation[utils.ExclusivityDisk] = fmt.Sprint(exclusivityDisk)
+	}
 
 	volumeContext := req.GetParameters()
 	// 不是调度器完成pv调度，则采用controller调度

@@ -66,7 +66,7 @@ func NewDeviceManager(nodeName string, cache cache.Cache, stopChan <-chan struct
 		Cache:            cache,
 		Executor:         executor,
 		Mutex:            mutex,
-		VolumeManager:    &volume.LocalVolumeImplement{Mutex: mutex, Lv: &lvmd.Lvm2Implement{Executor: executor}, Bcache: &bcache.BcacheImplement{Executor: executor}, NoticeUpdate: make(chan volume.VolumeEvent)},
+		VolumeManager:    &volume.LocalVolumeImplement{Mutex: mutex, Lv: &lvmd.Lvm2Implement{Executor: executor}, Bcache: &bcache.BcacheImplement{Executor: executor}, NoticeUpdate: make(chan *volume.VolumeEvent)},
 		Partition:        &partition.LocalPartitionImplement{Mutex: mutex, CacheParttionNum: make(map[string]uint), Executor: executor},
 		stopChan:         stopChan,
 		nodeName:         nodeName,
