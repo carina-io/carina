@@ -95,7 +95,6 @@ func subMain() error {
 
 	lvController := controllers.NewLogicVolumeReconciler(
 		mgr.GetClient(),
-		mgr.GetScheme(),
 		mgr.GetEventRecorderFor("logicvolume-node"),
 		nodeName,
 		dm.VolumeManager,
