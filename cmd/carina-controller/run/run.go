@@ -31,8 +31,6 @@ import (
 	"github.com/carina-io/carina/utils"
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"google.golang.org/grpc"
-	corev1 "k8s.io/api/core/v1"
-	storagev1 "k8s.io/api/storage/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
@@ -107,26 +105,6 @@ func subMain() error {
 	}
 	if err := nodecontroller.SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Node")
-		return err
-	}
-
-	// +kubebuilder:scaffold:builder
-
-	// pre-cache objects
-	if _, err := mgr.GetCache().GetInformer(ctx, &storagev1.StorageClass{}); err != nil {
-		return err
-	}
-	if _, err := mgr.GetCache().GetInformer(ctx, &corev1.Pod{}); err != nil {
-		return err
-	}
-	if _, err := mgr.GetCache().GetInformer(ctx, &corev1.PersistentVolume{}); err != nil {
-		return err
-	}
-	if _, err := mgr.GetCache().GetInformer(ctx, &carinav1.LogicVolume{}); err != nil {
-		return err
-	}
-
-	if _, err := mgr.GetCache().GetInformer(ctx, &corev1.Node{}); err != nil {
 		return err
 	}
 
