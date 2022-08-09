@@ -148,7 +148,6 @@ func (m *metricsExporter) Start(ctx context.Context) error {
 			return nil
 		}
 	}
-	return nil
 }
 
 // NeedLeaderElection implements controller-runtime's manager.LeaderElectionRunnable.
