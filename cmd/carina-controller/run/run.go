@@ -17,7 +17,6 @@
 package run
 
 import (
-	"context"
 	"fmt"
 	"net"
 
@@ -99,13 +98,12 @@ func subMain() error {
 	wh.Register("/pod/mutate", hook.PodMutator(mgr.GetClient(), dec))
 	//wh.Register("/pvc/mutate", hook.PVCMutator(mgr.GetClient(), dec))
 
-	stopChan := make(chan struct{})
-	defer close(stopChan)
+	ctx := ctrl.SetupSignalHandler()
 
 	// register controllers
 	nodecontroller := &controllers.NodeReconciler{
 		Client:   mgr.GetClient(),
-		StopChan: stopChan,
+		StopChan: ctx.Done(),
 	}
 	if err := nodecontroller.SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Node")
@@ -115,7 +113,6 @@ func subMain() error {
 	// +kubebuilder:scaffold:builder
 
 	// pre-cache objects
-	ctx := context.Background()
 	if _, err := mgr.GetCache().GetInformer(ctx, &storagev1.StorageClass{}); err != nil {
 		return err
 	}
@@ -148,6 +145,7 @@ func subMain() error {
 	n := k8s.NewNodeService(mgr)
 
 	grpcServer := grpc.NewServer()
+	defer grpcServer.Stop()
 	csi.RegisterIdentityServer(grpcServer, driver.NewIdentityService())
 	csi.RegisterControllerServer(grpcServer, driver.NewControllerService(s, n))
 
@@ -159,11 +157,11 @@ func subMain() error {
 	}
 
 	// Http Server
-	e := newHttpServer(mgr.GetCache(), stopChan)
+	e := newHttpServer(mgr.GetCache(), ctx.Done())
 	go e.start()
 
 	setupLog.Info("starting manager")
-	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
+	if err := mgr.Start(ctx); err != nil {
 		setupLog.Error(err, "problem running manager")
 		return err
 	}
