@@ -17,7 +17,6 @@
 package run
 
 import (
-	"context"
 	"errors"
 	"os"
 
@@ -31,7 +30,6 @@ import (
 	deviceManager "github.com/carina-io/carina/pkg/devicemanager"
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"google.golang.org/grpc"
-	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
@@ -71,23 +69,16 @@ func subMain() error {
 		return err
 	}
 
-	// pre-cache objects
-	ctx := context.Background()
-	if _, err := mgr.GetCache().GetInformer(ctx, &corev1.Pod{}); err != nil {
-		return err
-	}
+	ctx := ctrl.SetupSignalHandler()
 
 	// 初始化磁盘管理服务
-	stopChan := make(chan struct{})
-	defer close(stopChan)
-	dm := deviceManager.NewDeviceManager(nodeName, mgr.GetCache(), stopChan)
+	dm := deviceManager.NewDeviceManager(nodeName, mgr.GetCache(), ctx.Done())
 
 	podController := controllers.NewPodReconciler(
 		mgr.GetClient(),
 		nodeName,
 		dm.Partition,
 	)
-
 	if err := podController.SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller ", "controller", "podController")
 		return err
@@ -101,7 +92,6 @@ func subMain() error {
 		dm.VolumeManager,
 		dm.Partition,
 	)
-
 	if err := lvController.SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "LogicalVolume")
 		return err
@@ -110,14 +100,9 @@ func subMain() error {
 	nodeResourceController := controllers.NewNodeStorageResourceReconciler(
 		mgr.GetClient(),
 		nodeName,
-		stopChan,
+		ctx.Done(),
 		dm,
 	)
-
-	if _, err := mgr.GetCache().GetInformer(ctx, &corev1.Node{}); err != nil {
-		return err
-	}
-	// +kubebuilder:scaffold:builder
 
 	// Add metrics exporter to manager.
 	// Note that grpc.ClientConn can be shared with multiple stubs/services.
@@ -147,14 +132,13 @@ func subMain() error {
 	// 启动volume一致性检查
 	dm.VolumeConsistencyCheck()
 	// http server
-	e := newHttpServer(dm.VolumeManager, stopChan)
+	e := newHttpServer(dm.VolumeManager, ctx.Done())
 	go e.start()
 
 	go nodeResourceController.Run()
 	setupLog.Info("starting manager")
-	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
+	if err := mgr.Start(ctx); err != nil {
 		setupLog.Error(err, "problem running manager")
-		close(stopChan)
 		return err
 	}
 
