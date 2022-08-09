@@ -123,7 +123,6 @@ func subMain() error {
 	n := k8s.NewNodeService(mgr)
 
 	grpcServer := grpc.NewServer()
-	defer grpcServer.Stop()
 	csi.RegisterIdentityServer(grpcServer, driver.NewIdentityService())
 	csi.RegisterControllerServer(grpcServer, driver.NewControllerService(s, n))
 

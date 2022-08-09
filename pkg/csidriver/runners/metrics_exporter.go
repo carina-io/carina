@@ -123,32 +123,38 @@ func (m *metricsExporter) Start(ctx context.Context) error {
 		}
 	}()
 
-	ticker := time.Tick(10 * time.Minute)
-	for range ticker {
-		vgList, err := m.volume.GetCurrentVgStruct()
-		if err == nil && len(vgList) > 0 {
-			for _, vg := range vgList {
-				metricsCh <- DeviceMetrics{
-					FreeBytes:   vg.VGFree,
-					TotalBytes:  vg.VGSize,
-					DeviceGroup: vg.VGName,
+	ticker := time.NewTicker(5 * time.Second)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ticker.C:
+			vgList, err := m.volume.GetCurrentVgStruct()
+			if err == nil && len(vgList) > 0 {
+				for _, vg := range vgList {
+					metricsCh <- DeviceMetrics{
+						FreeBytes:   vg.VGFree,
+						TotalBytes:  vg.VGSize,
+						DeviceGroup: vg.VGName,
+					}
 				}
 			}
-		}
 
-		volumeList, err := m.volume.VolumeList("", "")
+			volumeList, err := m.volume.VolumeList("", "")
 
-		if err == nil && len(volumeList) > 0 {
-			for _, v := range volumeList {
-				if !strings.HasPrefix(v.LVName, "volume") {
-					continue
-				}
-				volumeCh <- VolumeMetrics{
-					Volume:     v.LVName,
-					TotalBytes: v.LVSize,
-					UsedBytes:  float64(v.LVSize) * v.DataPercent / 100,
+			if err == nil && len(volumeList) > 0 {
+				for _, v := range volumeList {
+					if !strings.HasPrefix(v.LVName, "volume") {
+						continue
+					}
+					volumeCh <- VolumeMetrics{
+						Volume:     v.LVName,
+						TotalBytes: v.LVSize,
+						UsedBytes:  float64(v.LVSize) * v.DataPercent / 100,
+					}
 				}
 			}
+		case <-ctx.Done():
+			return nil
 		}
 	}
 	return nil
