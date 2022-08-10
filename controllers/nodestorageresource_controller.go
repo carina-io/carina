@@ -42,7 +42,7 @@ import (
 type NodeStorageResourceReconciler struct {
 	client.Client
 	nodeName      string
-	updateChannel chan volume.VolumeEvent
+	updateChannel chan *volume.VolumeEvent
 	stopChan      <-chan struct{}
 	dm            *deviceManager.DeviceManager
 }
@@ -56,13 +56,13 @@ func NewNodeStorageResourceReconciler(
 	return &NodeStorageResourceReconciler{
 		Client:        client,
 		nodeName:      nodeName,
-		updateChannel: make(chan volume.VolumeEvent, 1000), // Buffer up to 1000 statuses
+		updateChannel: make(chan *volume.VolumeEvent, 1000), // Buffer up to 1000 statuses
 		stopChan:      stopChan,
 		dm:            dm,
 	}
 }
 
-func (r *NodeStorageResourceReconciler) reconcile(ve volume.VolumeEvent) {
+func (r *NodeStorageResourceReconciler) reconcile(ve *volume.VolumeEvent) {
 	log.Infof("Try to update nodeStorageResource, trigger: %s, trigger at: %v", ve.Trigger, ve.TriggerAt.Format("2006-01-02 15:04:05.000000000"))
 
 	nodeStorageResource := new(carinav1beta1.NodeStorageResource)
@@ -90,7 +90,12 @@ func (r *NodeStorageResourceReconciler) reconcile(ve volume.VolumeEvent) {
 		nsr.Status.SyncTime = metav1.Now()
 		if err := r.Client.Status().Update(ctx, nsr); err != nil {
 			log.Error(err, " failed to update nodeStorageResource status name ", nsr.Name)
+			return
 		}
+	}
+	// sync notice
+	if ve.Done != nil {
+		close(ve.Done)
 	}
 }
 
@@ -123,7 +128,7 @@ func (r *NodeStorageResourceReconciler) Run() {
 }
 
 func (r *NodeStorageResourceReconciler) triggerReconcile() {
-	r.updateChannel <- volume.VolumeEvent{Trigger: volume.Dummy, TriggerAt: time.Now()}
+	r.updateChannel <- &volume.VolumeEvent{Trigger: volume.Dummy, TriggerAt: time.Now()}
 }
 
 func (r *NodeStorageResourceReconciler) createNodeStorageResource(ctx context.Context) error {

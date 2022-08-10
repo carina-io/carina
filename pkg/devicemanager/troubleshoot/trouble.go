@@ -113,7 +113,7 @@ func (t *Trouble) CleanupOrphanVolume() {
 	}
 
 	if deleteVolume {
-		t.volumeManager.NoticeUpdateCapacity(volume.CleanupOrphan)
+		t.volumeManager.NoticeUpdateCapacity(volume.CleanupOrphan, nil)
 	}
 
 	log.Infof("%s volume check finished.", logPrefix)
@@ -179,7 +179,7 @@ func (t *Trouble) CleanupOrphanPartition() {
 		}
 	}
 	if deletePartion {
-		t.volumeManager.NoticeUpdateCapacity(volume.CleanupOrphan)
+		t.volumeManager.NoticeUpdateCapacity(volume.CleanupOrphan, nil)
 	}
 	log.Infof("%s volume check finished.", logPrefix)
 }
