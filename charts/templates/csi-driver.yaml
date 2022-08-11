@@ -7,7 +7,7 @@ metadata:
     csiDriver: "{{ .Values.image.carina.tag }}"
 {{ include "carina.labels" . | indent 2 }}
 spec:
-  attachRequired: true
+  attachRequired: false
   podInfoOnMount: true
   volumeLifecycleModes:
     - Persistent

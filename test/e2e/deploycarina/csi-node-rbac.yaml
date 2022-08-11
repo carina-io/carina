@@ -57,7 +57,7 @@ metadata:
   labels:
     class: carina
 spec:
-  attachRequired: true
+  attachRequired: false
   podInfoOnMount: true
   volumeLifecycleModes:
     - Persistent
