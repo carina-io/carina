@@ -40,8 +40,8 @@ type LocalVolume interface {
 	HealthCheck()
 	RefreshLvmCache()
 
-	NoticeUpdateCapacity(trigger Trigger)
-	RegisterNoticeChan(notice chan VolumeEvent)
+	NoticeUpdateCapacity(trigger Trigger, done chan struct{})
+	RegisterNoticeChan(notice chan *VolumeEvent)
 
 	// CreateBcache bcache
 	CreateBcache(dev, cacheDev string, block, bucket string, cacheMode string) (*types.BcacheDeviceInfo, error)

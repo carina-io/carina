@@ -66,7 +66,7 @@ func NewDeviceManager(nodeName string, cache cache.Cache, stopChan <-chan struct
 		Cache:            cache,
 		Executor:         executor,
 		Mutex:            mutex,
-		VolumeManager:    &volume.LocalVolumeImplement{Mutex: mutex, Lv: &lvmd.Lvm2Implement{Executor: executor}, Bcache: &bcache.BcacheImplement{Executor: executor}, NoticeUpdate: make(chan volume.VolumeEvent)},
+		VolumeManager:    &volume.LocalVolumeImplement{Mutex: mutex, Lv: &lvmd.Lvm2Implement{Executor: executor}, Bcache: &bcache.BcacheImplement{Executor: executor}, NoticeUpdate: make(chan *volume.VolumeEvent)},
 		Partition:        &partition.LocalPartitionImplement{Mutex: mutex, CacheParttionNum: make(map[string]uint), Executor: executor},
 		stopChan:         stopChan,
 		nodeName:         nodeName,
@@ -209,7 +209,7 @@ func (dm *DeviceManager) addAndRemoveDevice() {
 	}
 	log.Debug("new vgs ", changeAfter)
 	if !equality.Semantic.DeepEqual(changeBefore, changeAfter) {
-		dm.VolumeManager.NoticeUpdateCapacity(volume.LVMCheck)
+		dm.VolumeManager.NoticeUpdateCapacity(volume.LVMCheck, nil)
 	}
 }
 
@@ -406,11 +406,11 @@ func (dm *DeviceManager) DeviceCheckTask() {
 				log.Infof("clock %d second device scan...", configuration.DiskScanInterval())
 				dm.addAndRemoveDevice()
 				// here for raw storage update, reuse the scan ticker
-				dm.VolumeManager.NoticeUpdateCapacity(volume.Dummy)
+				dm.VolumeManager.NoticeUpdateCapacity(volume.Dummy, nil)
 			case <-dm.configModifyChan:
 				log.Info("config modify trigger disk scan...")
 				dm.addAndRemoveDevice()
-				go time.AfterFunc(10*time.Second, func() { dm.VolumeManager.NoticeUpdateCapacity(volume.ConfigModify) })
+				go time.AfterFunc(10*time.Second, func() { dm.VolumeManager.NoticeUpdateCapacity(volume.ConfigModify, nil) })
 			case <-dm.stopChan:
 				log.Info("stop device scan...")
 				return

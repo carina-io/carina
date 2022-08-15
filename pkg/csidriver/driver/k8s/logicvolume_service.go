@@ -99,6 +99,8 @@ func (s *LogicVolumeService) CreateVolume(ctx context.Context, namespace, pvc, n
 		},
 	}
 
+	lv.Finalizers = []string{utils.LogicVolumeFinalizer}
+	
 	if owner.Name != "" {
 		lv.OwnerReferences = []metav1.OwnerReference{owner}
 	}
