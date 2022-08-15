@@ -127,22 +127,27 @@ func (m *metricsExporter) Start(ctx context.Context) error {
 		}
 	}()
 
-	ticker := time.Tick(1 * time.Minute)
-	for range ticker {
-		dm, err := vgMetrics()
-		if err == nil && len(dm) > 0 {
-			for _, m := range dm {
-				metricsCh <- m
+	ticker := time.NewTicker(1 * time.Minute)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ticker.C:
+			dm, err := vgMetrics()
+			if err == nil && len(dm) > 0 {
+				for _, m := range dm {
+					metricsCh <- m
+				}
 			}
-		}
-		vm, err := volumeMetrics()
-		if err == nil && len(vm) > 0 {
-			for _, v := range vm {
-				volumeCh <- v
+			vm, err := volumeMetrics()
+			if err == nil && len(vm) > 0 {
+				for _, v := range vm {
+					volumeCh <- v
+				}
 			}
+		case <-ctx.Done():
+			return nil
 		}
 	}
-	return nil
 }
 
 // NeedLeaderElection implements controller-runtime's manager.LeaderElectionRunnable.
