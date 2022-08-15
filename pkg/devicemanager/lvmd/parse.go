@@ -48,14 +48,10 @@ func parseVgs(vgsString string) []api.VgGroup {
 			switch k[0] {
 			case "LVM2_VG_NAME":
 				tmp.VGName = k[1]
-			case "LVM2_PV_NAME":
-				tmp.PVName = k[1]
 			case "LVM2_PV_COUNT":
 				tmp.PVCount, _ = strconv.ParseUint(k[1], 10, 64)
 			case "LVM2_LV_COUNT":
 				tmp.LVCount, _ = strconv.ParseUint(k[1], 10, 64)
-			case "LVM2_SNAP_COUNT":
-				tmp.SnapCount, _ = strconv.ParseUint(k[1], 10, 64)
 			case "LVM2_VG_ATTR":
 				tmp.VGAttr = k[1]
 			case "LVM2_VG_SIZE":

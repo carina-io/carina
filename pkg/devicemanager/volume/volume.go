@@ -332,7 +332,7 @@ func (v *LocalVolumeImplement) RemoveDiskInVg(disk, vgName string) error {
 	} else {
 		// 当vg卷下只有一个pv时，需要检查是否还存在lv
 		if vgInfo.PVCount == 1 {
-			if vgInfo.LVCount > 0 || vgInfo.SnapCount > 0 {
+			if vgInfo.LVCount > 0 {
 				log.Warnf("cannot remove the disk %s because there are still have logic volumes", disk)
 				return errors.New("still have logical volumes")
 			}
