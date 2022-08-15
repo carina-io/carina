@@ -57,9 +57,6 @@ The following table lists the configurable parameters of the latest  Disk CSI Dr
 | `image.csiProvisioner.repository`                 | csi-provisioner docker image                                                                               | `/csi-provisioner`  |
 | `image.csiProvisioner.tag`                        | csi-provisioner docker image tag                                                                           | `v2.1.0`  |
 | `image.csiProvisioner.pullPolicy`                 | csi-provisioner image pull policy                                                                          | `IfNotPresent`  |
-| `image.csiAttacher.repository`                    | csi-attacher docker image                                                                                  | `/csi-attacher` |
-| `image.csiAttacher.tag`                           | csi-attacher docker image tag                                                                              | `v3.1.0`        |
-| `image.csiAttacher.pullPolicy`                    | csi-attacher image pull policy                                                                             | `IfNotPresent`     |
 | `image.csiResizer.repository`                     | csi-resizer docker image                                                                                   | `/csi-resizer`    |
 | `image.csiResizer.tag`                            | csi-resizer docker image tag                                                                               | `v1.1.0`         |
 | `image.csiResizer.pullPolicy`                     | csi-resizer image pull policy                                                                              | `IfNotPresent`        |
@@ -84,10 +81,6 @@ The following table lists the configurable parameters of the latest  Disk CSI Dr
 | `controller.resources.csiProvisioner.limits.memory`   | csi-provisioner memory limits                                                                              | 500Mi                                                          |
 | `controller.resources.csiProvisioner.requests.cpu`    | csi-provisioner cpu requests limits                                                                        | 10m                                                            |
 | `controller.resources.csiProvisioner.requests.memory` | csi-provisioner memory requests limits                                                                     | 20Mi                                                           |
-| `controller.resources.csiAttacher.limits.cpu`         | csi-attacher cpu limits                                                                                    | 200m                                                           |
-| `controller.resources.csiAttacher.limits.memory`      | csi-attacher memory limits                                                                                 | 500Mi                                                          |
-| `controller.resources.csiAttacher.requests.cpu`       | csi-attacher cpu requests limits                                                                           | 10m                                                            |
-| `controller.resources.csiAttacher.requests.memory`    | csi-attacher memory requests limits                                                                        | 20Mi                                                           |
 | `controller.resources.csiResizer.limits.cpu`          | csi-resizer cpu limits                                                                                     | 200m                                                           |
 | `controller.resources.csiResizer.limits.memory`       | csi-resizer memory limits                                                                                  | 500Mi                                                          |
 | `controller.resources.csiResizer.requests.cpu`        | csi-resizer cpu requests limits                                                                            | 10m                                                            |
