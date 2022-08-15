@@ -109,7 +109,7 @@ func subMain() error {
 	// Add metrics exporter to manager.
 	// Note that grpc.ClientConn can be shared with multiple stubs/services.
 	// https://github.com/grpc/grpc-go/tree/master/examples/features/multiplex
-	if err := mgr.Add(runners.NewMetricsExporter(dm)); err != nil {
+	if err := mgr.Add(runners.NewMetricsExporter(mgr.GetClient(), dm)); err != nil {
 		return err
 	}
 
