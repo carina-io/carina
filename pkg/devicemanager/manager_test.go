@@ -134,7 +134,7 @@ func deviceAddAndRemove(dm *DeviceManager) error {
 		return err
 	}
 	for _, vg := range vgInfo {
-		fmt.Println(fmt.Sprintf("vg: %s, pv: %s, size: %d", vg.VGName, vg.PVName, vg.VGSize>>30))
+		fmt.Println(fmt.Sprintf("vg: %s, size: %d", vg.VGName, vg.VGSize>>30))
 	}
 	return nil
 }

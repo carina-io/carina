@@ -33,14 +33,12 @@ rules:
   - delete
   - get
   - list
-  - update
   - watch
 - apiGroups:
   - ""
   resources:
   - pods
   verbs:
-  - delete
   - get
   - list
   - patch
@@ -80,26 +78,6 @@ rules:
   - carina.storage.io
   resources:
   - logicvolumes/status
-  verbs:
-  - get
-  - patch
-  - update
-- apiGroups:
-  - carina.storage.io
-  resources:
-  - nodestorageresources
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - carina.storage.io
-  resources:
-  - nodestorageresources/status
   verbs:
   - get
   - patch

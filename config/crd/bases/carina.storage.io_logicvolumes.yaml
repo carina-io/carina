@@ -13,8 +13,6 @@ spec:
     kind: LogicVolume
     listKind: LogicVolumeList
     plural: logicvolumes
-    shortNames:
-    - lv
     singular: logicvolume
   scope: Cluster
   versions:
