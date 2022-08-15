@@ -73,6 +73,11 @@ func (r *PodIOReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
+	if pod.DeletionTimestamp != nil {
+		r.ioCache.Delete(pod.UID)
+		return ctrl.Result{}, nil
+	}
+
 	log.Debugf("Try to update pod's cgroup blkio, pod namespace: %s, pod name: %s", pod.Namespace, pod.Name)
 
 	if err := r.handleSinglePodCGroupConfig(ctx, pod); err != nil {
@@ -228,7 +233,7 @@ func (p podFilter) filter(pod *corev1.Pod) bool {
 	if utils.IsStaticPod(pod) {
 		return false
 	}
-	if pod.Status.Phase == corev1.PodPending {
+	if pod.Status.Phase == corev1.PodPending || pod.Status.Phase == corev1.PodSucceeded {
 		return false
 	}
 	return true
@@ -239,7 +244,7 @@ func (p podFilter) Create(e event.CreateEvent) bool {
 }
 
 func (p podFilter) Delete(e event.DeleteEvent) bool {
-	return false
+	return true
 }
 
 func (p podFilter) Update(e event.UpdateEvent) bool {
