@@ -21,31 +21,22 @@ import (
 	"fmt"
 	"github.com/anuvu/disko/linux"
 	carinav1 "github.com/carina-io/carina/api/v1"
-	"github.com/carina-io/carina/pkg/devicemanager/partition"
-	"github.com/carina-io/carina/pkg/devicemanager/volume"
+	deviceManager "github.com/carina-io/carina/pkg/devicemanager"
 	"github.com/carina-io/carina/utils"
 	"github.com/carina-io/carina/utils/log"
-	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"strings"
+	"time"
 )
 
 type Trouble struct {
-	volumeManager volume.LocalVolume
-	partition     partition.LocalPartition
-	cache         cache.Cache
-	nodeName      string
+	dm *deviceManager.DeviceManager
 }
 
 const logPrefix = "Clean orphan volume:"
 
-func NewTroubleObject(volumeManager volume.LocalVolume, partition partition.LocalPartition, cache cache.Cache, nodeName string) *Trouble {
-
-	if cache == nil {
-		return nil
-	}
-
-	err := cache.IndexField(context.Background(), &carinav1.LogicVolume{}, "nodeName", func(object client.Object) []string {
+func NewTrouble(dm *deviceManager.DeviceManager) *Trouble {
+	err := dm.Cache.IndexField(context.Background(), &carinav1.LogicVolume{}, "nodeName", func(object client.Object) []string {
 		return []string{object.(*carinav1.LogicVolume).Spec.NodeName}
 	})
 
@@ -54,19 +45,35 @@ func NewTroubleObject(volumeManager volume.LocalVolume, partition partition.Loca
 	}
 
 	return &Trouble{
-		volumeManager: volumeManager,
-		partition:     partition,
-		cache:         cache,
-		nodeName:      nodeName,
+		dm: dm,
 	}
 }
 
-func (t *Trouble) CleanupOrphanVolume() {
+func (t *Trouble) Run() {
+	t.dm.Cache.WaitForCacheSync(context.Background())
+
+	ticker := time.NewTicker(600 * time.Second)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ticker.C:
+			log.Info("Volume consistency check...")
+			t.cleanupOrphanVolume()
+			t.cleanupOrphanPartition()
+		case <-t.dm.StopChan:
+			log.Info("Stop volume consistency check...")
+			return
+		}
+	}
+
+}
+
+func (t *Trouble) cleanupOrphanVolume() {
 	//t.volumeManager.HealthCheck()
 
 	// step.1 获取所有本地volume
 	log.Infof("%s get all local logic volume", logPrefix)
-	volumeList, err := t.volumeManager.VolumeList("", "")
+	volumeList, err := t.dm.VolumeManager.VolumeList("", "")
 	if err != nil {
 		log.Errorf("% get all local volume failed %s", logPrefix, err.Error())
 	}
@@ -82,7 +89,7 @@ func (t *Trouble) CleanupOrphanVolume() {
 	// step.3 获取集群中logicVolume对象
 	log.Infof("%s get all logicVolume in cluster", logPrefix)
 	lvList := &carinav1.LogicVolumeList{}
-	err = t.cache.List(context.Background(), lvList, client.MatchingFields{"nodeName": t.nodeName})
+	err = t.dm.Cache.List(context.Background(), lvList, client.MatchingFields{"nodeName": t.dm.NodeName})
 	if err != nil {
 		log.Errorf("%s list logic volume error %s", logPrefix, err.Error())
 		return
@@ -103,7 +110,7 @@ func (t *Trouble) CleanupOrphanVolume() {
 	for _, v := range volumeList {
 		if _, ok := mapLvList[v.LVName]; !ok && strings.HasPrefix(v.LVName, utils.VolumePrefix) { // filter thin volume
 			log.Infof("%s remove volume %s %s", logPrefix, v.VGName, v.LVName)
-			err := t.volumeManager.DeleteVolume(v.LVName, v.VGName)
+			err := t.dm.VolumeManager.DeleteVolume(v.LVName, v.VGName)
 			if err != nil {
 				log.Errorf("%s delete volume vg %s lv %s error %s", logPrefix, v.VGName, v.LVName, err.Error())
 			} else {
@@ -113,18 +120,18 @@ func (t *Trouble) CleanupOrphanVolume() {
 	}
 
 	if deleteVolume {
-		t.volumeManager.NoticeUpdateCapacity(volume.CleanupOrphan, nil)
+		t.dm.NoticeUpdateCapacity(deviceManager.CleanupOrphan, nil)
 	}
 
 	log.Infof("%s volume check finished.", logPrefix)
 }
 
 //清理裸盘分区和logicVolume的对应关系
-func (t *Trouble) CleanupOrphanPartition() {
+func (t *Trouble) cleanupOrphanPartition() {
 	// step.1 获取所有本地 磁盘分区，一个lv其实就是对应一个分区
 	log.Infof("%s get all local partition", "CleanupOrphanPartition")
 
-	disklist, err := t.partition.ListDevicesDetail("")
+	disklist, err := t.dm.Partition.ListDevicesDetail("")
 	if err != nil {
 		log.Errorf("fail get all local parttions failed %s", err.Error())
 	}
@@ -134,7 +141,7 @@ func (t *Trouble) CleanupOrphanPartition() {
 	// step.3 获取集群中logicVolume对象
 	log.Infof("%s get all logicVolume in cluster", logPrefix)
 	lvList := &carinav1.LogicVolumeList{}
-	err = t.cache.List(context.Background(), lvList, client.MatchingFields{"nodeName": t.nodeName})
+	err = t.dm.Cache.List(context.Background(), lvList, client.MatchingFields{"nodeName": t.dm.NodeName})
 	if err != nil {
 		log.Errorf("%s list logic volume error %s", logPrefix, err.Error())
 		return
@@ -170,7 +177,7 @@ func (t *Trouble) CleanupOrphanPartition() {
 			log.Infof("Check parttions %s %d %d", p.Name, p.Start, p.Last)
 			if _, ok := mapLvList[p.Name]; !ok {
 				log.Warnf("Remove parttions %s %d %d", p.Name, p.Start, p.Last)
-				if err := t.partition.DeletePartitionByPartNumber(disk, p.Number); err != nil {
+				if err := t.dm.Partition.DeletePartitionByPartNumber(disk, p.Number); err != nil {
 					log.Errorf("Delete parttions in disk name: %s  number: %d error: %s", disk.Name, p.Number, err.Error())
 				} else {
 					deletePartion = true
@@ -179,7 +186,7 @@ func (t *Trouble) CleanupOrphanPartition() {
 		}
 	}
 	if deletePartion {
-		t.volumeManager.NoticeUpdateCapacity(volume.CleanupOrphan, nil)
+		t.dm.NoticeUpdateCapacity(deviceManager.CleanupOrphan, nil)
 	}
 	log.Infof("%s volume check finished.", logPrefix)
 }

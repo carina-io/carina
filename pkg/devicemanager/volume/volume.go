@@ -39,27 +39,10 @@ const (
 	VOLUMEMUTEX = "VolumeMutex"
 )
 
-type Trigger string
-
-const (
-	Dummy                 Trigger = "dummy"
-	ConfigModify          Trigger = "configModify"
-	LVMCheck              Trigger = "lvmCheck"
-	CleanupOrphan         Trigger = "cleanupOrphan"
-	LogicVolumeController Trigger = "logicVolumeController"
-)
-
-type VolumeEvent struct {
-	Trigger   Trigger
-	TriggerAt time.Time
-	Done      chan struct{}
-}
-
 type LocalVolumeImplement struct {
-	Lv           lvmd.Lvm2
-	Bcache       bcache.Bcache
-	Mutex        *mutx.GlobalLocks
-	NoticeUpdate chan *VolumeEvent
+	Lv     lvmd.Lvm2
+	Bcache bcache.Bcache
+	Mutex  *mutx.GlobalLocks
 }
 
 func (v *LocalVolumeImplement) CreateVolume(lvName, vgName string, size, ratio uint64) error {
@@ -398,18 +381,6 @@ func (v *LocalVolumeImplement) RefreshLvmCache() {
 		log.Warnf("error during vgscan: %v", err)
 	}
 
-}
-
-func (v *LocalVolumeImplement) NoticeUpdateCapacity(trigger Trigger, done chan struct{}) {
-	select {
-	case v.NoticeUpdate <- &VolumeEvent{Trigger: trigger, TriggerAt: time.Now(), Done: done}:
-	case <-time.After(10 * time.Second):
-		log.Debug("Notice channel is full, send all update channel timeout(10s).")
-	}
-}
-
-func (v *LocalVolumeImplement) RegisterNoticeChan(notice chan *VolumeEvent) {
-	v.NoticeUpdate = notice
 }
 
 // CreateBcache bcache

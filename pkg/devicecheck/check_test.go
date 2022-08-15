@@ -13,11 +13,12 @@
    See the License for the specific language governing permissions and
    limitations under the License.
 */
-package deviceManager
+package devicecheck
 
 import (
 	"bytes"
 	"fmt"
+	deviceManager "github.com/carina-io/carina/pkg/devicemanager"
 	"os"
 	"os/exec"
 	"strings"
@@ -92,15 +93,16 @@ func TestDeviceManager(t *testing.T) {
 
 	stopChan := make(chan struct{})
 	defer close(stopChan)
-	dm := NewDeviceManager("localhost", nil, stopChan)
+	dm := deviceManager.NewDeviceManager("localhost", nil, stopChan)
+	dc := &DeviceCheck{dm: dm}
 	defer func() {
-		// 清理volume
+		// 清理volumex
 		_ = cleanVolume(dm)
 		configuration.TestAssistDiskSelector = []string{"^o$"}
-		dm.addAndRemoveDevice()
+		dc.addAndRemoveDevice()
 	}()
 
-	err := deviceAddAndRemove(dm)
+	err := deviceAddAndRemove(dc)
 	if err != nil {
 		return
 	}
@@ -112,16 +114,16 @@ func TestDeviceManager(t *testing.T) {
 
 	// 清除现有磁盘测试，正在使用的磁盘无法删除
 	configuration.TestAssistDiskSelector = []string{"loop8"}
-	err = deviceAddAndRemove(dm)
+	err = deviceAddAndRemove(dc)
 	if err != nil {
 		return
 	}
 }
 
-func deviceAddAndRemove(dm *DeviceManager) error {
-	dm.addAndRemoveDevice()
+func deviceAddAndRemove(dc *DeviceCheck) error {
+	dc.addAndRemoveDevice()
 
-	pvInfo, err := dm.VolumeManager.GetCurrentPvStruct()
+	pvInfo, err := dc.dm.VolumeManager.GetCurrentPvStruct()
 	if err != nil {
 		return err
 	}
@@ -129,7 +131,7 @@ func deviceAddAndRemove(dm *DeviceManager) error {
 	for _, pv := range pvInfo {
 		fmt.Println(fmt.Sprintf("pv: %s, vg: %s, size: %d", pv.PVName, pv.VGName, pv.PVSize>>30))
 	}
-	vgInfo, err := dm.VolumeManager.GetCurrentVgStruct()
+	vgInfo, err := dc.dm.VolumeManager.GetCurrentVgStruct()
 	if err != nil {
 		return err
 	}
@@ -139,7 +141,7 @@ func deviceAddAndRemove(dm *DeviceManager) error {
 	return nil
 }
 
-func cleanVolume(dm *DeviceManager) error {
+func cleanVolume(dm *deviceManager.DeviceManager) error {
 	lvinfo, err := dm.VolumeManager.VolumeList("", "")
 	if err != nil {
 		return err
@@ -157,7 +159,7 @@ func cleanVolume(dm *DeviceManager) error {
 	return nil
 }
 
-func volumeCreate(dm *DeviceManager) error {
+func volumeCreate(dm *deviceManager.DeviceManager) error {
 	table := []struct {
 		vgName string
 		lvName string

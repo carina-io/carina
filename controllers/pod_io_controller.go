@@ -42,7 +42,7 @@ const (
 )
 
 // PodReconciler reconciles a Node object
-type PodReconciler struct {
+type PodIOReconciler struct {
 	client.Client
 	nodeName  string
 	ioCache   sync.Map
@@ -52,12 +52,12 @@ type PodReconciler struct {
 // +kubebuilder:rbac:groups="",resources=pods,verbs=get;list;watch;update;patch
 // +kubebuilder:rbac:groups="",resources=persistentvolumes,verbs=get;list;watch;delete
 
-func NewPodReconciler(
+func NewPodIOReconciler(
 	client client.Client,
 	nodeName string,
 	partition partition.LocalPartition,
-) *PodReconciler {
-	return &PodReconciler{
+) *PodIOReconciler {
+	return &PodIOReconciler{
 		Client:    client,
 		nodeName:  nodeName,
 		ioCache:   sync.Map{},
@@ -66,7 +66,7 @@ func NewPodReconciler(
 }
 
 // Reconcile finalize Node
-func (r *PodReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+func (r *PodIOReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	pod := &corev1.Pod{}
 	if err := r.Client.Get(ctx, req.NamespacedName, pod); err != nil {
 		log.Error(err, "unable to fetch pod")
@@ -83,7 +83,7 @@ func (r *PodReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 }
 
 // SetupWithManager sets up Reconciler with Manager.
-func (r *PodReconciler) SetupWithManager(mgr ctrl.Manager) error {
+func (r *PodIOReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	ctx := context.Background()
 	err := mgr.GetFieldIndexer().IndexField(ctx, &corev1.Pod{}, "combinedIndex", func(object client.Object) []string {
 		return []string{object.(*corev1.Pod).Spec.NodeName}
@@ -125,7 +125,7 @@ func (r *PodReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Complete(r)
 }
 
-func (r *PodReconciler) handleSinglePodCGroupConfig(ctx context.Context, pod *corev1.Pod) error {
+func (r *PodIOReconciler) handleSinglePodCGroupConfig(ctx context.Context, pod *corev1.Pod) error {
 	newPodIOLimit := r.getPodIOLimit(pod)
 	oldPodIOLimit, ok := r.ioCache.Load(pod.UID)
 	if ok && newPodIOLimit.Equal(oldPodIOLimit.(*iolimit.IOLimit)) {
@@ -141,7 +141,7 @@ func (r *PodReconciler) handleSinglePodCGroupConfig(ctx context.Context, pod *co
 	return nil
 }
 
-func (r *PodReconciler) getPodBlkIO(ctx context.Context, pod *corev1.Pod) *iolimit.PodBlkIO {
+func (r *PodIOReconciler) getPodBlkIO(ctx context.Context, pod *corev1.Pod) *iolimit.PodBlkIO {
 	if pod == nil {
 		return &iolimit.PodBlkIO{}
 	}
@@ -183,7 +183,7 @@ func (r *PodReconciler) getPodBlkIO(ctx context.Context, pod *corev1.Pod) *iolim
 	}
 }
 
-func (r *PodReconciler) getPodIOLimit(pod *corev1.Pod) *iolimit.IOLimit {
+func (r *PodIOReconciler) getPodIOLimit(pod *corev1.Pod) *iolimit.IOLimit {
 	if pod == nil {
 		return &iolimit.IOLimit{}
 	}

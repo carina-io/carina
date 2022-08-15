@@ -18,138 +18,154 @@ package runners
 
 import (
 	"context"
-	"github.com/carina-io/carina/pkg/devicemanager/volume"
-	"strings"
-	"time"
-
+	deviceManager "github.com/carina-io/carina/pkg/devicemanager"
+	"github.com/carina-io/carina/utils"
+	"github.com/carina-io/carina/utils/log"
 	"github.com/prometheus/client_golang/prometheus"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/metrics"
+	"strings"
 )
 
-const metricsNamespace = "carina"
+const (
+	Subsystem        = "local"
+	metricsNamespace = "carina"
+)
 
-// DeviceMetrics Device Metrics
-type DeviceMetrics struct {
-	FreeBytes   uint64
-	TotalBytes  uint64
-	DeviceGroup string
+type VolumeGroupMetrics struct {
+	usedBytes  uint64
+	totalBytes uint64
+	vgName     string
 }
 
-// VolumeMetrics volume Metrics
-type VolumeMetrics struct {
-	Volume     string
-	TotalBytes uint64
-	UsedBytes  float64
+type LogicVolumeMetrics struct {
+	usedBytes  float64
+	totalBytes uint64
+	lvName     string
 }
 
 type metricsExporter struct {
-	nodeName         string
-	volume           volume.LocalVolume
-	vgFreeBytes      *prometheus.GaugeVec
-	vgTotalBytes     *prometheus.GaugeVec
-	volumeTotalBytes *prometheus.GaugeVec
-	volumeUsedBytes  *prometheus.GaugeVec
+	dm            *deviceManager.DeviceManager
+	vgUsedBytes   *prometheus.GaugeVec
+	vgTotalBytes  *prometheus.GaugeVec
+	lvUsedBytes   *prometheus.GaugeVec
+	lvTotalBytes  *prometheus.GaugeVec
+	updateChannel chan *deviceManager.VolumeEvent
 }
-
-var _ manager.LeaderElectionRunnable = &metricsExporter{}
 
 // NewMetricsExporter creates controller-runtime's manager.Runnable to run
 // a metrics exporter for a node.
-func NewMetricsExporter(nodeName string, volume volume.LocalVolume) manager.Runnable {
-	vgFreeBytes := prometheus.NewGaugeVec(prometheus.GaugeOpts{
+func NewMetricsExporter(dm *deviceManager.DeviceManager) manager.Runnable {
+	vgUsedBytes := prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Namespace:   metricsNamespace,
-		Subsystem:   "devicegroup",
-		Name:        "vg_free_bytes",
-		Help:        "LVM VG free bytes",
-		ConstLabels: prometheus.Labels{"node": nodeName},
-	}, []string{"device_group"})
+		Subsystem:   Subsystem,
+		Name:        "vg_used_bytes",
+		Help:        "LVM VG used bytes",
+		ConstLabels: prometheus.Labels{"nodename": dm.NodeName},
+	}, []string{"vgname"})
 
 	vgTotalBytes := prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Namespace:   metricsNamespace,
-		Subsystem:   "devicegroup",
+		Subsystem:   Subsystem,
 		Name:        "vg_total_bytes",
 		Help:        "LVM VG total bytes",
-		ConstLabels: prometheus.Labels{"node": nodeName},
-	}, []string{"device_group"})
+		ConstLabels: prometheus.Labels{"nodename": dm.NodeName},
+	}, []string{"vgname"})
 
-	volumeTotalBytes := prometheus.NewGaugeVec(prometheus.GaugeOpts{
+	lvTotalBytes := prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Namespace:   metricsNamespace,
-		Subsystem:   "volume",
-		Name:        "volume_total_bytes",
-		Help:        "LVM Volume total bytes",
-		ConstLabels: prometheus.Labels{"node": nodeName},
-	}, []string{"volume"})
+		Subsystem:   Subsystem,
+		Name:        "lv_total_bytes",
+		Help:        "LVM logic Volume total bytes",
+		ConstLabels: prometheus.Labels{"nodename": dm.NodeName},
+	}, []string{"lvname"})
 
-	volumeUsedBytes := prometheus.NewGaugeVec(prometheus.GaugeOpts{
+	lvUsedBytes := prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Namespace:   metricsNamespace,
-		Subsystem:   "volume",
-		Name:        "volume_used_bytes",
-		Help:        "LVM volume used bytes",
-		ConstLabels: prometheus.Labels{"node": nodeName},
-	}, []string{"volume"})
+		Subsystem:   Subsystem,
+		Name:        "lv_used_bytes",
+		Help:        "LVM logic volume used bytes",
+		ConstLabels: prometheus.Labels{"nodename": dm.NodeName},
+	}, []string{"lvname"})
 
 	metrics.Registry.MustRegister(vgTotalBytes)
-	metrics.Registry.MustRegister(vgFreeBytes)
-	metrics.Registry.MustRegister(volumeTotalBytes)
-	metrics.Registry.MustRegister(volumeUsedBytes)
+	metrics.Registry.MustRegister(vgUsedBytes)
+	metrics.Registry.MustRegister(lvTotalBytes)
+	metrics.Registry.MustRegister(lvUsedBytes)
 
 	return &metricsExporter{
-		nodeName:         nodeName,
-		volume:           volume,
-		vgFreeBytes:      vgFreeBytes,
-		vgTotalBytes:     vgTotalBytes,
-		volumeTotalBytes: volumeTotalBytes,
-		volumeUsedBytes:  volumeUsedBytes,
+		dm:            dm,
+		vgUsedBytes:   vgUsedBytes,
+		vgTotalBytes:  vgTotalBytes,
+		lvUsedBytes:   lvUsedBytes,
+		lvTotalBytes:  lvTotalBytes,
+		updateChannel: make(chan *deviceManager.VolumeEvent, 500), // Buffer up to 500 statuses
 	}
 }
 
 // Start implements controller-runtime's manager.Runnable.
 func (m *metricsExporter) Start(ctx context.Context) error {
-	metricsCh := make(chan DeviceMetrics)
-	volumeCh := make(chan VolumeMetrics)
+	m.dm.Cache.WaitForCacheSync(context.Background())
+
+	log.Infof("Starting metricsExporter")
+	defer log.Infof("Shutting down metricsExporter")
+	defer close(m.updateChannel)
+
+	// register volume update notice chan
+	m.dm.RegisterNoticeChan(m.updateChannel)
+
+	vgCh := make(chan VolumeGroupMetrics)
+	lvCh := make(chan LogicVolumeMetrics)
 	go func() {
 		for {
 			select {
 			case <-ctx.Done():
 				return
-			case met := <-metricsCh:
-				m.vgTotalBytes.WithLabelValues(met.DeviceGroup).Set(float64(met.TotalBytes))
-				m.vgFreeBytes.WithLabelValues(met.DeviceGroup).Set(float64(met.FreeBytes))
-			case vc := <-volumeCh:
-				m.volumeTotalBytes.WithLabelValues(vc.Volume).Set(float64(vc.TotalBytes))
-				m.volumeUsedBytes.WithLabelValues(vc.Volume).Set(vc.UsedBytes)
+			case vg := <-vgCh:
+				m.vgUsedBytes.WithLabelValues(vg.vgName).Set(float64(vg.usedBytes))
+				m.vgTotalBytes.WithLabelValues(vg.vgName).Set(float64(vg.totalBytes))
+			case lv := <-lvCh:
+				m.lvUsedBytes.WithLabelValues(lv.lvName).Set(lv.usedBytes)
+				m.lvTotalBytes.WithLabelValues(lv.lvName).Set(float64(lv.totalBytes))
 			}
 		}
 	}()
 
-	ticker := time.NewTicker(5 * time.Second)
-	defer ticker.Stop()
 	for {
 		select {
-		case <-ticker.C:
-			vgList, err := m.volume.GetCurrentVgStruct()
+		case ve := <-m.updateChannel:
+			log.Infof("Update metric, trigger: %s, trigger at: %v", ve.Trigger, ve.TriggerAt.Format("2006-01-02 15:04:05.000000000"))
+
+			diskSelectGroup := m.dm.GetNodeDiskSelectGroup()
+			vgList, err := m.dm.VolumeManager.GetCurrentVgStruct()
+
 			if err == nil && len(vgList) > 0 {
 				for _, vg := range vgList {
-					metricsCh <- DeviceMetrics{
-						FreeBytes:   vg.VGFree,
-						TotalBytes:  vg.VGSize,
-						DeviceGroup: vg.VGName,
+					if _, ok := diskSelectGroup[vg.VGName]; !ok {
+						continue
+					}
+					vgCh <- VolumeGroupMetrics{
+						usedBytes:  vg.VGSize - vg.VGFree,
+						totalBytes: vg.VGSize,
+						vgName:     vg.VGName,
 					}
 				}
 			}
 
-			volumeList, err := m.volume.VolumeList("", "")
+			lvs, err := m.dm.VolumeManager.VolumeList("", "")
 
-			if err == nil && len(volumeList) > 0 {
-				for _, v := range volumeList {
-					if !strings.HasPrefix(v.LVName, "volume") {
+			if err == nil && len(lvs) > 0 {
+				for _, lv := range lvs {
+					if !strings.HasPrefix(lv.LVName, utils.VolumePrefix) {
 						continue
 					}
-					volumeCh <- VolumeMetrics{
-						Volume:     v.LVName,
-						TotalBytes: v.LVSize,
-						UsedBytes:  float64(v.LVSize) * v.DataPercent / 100,
+					if _, ok := diskSelectGroup[lv.VGName]; !ok {
+						continue
+					}
+					lvCh <- LogicVolumeMetrics{
+						lvName:     lv.LVName,
+						totalBytes: lv.LVSize,
+						usedBytes:  float64(lv.LVSize) * lv.DataPercent,
 					}
 				}
 			}

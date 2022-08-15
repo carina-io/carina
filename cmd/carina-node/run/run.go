@@ -18,6 +18,8 @@ package run
 
 import (
 	"errors"
+	"github.com/carina-io/carina/pkg/devicecheck"
+	"github.com/carina-io/carina/pkg/troubleshoot"
 	"os"
 
 	carinav1beta1 "github.com/carina-io/carina/api/v1beta1"
@@ -74,39 +76,40 @@ func subMain() error {
 	// 初始化磁盘管理服务
 	dm := deviceManager.NewDeviceManager(nodeName, mgr.GetCache(), ctx.Done())
 
-	podController := controllers.NewPodReconciler(
+	// volume一致性检查, cleanupOrphan
+	trouble := troubleshoot.NewTrouble(dm)
+	// 磁盘巡检，探测/删除本地设备
+	deviceCheck := devicecheck.NewDeviceCheck(dm)
+	// pod io controller
+	podIOController := controllers.NewPodIOReconciler(
 		mgr.GetClient(),
 		nodeName,
 		dm.Partition,
 	)
-	if err := podController.SetupWithManager(mgr); err != nil {
+	if err := podIOController.SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller ", "controller", "podController")
 		return err
 	}
-
+	// logic volume controller
 	lvController := controllers.NewLogicVolumeReconciler(
 		mgr.GetClient(),
 		mgr.GetEventRecorderFor("logicvolume-node"),
-		nodeName,
-		dm.VolumeManager,
-		dm.Partition,
+		dm,
 	)
 	if err := lvController.SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "LogicalVolume")
 		return err
 	}
-
+	// node storage resource reconciler
 	nodeResourceController := controllers.NewNodeStorageResourceReconciler(
 		mgr.GetClient(),
-		nodeName,
-		ctx.Done(),
 		dm,
 	)
 
 	// Add metrics exporter to manager.
 	// Note that grpc.ClientConn can be shared with multiple stubs/services.
 	// https://github.com/grpc/grpc-go/tree/master/examples/features/multiplex
-	if err := mgr.Add(runners.NewMetricsExporter(nodeName, dm.VolumeManager)); err != nil {
+	if err := mgr.Add(runners.NewMetricsExporter(dm)); err != nil {
 		return err
 	}
 
@@ -120,18 +123,19 @@ func subMain() error {
 	}
 	grpcServer := grpc.NewServer()
 	csi.RegisterIdentityServer(grpcServer, driver.NewIdentityService())
-	csi.RegisterNodeServer(grpcServer, driver.NewNodeService(nodeName, dm.VolumeManager, dm.Partition, s))
+	csi.RegisterNodeServer(grpcServer, driver.NewNodeService(dm, s))
 	err = mgr.Add(runners.NewGRPCRunner(grpcServer, config.csiSocket, false))
 	if err != nil {
 		return err
 	}
 
-	// 启动磁盘检查
-	go dm.DeviceCheckTask()
-	// 启动volume一致性检查
-	dm.VolumeConsistencyCheck()
-
+	// 启动volume一致性检查, cleanupOrphan
+	go trouble.Run()
+	// 启动磁盘巡检服务
+	go deviceCheck.Run()
+	// 启动nsr容量更新服务
 	go nodeResourceController.Run()
+
 	setupLog.Info("starting manager")
 	if err := mgr.Start(ctx); err != nil {
 		setupLog.Error(err, "problem running manager")

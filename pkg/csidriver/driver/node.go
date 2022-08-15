@@ -19,6 +19,7 @@ package driver
 import (
 	"context"
 	"errors"
+	deviceManager "github.com/carina-io/carina/pkg/devicemanager"
 	"io"
 	"os"
 	"path"
@@ -32,9 +33,7 @@ import (
 	"github.com/carina-io/carina/pkg/configuration"
 	"github.com/carina-io/carina/pkg/csidriver/driver/k8s"
 	"github.com/carina-io/carina/pkg/csidriver/filesystem"
-	"github.com/carina-io/carina/pkg/devicemanager/partition"
 	"github.com/carina-io/carina/pkg/devicemanager/types"
-	"github.com/carina-io/carina/pkg/devicemanager/volume"
 	"github.com/carina-io/carina/utils"
 	"github.com/carina-io/carina/utils/log"
 	"github.com/container-storage-interface/spec/lib/go/csi"
@@ -58,12 +57,10 @@ const (
 )
 
 // NewNodeService returns a new NodeServer.
-func NewNodeService(nodeName string, volumeManager volume.LocalVolume, partition partition.LocalPartition, service *k8s.LogicVolumeService) csi.NodeServer {
+func NewNodeService(dm *deviceManager.DeviceManager, service *k8s.LogicVolumeService) csi.NodeServer {
 	return &nodeService{
-		nodeName:      nodeName,
-		volumeManager: volumeManager,
-		partition:     partition,
-		k8sLVService:  service,
+		dm:           dm,
+		k8sLVService: service,
 		mounter: mountutil.SafeFormatAndMount{
 			Interface: mountutil.New(""),
 			Exec:      utilexec.New(),
@@ -73,13 +70,10 @@ func NewNodeService(nodeName string, volumeManager volume.LocalVolume, partition
 
 type nodeService struct {
 	csi.UnimplementedNodeServer
-
-	nodeName      string
-	volumeManager volume.LocalVolume
-	partition     partition.LocalPartition
-	k8sLVService  *k8s.LogicVolumeService
-	mu            sync.Mutex
-	mounter       mountutil.SafeFormatAndMount
+	dm           *deviceManager.DeviceManager
+	k8sLVService *k8s.LogicVolumeService
+	mu           sync.Mutex
+	mounter      mountutil.SafeFormatAndMount
 }
 
 func (s *nodeService) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolumeRequest) (*csi.NodePublishVolumeResponse, error) {
@@ -148,7 +142,7 @@ func (s *nodeService) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		if err != nil {
 			return nil, err
 		}
-		disk, err := s.partition.ScanDisk(lvr.Spec.DeviceGroup)
+		disk, err := s.dm.Partition.ScanDisk(lvr.Spec.DeviceGroup)
 		if err != nil {
 			return nil, err
 		}
@@ -470,7 +464,7 @@ func (s *nodeService) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 		if err != nil {
 			return nil, err
 		}
-		disk, err := s.partition.ScanDisk(lvr.Spec.DeviceGroup)
+		disk, err := s.dm.Partition.ScanDisk(lvr.Spec.DeviceGroup)
 		if err != nil {
 			return nil, err
 		}
@@ -491,7 +485,7 @@ func (s *nodeService) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 	info, err := os.Stat(target)
 	if os.IsNotExist(err) {
 		if backendDevice != "" {
-			_ = s.volumeManager.DeleteBcache(backendDevice, "")
+			_ = s.dm.VolumeManager.DeleteBcache(backendDevice, "")
 		}
 		// target_path does not exist, but device for mount-type PV may still exist.
 		_ = os.Remove(device)
@@ -571,7 +565,7 @@ func (s *nodeService) nodeUnpublishBFileSystemCacheVolume(req *csi.NodeUnpublish
 		return nil, status.Errorf(codes.Internal, "remove dir failed for %s: error=%v", target, err)
 	}
 	// delete bcache device
-	err = s.volumeManager.DeleteBcache(backendDevice, "")
+	err = s.dm.VolumeManager.DeleteBcache(backendDevice, "")
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "remove device failed for %s: error=%v", device, err)
 	}
@@ -586,7 +580,7 @@ func (s *nodeService) nodeUnpublishBlockCacheVolume(req *csi.NodeUnpublishVolume
 		return nil, status.Errorf(codes.Internal, "remove failed for %s: error=%v", req.GetTargetPath(), err)
 	}
 	// delete bcache device
-	err := s.volumeManager.DeleteBcache(backendDevice, "")
+	err := s.dm.VolumeManager.DeleteBcache(backendDevice, "")
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "remove device failed for %s: error=%v", device, err)
 	}
@@ -731,7 +725,7 @@ func (s *nodeService) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandV
 		if partition.Name == "" {
 			return nil, status.Errorf(codes.NotFound, "failed to find partition: %s", vid)
 		}
-		disk, err := s.partition.ScanDisk(lvr.Spec.DeviceGroup)
+		disk, err := s.dm.Partition.ScanDisk(lvr.Spec.DeviceGroup)
 		if err != nil {
 			return nil, err
 		}
@@ -826,18 +820,18 @@ func (s *nodeService) NodeGetCapabilities(context.Context, *csi.NodeGetCapabilit
 
 func (s *nodeService) NodeGetInfo(ctx context.Context, req *csi.NodeGetInfoRequest) (*csi.NodeGetInfoResponse, error) {
 	return &csi.NodeGetInfoResponse{
-		NodeId:            s.nodeName,
+		NodeId:            s.dm.NodeName,
 		MaxVolumesPerNode: 1000,
 		AccessibleTopology: &csi.Topology{
 			Segments: map[string]string{
-				utils.TopologyNodeKey: s.nodeName,
+				utils.TopologyNodeKey: s.dm.NodeName,
 			},
 		},
 	}, nil
 }
 
 func (s *nodeService) getLvFromContext(deviceGroup, volumeID string) (*types.LvInfo, error) {
-	lvs, err := s.volumeManager.VolumeList(volumeID, deviceGroup)
+	lvs, err := s.dm.VolumeManager.VolumeList(volumeID, deviceGroup)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "failed to list lv :%v", err)
 	}
@@ -851,7 +845,7 @@ func (s *nodeService) getLvFromContext(deviceGroup, volumeID string) (*types.LvI
 	return nil, errors.New("not found")
 }
 func (s *nodeService) getPartitionFromContext(deviceGroup, volumeID string) (disko.Partition, error) {
-	return s.partition.GetPartition(utils.PartitionName(volumeID), deviceGroup)
+	return s.dm.Partition.GetPartition(utils.PartitionName(volumeID), deviceGroup)
 }
 
 func (s *nodeService) getBcacheDevice(volumeID string) (*types.BcacheDeviceInfo, error) {
@@ -867,7 +861,7 @@ func (s *nodeService) getBcacheDevice(volumeID string) (*types.BcacheDeviceInfo,
 		devicePath := filepath.Join("/dev", d, volumeID)
 		_, err := os.Stat(devicePath)
 		if err == nil {
-			info, err := s.volumeManager.BcacheDeviceInfo(devicePath)
+			info, err := s.dm.VolumeManager.BcacheDeviceInfo(devicePath)
 			if err != nil {
 				return nil, err
 			}
@@ -891,7 +885,7 @@ func (s *nodeService) nodePublishBcacheVolume(ctx context.Context, req *csi.Node
 		return nil, status.Errorf(codes.FailedPrecondition, "carina.storage.io/path %s carina.storage.io/cache/path %s, can not be empty", backendDevice, cacheDevice)
 	}
 
-	cacheDeviceInfo, err := s.volumeManager.CreateBcache(backendDevice, cacheDevice, block, bucket, cachePolicy)
+	cacheDeviceInfo, err := s.dm.VolumeManager.CreateBcache(backendDevice, cacheDevice, block, bucket, cachePolicy)
 	if err != nil {
 		return nil, err
 	}

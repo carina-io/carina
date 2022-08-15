@@ -20,7 +20,6 @@ import (
 	"context"
 	"fmt"
 	"github.com/anuvu/disko"
-	"github.com/carina-io/carina/pkg/devicemanager/volume"
 	"k8s.io/apimachinery/pkg/api/equality"
 	"regexp"
 	"sort"
@@ -41,37 +40,31 @@ import (
 // NodeStorageResourceReconciler reconciles a NodeStorageResource object
 type NodeStorageResourceReconciler struct {
 	client.Client
-	nodeName      string
-	updateChannel chan *volume.VolumeEvent
-	stopChan      <-chan struct{}
+	updateChannel chan *deviceManager.VolumeEvent
 	dm            *deviceManager.DeviceManager
 }
 
 func NewNodeStorageResourceReconciler(
 	client client.Client,
-	nodeName string,
-	stopChan <-chan struct{},
 	dm *deviceManager.DeviceManager,
 ) *NodeStorageResourceReconciler {
 	return &NodeStorageResourceReconciler{
 		Client:        client,
-		nodeName:      nodeName,
-		updateChannel: make(chan *volume.VolumeEvent, 1000), // Buffer up to 1000 statuses
-		stopChan:      stopChan,
+		updateChannel: make(chan *deviceManager.VolumeEvent, 500), // Buffer up to 500 statuses
 		dm:            dm,
 	}
 }
 
-func (r *NodeStorageResourceReconciler) reconcile(ve *volume.VolumeEvent) {
+func (r *NodeStorageResourceReconciler) reconcile(ve *deviceManager.VolumeEvent) {
 	log.Infof("Try to update nodeStorageResource, trigger: %s, trigger at: %v", ve.Trigger, ve.TriggerAt.Format("2006-01-02 15:04:05.000000000"))
 
 	nodeStorageResource := new(carinav1beta1.NodeStorageResource)
 	ctx := context.Background()
-	getErr := r.Get(ctx, client.ObjectKey{Name: r.nodeName}, nodeStorageResource)
+	getErr := r.Get(ctx, client.ObjectKey{Name: r.dm.NodeName}, nodeStorageResource)
 	if getErr != nil {
 		if apierrs.IsNotFound(getErr) {
 			if err := r.createNodeStorageResource(ctx); err != nil {
-				log.Error(err, "unable to create NodeStorageResource ", r.nodeName)
+				log.Error(err, "unable to create NodeStorageResource ", r.dm.NodeName)
 			} else {
 				r.triggerReconcile()
 			}
@@ -106,7 +99,7 @@ func (r *NodeStorageResourceReconciler) Run() {
 	defer close(r.updateChannel)
 
 	// register volume update notice chan
-	r.dm.VolumeManager.RegisterNoticeChan(r.updateChannel)
+	r.dm.RegisterNoticeChan(r.updateChannel)
 
 	// for startup
 	if !r.dm.Cache.WaitForCacheSync(context.TODO()) {
@@ -119,7 +112,7 @@ func (r *NodeStorageResourceReconciler) Run() {
 		select {
 		case event := <-r.updateChannel:
 			r.reconcile(event)
-		case <-r.stopChan:
+		case <-r.dm.StopChan:
 			_ = r.deleteNodeStorageResource(context.TODO())
 			log.Info("Delete nodestorageresource...")
 			return
@@ -128,7 +121,7 @@ func (r *NodeStorageResourceReconciler) Run() {
 }
 
 func (r *NodeStorageResourceReconciler) triggerReconcile() {
-	r.updateChannel <- &volume.VolumeEvent{Trigger: volume.Dummy, TriggerAt: time.Now()}
+	r.updateChannel <- &deviceManager.VolumeEvent{Trigger: deviceManager.Dummy, TriggerAt: time.Now()}
 }
 
 func (r *NodeStorageResourceReconciler) createNodeStorageResource(ctx context.Context) error {
@@ -138,10 +131,10 @@ func (r *NodeStorageResourceReconciler) createNodeStorageResource(ctx context.Co
 			APIVersion: carinav1beta1.GroupVersion.Group,
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name: r.nodeName,
+			Name: r.dm.NodeName,
 		},
 		Spec: carinav1beta1.NodeStorageResourceSpec{
-			NodeName: r.nodeName,
+			NodeName: r.dm.NodeName,
 		},
 		Status: carinav1beta1.NodeStorageResourceStatus{
 			SyncTime: metav1.Now(),
@@ -157,7 +150,7 @@ func (r *NodeStorageResourceReconciler) deleteNodeStorageResource(ctx context.Co
 			APIVersion: carinav1beta1.GroupVersion.Group,
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name: r.nodeName,
+			Name: r.dm.NodeName,
 		},
 	}
 	return r.Client.Delete(ctx, NodeStorageResource)
