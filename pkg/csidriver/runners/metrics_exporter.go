@@ -18,18 +18,20 @@ package runners
 
 import (
 	"context"
+	carinav1 "github.com/carina-io/carina/api/v1"
 	deviceManager "github.com/carina-io/carina/pkg/devicemanager"
 	"github.com/carina-io/carina/utils"
 	"github.com/carina-io/carina/utils/log"
 	"github.com/prometheus/client_golang/prometheus"
+	apierrs "k8s.io/apimachinery/pkg/api/errors"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/metrics"
 	"strings"
 )
 
 const (
-	Subsystem        = "local"
-	metricsNamespace = "carina"
+	Subsystem = "local"
 )
 
 type VolumeGroupMetrics struct {
@@ -42,51 +44,50 @@ type LogicVolumeMetrics struct {
 	usedBytes  float64
 	totalBytes uint64
 	lvName     string
+	pvcNS      string
+	pvcName    string
 }
 
 type metricsExporter struct {
-	dm            *deviceManager.DeviceManager
-	vgUsedBytes   *prometheus.GaugeVec
-	vgTotalBytes  *prometheus.GaugeVec
-	lvUsedBytes   *prometheus.GaugeVec
-	lvTotalBytes  *prometheus.GaugeVec
+	vgUsedBytes  *prometheus.GaugeVec
+	vgTotalBytes *prometheus.GaugeVec
+	lvUsedBytes  *prometheus.GaugeVec
+	lvTotalBytes *prometheus.GaugeVec
+	dm           *deviceManager.DeviceManager
+	client.Client
 	updateChannel chan *deviceManager.VolumeEvent
 }
 
 // NewMetricsExporter creates controller-runtime's manager.Runnable to run
 // a metrics exporter for a node.
-func NewMetricsExporter(dm *deviceManager.DeviceManager) manager.Runnable {
+func NewMetricsExporter(client client.Client, dm *deviceManager.DeviceManager) manager.Runnable {
 	vgUsedBytes := prometheus.NewGaugeVec(prometheus.GaugeOpts{
-		Namespace:   metricsNamespace,
 		Subsystem:   Subsystem,
 		Name:        "vg_used_bytes",
-		Help:        "LVM VG used bytes",
+		Help:        "LVM vg used bytes",
 		ConstLabels: prometheus.Labels{"nodename": dm.NodeName},
 	}, []string{"vgname"})
 
 	vgTotalBytes := prometheus.NewGaugeVec(prometheus.GaugeOpts{
-		Namespace:   metricsNamespace,
 		Subsystem:   Subsystem,
 		Name:        "vg_total_bytes",
-		Help:        "LVM VG total bytes",
+		Help:        "LVM vg total bytes",
 		ConstLabels: prometheus.Labels{"nodename": dm.NodeName},
 	}, []string{"vgname"})
 
 	lvTotalBytes := prometheus.NewGaugeVec(prometheus.GaugeOpts{
-		Namespace:   metricsNamespace,
 		Subsystem:   Subsystem,
 		Name:        "lv_total_bytes",
-		Help:        "LVM logic Volume total bytes",
+		Help:        "LVM local Volume total bytes",
 		ConstLabels: prometheus.Labels{"nodename": dm.NodeName},
-	}, []string{"lvname"})
+	}, []string{"lvname", "pvcnamespace", "pvcname"})
 
 	lvUsedBytes := prometheus.NewGaugeVec(prometheus.GaugeOpts{
-		Namespace:   metricsNamespace,
 		Subsystem:   Subsystem,
 		Name:        "lv_used_bytes",
-		Help:        "LVM logic volume used bytes",
+		Help:        "LVM local volume used bytes",
 		ConstLabels: prometheus.Labels{"nodename": dm.NodeName},
-	}, []string{"lvname"})
+	}, []string{"lvname", "pvcnamespace", "pvcname"})
 
 	metrics.Registry.MustRegister(vgTotalBytes)
 	metrics.Registry.MustRegister(vgUsedBytes)
@@ -94,11 +95,12 @@ func NewMetricsExporter(dm *deviceManager.DeviceManager) manager.Runnable {
 	metrics.Registry.MustRegister(lvUsedBytes)
 
 	return &metricsExporter{
-		dm:            dm,
 		vgUsedBytes:   vgUsedBytes,
 		vgTotalBytes:  vgTotalBytes,
 		lvUsedBytes:   lvUsedBytes,
 		lvTotalBytes:  lvTotalBytes,
+		dm:            dm,
+		Client:        client,
 		updateChannel: make(chan *deviceManager.VolumeEvent, 500), // Buffer up to 500 statuses
 	}
 }
@@ -125,8 +127,8 @@ func (m *metricsExporter) Start(ctx context.Context) error {
 				m.vgUsedBytes.WithLabelValues(vg.vgName).Set(float64(vg.usedBytes))
 				m.vgTotalBytes.WithLabelValues(vg.vgName).Set(float64(vg.totalBytes))
 			case lv := <-lvCh:
-				m.lvUsedBytes.WithLabelValues(lv.lvName).Set(lv.usedBytes)
-				m.lvTotalBytes.WithLabelValues(lv.lvName).Set(float64(lv.totalBytes))
+				m.lvUsedBytes.WithLabelValues(lv.lvName, lv.pvcNS, lv.pvcName).Set(lv.usedBytes)
+				m.lvTotalBytes.WithLabelValues(lv.lvName, lv.pvcNS, lv.pvcName).Set(float64(lv.totalBytes))
 			}
 		}
 	}()
@@ -155,17 +157,24 @@ func (m *metricsExporter) Start(ctx context.Context) error {
 			lvs, err := m.dm.VolumeManager.VolumeList("", "")
 
 			if err == nil && len(lvs) > 0 {
-				for _, lv := range lvs {
-					if !strings.HasPrefix(lv.LVName, utils.VolumePrefix) {
+				for _, localVolume := range lvs {
+					if !strings.HasPrefix(localVolume.LVName, utils.VolumePrefix) {
 						continue
 					}
-					if _, ok := diskSelectGroup[lv.VGName]; !ok {
+					if _, ok := diskSelectGroup[localVolume.VGName]; !ok {
+						continue
+					}
+					logicVolume := new(carinav1.LogicVolume)
+					if err := m.Client.Get(ctx, client.ObjectKey{Name: localVolume.LVName}, logicVolume); err != nil && !apierrs.IsNotFound(err) {
+						log.Warnf("Failed to get logicVolume, name: %s, error: %s", localVolume.LVName, err.Error())
 						continue
 					}
 					lvCh <- LogicVolumeMetrics{
-						lvName:     lv.LVName,
-						totalBytes: lv.LVSize,
-						usedBytes:  float64(lv.LVSize) * lv.DataPercent,
+						usedBytes:  float64(localVolume.LVSize) * localVolume.DataPercent,
+						totalBytes: localVolume.LVSize,
+						lvName:     localVolume.LVName,
+						pvcNS:      logicVolume.Spec.NameSpace,
+						pvcName:    logicVolume.Spec.Pvc,
 					}
 				}
 			}
