@@ -108,13 +108,6 @@ func subMain() error {
 		return err
 	}
 
-	// Add metrics exporter to manager.
-	// Note that grpc.ClientConn can be shared with multiple stubs/services.
-	// https://github.com/grpc/grpc-go/tree/master/examples/features/multiplex
-	if err := mgr.Add(newMetricsExporter()); err != nil {
-		return err
-	}
-
 	// Add gRPC server to manager.
 	s, err := k8s.NewLogicVolumeService(mgr)
 	if err != nil {
@@ -132,10 +125,6 @@ func subMain() error {
 	if err != nil {
 		return err
 	}
-
-	// Http Server
-	e := newHttpServer(mgr.GetCache(), ctx.Done())
-	go e.start()
 
 	setupLog.Info("starting manager")
 	if err := mgr.Start(ctx); err != nil {

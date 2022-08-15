@@ -94,7 +94,6 @@ spec:
             - "--cert-dir=/certs"
             - "--metrics-addr=:8080"
             - "--webhook-addr=:8443"
-            - "--http-addr=:8089"
           env:
             - name: POD_IP
               valueFrom:
@@ -113,8 +112,6 @@ spec:
           ports:
             - containerPort: 8080
               name: metrics
-            - containerPort: 8089
-              name: http
             - containerPort: 8443
               name: webhook
           resources:
@@ -165,10 +162,6 @@ spec:
       protocol: TCP
       port: 8080
       targetPort: 8080
-    - name: http
-      protocol: TCP
-      port: 8089
-      targetPort: 8089
 
 ---
 apiVersion: admissionregistration.k8s.io/v1

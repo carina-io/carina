@@ -130,9 +130,6 @@ func subMain() error {
 	go dm.DeviceCheckTask()
 	// 启动volume一致性检查
 	dm.VolumeConsistencyCheck()
-	// http server
-	e := newHttpServer(dm.VolumeManager, ctx.Done())
-	go e.start()
 
 	go nodeResourceController.Run()
 	setupLog.Info("starting manager")
