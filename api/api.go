@@ -37,7 +37,7 @@ type Disk struct {
 	SectorSize uint `json:"sectorSize,omitempty"`
 
 	// ReadOnly - cannot be written to.
-	ReadOnly string `json:"read-only,omitempty"`
+	ReadOnly bool `json:"read-only,omitempty"`
 
 	// Type is the DiskType indicating the type of this disk. This value
 	// can be used to determine if the disk is of a particular media type like
