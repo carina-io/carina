@@ -13,7 +13,7 @@
    See the License for the specific language governing permissions and
    limitations under the License.
 */
-package devicecheck
+package runners
 
 import (
 	"bytes"
@@ -94,7 +94,7 @@ func TestDeviceManager(t *testing.T) {
 	stopChan := make(chan struct{})
 	defer close(stopChan)
 	dm := deviceManager.NewDeviceManager("localhost", nil, stopChan)
-	dc := &DeviceCheck{dm: dm}
+	dc := &deviceCheck{dm: dm}
 	defer func() {
 		// 清理volumex
 		_ = cleanVolume(dm)
@@ -120,7 +120,7 @@ func TestDeviceManager(t *testing.T) {
 	}
 }
 
-func deviceAddAndRemove(dc *DeviceCheck) error {
+func deviceAddAndRemove(dc *deviceCheck) error {
 	dc.addAndRemoveDevice()
 
 	pvInfo, err := dc.dm.VolumeManager.GetCurrentPvStruct()

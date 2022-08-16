@@ -19,7 +19,7 @@ package run
 import (
 	"flag"
 	"fmt"
-	"github.com/carina-io/carina/utils"
+	"github.com/carina-io/carina"
 	"github.com/spf13/cobra"
 	"k8s.io/klog/v2"
 	"os"
@@ -34,7 +34,7 @@ var config struct {
 
 var rootCmd = &cobra.Command{
 	Use:     "carina-node",
-	Version: utils.Version,
+	Version: carina.Version,
 	Short:   "Carina CSI node",
 	Long: `carina-node provides CSI node service.
 It also works as a custom Kubernetes controller.
@@ -59,7 +59,7 @@ func Execute() {
 
 func init() {
 	fs := rootCmd.Flags()
-	fs.StringVar(&config.csiSocket, "csi-address", utils.DefaultCSISocket, "UNIX domain socket filename for CSI")
+	fs.StringVar(&config.csiSocket, "csi-address", carina.DefaultCSISocket, "UNIX domain socket filename for CSI")
 	fs.StringVar(&config.metricsAddr, "metrics-addr", ":8080", "Listen address for metrics")
 
 	goflags := flag.NewFlagSet("klog", flag.ExitOnError)

@@ -20,6 +20,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/carina-io/carina"
 	"strings"
 	"time"
 
@@ -61,13 +62,9 @@ type NodeReconciler struct {
 
 // Reconcile finalize Node
 func (r *NodeReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-
 	log.Infof("pod %s reconcile manager...", req.Name)
 	// your logic here
-
-	go r.resourceReconcile(ctx)
-
-	return ctrl.Result{}, nil
+	return ctrl.Result{}, r.resourceReconcile(ctx)
 }
 
 // SetupWithManager sets up Reconciler with Manager.
@@ -100,7 +97,7 @@ func (r *NodeReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		DeleteFunc: func(e event.DeleteEvent) bool {
 			p := e.Object.(*corev1.Pod)
 			if p != nil {
-				if p.Spec.SchedulerName == utils.CarinaSchedule {
+				if p.Spec.SchedulerName == carina.CarinaSchedule {
 					return true
 				}
 				return false
@@ -168,14 +165,14 @@ func (r *NodeReconciler) getNeedRebuildVolume(ctx context.Context) (map[string]c
 		// 删除没有对应pv的logic volume
 		pvPhase, ok := pvMap[lv.Name]
 		if lv.Status.Status != "" && !ok {
-			if lv.Finalizers != nil && utils.ContainsString(lv.Finalizers, utils.LogicVolumeFinalizer) {
+			if lv.Finalizers != nil && utils.ContainsString(lv.Finalizers, carina.LogicVolumeFinalizer) {
 				log.Infof("remove logic volume %s", lv.Name)
 				if err = r.Delete(ctx, &lv); err != nil {
 					log.Errorf(" failed to remove logic volume %s", err.Error())
 					return volumeObjectMap, err
 				}
 				lv2 := lv.DeepCopy()
-				lv2.Finalizers = utils.SliceRemoveString(lv2.Finalizers, utils.LogicVolumeFinalizer)
+				lv2.Finalizers = utils.SliceRemoveString(lv2.Finalizers, carina.LogicVolumeFinalizer)
 				patch := client.MergeFrom(&lv)
 				if err := r.Patch(ctx, lv2, patch); err != nil {
 					log.Error(err, " failed to remove finalizer name ", lv.Name)
@@ -203,9 +200,9 @@ func (r *NodeReconciler) getNeedRebuildVolume(ctx context.Context) (map[string]c
 		}
 		log.Info("Namespace: ", lv.Spec.NameSpace, " Name: ", lv.Spec.Pvc, " Status: ", lv.Status.Status)
 		volumeObjectMap[lv.Name] = client.ObjectKey{Namespace: lv.Spec.NameSpace, Name: lv.Spec.Pvc}
-		if lv.Finalizers != nil && utils.ContainsString(lv.Finalizers, utils.LogicVolumeFinalizer) {
+		if lv.Finalizers != nil && utils.ContainsString(lv.Finalizers, carina.LogicVolumeFinalizer) {
 			lv2 := lv.DeepCopy()
-			lv2.Finalizers = utils.SliceRemoveString(lv2.Finalizers, utils.LogicVolumeFinalizer)
+			lv2.Finalizers = utils.SliceRemoveString(lv2.Finalizers, carina.LogicVolumeFinalizer)
 			patch := client.MergeFrom(&lv)
 			if err := r.Patch(ctx, lv2, patch); err != nil {
 				log.Error(err, " failed to remove finalizer name ", lv.Name)
@@ -287,13 +284,13 @@ func (r *NodeReconciler) pvMap(ctx context.Context) (map[string]corev1.Persisten
 func (r *NodeReconciler) clearPod(ctx context.Context, nodeName string) error {
 
 	podList := &corev1.PodList{}
-	err := r.Client.List(ctx, podList, client.MatchingFields{"combinedIndex": fmt.Sprintf("%s-%s", utils.CarinaSchedule, nodeName)})
+	err := r.Client.List(ctx, podList, client.MatchingFields{"combinedIndex": fmt.Sprintf("%s-%s", carina.CarinaSchedule, nodeName)})
 	if err != nil {
 		return err
 	}
 	for _, p := range podList.Items {
 		// check annotation carina.storage.io/allow-pod-migration-if-node-notready: true
-		if _, ok := p.Annotations[utils.AllowPodMigrationIfNodeNotready]; !ok || p.Annotations[utils.AllowPodMigrationIfNodeNotready] == "false" {
+		if _, ok := p.Annotations[carina.AllowPodMigrationIfNodeNotready]; !ok || p.Annotations[carina.AllowPodMigrationIfNodeNotready] == "false" {
 			continue
 		}
 		log.Infof("not ready node: %s  pod: %s ", p.Spec.NodeName, p.Name)

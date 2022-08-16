@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"github.com/carina-io/carina"
 	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -106,7 +107,7 @@ func TestIsStaticPod(t *testing.T) {
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "test-pod",
 			Annotations: map[string]string{
-				ConfigSourceAnnotationKey: "file",
+				main.ConfigSourceAnnotationKey: "file",
 			},
 		},
 	}

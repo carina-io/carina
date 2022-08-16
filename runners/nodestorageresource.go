@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package controllers
+package runners
 
 import (
 	"context"
@@ -23,6 +23,7 @@ import (
 	"github.com/carina-io/carina"
 	"k8s.io/apimachinery/pkg/api/equality"
 	"regexp"
+	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sort"
 	"strings"
 	"time"
@@ -38,8 +39,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
+var _ manager.LeaderElectionRunnable = &nodeStorageResourceReconciler{}
+
 // NodeStorageResourceReconciler reconciles a NodeStorageResource object
-type NodeStorageResourceReconciler struct {
+type nodeStorageResourceReconciler struct {
 	client.Client
 	updateChannel chan *deviceManager.VolumeEvent
 	dm            *deviceManager.DeviceManager
@@ -48,15 +51,15 @@ type NodeStorageResourceReconciler struct {
 func NewNodeStorageResourceReconciler(
 	client client.Client,
 	dm *deviceManager.DeviceManager,
-) *NodeStorageResourceReconciler {
-	return &NodeStorageResourceReconciler{
+) manager.Runnable {
+	return &nodeStorageResourceReconciler{
 		Client:        client,
 		updateChannel: make(chan *deviceManager.VolumeEvent, 500), // Buffer up to 500 statuses
 		dm:            dm,
 	}
 }
 
-func (r *NodeStorageResourceReconciler) reconcile(ve *deviceManager.VolumeEvent) {
+func (r *nodeStorageResourceReconciler) reconcile(ve *deviceManager.VolumeEvent) {
 	log.Infof("Try to update nodeStorageResource, trigger: %s, trigger at: %v", ve.Trigger, ve.TriggerAt.Format("2006-01-02 15:04:05.000000000"))
 
 	nodeStorageResource := new(carinav1beta1.NodeStorageResource)
@@ -93,8 +96,7 @@ func (r *NodeStorageResourceReconciler) reconcile(ve *deviceManager.VolumeEvent)
 	}
 }
 
-// Run begins watching and syncing.
-func (r *NodeStorageResourceReconciler) Run() {
+func (r *nodeStorageResourceReconciler) Start(ctx context.Context) error {
 	log.Infof("Starting nodeStorageResource reconciler")
 	defer log.Infof("Shutting down nodeStorageResource reconciler")
 	defer close(r.updateChannel)
@@ -102,30 +104,25 @@ func (r *NodeStorageResourceReconciler) Run() {
 	// register volume update notice chan
 	r.dm.RegisterNoticeChan(r.updateChannel)
 
-	// for startup
-	if !r.dm.Cache.WaitForCacheSync(context.TODO()) {
-		log.Errorf("Failed to wait for cache sync")
-		return
-	}
 	go r.triggerReconcile()
 
 	for {
 		select {
 		case event := <-r.updateChannel:
 			r.reconcile(event)
-		case <-r.dm.StopChan:
+		case <-ctx.Done():
 			_ = r.deleteNodeStorageResource(context.TODO())
 			log.Info("Delete nodestorageresource...")
-			return
+			return nil
 		}
 	}
 }
 
-func (r *NodeStorageResourceReconciler) triggerReconcile() {
+func (r *nodeStorageResourceReconciler) triggerReconcile() {
 	r.updateChannel <- &deviceManager.VolumeEvent{Trigger: deviceManager.Dummy, TriggerAt: time.Now()}
 }
 
-func (r *NodeStorageResourceReconciler) createNodeStorageResource(ctx context.Context) error {
+func (r *nodeStorageResourceReconciler) createNodeStorageResource(ctx context.Context) error {
 	NodeStorageResource := &carinav1beta1.NodeStorageResource{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       carinav1beta1.GroupVersion.Version,
@@ -144,7 +141,7 @@ func (r *NodeStorageResourceReconciler) createNodeStorageResource(ctx context.Co
 	return r.Client.Create(ctx, NodeStorageResource)
 }
 
-func (r *NodeStorageResourceReconciler) deleteNodeStorageResource(ctx context.Context) error {
+func (r *nodeStorageResourceReconciler) deleteNodeStorageResource(ctx context.Context) error {
 	NodeStorageResource := &carinav1beta1.NodeStorageResource{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       carinav1beta1.GroupVersion.Version,
@@ -157,7 +154,7 @@ func (r *NodeStorageResourceReconciler) deleteNodeStorageResource(ctx context.Co
 	return r.Client.Delete(ctx, NodeStorageResource)
 }
 
-func (r *NodeStorageResourceReconciler) generateStatus() carinav1beta1.NodeStorageResourceStatus {
+func (r *nodeStorageResourceReconciler) generateStatus() carinav1beta1.NodeStorageResourceStatus {
 	status := carinav1beta1.NodeStorageResourceStatus{
 		Capacity:    make(map[string]resource.Quantity),
 		Allocatable: make(map[string]resource.Quantity),
@@ -171,7 +168,7 @@ func (r *NodeStorageResourceReconciler) generateStatus() carinav1beta1.NodeStora
 	return status
 }
 
-func (r *NodeStorageResourceReconciler) generateLvmStatus(status *carinav1beta1.NodeStorageResourceStatus) {
+func (r *nodeStorageResourceReconciler) generateLvmStatus(status *carinav1beta1.NodeStorageResourceStatus) {
 	diskSelectGroup := r.dm.GetNodeDiskSelectGroup()
 	vgs, err := r.dm.VolumeManager.GetCurrentVgStruct()
 	if err != nil {
@@ -197,7 +194,7 @@ func (r *NodeStorageResourceReconciler) generateLvmStatus(status *carinav1beta1.
 
 }
 
-func (r *NodeStorageResourceReconciler) generateDiskStatus(status *carinav1beta1.NodeStorageResourceStatus) {
+func (r *nodeStorageResourceReconciler) generateDiskStatus(status *carinav1beta1.NodeStorageResourceStatus) {
 	diskSelectGroup := r.dm.GetNodeDiskSelectGroup()
 	localDisk, err := r.dm.Partition.ListDevicesDetail("")
 	if err != nil {
@@ -279,6 +276,11 @@ func (r *NodeStorageResourceReconciler) generateDiskStatus(status *carinav1beta1
 	}
 }
 
-func (r *NodeStorageResourceReconciler) generateRaidStatus(status *carinav1beta1.NodeStorageResourceStatus) {
+func (r *nodeStorageResourceReconciler) generateRaidStatus(status *carinav1beta1.NodeStorageResourceStatus) {
 	//TODO
+}
+
+// NeedLeaderElection implements controller-runtime's manager.LeaderElectionRunnable.
+func (dc *nodeStorageResourceReconciler) NeedLeaderElection() bool {
+	return false
 }

@@ -14,13 +14,14 @@
    limitations under the License.
 */
 
-package devicecheck
+package runners
 
 import (
 	"context"
 	deviceManager "github.com/carina-io/carina/pkg/devicemanager"
 	"k8s.io/apimachinery/pkg/api/equality"
 	"regexp"
+	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"strings"
 	"time"
 
@@ -30,14 +31,16 @@ import (
 	"github.com/carina-io/carina/utils/log"
 )
 
-type DeviceCheck struct {
+var _ manager.LeaderElectionRunnable = &deviceCheck{}
+
+type deviceCheck struct {
 	dm *deviceManager.DeviceManager
 	// 配置变更即触发搜索本地磁盘逻辑
 	configModifyChan chan struct{}
 }
 
-func NewDeviceCheck(dm *deviceManager.DeviceManager) *DeviceCheck {
-	dc := &DeviceCheck{
+func NewDeviceCheck(dm *deviceManager.DeviceManager) manager.Runnable {
+	dc := &deviceCheck{
 		dm: dm,
 	}
 	// 注册监听配置变更
@@ -46,8 +49,7 @@ func NewDeviceCheck(dm *deviceManager.DeviceManager) *DeviceCheck {
 	return dc
 }
 
-func (dc *DeviceCheck) Run() {
-	dc.dm.Cache.WaitForCacheSync(context.Background())
+func (dc *deviceCheck) Start(ctx context.Context) error {
 	log.Info("start device scan...")
 	dc.dm.VolumeManager.RefreshLvmCache()
 	// 服务启动先检查一次
@@ -84,16 +86,17 @@ func (dc *DeviceCheck) Run() {
 				log.Info("config modify trigger disk scan...")
 				dc.addAndRemoveDevice()
 				go time.AfterFunc(10*time.Second, func() { dc.dm.NoticeUpdateCapacity(deviceManager.ConfigModify, nil) })
-			case <-dc.dm.StopChan:
+			case <-ctx.Done():
 				log.Info("stop device scan...")
 				return
 			}
 		}
 	}(ticker)
+	return nil
 }
 
 // addAndRemoveDevice 定时巡检磁盘，是否有新磁盘加入
-func (dc *DeviceCheck) addAndRemoveDevice() {
+func (dc *deviceCheck) addAndRemoveDevice() {
 	diskClass := dc.dm.GetNodeDiskSelectGroup()
 	actuallyVg, err := dc.dm.VolumeManager.GetCurrentVgStruct()
 	if err != nil {
@@ -206,7 +209,7 @@ func (dc *DeviceCheck) addAndRemoveDevice() {
 }
 
 // discoverDisk 查找是否有符合条件的块设备加入
-func (dc *DeviceCheck) discoverDisk(diskClass map[string]configuration.DiskSelectorItem) (map[string][]string, error) {
+func (dc *deviceCheck) discoverDisk(diskClass map[string]configuration.DiskSelectorItem) (map[string][]string, error) {
 	blockClass := map[string][]string{}
 	var name string
 	// 列出所有本地磁盘
@@ -295,7 +298,7 @@ func (dc *DeviceCheck) discoverDisk(diskClass map[string]configuration.DiskSelec
 }
 
 // discoverPv 支持发现Pv，由于某些异常情况，只创建成功了PV,并未创建成功VG
-func (dc *DeviceCheck) discoverPv(diskClass map[string]configuration.DiskSelectorItem) (map[string][]string, error) {
+func (dc *deviceCheck) discoverPv(diskClass map[string]configuration.DiskSelectorItem) (map[string][]string, error) {
 	resp := map[string][]string{}
 	var name string
 	pvList, err := dc.dm.VolumeManager.GetCurrentPvStruct()
@@ -345,4 +348,9 @@ func (dc *DeviceCheck) discoverPv(diskClass map[string]configuration.DiskSelecto
 		}
 	}
 	return resp, nil
+}
+
+// NeedLeaderElection implements controller-runtime's manager.LeaderElectionRunnable.
+func (dc *deviceCheck) NeedLeaderElection() bool {
+	return false
 }

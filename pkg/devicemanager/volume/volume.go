@@ -20,6 +20,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/carina-io/carina"
 	"strings"
 	"time"
 
@@ -28,7 +29,6 @@ import (
 	"github.com/carina-io/carina/pkg/devicemanager/bcache"
 	"github.com/carina-io/carina/pkg/devicemanager/lvmd"
 	"github.com/carina-io/carina/pkg/devicemanager/types"
-	"github.com/carina-io/carina/utils"
 	"github.com/carina-io/carina/utils/log"
 	"github.com/carina-io/carina/utils/mutx"
 	"google.golang.org/grpc/codes"
@@ -62,12 +62,12 @@ func (v *LocalVolumeImplement) CreateVolume(lvName, vgName string, size, ratio u
 		return errors.New("cannot find device group info")
 	}
 
-	if vgInfo.VGFree-size < utils.DefaultReservedSpace/2 {
+	if vgInfo.VGFree-size < carina.DefaultReservedSpace {
 		log.Warnf("%s don't have enough space, reserved 10 g", vgName)
 		return errors.New("don't have enough space")
 	}
 
-	name := utils.VolumePrefix + lvName
+	name := carina.VolumePrefix + lvName
 
 	lvInfo, _ := v.Lv.LVDisplay(name, vgName)
 	if lvInfo != nil && lvInfo.VGName == vgName {
@@ -87,8 +87,8 @@ func (v *LocalVolumeImplement) DeleteVolume(lvName, vgName string) error {
 	defer v.Mutex.Release(VOLUMEMUTEX)
 
 	name := lvName
-	if !strings.HasPrefix(lvName, utils.VolumePrefix) {
-		name = utils.VolumePrefix + lvName
+	if !strings.HasPrefix(lvName, carina.VolumePrefix) {
+		name = carina.VolumePrefix + lvName
 	}
 
 	lvInfo, err := v.Lv.LVDisplay(name, vgName)
@@ -133,7 +133,7 @@ func (v *LocalVolumeImplement) ResizeVolume(lvName, vgName string, size, ratio u
 		return errors.New("cannot find device group info")
 	}
 
-	name := utils.VolumePrefix + lvName
+	name := carina.VolumePrefix + lvName
 
 	lvInfo, err := v.Lv.LVDisplay(name, vgName)
 	if err != nil {
@@ -150,7 +150,7 @@ func (v *LocalVolumeImplement) ResizeVolume(lvName, vgName string, size, ratio u
 		return nil
 	}
 
-	if vgInfo.VGFree-(size-lvInfo.LVSize) < utils.DefaultReservedSpace/2 {
+	if vgInfo.VGFree-(size-lvInfo.LVSize) < carina.DefaultReservedSpace {
 		log.Warnf("%s don't have enough space, reserved 10 g", vgName)
 		return errors.New("don't have enough space")
 	}
@@ -361,8 +361,8 @@ func (v *LocalVolumeImplement) HealthCheck() {
 		case <-ctx.Done():
 			log.Info("volume health check timeout.")
 		default:
-			_ = v.Lv.RemoveUnknownDevice(utils.DeviceVGHDD)
-			_ = v.Lv.RemoveUnknownDevice(utils.DeviceVGSSD)
+			_ = v.Lv.RemoveUnknownDevice(carina.DeviceVGHDD)
+			_ = v.Lv.RemoveUnknownDevice(carina.DeviceVGSSD)
 			return
 		}
 	}

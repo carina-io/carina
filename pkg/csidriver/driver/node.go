@@ -19,6 +19,7 @@ package driver
 import (
 	"context"
 	"errors"
+	"github.com/carina-io/carina"
 	deviceManager "github.com/carina-io/carina/pkg/devicemanager"
 	"io"
 	"os"
@@ -107,7 +108,7 @@ func (s *nodeService) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	cacheVolumeId := volumeContext[utils.VolumeCacheId]
+	cacheVolumeId := volumeContext[carina.VolumeCacheId]
 	if cacheVolumeId != "" {
 		return s.nodePublishBcacheVolume(ctx, req)
 	}
@@ -118,8 +119,8 @@ func (s *nodeService) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	if err != nil {
 		return nil, err
 	}
-	switch lvr.Annotations[utils.VolumeManagerType] {
-	case utils.LvmVolumeType:
+	switch lvr.Annotations[carina.VolumeManagerType] {
+	case carina.LvmVolumeType:
 		lv, err = s.getLvFromContext(lvr.Spec.DeviceGroup, volumeID)
 		if err != nil {
 			return nil, err
@@ -137,7 +138,7 @@ func (s *nodeService) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		if err != nil {
 			return nil, err
 		}
-	case utils.RawVolumeType:
+	case carina.RawVolumeType:
 		partition, err := s.getPartitionFromContext(lvr.Spec.DeviceGroup, volumeID)
 		if err != nil {
 			return nil, err
@@ -456,10 +457,10 @@ func (s *nodeService) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 	}
 	var device string
 	var backendDevice string = ""
-	switch lvr.Annotations[utils.VolumeManagerType] {
-	case utils.LvmVolumeType:
+	switch lvr.Annotations[carina.VolumeManagerType] {
+	case carina.LvmVolumeType:
 		device = filepath.Join(DeviceDirectory, volID)
-	case utils.RawVolumeType:
+	case carina.RawVolumeType:
 		partition, err := s.getPartitionFromContext(lvr.Spec.DeviceGroup, volID)
 		if err != nil {
 			return nil, err
@@ -703,8 +704,8 @@ func (s *nodeService) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandV
 	if err != nil {
 		return nil, err
 	}
-	switch lvr.Annotations[utils.VolumeManagerType] {
-	case utils.LvmVolumeType:
+	switch lvr.Annotations[carina.VolumeManagerType] {
+	case carina.LvmVolumeType:
 		lv, err := s.getLvFromContext(lvr.Spec.DeviceGroup, vid)
 		if err != nil {
 			return nil, err
@@ -717,7 +718,7 @@ func (s *nodeService) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandV
 		if err != nil {
 			return nil, err
 		}
-	case utils.RawVolumeType:
+	case carina.RawVolumeType:
 		partition, err := s.getPartitionFromContext(lvr.Spec.DeviceGroup, vid)
 		if err != nil {
 			return nil, err
@@ -824,7 +825,7 @@ func (s *nodeService) NodeGetInfo(ctx context.Context, req *csi.NodeGetInfoReque
 		MaxVolumesPerNode: 1000,
 		AccessibleTopology: &csi.Topology{
 			Segments: map[string]string{
-				utils.TopologyNodeKey: s.dm.NodeName,
+				carina.TopologyNodeKey: s.dm.NodeName,
 			},
 		},
 	}, nil
@@ -875,11 +876,11 @@ func (s *nodeService) nodePublishBcacheVolume(ctx context.Context, req *csi.Node
 
 	volumeContext := req.GetVolumeContext()
 
-	backendDevice := volumeContext[utils.VolumeDevicePath]
-	cacheDevice := volumeContext[utils.VolumeCacheDevicePath]
-	block := volumeContext[utils.VolumeCacheBlock]
-	bucket := volumeContext[utils.VolumeCacheBucket]
-	cachePolicy := volumeContext[utils.VolumeCachePolicy]
+	backendDevice := volumeContext[carina.VolumeDevicePath]
+	cacheDevice := volumeContext[carina.VolumeCacheDevicePath]
+	block := volumeContext[carina.VolumeCacheBlock]
+	bucket := volumeContext[carina.VolumeCacheBucket]
+	cachePolicy := volumeContext[carina.VolumeCachePolicy]
 
 	if backendDevice == "" || cacheDevice == "" {
 		return nil, status.Errorf(codes.FailedPrecondition, "carina.storage.io/path %s carina.storage.io/cache/path %s, can not be empty", backendDevice, cacheDevice)

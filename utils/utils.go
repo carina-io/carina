@@ -20,6 +20,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/carina-io/carina"
 	v1 "k8s.io/api/core/v1"
 	"os"
 	"reflect"
@@ -153,19 +154,19 @@ func Fill(src interface{}, dst interface{}) error {
 
 func PartitionName(lv string) string {
 	strtemp := strings.Split(lv, "-")
-	return fmt.Sprintf("%s/%s", CarinaPrefix, strtemp[len(strtemp)-1])
+	return fmt.Sprintf("%s/%s", carina.CarinaPrefix, strtemp[len(strtemp)-1])
 }
 
 // IsStaticPod returns true if the pod is a static pod.
 func IsStaticPod(pod *v1.Pod) bool {
 	source, err := GetPodSource(pod)
-	return err == nil && source != ApiserverSource
+	return err == nil && source != carina.ApiserverSource
 }
 
 // GetPodSource returns the source of the pod based on the annotation.
 func GetPodSource(pod *v1.Pod) (string, error) {
 	if pod.Annotations != nil {
-		if source, ok := pod.Annotations[ConfigSourceAnnotationKey]; ok {
+		if source, ok := pod.Annotations[carina.ConfigSourceAnnotationKey]; ok {
 			return source, nil
 		}
 	}

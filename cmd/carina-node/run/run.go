@@ -18,8 +18,7 @@ package run
 
 import (
 	"errors"
-	"github.com/carina-io/carina/pkg/devicecheck"
-	"github.com/carina-io/carina/pkg/troubleshoot"
+	"github.com/carina-io/carina/runners"
 	"os"
 
 	carinav1beta1 "github.com/carina-io/carina/api/v1beta1"
@@ -28,7 +27,6 @@ import (
 	"github.com/carina-io/carina/controllers"
 	"github.com/carina-io/carina/pkg/csidriver/driver"
 	"github.com/carina-io/carina/pkg/csidriver/driver/k8s"
-	"github.com/carina-io/carina/pkg/csidriver/runners"
 	deviceManager "github.com/carina-io/carina/pkg/devicemanager"
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"google.golang.org/grpc"
@@ -76,10 +74,6 @@ func subMain() error {
 	// 初始化磁盘管理服务
 	dm := deviceManager.NewDeviceManager(nodeName, mgr.GetCache(), ctx.Done())
 
-	// volume一致性检查, cleanupOrphan
-	trouble := troubleshoot.NewTrouble(dm)
-	// 磁盘巡检，探测/删除本地设备
-	deviceCheck := devicecheck.NewDeviceCheck(dm)
 	// pod io controller
 	podIOController := controllers.NewPodIOReconciler(
 		mgr.GetClient(),
@@ -100,11 +94,6 @@ func subMain() error {
 		setupLog.Error(err, "unable to create controller", "controller", "LogicalVolume")
 		return err
 	}
-	// node storage resource reconciler
-	nodeResourceController := controllers.NewNodeStorageResourceReconciler(
-		mgr.GetClient(),
-		dm,
-	)
 
 	// Add metrics exporter to manager.
 	// Note that grpc.ClientConn can be shared with multiple stubs/services.
@@ -124,17 +113,24 @@ func subMain() error {
 	grpcServer := grpc.NewServer()
 	csi.RegisterIdentityServer(grpcServer, driver.NewIdentityService())
 	csi.RegisterNodeServer(grpcServer, driver.NewNodeService(dm, s))
-	err = mgr.Add(runners.NewGRPCRunner(grpcServer, config.csiSocket, false))
-	if err != nil {
+	if err := mgr.Add(runners.NewGRPCRunner(grpcServer, config.csiSocket, false)); err != nil {
 		return err
 	}
 
-	// 启动volume一致性检查, cleanupOrphan
-	go trouble.Run()
-	// 启动磁盘巡检服务
-	go deviceCheck.Run()
-	// 启动nsr容量更新服务
-	go nodeResourceController.Run()
+	// add cleanupOrphan to manager
+	if err := mgr.Add(runners.NewTroubleShoot(dm)); err != nil {
+		return err
+	}
+
+	// add device check to manager, add or delete device
+	if err := mgr.Add(runners.NewDeviceCheck(dm)); err != nil {
+		return err
+	}
+
+	// add nsr reconciler to manager
+	if err := mgr.Add(runners.NewNodeStorageResourceReconciler(mgr.GetClient(), dm)); err != nil {
+		return err
+	}
 
 	setupLog.Info("starting manager")
 	if err := mgr.Start(ctx); err != nil {

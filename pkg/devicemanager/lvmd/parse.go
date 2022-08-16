@@ -17,9 +17,9 @@
 package lvmd
 
 import (
+	"github.com/carina-io/carina"
 	"github.com/carina-io/carina/api"
 	"github.com/carina-io/carina/pkg/devicemanager/types"
-	"github.com/carina-io/carina/utils"
 	"github.com/carina-io/carina/utils/log"
 	"strconv"
 	"strings"
@@ -127,7 +127,7 @@ func parseLvs(lvsString string) []types.LvInfo {
 				log.Warnf("undefined field %s=%s", k[0], k[1])
 			}
 		}
-		if strings.HasPrefix(tmp.LVName, utils.VolumePrefix) || strings.HasPrefix(tmp.LVName, utils.ThinPrefix) {
+		if strings.HasPrefix(tmp.LVName, carina.VolumePrefix) || strings.HasPrefix(tmp.LVName, carina.ThinPrefix) {
 			resp = append(resp, tmp)
 		}
 	}

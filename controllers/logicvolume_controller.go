@@ -19,6 +19,7 @@ package controllers
 import (
 	"context"
 	"fmt"
+	"github.com/carina-io/carina"
 	deviceManager "github.com/carina-io/carina/pkg/devicemanager"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"strconv"
@@ -84,7 +85,7 @@ func (r *LogicVolumeReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	}
 
 	// finalization
-	if !utils.ContainsString(lv.Finalizers, utils.LogicVolumeFinalizer) {
+	if !utils.ContainsString(lv.Finalizers, carina.LogicVolumeFinalizer) {
 		// Our finalizer has finished, so the reconciler can do nothing.
 		return ctrl.Result{}, nil
 	}
@@ -108,18 +109,18 @@ func (r *LogicVolumeReconciler) removeLVIfExists(ctx context.Context, lv *carina
 	// Finalizer's process ( RemoveLV then removeString ) is not atomic,
 	// so checking existence of LV to ensure its idempotence
 	var err error
-	switch lv.Annotations[utils.VolumeManagerType] {
-	case utils.LvmVolumeType:
+	switch lv.Annotations[carina.VolumeManagerType] {
+	case carina.LvmVolumeType:
 		err = utils.UntilMaxRetry(func() error {
 			return r.dm.VolumeManager.DeleteVolume(lv.Name, lv.Spec.DeviceGroup)
 		}, 10, 12*time.Second)
 
-	case utils.RawVolumeType:
+	case carina.RawVolumeType:
 		err = utils.UntilMaxRetry(func() error {
 			return r.dm.Partition.DeletePartition(utils.PartitionName(lv.Name), lv.Spec.DeviceGroup)
 		}, 10, 12*time.Second)
 	default:
-		log.Errorf("Delete LogicVolume: Create with no support volume type undefined %s", lv.Annotations[utils.VolumeManagerType])
+		log.Errorf("Delete LogicVolume: Create with no support volume type undefined %s", lv.Annotations[carina.VolumeManagerType])
 		return nil
 	}
 
@@ -133,7 +134,7 @@ func (r *LogicVolumeReconciler) removeLVIfExists(ctx context.Context, lv *carina
 	}
 
 	lv2 := lv.DeepCopy()
-	lv2.Finalizers = utils.SliceRemoveString(lv2.Finalizers, utils.LogicVolumeFinalizer)
+	lv2.Finalizers = utils.SliceRemoveString(lv2.Finalizers, carina.LogicVolumeFinalizer)
 	patch := client.MergeFrom(lv)
 	if err = r.Patch(ctx, lv2, patch); err != nil {
 		log.Error(err, " failed to remove finalizer name ", lv.Name)
@@ -152,8 +153,8 @@ func (r *LogicVolumeReconciler) createLV(ctx context.Context, lv *carinav1.Logic
 	}
 	reqBytes := lv.Spec.Size.Value()
 
-	switch lv.Annotations[utils.VolumeManagerType] {
-	case utils.LvmVolumeType:
+	switch lv.Annotations[carina.VolumeManagerType] {
+	case carina.LvmVolumeType:
 		err := utils.UntilMaxRetry(func() error {
 			return r.dm.VolumeManager.CreateVolume(lv.Name, lv.Spec.DeviceGroup, uint64(reqBytes), 1)
 		}, 5, 12*time.Second)
@@ -164,7 +165,7 @@ func (r *LogicVolumeReconciler) createLV(ctx context.Context, lv *carinav1.Logic
 			lv.Status.Status = "Failed"
 			r.recorder.Event(lv, corev1.EventTypeWarning, "CreateVolumeFailed", fmt.Sprintf("create volume failed node: %s, time: %s, error: %s", r.dm.NodeName, time.Now().Format("2006-01-02T15:04:05.000Z"), err.Error()))
 		} else {
-			lv.Status.VolumeID = utils.VolumePrefix + lv.Name
+			lv.Status.VolumeID = carina.VolumePrefix + lv.Name
 			lv.Status.CurrentSize = resource.NewQuantity(reqBytes, resource.BinarySI)
 			lv.Status.Code = codes.OK
 			lv.Status.Message = ""
@@ -178,8 +179,8 @@ func (r *LogicVolumeReconciler) createLV(ctx context.Context, lv *carinav1.Logic
 			r.recorder.Event(lv, corev1.EventTypeNormal, "CreateVolumeSuccess", fmt.Sprintf("create volume success node: %s, time: %s", r.dm.NodeName, time.Now().Format("2006-01-02T15:04:05.000Z")))
 		}
 
-	case utils.RawVolumeType:
-		if _, ok := lv.Annotations[utils.ExclusivityDisk]; ok {
+	case carina.RawVolumeType:
+		if _, ok := lv.Annotations[carina.ExclusivityDisk]; ok {
 			log.Info("Create lv using an exclusive disk")
 		}
 		err := utils.UntilMaxRetry(func() error {
@@ -193,7 +194,7 @@ func (r *LogicVolumeReconciler) createLV(ctx context.Context, lv *carinav1.Logic
 			lv.Status.Status = "Failed"
 			r.recorder.Event(lv, corev1.EventTypeWarning, "CreateVolumeFailed", fmt.Sprintf("create volume failed node: %s, time: %s, error: %s", r.dm.NodeName, time.Now().Format("2006-01-02T15:04:05.000Z"), err.Error()))
 		} else {
-			lv.Status.VolumeID = utils.VolumePrefix + lv.Name
+			lv.Status.VolumeID = carina.VolumePrefix + lv.Name
 			lv.Status.CurrentSize = resource.NewQuantity(reqBytes, resource.BinarySI)
 			lv.Status.Code = codes.OK
 			lv.Status.Message = ""
@@ -214,7 +215,7 @@ func (r *LogicVolumeReconciler) createLV(ctx context.Context, lv *carinav1.Logic
 		}
 
 	default:
-		log.Errorf("Create LogicVolume: Create with no support volume type undefined %s", lv.Annotations[utils.VolumeManagerType])
+		log.Errorf("Create LogicVolume: Create with no support volume type undefined %s", lv.Annotations[carina.VolumeManagerType])
 		return nil
 	}
 
@@ -245,8 +246,8 @@ func (r *LogicVolumeReconciler) expandLV(ctx context.Context, lv *carinav1.Logic
 	origBytes := (*lv.Status.CurrentSize).Value()
 	reqBytes := lv.Spec.Size.Value()
 
-	switch lv.Annotations[utils.VolumeManagerType] {
-	case utils.LvmVolumeType:
+	switch lv.Annotations[carina.VolumeManagerType] {
+	case carina.LvmVolumeType:
 		err := utils.UntilMaxRetry(func() error {
 			return r.dm.VolumeManager.ResizeVolume(lv.Name, lv.Spec.DeviceGroup, uint64(reqBytes), 1)
 		}, 10, 12*time.Second)
@@ -263,11 +264,11 @@ func (r *LogicVolumeReconciler) expandLV(ctx context.Context, lv *carinav1.Logic
 			r.recorder.Event(lv, corev1.EventTypeNormal, "ExpandVolumeSuccess", fmt.Sprintf("expand volume success node: %s, time: %s", r.dm.NodeName, time.Now().Format("2006-01-02T15:04:05.000Z")))
 		}
 
-	case utils.RawVolumeType:
-		if _, ok := lv.Annotations[utils.ExclusivityDisk]; !ok {
+	case carina.RawVolumeType:
+		if _, ok := lv.Annotations[carina.ExclusivityDisk]; !ok {
 			return fmt.Errorf("Extend lv: %s doesn't get  annotations: carina.storage.io/exclusively-raw-disk", lv.Name)
 		}
-		if lv.Annotations[utils.ExclusivityDisk] == "false" {
+		if lv.Annotations[carina.ExclusivityDisk] == "false" {
 			return fmt.Errorf("Extend lv: %s doesn't using an exclusive disk", lv.Name)
 		}
 		err := utils.UntilMaxRetry(func() error {
@@ -287,7 +288,7 @@ func (r *LogicVolumeReconciler) expandLV(ctx context.Context, lv *carinav1.Logic
 		}
 
 	default:
-		log.Errorf("Create LogicVolume: %s with no support volume type undefined %s", lv.Name, lv.Annotations[utils.VolumeManagerType])
+		log.Errorf("Create LogicVolume: %s with no support volume type undefined %s", lv.Name, lv.Annotations[carina.VolumeManagerType])
 		return nil
 	}
 

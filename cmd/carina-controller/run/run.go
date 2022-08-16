@@ -18,6 +18,8 @@ package run
 
 import (
 	"fmt"
+	"github.com/carina-io/carina"
+	"github.com/carina-io/carina/runners"
 	"net"
 
 	carinav1 "github.com/carina-io/carina/api/v1"
@@ -27,8 +29,6 @@ import (
 	"github.com/carina-io/carina/pkg/configuration"
 	"github.com/carina-io/carina/pkg/csidriver/driver"
 	"github.com/carina-io/carina/pkg/csidriver/driver/k8s"
-	"github.com/carina-io/carina/pkg/csidriver/runners"
-	"github.com/carina-io/carina/utils"
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"google.golang.org/grpc"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -75,7 +75,7 @@ func subMain() error {
 		Scheme:                  scheme,
 		MetricsBindAddress:      config.metricsAddr,
 		LeaderElection:          true,
-		LeaderElectionID:        utils.CSIPluginName + "-carina-controller",
+		LeaderElectionID:        carina.CSIPluginName + "-carina-controller",
 		LeaderElectionNamespace: configuration.RuntimeNamespace(),
 		WebhookServer: &webhook.Server{
 			Host:     hookHost,

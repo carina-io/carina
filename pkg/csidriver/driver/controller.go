@@ -20,12 +20,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/carina-io/carina"
+	"github.com/carina-io/carina/pkg/configuration"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/carina-io/carina/pkg/csidriver/driver/k8s"
-	"github.com/carina-io/carina/pkg/version"
 	"github.com/carina-io/carina/utils"
 	"github.com/carina-io/carina/utils/log"
 	"github.com/carina-io/carina/utils/mutx"
@@ -53,9 +54,9 @@ func (s controllerService) CreateVolume(ctx context.Context, req *csi.CreateVolu
 
 	capabilities := req.GetVolumeCapabilities()
 	source := req.GetVolumeContentSource()
-	deviceGroup := req.GetParameters()[utils.DeviceDiskKey]
+	deviceGroup := req.GetParameters()[carina.DeviceDiskKey]
 	var exclusivityDisk bool = false
-	if req.GetParameters()[utils.ExclusivityDisk] == "true" {
+	if req.GetParameters()[carina.ExclusivityDisk] == "true" {
 		exclusivityDisk = true
 	}
 	name := req.GetName()
@@ -65,7 +66,7 @@ func (s controllerService) CreateVolume(ctx context.Context, req *csi.CreateVolu
 	name = strings.ToLower(name)
 
 	// 处理磁盘类型参数，支持carina.storage.io/disk-group-name:ssd书写方式
-	deviceGroup = version.GetDeviceGroup(deviceGroup)
+	deviceGroup = getDeviceGroup(deviceGroup)
 	log.Info("CreateVolume called ",
 		" name ", req.GetName(),
 		" device_group ", deviceGroup,
@@ -135,8 +136,8 @@ func (s controllerService) CreateVolume(ctx context.Context, req *csi.CreateVolu
 		return nil, status.Errorf(codes.Internal, "can not find pvc %s %s", namespace, name)
 	}
 
-	if version.CheckRawDeviceGroup(deviceGroup) {
-		volumeType = utils.RawVolumeType
+	if checkRawDeviceGroup(deviceGroup) {
+		volumeType = carina.RawVolumeType
 		if node != "" {
 			deviceGroup, err = s.nodeService.SelectDeviceGroupDisk(ctx, requestGb, node, volumeType, exclusivityDisk, deviceGroup)
 			if err != nil {
@@ -144,11 +145,11 @@ func (s controllerService) CreateVolume(ctx context.Context, req *csi.CreateVolu
 			}
 		}
 	} else {
-		volumeType = utils.LvmVolumeType
+		volumeType = carina.LvmVolumeType
 	}
 
 	// if bcache type, need create two lvm volume
-	cacheDiskRatio := req.GetParameters()[utils.VolumeCacheDiskRatio]
+	cacheDiskRatio := req.GetParameters()[carina.VolumeCacheDiskRatio]
 	if cacheDiskRatio != "" && cacheDiskRatio != "0" {
 		return s.CreateBcacheVolume(ctx, req, node, requestGb)
 	}
@@ -169,16 +170,16 @@ func (s controllerService) CreateVolume(ctx context.Context, req *csi.CreateVolu
 	log.Infof("CreateVolume: Starting to Create %s volume %s with: pvcName(%s), pvcNameSpace(%s), node(%s),nodeSelected(%s), storageSelected(%s)", volumeType, req.GetName(), pvcName, namespace, node, nodeName, deviceGroup)
 	// pv csi VolumeAttributes
 	annotation := map[string]string{}
-	annotation[utils.VolumeManagerType] = volumeType
-	if volumeType == utils.RawVolumeType {
-		annotation[utils.ExclusivityDisk] = fmt.Sprint(exclusivityDisk)
+	annotation[carina.VolumeManagerType] = volumeType
+	if volumeType == carina.RawVolumeType {
+		annotation[carina.ExclusivityDisk] = fmt.Sprint(exclusivityDisk)
 	}
 
 	volumeContext := req.GetParameters()
 	// 不是调度器完成pv调度，则采用controller调度
 	if node == "" {
 		switch volumeType {
-		case utils.LvmVolumeType:
+		case carina.LvmVolumeType:
 			// In CSI spec, controllers are required that they response OK even if accessibility_requirements field is nil.
 			// So we must create volume, and must not return error response in this case.
 			// - https://github.com/container-storage-interface/spec/blob/release-1.1/spec.md#createvolume
@@ -196,7 +197,7 @@ func (s controllerService) CreateVolume(ctx context.Context, req *csi.CreateVolu
 				return nil, status.Error(codes.Internal, "can not find any device group")
 			}
 
-		case utils.RawVolumeType:
+		case carina.RawVolumeType:
 			log.Info("decide node because accessibility_requirements not found")
 
 			node, deviceGroup, segments, err = s.nodeService.SelectDeviceNode(ctx, requestGb, deviceGroup, requirements, exclusivityDisk)
@@ -228,13 +229,13 @@ func (s controllerService) CreateVolume(ctx context.Context, req *csi.CreateVolu
 		return nil, err
 	}
 	//Append necessary parameters
-	volumeContext[utils.DeviceDiskKey] = deviceGroup
-	volumeContext[utils.VolumeDevicePath] = fmt.Sprintf("/dev/%s/volume-%s", deviceGroup, name)
-	volumeContext[utils.VolumeDeviceNode] = node
-	volumeContext[utils.VolumeDeviceMajor] = fmt.Sprintf("%d", deviceMajor)
-	volumeContext[utils.VolumeDeviceMinor] = fmt.Sprintf("%d", deviceMinor)
+	volumeContext[carina.DeviceDiskKey] = deviceGroup
+	volumeContext[carina.VolumeDevicePath] = fmt.Sprintf("/dev/%s/volume-%s", deviceGroup, name)
+	volumeContext[carina.VolumeDeviceNode] = node
+	volumeContext[carina.VolumeDeviceMajor] = fmt.Sprintf("%d", deviceMajor)
+	volumeContext[carina.VolumeDeviceMinor] = fmt.Sprintf("%d", deviceMinor)
 	// pv nodeAffinity
-	segments[utils.TopologyNodeKey] = node
+	segments[carina.TopologyNodeKey] = node
 	return &csi.CreateVolumeResponse{
 		Volume: &csi.Volume{
 			CapacityBytes: requestGb << 30,
@@ -314,7 +315,7 @@ func (s controllerService) GetCapacity(ctx context.Context, req *csi.GetCapacity
 	}
 
 	// Adopt the new version of the transformation
-	deviceGroup := version.GetDeviceGroup(req.GetParameters()[utils.DeviceDiskKey])
+	deviceGroup := getDeviceGroup(req.GetParameters()[carina.DeviceDiskKey])
 
 	capacity, err := s.nodeService.GetTotalCapacity(ctx, deviceGroup, topology)
 	if err != nil {
@@ -371,7 +372,7 @@ func (s controllerService) ControllerExpandVolume(ctx context.Context, req *csi.
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 
-	if lv.Annotations[utils.VolumeManagerType] == "raw" && lv.Annotations[utils.ExclusivityDisk] == "false" {
+	if lv.Annotations[carina.VolumeManagerType] == "raw" && lv.Annotations[carina.ExclusivityDisk] == "false" {
 		return nil, status.Error(codes.Internal, "can not exclusivityDisk pods")
 	}
 
@@ -418,7 +419,7 @@ func (s controllerService) ControllerExpandVolume(ctx context.Context, req *csi.
 	}
 
 	// if bcache enable
-	cacheDiskRatio := lv.Annotations[utils.VolumeCacheDiskRatio]
+	cacheDiskRatio := lv.Annotations[carina.VolumeCacheDiskRatio]
 	if cacheDiskRatio != "" {
 		go func() {
 			timeCtx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
@@ -465,7 +466,7 @@ func convertRequestCapacity(requestBytes, limitBytes int64) (int64, error) {
 	}
 
 	if requestBytes == 0 {
-		return utils.MinRequestSizeGb, nil
+		return carina.MinRequestSizeGb, nil
 	}
 	return (requestBytes-1)>>30 + 1, nil
 }
@@ -479,17 +480,17 @@ func (s controllerService) CreateBcacheVolume(ctx context.Context, req *csi.Crea
 	name = strings.ToLower(name)
 	requirements := req.GetAccessibilityRequirements()
 
-	backendDiskType := req.GetParameters()[utils.VolumeBackendDiskType]
-	cacheDiskType := req.GetParameters()[utils.VolumeCacheDiskType]
-	cacheDiskRatio := req.GetParameters()[utils.VolumeCacheDiskRatio]
-	cachepolicy := req.GetParameters()[utils.VolumeCachePolicy]
+	backendDiskType := req.GetParameters()[carina.VolumeBackendDiskType]
+	cacheDiskType := req.GetParameters()[carina.VolumeCacheDiskType]
+	cacheDiskRatio := req.GetParameters()[carina.VolumeCacheDiskRatio]
+	cachepolicy := req.GetParameters()[carina.VolumeCachePolicy]
 
 	if backendDiskType == "" {
-		return nil, status.Errorf(codes.FailedPrecondition, "%s %s, can not be empty", utils.VolumeBackendDiskType, backendDiskType)
+		return nil, status.Errorf(codes.FailedPrecondition, "%s %s, can not be empty", carina.VolumeBackendDiskType, backendDiskType)
 	}
 
 	if cacheDiskType == "" {
-		return nil, status.Errorf(codes.FailedPrecondition, "%s %s, can not be empty", utils.VolumeCacheDiskType, cacheDiskType)
+		return nil, status.Errorf(codes.FailedPrecondition, "%s %s, can not be empty", carina.VolumeCacheDiskType, cacheDiskType)
 	}
 
 	backendDiskType = strings.ToLower(backendDiskType)
@@ -534,7 +535,7 @@ func (s controllerService) CreateBcacheVolume(ctx context.Context, req *csi.Crea
 	}
 
 	annotation := map[string]string{
-		utils.VolumeCacheDiskRatio: cacheDiskRatio,
+		carina.VolumeCacheDiskRatio: cacheDiskRatio,
 	}
 
 	backendDiskVolumeID, backendDiskDeviceMajor, backendDiskDeviceMinor, err := s.lvService.CreateVolume(ctx, namespace, pvcName, node, backendDiskType, backendVolumeName, backendRequestGb, metav1.OwnerReference{}, annotation)
@@ -578,21 +579,21 @@ func (s controllerService) CreateBcacheVolume(ctx context.Context, req *csi.Crea
 
 	// pv csi VolumeAttributes
 	volumeContext := req.GetParameters()
-	volumeContext[utils.DeviceDiskKey] = backendDiskType
-	volumeContext[utils.VolumeDevicePath] = fmt.Sprintf("/dev/%s/volume-%s", backendDiskType, backendVolumeName)
-	volumeContext[utils.VolumeDeviceNode] = node
-	volumeContext[utils.VolumeDeviceMajor] = fmt.Sprintf("%d", backendDiskDeviceMajor)
-	volumeContext[utils.VolumeDeviceMinor] = fmt.Sprintf("%d", backendDiskDeviceMinor)
-	volumeContext[utils.VolumeCacheDiskType] = cacheDiskType
-	volumeContext[utils.VolumeCacheDevicePath] = fmt.Sprintf("/dev/%s/volume-%s", cacheDiskType, cacheVolumeName)
-	volumeContext[utils.VolumeCacheDeviceMajor] = fmt.Sprintf("%d", cacheDiskDeviceMajor)
-	volumeContext[utils.VolumeCacheDeviceMinor] = fmt.Sprintf("%d", cacheDiskDeviceMinor)
-	volumeContext[utils.VolumeCachePolicy] = cachepolicy
-	volumeContext[utils.VolumeCacheDiskRatio] = cacheDiskRatio
-	volumeContext[utils.VolumeCacheId] = cacheDiskVolumeID
+	volumeContext[carina.DeviceDiskKey] = backendDiskType
+	volumeContext[carina.VolumeDevicePath] = fmt.Sprintf("/dev/%s/volume-%s", backendDiskType, backendVolumeName)
+	volumeContext[carina.VolumeDeviceNode] = node
+	volumeContext[carina.VolumeDeviceMajor] = fmt.Sprintf("%d", backendDiskDeviceMajor)
+	volumeContext[carina.VolumeDeviceMinor] = fmt.Sprintf("%d", backendDiskDeviceMinor)
+	volumeContext[carina.VolumeCacheDiskType] = cacheDiskType
+	volumeContext[carina.VolumeCacheDevicePath] = fmt.Sprintf("/dev/%s/volume-%s", cacheDiskType, cacheVolumeName)
+	volumeContext[carina.VolumeCacheDeviceMajor] = fmt.Sprintf("%d", cacheDiskDeviceMajor)
+	volumeContext[carina.VolumeCacheDeviceMinor] = fmt.Sprintf("%d", cacheDiskDeviceMinor)
+	volumeContext[carina.VolumeCachePolicy] = cachepolicy
+	volumeContext[carina.VolumeCacheDiskRatio] = cacheDiskRatio
+	volumeContext[carina.VolumeCacheId] = cacheDiskVolumeID
 
 	// pv nodeAffinity
-	segments[utils.TopologyNodeKey] = node
+	segments[carina.TopologyNodeKey] = node
 
 	return &csi.CreateVolumeResponse{
 		Volume: &csi.Volume{
@@ -607,4 +608,44 @@ func (s controllerService) CreateBcacheVolume(ctx context.Context, req *csi.Crea
 			},
 		},
 	}, nil
+}
+
+// 处理磁盘类型参数，支持carina.storage.io/disk-group-name:ssd书写方式
+func getDeviceGroup(diskType string) string {
+	deviceGroup := strings.ToLower(diskType)
+	currentDiskSelector := configuration.DiskSelector()
+	var diskClass = []string{}
+	for _, v := range currentDiskSelector {
+		if strings.ToLower(v.Policy) == "raw" {
+			continue
+		}
+		diskClass = append(diskClass, strings.ToLower(v.Name))
+	}
+	//diskClass := configuration.GetDiskGroups()
+	//如果sc 配置的磁盘组在配置里就默认返回配置的磁盘组，老板本的磁盘组如果在新配置文件里配置了，就采用新的配置
+	if utils.ContainsString(diskClass, deviceGroup) {
+		return deviceGroup
+	}
+	//这里是为了兼容旧版本的sc
+	if utils.ContainsString([]string{"ssd", "hdd"}, deviceGroup) {
+		deviceGroup = fmt.Sprintf("carina-vg-%s", deviceGroup)
+	}
+	return deviceGroup
+
+}
+
+func checkRawDeviceGroup(diskType string) bool {
+	deviceGroup := strings.ToLower(diskType)
+	currentDiskSelector := configuration.DiskSelector()
+	if utils.ContainsString([]string{"ssd", "hdd"}, deviceGroup) {
+		deviceGroup = fmt.Sprintf("carina-vg-%s", deviceGroup)
+	}
+
+	for _, v := range currentDiskSelector {
+		if v.Name == deviceGroup && strings.ToLower(v.Policy) == "raw" {
+			return true
+		}
+
+	}
+	return false
 }

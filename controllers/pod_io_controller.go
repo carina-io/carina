@@ -19,6 +19,7 @@ package controllers
 import (
 	"context"
 	"fmt"
+	"github.com/carina-io/carina"
 	"github.com/carina-io/carina/pkg/devicemanager/partition"
 	"github.com/carina-io/carina/utils/iolimit"
 	"k8s.io/kubectl/pkg/util/qos"
@@ -105,7 +106,7 @@ func (r *PodIOReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		if pv.Spec.CSI == nil {
 			return nil
 		}
-		if pv.Spec.CSI.Driver != utils.CSIPluginName {
+		if pv.Spec.CSI.Driver != carina.CSIPluginName {
 			return nil
 		}
 		if pv.Status.Phase != corev1.VolumeBound {
@@ -168,8 +169,8 @@ func (r *PodIOReconciler) getPodBlkIO(ctx context.Context, pod *corev1.Pod) *iol
 			continue
 		}
 		pvInfo := pvList.Items[0]
-		deviceMajor := pvInfo.Spec.CSI.VolumeAttributes[utils.VolumeDeviceMajor]
-		deviceMinor := pvInfo.Spec.CSI.VolumeAttributes[utils.VolumeDeviceMinor]
+		deviceMajor := pvInfo.Spec.CSI.VolumeAttributes[carina.VolumeDeviceMajor]
+		deviceMinor := pvInfo.Spec.CSI.VolumeAttributes[carina.VolumeDeviceMinor]
 		if deviceMajor == "" || deviceMinor == "" {
 			continue
 		}

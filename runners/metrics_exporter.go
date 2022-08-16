@@ -18,9 +18,9 @@ package runners
 
 import (
 	"context"
+	"github.com/carina-io/carina"
 	carinav1 "github.com/carina-io/carina/api/v1"
 	deviceManager "github.com/carina-io/carina/pkg/devicemanager"
-	"github.com/carina-io/carina/utils"
 	"github.com/carina-io/carina/utils/log"
 	"github.com/prometheus/client_golang/prometheus"
 	apierrs "k8s.io/apimachinery/pkg/api/errors"
@@ -57,6 +57,8 @@ type metricsExporter struct {
 	client.Client
 	updateChannel chan *deviceManager.VolumeEvent
 }
+
+var _ manager.LeaderElectionRunnable = &metricsExporter{}
 
 // NewMetricsExporter creates controller-runtime's manager.Runnable to run
 // a metrics exporter for a node.
@@ -158,7 +160,7 @@ func (m *metricsExporter) Start(ctx context.Context) error {
 
 			if err == nil && len(lvs) > 0 {
 				for _, localVolume := range lvs {
-					if !strings.HasPrefix(localVolume.LVName, utils.VolumePrefix) {
+					if !strings.HasPrefix(localVolume.LVName, carina.VolumePrefix) {
 						continue
 					}
 					if _, ok := diskSelectGroup[localVolume.VGName]; !ok {

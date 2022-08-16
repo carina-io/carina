@@ -18,7 +18,7 @@ package driver
 
 import (
 	"context"
-	"github.com/carina-io/carina/utils"
+	"github.com/carina-io/carina"
 	"github.com/carina-io/carina/utils/log"
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/golang/protobuf/ptypes/wrappers"
@@ -37,8 +37,8 @@ type identityService struct {
 func (s identityService) GetPluginInfo(ctx context.Context, req *csi.GetPluginInfoRequest) (*csi.GetPluginInfoResponse, error) {
 	log.Info("GetPluginInfo req ", req.String())
 	return &csi.GetPluginInfoResponse{
-		Name:          utils.CSIPluginName,
-		VendorVersion: utils.Version,
+		Name:          carina.CSIPluginName,
+		VendorVersion: carina.Version,
 	}, nil
 }
 
