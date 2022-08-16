@@ -71,7 +71,7 @@ func (r *nodeStorageResourceReconciler) reconcile(ve *deviceManager.VolumeEvent)
 	if getErr != nil {
 		if apierrs.IsNotFound(getErr) {
 			if err := r.createNodeStorageResource(ctx); err != nil {
-				log.Error(err, "unable to create NodeStorageResource ", r.dm.NodeName)
+				log.Error(err, " unable to create NodeStorageResource ", r.dm.NodeName)
 			} else {
 				r.triggerReconcile()
 			}

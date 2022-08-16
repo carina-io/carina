@@ -54,8 +54,6 @@ func NewTroubleShoot(dm *deviceManager.DeviceManager) manager.Runnable {
 }
 
 func (t *troubleShoot) Start(ctx context.Context) error {
-	t.dm.Cache.WaitForCacheSync(context.Background())
-
 	ticker := time.NewTicker(600 * time.Second)
 	defer ticker.Stop()
 	for {

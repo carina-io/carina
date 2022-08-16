@@ -63,7 +63,7 @@ func (r *LogicVolumeReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	lv := new(carinav1.LogicVolume)
 	if err := r.Client.Get(ctx, req.NamespacedName, lv); err != nil {
 		if !apierrs.IsNotFound(err) {
-			log.Error(err, "unable to fetch LogicVolume")
+			log.Error(err, " unable to fetch LogicVolume")
 			return ctrl.Result{}, err
 		}
 		return ctrl.Result{}, nil

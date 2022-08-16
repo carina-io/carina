@@ -70,7 +70,7 @@ func NewPodIOReconciler(
 func (r *PodIOReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	pod := &corev1.Pod{}
 	if err := r.Client.Get(ctx, req.NamespacedName, pod); err != nil {
-		log.Error(err, "unable to fetch pod")
+		log.Error(err, " unable to fetch pod")
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
@@ -237,6 +237,17 @@ func (p podFilter) filter(pod *corev1.Pod) bool {
 	if pod.Status.Phase == corev1.PodPending || pod.Status.Phase == corev1.PodSucceeded {
 		return false
 	}
+	var ioThrottleExist bool
+	for _, ioThrottle := range iolimit.GetSupportedIOThrottles() {
+		if _, ok := pod.Annotations[fmt.Sprintf("%s/%s", carina.CSIPluginName, ioThrottle)]; ok {
+			ioThrottleExist = true
+			break
+		}
+	}
+	if !ioThrottleExist {
+		return false
+	}
+
 	return true
 }
 
@@ -245,7 +256,7 @@ func (p podFilter) Create(e event.CreateEvent) bool {
 }
 
 func (p podFilter) Delete(e event.DeleteEvent) bool {
-	return true
+	return p.filter(e.Object.(*corev1.Pod))
 }
 
 func (p podFilter) Update(e event.UpdateEvent) bool {
