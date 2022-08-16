@@ -160,9 +160,13 @@ func checkFunc(dm *deviceManager.DeviceManager, c client.Reader) func() error {
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
 
-		dm.VolumeManager.GetCurrentVgStruct()
-		dm.Partition.ListDevicesDetail("")
-		
+		if _, err := dm.VolumeManager.GetCurrentVgStruct(); err != nil {
+			return err
+		}
+		if _, err := dm.Partition.ListDevicesDetailWithoutFilter(""); err != nil {
+			return err
+		}
+
 		var drv storagev1.CSIDriver
 		return c.Get(ctx, types.NamespacedName{Name: carina.CSIPluginName}, &drv)
 	}
