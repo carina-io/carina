@@ -87,7 +87,7 @@ func (s *LogicVolumeService) CreateVolume(ctx context.Context, namespace, pvc, n
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:        name,
-			Namespace:   main.LogicVolumeNamespace,
+			Namespace:   carina.LogicVolumeNamespace,
 			Annotations: annotation,
 		},
 		Spec: carinav1.LogicVolumeSpec{
@@ -99,14 +99,14 @@ func (s *LogicVolumeService) CreateVolume(ctx context.Context, namespace, pvc, n
 		},
 	}
 
-	lv.Finalizers = []string{main.LogicVolumeFinalizer}
+	lv.Finalizers = []string{carina.LogicVolumeFinalizer}
 
 	if owner.Name != "" {
 		lv.OwnerReferences = []metav1.OwnerReference{owner}
 	}
 
 	existingLV := new(carinav1.LogicVolume)
-	err := s.Get(ctx, client.ObjectKey{Name: name, Namespace: main.LogicVolumeNamespace}, existingLV)
+	err := s.Get(ctx, client.ObjectKey{Name: name, Namespace: carina.LogicVolumeNamespace}, existingLV)
 	if err != nil {
 		if !apierrors.IsNotFound(err) {
 			return "", 0, 0, err
@@ -136,7 +136,7 @@ func (s *LogicVolumeService) CreateVolume(ctx context.Context, namespace, pvc, n
 		}
 
 		var newLV carinav1.LogicVolume
-		err := s.Get(ctx, client.ObjectKey{Name: name, Namespace: main.LogicVolumeNamespace}, &newLV)
+		err := s.Get(ctx, client.ObjectKey{Name: name, Namespace: carina.LogicVolumeNamespace}, &newLV)
 		if err != nil {
 			log.Error(err, " failed to get LogicVolume name ", name)
 			return "", 0, 0, err
@@ -224,7 +224,7 @@ func (s *LogicVolumeService) ExpandVolume(ctx context.Context, volumeID string, 
 		}
 
 		var changedLV carinav1.LogicVolume
-		err := s.Get(ctx, client.ObjectKey{Name: lv.Name, Namespace: main.LogicVolumeNamespace}, &changedLV)
+		err := s.Get(ctx, client.ObjectKey{Name: lv.Name, Namespace: carina.LogicVolumeNamespace}, &changedLV)
 		if err != nil {
 			log.Error(err, " failed to get LogicVolume name ", lv.Name)
 			return err
@@ -309,7 +309,7 @@ func (s *LogicVolumeService) UpdateLogicVolumeSpecSize(ctx context.Context, volu
 		if lv.Annotations == nil {
 			lv.Annotations = make(map[string]string)
 		}
-		lv.Annotations[main.ResizeRequestedAtKey] = time.Now().UTC().String()
+		lv.Annotations[carina.ResizeRequestedAtKey] = time.Now().UTC().String()
 
 		if err := s.Update(ctx, lv); err != nil {
 			if apierrors.IsConflict(err) {

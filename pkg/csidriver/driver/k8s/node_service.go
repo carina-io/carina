@@ -21,6 +21,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/carina-io/carina"
+	"github.com/carina-io/carina/pkg/csidriver/driver/util"
 	"sort"
 	"strings"
 	"time"
@@ -31,7 +32,6 @@ import (
 	"github.com/carina-io/carina/utils/log"
 
 	"github.com/carina-io/carina/pkg/configuration"
-	"github.com/carina-io/carina/pkg/version"
 	"github.com/carina-io/carina/utils"
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"k8s.io/apimachinery/pkg/labels"
@@ -148,7 +148,7 @@ func (s NodeService) listLogicVolumes(ctx context.Context) (lvs []string, err er
 		return []string{}, err
 	}
 	for _, lv := range lvlist.Items {
-		if _, exists := readyNode[lv.Spec.NodeName]; exists && lv.Annotations[main.ExclusivityDisk] == "true" {
+		if _, exists := readyNode[lv.Spec.NodeName]; exists && lv.Annotations[carina.ExclusivityDisk] == "true" {
 			lvs = append(lvs, lv.Spec.DeviceGroup)
 		}
 	}
@@ -205,15 +205,15 @@ func (s NodeService) SelectVolumeNode(ctx context.Context, requestGb int64, devi
 		// capacity selector
 		// 注册设备时有特殊前缀的，若是sc指定了设备组则过滤出所有节点上符合条件的设备组
 		for key, value := range status.Allocatable {
-			if strings.HasPrefix(key, main.DeviceCapacityKeyPrefix) {
-				if deviceGroup != "" && key != deviceGroup && key != main.DeviceCapacityKeyPrefix+deviceGroup {
+			if strings.HasPrefix(key, carina.DeviceCapacityKeyPrefix) {
+				if deviceGroup != "" && key != deviceGroup && key != carina.DeviceCapacityKeyPrefix+deviceGroup {
 					continue
 				}
 				if value.Value() < requestGb {
 					continue
 				}
 				//skip raw
-				if version.CheckRawDeviceGroup(strings.Split(key, "/")[1]) {
+				if util.CheckRawDeviceGroup(strings.Split(key, "/")[1]) {
 					continue
 				}
 				preselectNode = append(preselectNode, pairs{
@@ -266,7 +266,7 @@ func (s NodeService) GetCapacityByNodeName(ctx context.Context, name, deviceGrou
 	}
 
 	for key, v := range nsr.Status.Allocatable {
-		if key == deviceGroup || key == main.DeviceCapacityKeyPrefix+deviceGroup {
+		if key == deviceGroup || key == carina.DeviceCapacityKeyPrefix+deviceGroup {
 			return v.Value(), nil
 		}
 	}
@@ -286,10 +286,10 @@ func (s NodeService) GetTotalCapacity(ctx context.Context, deviceGroup string, t
 		return 0, err
 	}
 	var volumeType string
-	if version.CheckRawDeviceGroup(deviceGroup) {
-		volumeType = main.RawVolumeType
+	if util.CheckRawDeviceGroup(deviceGroup) {
+		volumeType = carina.RawVolumeType
 	} else {
-		volumeType = main.LvmVolumeType
+		volumeType = carina.LvmVolumeType
 	}
 
 	capacity := int64(0)
@@ -310,31 +310,31 @@ func (s NodeService) GetTotalCapacity(ctx context.Context, deviceGroup string, t
 
 		for key, v := range status.Capacity {
 
-			if deviceGroup == "" && strings.HasPrefix(key, main.DeviceCapacityKeyPrefix) {
+			if deviceGroup == "" && strings.HasPrefix(key, carina.DeviceCapacityKeyPrefix) {
 				strArr := strings.Split(key, "/")
-				if volumeType == main.RawVolumeType {
-					if version.CheckRawDeviceGroup(strArr[1]) {
+				if volumeType == carina.RawVolumeType {
+					if util.CheckRawDeviceGroup(strArr[1]) {
 						capacity += v.Value()
 					}
 
 				}
-				if volumeType == main.LvmVolumeType {
-					if !version.CheckRawDeviceGroup(strArr[1]) {
+				if volumeType == carina.LvmVolumeType {
+					if !util.CheckRawDeviceGroup(strArr[1]) {
 						capacity += v.Value()
 					}
 				}
 
-			} else if key == deviceGroup || key == main.DeviceCapacityKeyPrefix+deviceGroup {
+			} else if key == deviceGroup || key == carina.DeviceCapacityKeyPrefix+deviceGroup {
 				strArr := strings.Split(key, "/")
 
-				if volumeType == main.RawVolumeType {
-					if version.CheckRawDeviceGroup(strArr[1]) {
+				if volumeType == carina.RawVolumeType {
+					if util.CheckRawDeviceGroup(strArr[1]) {
 						capacity += v.Value()
 					}
 
 				}
-				if volumeType == main.LvmVolumeType {
-					if !version.CheckRawDeviceGroup(strArr[1]) {
+				if volumeType == carina.LvmVolumeType {
+					if !util.CheckRawDeviceGroup(strArr[1]) {
 						capacity += v.Value()
 					}
 				}
@@ -379,10 +379,10 @@ func (s NodeService) SelectDeviceGroup(ctx context.Context, request int64, nodeN
 		// capacity selector
 		// 经过上层过滤，这里只会有一个节点
 		for key, value := range status.Allocatable {
-			if strings.HasPrefix(key, main.DeviceCapacityKeyPrefix) {
+			if strings.HasPrefix(key, carina.DeviceCapacityKeyPrefix) {
 				strArr := strings.Split(key, "/")
-				if volumeType == main.RawVolumeType {
-					if version.CheckRawDeviceGroup(strArr[1]) {
+				if volumeType == carina.RawVolumeType {
+					if util.CheckRawDeviceGroup(strArr[1]) {
 						//skip exclusivityDisk
 						log.Infof("skip:%s ; disk: key %s; value:%v", lvs, strArr[1]+"/"+strArr[2], value.Value())
 						if utils.ContainsString(lvs, strArr[1]+"/"+strArr[2]) && !exclusivityDisk {
@@ -417,8 +417,8 @@ func (s NodeService) SelectDeviceGroup(ctx context.Context, request int64, nodeN
 					}
 
 				}
-				if volumeType == main.LvmVolumeType {
-					if !version.CheckRawDeviceGroup(strArr[1]) {
+				if volumeType == carina.LvmVolumeType {
+					if !util.CheckRawDeviceGroup(strArr[1]) {
 						preselectNode = append(preselectNode, pairs{
 							Key:   key,
 							Value: value.Value(),
@@ -442,10 +442,10 @@ func (s NodeService) SelectDeviceGroup(ctx context.Context, request int64, nodeN
 	// 这里只能选最小满足的，因为可能存在一个pod多个pv都需要落在这个节点
 	for _, p := range preselectNode {
 		if p.Value >= request {
-			if volumeType == main.LvmVolumeType {
+			if volumeType == carina.LvmVolumeType {
 				selectDeviceGroup = strings.Split(p.Key, "/")[1]
 			}
-			if volumeType == main.RawVolumeType {
+			if volumeType == carina.RawVolumeType {
 				selectDeviceGroup = strings.Split(p.Key, "/")[1] + "/" + strings.Split(p.Key, "/")[2]
 			}
 
@@ -490,13 +490,13 @@ func (s NodeService) SelectDeviceGroupDisk(ctx context.Context, request int64, n
 		// capacity selector
 		// 经过上层过滤，这里只会有一个节点
 		for key, value := range status.Allocatable {
-			if strings.HasPrefix(key, main.DeviceCapacityKeyPrefix) {
+			if strings.HasPrefix(key, carina.DeviceCapacityKeyPrefix) {
 				log.Infof("skip:%s ; disk:key %s; deviceGroup:%s", lvs, key, deviceGroup)
 				strArr := strings.Split(key, "/")
 				if deviceGroup != "" && !strings.Contains(key, deviceGroup) {
 					continue
 				}
-				if version.CheckRawDeviceGroup(strArr[1]) {
+				if util.CheckRawDeviceGroup(strArr[1]) {
 					if utils.ContainsString(lvs, strArr[1]+"/"+strArr[2]) && !exclusivityDisk {
 						continue
 					}
@@ -556,7 +556,7 @@ func (s NodeService) HaveSelectedNode(ctx context.Context, namespace, name strin
 	if err != nil {
 		return node, err
 	}
-	node = pvc.Annotations[main.AnnSelectedNode]
+	node = pvc.Annotations[carina.AnnSelectedNode]
 	if node == "" {
 		node = pvc.Annotations[annAlphaSelectedNode]
 	}
@@ -616,7 +616,7 @@ func (s NodeService) SelectMultiVolumeNode(ctx context.Context, backendDeviceGro
 		backendFilter := int64(0)
 		cacheFilter := int64(0)
 		for key, value := range status.Allocatable {
-			if strings.HasPrefix(key, main.DeviceCapacityKeyPrefix) {
+			if strings.HasPrefix(key, carina.DeviceCapacityKeyPrefix) {
 				if strings.Contains(key, backendDeviceGroup) {
 					if value.Value() >= backendRequestGb {
 						backendFilter = value.Value()
@@ -722,13 +722,13 @@ func (s NodeService) SelectDeviceNode(ctx context.Context, request int64, device
 
 		// capacity selector
 		for key, value := range status.Allocatable {
-			if strings.HasPrefix(key, main.DeviceCapacityKeyPrefix) {
+			if strings.HasPrefix(key, carina.DeviceCapacityKeyPrefix) {
 				log.Infof("skip:%s ; disk:key %s; deviceGroup:%s", lvs, key, deviceGroup)
 				strArr := strings.Split(key, "/")
 				if deviceGroup != "" && !strings.Contains(key, deviceGroup) {
 					continue
 				}
-				if version.CheckRawDeviceGroup(strArr[1]) {
+				if util.CheckRawDeviceGroup(strArr[1]) {
 					if utils.ContainsString(lvs, strArr[1]+"/"+strArr[2]) && !exclusivityDisk {
 						continue
 					}

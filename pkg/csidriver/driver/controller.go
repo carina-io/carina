@@ -21,7 +21,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/carina-io/carina"
-	"github.com/carina-io/carina/pkg/configuration"
+	"github.com/carina-io/carina/pkg/csidriver/driver/util"
 	"strconv"
 	"strings"
 	"time"
@@ -66,7 +66,7 @@ func (s controllerService) CreateVolume(ctx context.Context, req *csi.CreateVolu
 	name = strings.ToLower(name)
 
 	// 处理磁盘类型参数，支持carina.storage.io/disk-group-name:ssd书写方式
-	deviceGroup = getDeviceGroup(deviceGroup)
+	deviceGroup = util.GetDeviceGroup(deviceGroup)
 	log.Info("CreateVolume called ",
 		" name ", req.GetName(),
 		" device_group ", deviceGroup,
@@ -136,7 +136,7 @@ func (s controllerService) CreateVolume(ctx context.Context, req *csi.CreateVolu
 		return nil, status.Errorf(codes.Internal, "can not find pvc %s %s", namespace, name)
 	}
 
-	if checkRawDeviceGroup(deviceGroup) {
+	if util.CheckRawDeviceGroup(deviceGroup) {
 		volumeType = carina.RawVolumeType
 		if node != "" {
 			deviceGroup, err = s.nodeService.SelectDeviceGroupDisk(ctx, requestGb, node, volumeType, exclusivityDisk, deviceGroup)
@@ -315,7 +315,7 @@ func (s controllerService) GetCapacity(ctx context.Context, req *csi.GetCapacity
 	}
 
 	// Adopt the new version of the transformation
-	deviceGroup := getDeviceGroup(req.GetParameters()[carina.DeviceDiskKey])
+	deviceGroup := util.GetDeviceGroup(req.GetParameters()[carina.DeviceDiskKey])
 
 	capacity, err := s.nodeService.GetTotalCapacity(ctx, deviceGroup, topology)
 	if err != nil {
@@ -608,44 +608,4 @@ func (s controllerService) CreateBcacheVolume(ctx context.Context, req *csi.Crea
 			},
 		},
 	}, nil
-}
-
-// 处理磁盘类型参数，支持carina.storage.io/disk-group-name:ssd书写方式
-func getDeviceGroup(diskType string) string {
-	deviceGroup := strings.ToLower(diskType)
-	currentDiskSelector := configuration.DiskSelector()
-	var diskClass = []string{}
-	for _, v := range currentDiskSelector {
-		if strings.ToLower(v.Policy) == "raw" {
-			continue
-		}
-		diskClass = append(diskClass, strings.ToLower(v.Name))
-	}
-	//diskClass := configuration.GetDiskGroups()
-	//如果sc 配置的磁盘组在配置里就默认返回配置的磁盘组，老板本的磁盘组如果在新配置文件里配置了，就采用新的配置
-	if utils.ContainsString(diskClass, deviceGroup) {
-		return deviceGroup
-	}
-	//这里是为了兼容旧版本的sc
-	if utils.ContainsString([]string{"ssd", "hdd"}, deviceGroup) {
-		deviceGroup = fmt.Sprintf("carina-vg-%s", deviceGroup)
-	}
-	return deviceGroup
-
-}
-
-func checkRawDeviceGroup(diskType string) bool {
-	deviceGroup := strings.ToLower(diskType)
-	currentDiskSelector := configuration.DiskSelector()
-	if utils.ContainsString([]string{"ssd", "hdd"}, deviceGroup) {
-		deviceGroup = fmt.Sprintf("carina-vg-%s", deviceGroup)
-	}
-
-	for _, v := range currentDiskSelector {
-		if v.Name == deviceGroup && strings.ToLower(v.Policy) == "raw" {
-			return true
-		}
-
-	}
-	return false
 }

@@ -107,7 +107,7 @@ func TestIsStaticPod(t *testing.T) {
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "test-pod",
 			Annotations: map[string]string{
-				main.ConfigSourceAnnotationKey: "file",
+				carina.ConfigSourceAnnotationKey: "file",
 			},
 		},
 	}
