@@ -54,7 +54,7 @@ rules:
     resources: ["persistentvolumeclaims/status"]
     verbs: ["update", "patch"]
   - apiGroups: ["storage.k8s.io"]
-    resources: ["csinodes"]
+    resources: ["csinodes", "csidrivers"]
     verbs: ["get", "list", "watch"]
   - apiGroups: ["snapshot.storage.k8s.io"]
     resources: ["volumesnapshotcontents/status"]

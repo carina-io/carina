@@ -24,7 +24,7 @@ rules:
     resources: ["events"]
     verbs: ["get", "list", "watch", "create", "update", "patch"]
   - apiGroups: ["storage.k8s.io"]
-    resources: ["csinodes"]
+    resources: ["csinodes", "csidrivers"]
     verbs: ["get", "list", "watch"]
   - apiGroups: [""]
     resources: ["nodes"]
