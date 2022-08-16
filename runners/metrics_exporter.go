@@ -28,6 +28,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/metrics"
 	"strings"
+	"time"
 )
 
 const (
@@ -118,6 +119,8 @@ func (m *metricsExporter) Start(ctx context.Context) error {
 	// register volume update notice chan
 	m.dm.RegisterNoticeChan(m.updateChannel)
 
+	go m.triggerDummy()
+
 	vgCh := make(chan VolumeGroupMetrics)
 	lvCh := make(chan LogicVolumeMetrics)
 	go func() {
@@ -184,6 +187,10 @@ func (m *metricsExporter) Start(ctx context.Context) error {
 			return nil
 		}
 	}
+}
+
+func (r *metricsExporter) triggerDummy() {
+	r.updateChannel <- &deviceManager.VolumeEvent{Trigger: deviceManager.Dummy, TriggerAt: time.Now()}
 }
 
 // NeedLeaderElection implements controller-runtime's manager.LeaderElectionRunnable.
