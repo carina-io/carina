@@ -56,11 +56,10 @@ type NodeStorageResourceStatus struct {
 }
 
 // +kubebuilder:object:root=true
+// +kubebuilder:subresource:status
 // +kubebuilder:printcolumn:name="node",type="string",JSONPath=".spec.nodeName"
 // +kubebuilder:printcolumn:name="time",type="date",JSONPath=".status.syncTime"
-// +kubebuilder:subresource:status
-// +kubebuilder:resource:shortName=nsr
-// +kubebuilder:resource:scope=Cluster
+// +kubebuilder:resource:scope=Cluster,shortName=nsr
 
 // NodeStorageResource is the Schema for the nodestorageresources API
 type NodeStorageResource struct {

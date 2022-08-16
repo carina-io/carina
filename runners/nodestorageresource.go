@@ -48,6 +48,9 @@ type nodeStorageResourceReconciler struct {
 	dm            *deviceManager.DeviceManager
 }
 
+//+kubebuilder:rbac:groups=carina.storage.io,resources=nodestorageresources,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups=carina.storage.io,resources=nodestorageresources/status,verbs=get;update;patch
+
 func NewNodeStorageResourceReconciler(
 	client client.Client,
 	dm *deviceManager.DeviceManager,

@@ -33,14 +33,12 @@ rules:
   - delete
   - get
   - list
-  - update
   - watch
 - apiGroups:
   - ""
   resources:
   - pods
   verbs:
-  - delete
   - get
   - list
   - patch
