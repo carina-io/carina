@@ -91,9 +91,7 @@ func TestDeviceManager(t *testing.T) {
 	initDevice()
 	defer cleanLoopback(loops, names)
 
-	stopChan := make(chan struct{})
-	defer close(stopChan)
-	dm := deviceManager.NewDeviceManager("localhost", nil, stopChan)
+	dm := deviceManager.NewDeviceManager("localhost", nil)
 	dc := &deviceCheck{dm: dm}
 	defer func() {
 		// 清理volumex
