@@ -17,9 +17,15 @@
 package run
 
 import (
+	"context"
 	"errors"
+	"github.com/carina-io/carina"
 	"github.com/carina-io/carina/runners"
+	storagev1 "k8s.io/api/storage/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"os"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	"time"
 
 	carinav1beta1 "github.com/carina-io/carina/api/v1beta1"
 
@@ -93,6 +99,14 @@ func subMain() error {
 		return err
 	}
 
+	//+kubebuilder:scaffold:builder
+
+	// Add health checker to manager
+	checker := runners.NewChecker(checkFunc(dm, mgr.GetAPIReader()), 1*time.Minute)
+	if err := mgr.Add(checker); err != nil {
+		return err
+	}
+
 	// Add metrics exporter to manager.
 	// Note that grpc.ClientConn can be shared with multiple stubs/services.
 	// https://github.com/grpc/grpc-go/tree/master/examples/features/multiplex
@@ -109,7 +123,7 @@ func subMain() error {
 		return err
 	}
 	grpcServer := grpc.NewServer()
-	csi.RegisterIdentityServer(grpcServer, driver.NewIdentityService())
+	csi.RegisterIdentityServer(grpcServer, driver.NewIdentityService(checker.Ready))
 	csi.RegisterNodeServer(grpcServer, driver.NewNodeService(dm, s))
 	if err := mgr.Add(runners.NewGRPCRunner(grpcServer, config.csiSocket, false)); err != nil {
 		return err
@@ -137,4 +151,19 @@ func subMain() error {
 	}
 
 	return nil
+}
+
+//+kubebuilder:rbac:groups=storage.k8s.io,resources=csidrivers,verbs=get;list;watch
+
+func checkFunc(dm *deviceManager.DeviceManager, c client.Reader) func() error {
+	return func() error {
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+
+		dm.VolumeManager.GetCurrentVgStruct()
+		dm.Partition.ListDevicesDetail("")
+		
+		var drv storagev1.CSIDriver
+		return c.Get(ctx, types.NamespacedName{Name: carina.CSIPluginName}, &drv)
+	}
 }

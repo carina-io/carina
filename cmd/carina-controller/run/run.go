@@ -17,10 +17,15 @@
 package run
 
 import (
+	"context"
 	"fmt"
 	"github.com/carina-io/carina"
 	"github.com/carina-io/carina/runners"
+	storagev1 "k8s.io/api/storage/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"net"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	"time"
 
 	carinav1 "github.com/carina-io/carina/api/v1"
 	carinav1beta1 "github.com/carina-io/carina/api/v1beta1"
@@ -108,6 +113,14 @@ func subMain() error {
 		return err
 	}
 
+	//+kubebuilder:scaffold:builder
+
+	// Add health checker to manager
+	checker := runners.NewChecker(checkFunc(mgr.GetAPIReader()), 1*time.Minute)
+	if err := mgr.Add(checker); err != nil {
+		return err
+	}
+
 	// Add gRPC server to manager.
 	s, err := k8s.NewLogicVolumeService(mgr)
 	if err != nil {
@@ -116,7 +129,7 @@ func subMain() error {
 	n := k8s.NewNodeService(mgr)
 
 	grpcServer := grpc.NewServer()
-	csi.RegisterIdentityServer(grpcServer, driver.NewIdentityService())
+	csi.RegisterIdentityServer(grpcServer, driver.NewIdentityService(checker.Ready))
 	csi.RegisterControllerServer(grpcServer, driver.NewControllerService(s, n))
 
 	// gRPC service itself should run even when the manager is *not* a leader
@@ -132,4 +145,16 @@ func subMain() error {
 		return err
 	}
 	return nil
+}
+
+//+kubebuilder:rbac:groups=storage.k8s.io,resources=csidrivers,verbs=get;list;watch
+
+func checkFunc(c client.Reader) func() error {
+	return func() error {
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+
+		var drv storagev1.CSIDriver
+		return c.Get(ctx, types.NamespacedName{Name: carina.CSIPluginName}, &drv)
+	}
 }
