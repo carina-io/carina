@@ -110,8 +110,6 @@ func NewMetricsExporter(client client.Client, dm *deviceManager.DeviceManager) m
 
 // Start implements controller-runtime's manager.Runnable.
 func (m *metricsExporter) Start(ctx context.Context) error {
-	m.dm.Cache.WaitForCacheSync(context.Background())
-
 	log.Infof("Starting metricsExporter")
 	defer log.Infof("Shutting down metricsExporter")
 	defer close(m.updateChannel)
@@ -123,6 +121,7 @@ func (m *metricsExporter) Start(ctx context.Context) error {
 
 	vgCh := make(chan VolumeGroupMetrics)
 	lvCh := make(chan LogicVolumeMetrics)
+
 	go func() {
 		for {
 			select {
@@ -137,61 +136,66 @@ func (m *metricsExporter) Start(ctx context.Context) error {
 			}
 		}
 	}()
-
+	ticker := time.NewTicker(5 * time.Second)
+	defer ticker.Stop()
 	for {
 		select {
-		case ve := <-m.updateChannel:
-			log.Infof("Update metric, trigger: %s, trigger at: %v", ve.Trigger, ve.TriggerAt.Format("2006-01-02 15:04:05.000000000"))
-
-			diskSelectGroup := m.dm.GetNodeDiskSelectGroup()
-			vgList, err := m.dm.VolumeManager.GetCurrentVgStruct()
-
-			if err == nil && len(vgList) > 0 {
-				for _, vg := range vgList {
-					if _, ok := diskSelectGroup[vg.VGName]; !ok {
-						continue
-					}
-					vgCh <- VolumeGroupMetrics{
-						usedBytes:  vg.VGSize - vg.VGFree,
-						totalBytes: vg.VGSize,
-						vgName:     vg.VGName,
-					}
-				}
-			}
-
-			lvs, err := m.dm.VolumeManager.VolumeList("", "")
-
-			if err == nil && len(lvs) > 0 {
-				for _, localVolume := range lvs {
-					if !strings.HasPrefix(localVolume.LVName, carina.VolumePrefix) {
-						continue
-					}
-					if _, ok := diskSelectGroup[localVolume.VGName]; !ok {
-						continue
-					}
-					logicVolume := new(carinav1.LogicVolume)
-					logicVolumeName := strings.TrimPrefix(localVolume.LVName, carina.VolumePrefix)
-					if err := m.Client.Get(ctx, client.ObjectKey{Name: logicVolumeName}, logicVolume); err != nil && !apierrs.IsNotFound(err) {
-						log.Warnf("Failed to get logicVolume, name: %s, error: %s", logicVolumeName, err.Error())
-						continue
-					}
-					lvCh <- LogicVolumeMetrics{
-						usedBytes:  float64(localVolume.LVSize) * localVolume.DataPercent,
-						totalBytes: localVolume.LVSize,
-						lvName:     localVolume.LVName,
-						pvcNS:      logicVolume.Spec.NameSpace,
-						pvcName:    logicVolume.Spec.Pvc,
-					}
-				}
-			}
+		case <-m.updateChannel:
+			m.getMetricDate(vgCh, lvCh)
+		case <-ticker.C:
+			m.getMetricDate(vgCh, lvCh)
 		case <-ctx.Done():
 			return nil
 		}
 	}
 }
 
-func (r *metricsExporter) triggerDummy() {
-	r.updateChannel <- &deviceManager.VolumeEvent{Trigger: deviceManager.Dummy, TriggerAt: time.Now()}
+func (m *metricsExporter) triggerDummy() {
+	m.updateChannel <- &deviceManager.VolumeEvent{Trigger: deviceManager.Dummy, TriggerAt: time.Now()}
+}
+
+func (m *metricsExporter) getMetricDate(vgCh chan VolumeGroupMetrics, lvCh chan LogicVolumeMetrics) {
+	diskSelectGroup := m.dm.GetNodeDiskSelectGroup()
+	vgList, err := m.dm.VolumeManager.GetCurrentVgStruct()
+
+	if err == nil && len(vgList) > 0 {
+		for _, vg := range vgList {
+			if _, ok := diskSelectGroup[vg.VGName]; !ok {
+				continue
+			}
+			vgCh <- VolumeGroupMetrics{
+				usedBytes:  vg.VGSize - vg.VGFree,
+				totalBytes: vg.VGSize,
+				vgName:     vg.VGName,
+			}
+		}
+	}
+
+	lvs, err := m.dm.VolumeManager.VolumeList("", "")
+
+	if err == nil && len(lvs) > 0 {
+		for _, localVolume := range lvs {
+			if !strings.HasPrefix(localVolume.LVName, carina.VolumePrefix) {
+				continue
+			}
+			if _, ok := diskSelectGroup[localVolume.VGName]; !ok {
+				continue
+			}
+			logicVolume := new(carinav1.LogicVolume)
+			logicVolumeName := strings.TrimPrefix(localVolume.LVName, carina.VolumePrefix)
+			if err := m.Client.Get(context.TODO(), client.ObjectKey{Name: logicVolumeName}, logicVolume); err != nil && !apierrs.IsNotFound(err) {
+				log.Warnf("Failed to get logicVolume, name: %s, error: %s", logicVolumeName, err.Error())
+				continue
+			}
+			lvCh <- LogicVolumeMetrics{
+				usedBytes:  float64(localVolume.LVSize) * localVolume.DataPercent,
+				totalBytes: localVolume.LVSize,
+				lvName:     localVolume.LVName,
+				pvcNS:      logicVolume.Spec.NameSpace,
+				pvcName:    logicVolume.Spec.Pvc,
+			}
+		}
+	}
 }
 
 // NeedLeaderElection implements controller-runtime's manager.LeaderElectionRunnable.
