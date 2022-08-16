@@ -54,14 +54,12 @@ type DeviceManager struct {
 	// Volume 操作
 	VolumeManager volume.LocalVolume
 	//磁盘以及分区操作
-	Partition partition.LocalPartition
-	NodeName  string
-	// stop
-	StopChan      <-chan struct{}
+	Partition     partition.LocalPartition
+	NodeName      string
 	noticeUpdates []chan *VolumeEvent
 }
 
-func NewDeviceManager(nodeName string, cache cache.Cache, stopChan <-chan struct{}) *DeviceManager {
+func NewDeviceManager(nodeName string, cache cache.Cache) *DeviceManager {
 	executor := &exec.CommandExecutor{}
 	mutex := mutx.NewGlobalLocks()
 
@@ -70,7 +68,6 @@ func NewDeviceManager(nodeName string, cache cache.Cache, stopChan <-chan struct
 		VolumeManager: &volume.LocalVolumeImplement{Mutex: mutex, Lv: &lvmd.Lvm2Implement{Executor: executor}, Bcache: &bcache.BcacheImplement{Executor: executor}},
 		Partition:     &partition.LocalPartitionImplement{Mutex: mutex, CacheParttionNum: make(map[string]uint), Executor: executor},
 		NodeName:      nodeName,
-		StopChan:      stopChan,
 		noticeUpdates: []chan *VolumeEvent{},
 	}
 	return &dm

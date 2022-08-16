@@ -30,11 +30,11 @@ var stopChan chan struct{}
 func init() {
 	stopChan = make(chan struct{})
 
-	dm = deviceManager.NewDeviceManager("localhost", nil, stopChan)
+	dm = deviceManager.NewDeviceManager("localhost", nil)
 }
 
 func Start(c echo.Context) error {
-	dm.DeviceCheckTask()
+	dm.GetNodeDiskSelectGroup()
 	return c.JSON(http.StatusOK, "")
 }
 

@@ -69,10 +69,8 @@ func subMain() error {
 		return err
 	}
 
-	ctx := ctrl.SetupSignalHandler()
-
 	// 初始化磁盘管理服务
-	dm := deviceManager.NewDeviceManager(nodeName, mgr.GetCache(), ctx.Done())
+	dm := deviceManager.NewDeviceManager(nodeName, mgr.GetCache())
 
 	// pod io controller
 	podIOController := controllers.NewPodIOReconciler(
@@ -133,7 +131,7 @@ func subMain() error {
 	}
 
 	setupLog.Info("starting manager")
-	if err := mgr.Start(ctx); err != nil {
+	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
 		setupLog.Error(err, "problem running manager")
 		return err
 	}

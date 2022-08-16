@@ -81,14 +81,14 @@ func (m podMutator) Handle(ctx context.Context, req admission.Request) admission
 		return admission.Errored(http.StatusInternalServerError, err)
 	}
 	if schedule {
-		pod.Spec.SchedulerName = main.CarinaSchedule
+		pod.Spec.SchedulerName = carina.CarinaSchedule
 		if pod.Annotations == nil {
 			pod.Annotations = map[string]string{}
 		}
-		if _, ok := pod.Annotations[main.AllowPodMigrationIfNodeNotready]; !ok {
+		if _, ok := pod.Annotations[carina.AllowPodMigrationIfNodeNotready]; !ok {
 			for _, sc := range cSC {
-				if _, ok = sc.Annotations[main.AllowPodMigrationIfNodeNotready]; ok {
-					pod.Annotations[main.AllowPodMigrationIfNodeNotready] = sc.Annotations[main.AllowPodMigrationIfNodeNotready]
+				if _, ok = sc.Annotations[carina.AllowPodMigrationIfNodeNotready]; ok {
+					pod.Annotations[carina.AllowPodMigrationIfNodeNotready] = sc.Annotations[carina.AllowPodMigrationIfNodeNotready]
 					break
 				}
 			}
@@ -111,7 +111,7 @@ func (m podMutator) targetStorageClasses(ctx context.Context) (map[string]storag
 
 	targets := make(map[string]storagev1.StorageClass)
 	for _, sc := range scl.Items {
-		if sc.Provisioner == main.CSIPluginName {
+		if sc.Provisioner == carina.CSIPluginName {
 			targets[sc.Name] = sc
 		}
 	}
