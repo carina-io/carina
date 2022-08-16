@@ -28,7 +28,6 @@ import (
 	"github.com/carina-io/carina/utils"
 	"github.com/carina-io/carina/utils/log"
 	corev1 "k8s.io/api/core/v1"
-	storagev1 "k8s.io/api/storage/v1"
 	apierrs "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/util/workqueue"
@@ -340,16 +339,5 @@ func (r *NodeReconciler) killPod(ctx context.Context, pod *corev1.Pod) error {
 		return err
 	}
 	log.Infof("delete pod namespace: %s name: %s", pod.Namespace, pod.Name)
-	return nil
-}
-
-// Delete a VolumeAttachment.
-func (r *NodeReconciler) forceDetach(ctx context.Context, va *storagev1.VolumeAttachment) error {
-	noGracePeriod := int64(0)
-	err := r.Delete(ctx, va, &client.DeleteOptions{GracePeriodSeconds: &noGracePeriod})
-	if err != nil && !apierrs.IsNotFound(err) {
-		return err
-	}
-	log.Infof("delete VolumeAttachment name: %s", va.Name)
 	return nil
 }

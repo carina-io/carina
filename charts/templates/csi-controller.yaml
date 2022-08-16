@@ -55,26 +55,6 @@ spec:
             - mountPath: /csi
               name: socket-dir
           resources: {{- toYaml .Values.controller.resources.csiProvisioner | nindent 12 }}
-        - name: csi-attacher
-{{- if hasPrefix "/" .Values.image.csiAttacher.repository }}
-          image: "{{ .Values.image.baseRepo }}{{ .Values.image.csiAttacher.repository }}:{{ .Values.image.csiAttacher.tag }}"
-{{- else }}
-          image: "{{ .Values.image.csiAttacher.repository }}:{{ .Values.image.csiAttacher.tag }}"
-{{- end }}
-          imagePullPolicy: {{ .Values.image.csiProvisioner.pullPolicy }}
-          args:
-            - "-v={{ .Values.controller.logLevel }}"
-            - "-csi-address=$(ADDRESS)"
-            - "-timeout=600s"
-            - "-leader-election"
-            - "-worker-threads={{ .Values.controller.attacherWorkerThreads }}"
-          env:
-            - name: ADDRESS
-              value: /csi/csi-provisioner.sock
-          volumeMounts:
-          - mountPath: /csi
-            name: socket-dir
-          resources: {{- toYaml .Values.controller.resources.csiAttacher | nindent 12 }}
         - name: csi-resizer
 {{- if hasPrefix "/" .Values.image.csiResizer.repository }}
           image: "{{ .Values.image.baseRepo }}{{ .Values.image.csiResizer.repository }}:{{ .Values.image.csiResizer.tag }}"

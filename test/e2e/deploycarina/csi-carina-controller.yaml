@@ -51,36 +51,6 @@ spec:
           volumeMounts:
             - name: socket-dir
               mountPath: /csi
-#        - name: csi-snapshotter
-#          image: antmoveh/csi-snapshotter:v4.0.0
-#          args:
-#            - "--csi-address=$(ADDRESS)"
-#            - "--v=5"
-#            - "--timeout=150s"
-#            - "--leader-election=true"
-#          env:
-#            - name: ADDRESS
-#              value: unix:///csi/csi-provisioner.sock
-#          imagePullPolicy: "IfNotPresent"
-#          securityContext:
-#            privileged: true
-#          volumeMounts:
-#            - name: socket-dir
-#              mountPath: /csi
-        - name: csi-carina-attacher
-          image: registry.cn-hangzhou.aliyuncs.com/antmoveh/csi-attacher:v3.1.0
-          args:
-            - "--v=5"
-            - "--csi-address=$(ADDRESS)"
-            - "--leader-election=true"
-            - "--retry-interval-start=500ms"
-          env:
-            - name: ADDRESS
-              value: /csi/csi-provisioner.sock
-          imagePullPolicy: "IfNotPresent"
-          volumeMounts:
-            - name: socket-dir
-              mountPath: /csi
         - name: csi-carina-controller
           securityContext:
             privileged: true
