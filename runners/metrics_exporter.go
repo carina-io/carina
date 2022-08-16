@@ -88,7 +88,7 @@ func NewMetricsExporter(client client.Client, dm *deviceManager.DeviceManager) m
 	lvUsedBytes := prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Subsystem:   Subsystem,
 		Name:        "lv_used_bytes",
-		Help:        "LVM local volume used bytes",
+		Help:        "LVM local volume used bytes, may be zero because can't get data percent",
 		ConstLabels: prometheus.Labels{"nodename": dm.NodeName},
 	}, []string{"lvname", "pvcnamespace", "pvcname"})
 
