@@ -170,8 +170,9 @@ func (m *metricsExporter) Start(ctx context.Context) error {
 						continue
 					}
 					logicVolume := new(carinav1.LogicVolume)
-					if err := m.Client.Get(ctx, client.ObjectKey{Name: localVolume.LVName}, logicVolume); err != nil && !apierrs.IsNotFound(err) {
-						log.Warnf("Failed to get logicVolume, name: %s, error: %s", localVolume.LVName, err.Error())
+					logicVolumeName := strings.TrimPrefix(localVolume.LVName, carina.VolumePrefix)
+					if err := m.Client.Get(ctx, client.ObjectKey{Name: logicVolumeName}, logicVolume); err != nil && !apierrs.IsNotFound(err) {
+						log.Warnf("Failed to get logicVolume, name: %s, error: %s", logicVolumeName, err.Error())
 						continue
 					}
 					lvCh <- LogicVolumeMetrics{
