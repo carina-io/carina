@@ -87,7 +87,6 @@ func (s *LogicVolumeService) CreateVolume(ctx context.Context, namespace, pvc, n
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:        name,
-			Namespace:   carina.LogicVolumeNamespace,
 			Annotations: annotation,
 		},
 		Spec: carinav1.LogicVolumeSpec{
@@ -106,7 +105,7 @@ func (s *LogicVolumeService) CreateVolume(ctx context.Context, namespace, pvc, n
 	}
 
 	existingLV := new(carinav1.LogicVolume)
-	err := s.Get(ctx, client.ObjectKey{Name: name, Namespace: carina.LogicVolumeNamespace}, existingLV)
+	err := s.Get(ctx, client.ObjectKey{Name: name}, existingLV)
 	if err != nil {
 		if !apierrors.IsNotFound(err) {
 			return "", 0, 0, err
@@ -136,7 +135,7 @@ func (s *LogicVolumeService) CreateVolume(ctx context.Context, namespace, pvc, n
 		}
 
 		var newLV carinav1.LogicVolume
-		err := s.Get(ctx, client.ObjectKey{Name: name, Namespace: carina.LogicVolumeNamespace}, &newLV)
+		err := s.Get(ctx, client.ObjectKey{Name: name}, &newLV)
 		if err != nil {
 			log.Error(err, " failed to get LogicVolume name ", name)
 			return "", 0, 0, err
@@ -224,7 +223,7 @@ func (s *LogicVolumeService) ExpandVolume(ctx context.Context, volumeID string, 
 		}
 
 		var changedLV carinav1.LogicVolume
-		err := s.Get(ctx, client.ObjectKey{Name: lv.Name, Namespace: carina.LogicVolumeNamespace}, &changedLV)
+		err := s.Get(ctx, client.ObjectKey{Name: lv.Name}, &changedLV)
 		if err != nil {
 			log.Error(err, " failed to get LogicVolume name ", lv.Name)
 			return err

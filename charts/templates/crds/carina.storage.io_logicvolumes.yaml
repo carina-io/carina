@@ -16,7 +16,7 @@ spec:
     shortNames:
     - lv
     singular: logicvolume
-  scope: Namespaced
+  scope: Cluster
   versions:
   - additionalPrinterColumns:
     - jsonPath: .spec.size

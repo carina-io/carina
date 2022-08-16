@@ -2,15 +2,13 @@ package api
 
 // VgGroup defines the observed state of NodeStorageResourceStatus
 type VgGroup struct {
-	VGName    string    `json:"vgName,omitempty"`
-	PVName    string    `json:"pvName,omitempty"`
-	PVCount   uint64    `json:"pvCount,omitempty"`
-	LVCount   uint64    `json:"lvCount,omitempty"`
-	SnapCount uint64    `json:"snapCount,omitempty"`
-	VGAttr    string    `json:"vgAttr,omitempty"`
-	VGSize    uint64    `json:"vgSize,omitempty"`
-	VGFree    uint64    `json:"vgFree,omitempty"`
-	PVS       []*PVInfo `json:"pvs,omitempty"`
+	VGName  string    `json:"vgName,omitempty"`
+	PVCount uint64    `json:"pvCount,omitempty"`
+	LVCount uint64    `json:"lvCount,omitempty"`
+	VGAttr  string    `json:"vgAttr,omitempty"`
+	VGSize  uint64    `json:"vgSize,omitempty"`
+	VGFree  uint64    `json:"vgFree,omitempty"`
+	PVS     []*PVInfo `json:"pvs,omitempty"`
 }
 
 // PVInfo defines pv details

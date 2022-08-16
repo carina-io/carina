@@ -26,8 +26,6 @@ const (
 	// DefaultReservedSpace Default disk space hold
 	DefaultReservedSpace = 10 << 30
 
-	// LogicVolumeNamespace logicVolume
-	LogicVolumeNamespace = "default"
 	// LogicVolumeFinalizer LogicalVolumeFinalizer is the name of LogicalVolume finalizer
 	LogicVolumeFinalizer = "carina.storage.io/logicvolume"
 	// ResizeRequestedAtKey is the key of LogicalVolume that represents the timestamp of the resize request.
