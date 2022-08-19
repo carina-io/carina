@@ -1,5 +1,5 @@
 
-IMAGE_REPOSITORY=registry.cn-hangzhou.aliyuncs.com/antmoveh
+IMAGE_REPOSITORY=registry.cn-hangzhou.aliyuncs.com/carina
 VERSION ?= latest
 DATE=$(shell date '+%Y%m%d%H%M%S')
 ARCH ?= linux/arm64,linux/amd64
