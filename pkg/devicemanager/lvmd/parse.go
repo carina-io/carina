@@ -17,18 +17,18 @@
 package lvmd
 
 import (
+	"github.com/carina-io/carina"
 	"github.com/carina-io/carina/api"
 	"github.com/carina-io/carina/pkg/devicemanager/types"
-	"github.com/carina-io/carina/utils"
 	"github.com/carina-io/carina/utils/log"
 	"strconv"
 	"strings"
 )
 
 func parseVgs(vgsString string) []api.VgGroup {
-	// LVM2_VG_NAME='lvmvg',LVM2_PV_COUNT='1',LVM2_LV_COUNT='0',LVM2_SNAP_COUNT='0',LVM2_VG_ATTR='wz--n-',LVM2_VG_SIZE='16101933056',LVM2_VG_FREE='16101933056'
-	// LVM2_VG_NAME='v1',LVM2_PV_COUNT='2',LVM2_LV_COUNT='0',LVM2_SNAP_COUNT='0',LVM2_VG_ATTR='wz--n-',LVM2_VG_SIZE='32203866112',LVM2_VG_FREE='32203866112'
-	// LVM2_VG_NAME='v1',LVM2_PV_NAME='/dev/loop2',LVM2_PV_COUNT='1',LVM2_LV_COUNT='0',LVM2_SNAP_COUNT='0',LVM2_VG_ATTR='wz--n-',LVM2_VG_SIZE='16101933056',LVM2_VG_FREE='16101933056'
+	// LVM2_VG_NAME='lvmvg',LVM2_PV_COUNT='1',LVM2_LV_COUNT='0',LVM2_VG_ATTR='wz--n-',LVM2_VG_SIZE='16101933056',LVM2_VG_FREE='16101933056'
+	// LVM2_VG_NAME='v1',LVM2_PV_COUNT='2',LVM2_LV_COUNT='0',LVM2_VG_ATTR='wz--n-',LVM2_VG_SIZE='32203866112',LVM2_VG_FREE='32203866112'
+	// LVM2_VG_NAME='v1',LVM2_PV_COUNT='1',LVM2_LV_COUNT='0',LVM2_VG_ATTR='wz--n-',LVM2_VG_SIZE='16101933056',LVM2_VG_FREE='16101933056'
 	resp := []api.VgGroup{}
 
 	if vgsString == "" {
@@ -48,14 +48,10 @@ func parseVgs(vgsString string) []api.VgGroup {
 			switch k[0] {
 			case "LVM2_VG_NAME":
 				tmp.VGName = k[1]
-			case "LVM2_PV_NAME":
-				tmp.PVName = k[1]
 			case "LVM2_PV_COUNT":
 				tmp.PVCount, _ = strconv.ParseUint(k[1], 10, 64)
 			case "LVM2_LV_COUNT":
 				tmp.LVCount, _ = strconv.ParseUint(k[1], 10, 64)
-			case "LVM2_SNAP_COUNT":
-				tmp.SnapCount, _ = strconv.ParseUint(k[1], 10, 64)
 			case "LVM2_VG_ATTR":
 				tmp.VGAttr = k[1]
 			case "LVM2_VG_SIZE":
@@ -127,7 +123,7 @@ func parseLvs(lvsString string) []types.LvInfo {
 				log.Warnf("undefined field %s=%s", k[0], k[1])
 			}
 		}
-		if strings.HasPrefix(tmp.LVName, utils.VolumePrefix) || strings.HasPrefix(tmp.LVName, utils.ThinPrefix) {
+		if strings.HasPrefix(tmp.LVName, carina.VolumePrefix) || strings.HasPrefix(tmp.LVName, carina.ThinPrefix) {
 			resp = append(resp, tmp)
 		}
 	}

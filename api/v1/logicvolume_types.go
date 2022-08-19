@@ -50,15 +50,14 @@ type LogicVolumeStatus struct {
 }
 
 // +kubebuilder:object:root=true
-// +kubebuilder:resource:scope=Cluster
 // +kubebuilder:subresource:status
-// +kubebuilder:resource:shortName=lv
 // +kubebuilder:printcolumn:name="SIZE",type="string",JSONPath=".spec.size"
 // +kubebuilder:printcolumn:name="GROUP",type="string",JSONPath=".spec.deviceGroup"
 // +kubebuilder:printcolumn:name="NODE",type="string",JSONPath=".spec.nodeName"
 // +kubebuilder:printcolumn:name="STATUS",type="string",JSONPath=".status.status"
 // +kubebuilder:printcolumn:name="NAMESPACE",type="string",priority=1,JSONPath=".spec.nameSpace"
 // +kubebuilder:printcolumn:name="PVC",type="string",priority=1,JSONPath=".spec.pvc"
+// +kubebuilder:resource:scope=Cluster,shortName=lv
 
 // LogicVolume is the Schema for the logicvolumes API
 type LogicVolume struct {

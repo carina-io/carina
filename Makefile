@@ -31,7 +31,7 @@ test:
 	go test -v ./utils
 	go test -v ./utils/iolimit
 	go test -v ./pkg/csidriver/driver
-	go test -v ./pkg/devicemanager
+	go test -v ./runners
 
 # Build manager binary
 manager: generate fmt vet

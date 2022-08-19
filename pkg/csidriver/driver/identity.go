@@ -18,27 +18,31 @@ package driver
 
 import (
 	"context"
-	"github.com/carina-io/carina/utils"
+	"github.com/carina-io/carina"
 	"github.com/carina-io/carina/utils/log"
 	"github.com/container-storage-interface/spec/lib/go/csi"
-	"github.com/golang/protobuf/ptypes/wrappers"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/types/known/wrapperspb"
 )
 
 // NewIdentityService returns a new IdentityServer.
 
-func NewIdentityService() csi.IdentityServer {
-	return &identityService{}
+func NewIdentityService(ready func() (bool, error)) csi.IdentityServer {
+	return &identityService{ready: ready}
 }
 
 type identityService struct {
 	csi.UnimplementedIdentityServer
+
+	ready func() (bool, error)
 }
 
 func (s identityService) GetPluginInfo(ctx context.Context, req *csi.GetPluginInfoRequest) (*csi.GetPluginInfoResponse, error) {
 	log.Info("GetPluginInfo req ", req.String())
 	return &csi.GetPluginInfoResponse{
-		Name:          utils.CSIPluginName,
-		VendorVersion: utils.Version,
+		Name:          carina.CSIPluginName,
+		VendorVersion: carina.Version,
 	}, nil
 }
 
@@ -80,5 +84,14 @@ func (s identityService) GetPluginCapabilities(ctx context.Context, req *csi.Get
 
 func (s identityService) Probe(ctx context.Context, req *csi.ProbeRequest) (*csi.ProbeResponse, error) {
 	log.Info("Probe req ", req.String())
-	return &csi.ProbeResponse{Ready: &wrappers.BoolValue{Value: true}}, nil
+	ok, err := s.ready()
+	if err != nil {
+		log.Error(err, "probe failed")
+		return nil, status.Error(codes.FailedPrecondition, err.Error())
+	}
+	return &csi.ProbeResponse{
+		Ready: &wrapperspb.BoolValue{
+			Value: ok,
+		},
+	}, nil
 }

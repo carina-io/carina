@@ -17,8 +17,15 @@
 package run
 
 import (
+	"context"
 	"fmt"
+	"github.com/carina-io/carina"
+	"github.com/carina-io/carina/runners"
+	storagev1 "k8s.io/api/storage/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"net"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	"time"
 
 	carinav1 "github.com/carina-io/carina/api/v1"
 	carinav1beta1 "github.com/carina-io/carina/api/v1beta1"
@@ -27,8 +34,6 @@ import (
 	"github.com/carina-io/carina/pkg/configuration"
 	"github.com/carina-io/carina/pkg/csidriver/driver"
 	"github.com/carina-io/carina/pkg/csidriver/driver/k8s"
-	"github.com/carina-io/carina/pkg/csidriver/runners"
-	"github.com/carina-io/carina/utils"
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"google.golang.org/grpc"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -75,7 +80,7 @@ func subMain() error {
 		Scheme:                  scheme,
 		MetricsBindAddress:      config.metricsAddr,
 		LeaderElection:          true,
-		LeaderElectionID:        utils.CSIPluginName + "-carina-controller",
+		LeaderElectionID:        carina.CSIPluginName + "-carina-controller",
 		LeaderElectionNamespace: configuration.RuntimeNamespace(),
 		WebhookServer: &webhook.Server{
 			Host:     hookHost,
@@ -108,10 +113,11 @@ func subMain() error {
 		return err
 	}
 
-	// Add metrics exporter to manager.
-	// Note that grpc.ClientConn can be shared with multiple stubs/services.
-	// https://github.com/grpc/grpc-go/tree/master/examples/features/multiplex
-	if err := mgr.Add(newMetricsExporter()); err != nil {
+	//+kubebuilder:scaffold:builder
+
+	// Add health checker to manager
+	checker := runners.NewChecker(checkFunc(mgr.GetAPIReader()), 1*time.Minute)
+	if err := mgr.Add(checker); err != nil {
 		return err
 	}
 
@@ -123,7 +129,7 @@ func subMain() error {
 	n := k8s.NewNodeService(mgr)
 
 	grpcServer := grpc.NewServer()
-	csi.RegisterIdentityServer(grpcServer, driver.NewIdentityService())
+	csi.RegisterIdentityServer(grpcServer, driver.NewIdentityService(checker.Ready))
 	csi.RegisterControllerServer(grpcServer, driver.NewControllerService(s, n))
 
 	// gRPC service itself should run even when the manager is *not* a leader
@@ -133,14 +139,22 @@ func subMain() error {
 		return err
 	}
 
-	// Http Server
-	e := newHttpServer(mgr.GetCache(), ctx.Done())
-	go e.start()
-
 	setupLog.Info("starting manager")
 	if err := mgr.Start(ctx); err != nil {
 		setupLog.Error(err, "problem running manager")
 		return err
 	}
 	return nil
+}
+
+//+kubebuilder:rbac:groups=storage.k8s.io,resources=csidrivers,verbs=get;list;watch
+
+func checkFunc(c client.Reader) func() error {
+	return func() error {
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+
+		var drv storagev1.CSIDriver
+		return c.Get(ctx, types.NamespacedName{Name: carina.CSIPluginName}, &drv)
+	}
 }

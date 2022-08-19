@@ -186,8 +186,6 @@ spec:
                     pvCount:
                       format: int64
                       type: integer
-                    pvName:
-                      type: string
                     pvs:
                       items:
                         description: PVInfo defines pv details
@@ -208,9 +206,6 @@ spec:
                             type: string
                         type: object
                       type: array
-                    snapCount:
-                      format: int64
-                      type: integer
                     vgAttr:
                       type: string
                     vgFree:

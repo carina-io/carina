@@ -18,9 +18,9 @@ package hook
 import (
 	"context"
 	"encoding/json"
+	"github.com/carina-io/carina"
 	"net/http"
 
-	"github.com/carina-io/carina/utils"
 	"github.com/carina-io/carina/utils/log"
 	corev1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
@@ -81,14 +81,14 @@ func (m podMutator) Handle(ctx context.Context, req admission.Request) admission
 		return admission.Errored(http.StatusInternalServerError, err)
 	}
 	if schedule {
-		pod.Spec.SchedulerName = utils.CarinaSchedule
+		pod.Spec.SchedulerName = carina.CarinaSchedule
 		if pod.Annotations == nil {
 			pod.Annotations = map[string]string{}
 		}
-		if _, ok := pod.Annotations[utils.AllowPodMigrationIfNodeNotready]; !ok {
+		if _, ok := pod.Annotations[carina.AllowPodMigrationIfNodeNotready]; !ok {
 			for _, sc := range cSC {
-				if _, ok = sc.Annotations[utils.AllowPodMigrationIfNodeNotready]; ok {
-					pod.Annotations[utils.AllowPodMigrationIfNodeNotready] = sc.Annotations[utils.AllowPodMigrationIfNodeNotready]
+				if _, ok = sc.Annotations[carina.AllowPodMigrationIfNodeNotready]; ok {
+					pod.Annotations[carina.AllowPodMigrationIfNodeNotready] = sc.Annotations[carina.AllowPodMigrationIfNodeNotready]
 					break
 				}
 			}
@@ -111,7 +111,7 @@ func (m podMutator) targetStorageClasses(ctx context.Context) (map[string]storag
 
 	targets := make(map[string]storagev1.StorageClass)
 	for _, sc := range scl.Items {
-		if sc.Provisioner == utils.CSIPluginName {
+		if sc.Provisioner == carina.CSIPluginName {
 			targets[sc.Name] = sc
 		}
 	}

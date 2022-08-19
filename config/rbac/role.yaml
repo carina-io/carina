@@ -33,14 +33,12 @@ rules:
   - delete
   - get
   - list
-  - update
   - watch
 - apiGroups:
   - ""
   resources:
   - pods
   verbs:
-  - delete
   - get
   - list
   - patch
@@ -104,6 +102,14 @@ rules:
   - get
   - patch
   - update
+- apiGroups:
+  - storage.k8s.io
+  resources:
+  - csidrivers
+  verbs:
+  - get
+  - list
+  - watch
 - apiGroups:
   - storage.k8s.io
   resources:

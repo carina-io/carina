@@ -17,8 +17,15 @@
 package run
 
 import (
+	"context"
 	"errors"
+	"github.com/carina-io/carina"
+	"github.com/carina-io/carina/runners"
+	storagev1 "k8s.io/api/storage/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"os"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	"time"
 
 	carinav1beta1 "github.com/carina-io/carina/api/v1beta1"
 
@@ -26,7 +33,6 @@ import (
 	"github.com/carina-io/carina/controllers"
 	"github.com/carina-io/carina/pkg/csidriver/driver"
 	"github.com/carina-io/carina/pkg/csidriver/driver/k8s"
-	"github.com/carina-io/carina/pkg/csidriver/runners"
 	deviceManager "github.com/carina-io/carina/pkg/devicemanager"
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"google.golang.org/grpc"
@@ -69,44 +75,42 @@ func subMain() error {
 		return err
 	}
 
-	ctx := ctrl.SetupSignalHandler()
-
 	// 初始化磁盘管理服务
-	dm := deviceManager.NewDeviceManager(nodeName, mgr.GetCache(), ctx.Done())
+	dm := deviceManager.NewDeviceManager(nodeName, mgr.GetCache())
 
-	podController := controllers.NewPodReconciler(
+	// pod io controller
+	podIOController := controllers.NewPodIOReconciler(
 		mgr.GetClient(),
 		nodeName,
 		dm.Partition,
 	)
-	if err := podController.SetupWithManager(mgr); err != nil {
+	if err := podIOController.SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller ", "controller", "podController")
 		return err
 	}
-
+	// logic volume controller
 	lvController := controllers.NewLogicVolumeReconciler(
 		mgr.GetClient(),
 		mgr.GetEventRecorderFor("logicvolume-node"),
-		nodeName,
-		dm.VolumeManager,
-		dm.Partition,
+		dm,
 	)
 	if err := lvController.SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "LogicalVolume")
 		return err
 	}
 
-	nodeResourceController := controllers.NewNodeStorageResourceReconciler(
-		mgr.GetClient(),
-		nodeName,
-		ctx.Done(),
-		dm,
-	)
+	//+kubebuilder:scaffold:builder
+
+	// Add health checker to manager
+	checker := runners.NewChecker(checkFunc(dm, mgr.GetAPIReader()), 1*time.Minute)
+	if err := mgr.Add(checker); err != nil {
+		return err
+	}
 
 	// Add metrics exporter to manager.
 	// Note that grpc.ClientConn can be shared with multiple stubs/services.
 	// https://github.com/grpc/grpc-go/tree/master/examples/features/multiplex
-	if err := mgr.Add(runners.NewMetricsExporter(nodeName, dm.VolumeManager)); err != nil {
+	if err := mgr.Add(runners.NewMetricsExporter(mgr.GetClient(), dm)); err != nil {
 		return err
 	}
 
@@ -119,27 +123,51 @@ func subMain() error {
 		return err
 	}
 	grpcServer := grpc.NewServer()
-	csi.RegisterIdentityServer(grpcServer, driver.NewIdentityService())
-	csi.RegisterNodeServer(grpcServer, driver.NewNodeService(nodeName, dm.VolumeManager, dm.Partition, s))
-	err = mgr.Add(runners.NewGRPCRunner(grpcServer, config.csiSocket, false))
-	if err != nil {
+	csi.RegisterIdentityServer(grpcServer, driver.NewIdentityService(checker.Ready))
+	csi.RegisterNodeServer(grpcServer, driver.NewNodeService(dm, s))
+	if err := mgr.Add(runners.NewGRPCRunner(grpcServer, config.csiSocket, false)); err != nil {
 		return err
 	}
 
-	// 启动磁盘检查
-	go dm.DeviceCheckTask()
-	// 启动volume一致性检查
-	dm.VolumeConsistencyCheck()
-	// http server
-	e := newHttpServer(dm.VolumeManager, ctx.Done())
-	go e.start()
+	// add cleanupOrphan to manager
+	if err := mgr.Add(runners.NewTroubleShoot(dm)); err != nil {
+		return err
+	}
 
-	go nodeResourceController.Run()
+	// add device check to manager, add or delete device
+	if err := mgr.Add(runners.NewDeviceCheck(dm)); err != nil {
+		return err
+	}
+
+	// add nsr reconciler to manager
+	if err := mgr.Add(runners.NewNodeStorageResourceReconciler(mgr.GetClient(), dm)); err != nil {
+		return err
+	}
+
 	setupLog.Info("starting manager")
-	if err := mgr.Start(ctx); err != nil {
+	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
 		setupLog.Error(err, "problem running manager")
 		return err
 	}
 
 	return nil
+}
+
+//+kubebuilder:rbac:groups=storage.k8s.io,resources=csidrivers,verbs=get;list;watch
+
+func checkFunc(dm *deviceManager.DeviceManager, c client.Reader) func() error {
+	return func() error {
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+
+		if _, err := dm.VolumeManager.GetCurrentVgStruct(); err != nil {
+			return err
+		}
+		if _, err := dm.Partition.ListDevicesDetailWithoutFilter(""); err != nil {
+			return err
+		}
+
+		var drv storagev1.CSIDriver
+		return c.Get(ctx, types.NamespacedName{Name: carina.CSIPluginName}, &drv)
+	}
 }

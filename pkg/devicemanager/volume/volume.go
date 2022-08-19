@@ -20,6 +20,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/carina-io/carina"
 	"strings"
 	"time"
 
@@ -28,7 +29,6 @@ import (
 	"github.com/carina-io/carina/pkg/devicemanager/bcache"
 	"github.com/carina-io/carina/pkg/devicemanager/lvmd"
 	"github.com/carina-io/carina/pkg/devicemanager/types"
-	"github.com/carina-io/carina/utils"
 	"github.com/carina-io/carina/utils/log"
 	"github.com/carina-io/carina/utils/mutx"
 	"google.golang.org/grpc/codes"
@@ -39,27 +39,10 @@ const (
 	VOLUMEMUTEX = "VolumeMutex"
 )
 
-type Trigger string
-
-const (
-	Dummy                 Trigger = "dummy"
-	ConfigModify          Trigger = "configModify"
-	LVMCheck              Trigger = "lvmCheck"
-	CleanupOrphan         Trigger = "cleanupOrphan"
-	LogicVolumeController Trigger = "logicVolumeController"
-)
-
-type VolumeEvent struct {
-	Trigger   Trigger
-	TriggerAt time.Time
-	Done      chan struct{}
-}
-
 type LocalVolumeImplement struct {
-	Lv           lvmd.Lvm2
-	Bcache       bcache.Bcache
-	Mutex        *mutx.GlobalLocks
-	NoticeUpdate chan *VolumeEvent
+	Lv     lvmd.Lvm2
+	Bcache bcache.Bcache
+	Mutex  *mutx.GlobalLocks
 }
 
 func (v *LocalVolumeImplement) CreateVolume(lvName, vgName string, size, ratio uint64) error {
@@ -79,12 +62,12 @@ func (v *LocalVolumeImplement) CreateVolume(lvName, vgName string, size, ratio u
 		return errors.New("cannot find device group info")
 	}
 
-	if vgInfo.VGFree-size < utils.DefaultReservedSpace/2 {
+	if vgInfo.VGFree-size < carina.DefaultReservedSpace {
 		log.Warnf("%s don't have enough space, reserved 10 g", vgName)
 		return errors.New("don't have enough space")
 	}
 
-	name := utils.VolumePrefix + lvName
+	name := carina.VolumePrefix + lvName
 
 	lvInfo, _ := v.Lv.LVDisplay(name, vgName)
 	if lvInfo != nil && lvInfo.VGName == vgName {
@@ -104,8 +87,8 @@ func (v *LocalVolumeImplement) DeleteVolume(lvName, vgName string) error {
 	defer v.Mutex.Release(VOLUMEMUTEX)
 
 	name := lvName
-	if !strings.HasPrefix(lvName, utils.VolumePrefix) {
-		name = utils.VolumePrefix + lvName
+	if !strings.HasPrefix(lvName, carina.VolumePrefix) {
+		name = carina.VolumePrefix + lvName
 	}
 
 	lvInfo, err := v.Lv.LVDisplay(name, vgName)
@@ -150,7 +133,7 @@ func (v *LocalVolumeImplement) ResizeVolume(lvName, vgName string, size, ratio u
 		return errors.New("cannot find device group info")
 	}
 
-	name := utils.VolumePrefix + lvName
+	name := carina.VolumePrefix + lvName
 
 	lvInfo, err := v.Lv.LVDisplay(name, vgName)
 	if err != nil {
@@ -167,7 +150,7 @@ func (v *LocalVolumeImplement) ResizeVolume(lvName, vgName string, size, ratio u
 		return nil
 	}
 
-	if vgInfo.VGFree-(size-lvInfo.LVSize) < utils.DefaultReservedSpace/2 {
+	if vgInfo.VGFree-(size-lvInfo.LVSize) < carina.DefaultReservedSpace {
 		log.Warnf("%s don't have enough space, reserved 10 g", vgName)
 		return errors.New("don't have enough space")
 	}
@@ -332,7 +315,7 @@ func (v *LocalVolumeImplement) RemoveDiskInVg(disk, vgName string) error {
 	} else {
 		// 当vg卷下只有一个pv时，需要检查是否还存在lv
 		if vgInfo.PVCount == 1 {
-			if vgInfo.LVCount > 0 || vgInfo.SnapCount > 0 {
+			if vgInfo.LVCount > 0 {
 				log.Warnf("cannot remove the disk %s because there are still have logic volumes", disk)
 				return errors.New("still have logical volumes")
 			}
@@ -378,8 +361,8 @@ func (v *LocalVolumeImplement) HealthCheck() {
 		case <-ctx.Done():
 			log.Info("volume health check timeout.")
 		default:
-			_ = v.Lv.RemoveUnknownDevice(utils.DeviceVGHDD)
-			_ = v.Lv.RemoveUnknownDevice(utils.DeviceVGSSD)
+			_ = v.Lv.RemoveUnknownDevice(carina.DeviceVGHDD)
+			_ = v.Lv.RemoveUnknownDevice(carina.DeviceVGSSD)
 			return
 		}
 	}
@@ -398,18 +381,6 @@ func (v *LocalVolumeImplement) RefreshLvmCache() {
 		log.Warnf("error during vgscan: %v", err)
 	}
 
-}
-
-func (v *LocalVolumeImplement) NoticeUpdateCapacity(trigger Trigger, done chan struct{}) {
-	select {
-	case v.NoticeUpdate <- &VolumeEvent{Trigger: trigger, TriggerAt: time.Now(), Done: done}:
-	case <-time.After(10 * time.Second):
-		log.Debug("Notice channel is full, send all update channel timeout(10s).")
-	}
-}
-
-func (v *LocalVolumeImplement) RegisterNoticeChan(notice chan *VolumeEvent) {
-	v.NoticeUpdate = notice
 }
 
 // CreateBcache bcache

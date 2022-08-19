@@ -19,12 +19,12 @@ package controllers
 import (
 	"context"
 	"fmt"
+	"github.com/carina-io/carina"
+	deviceManager "github.com/carina-io/carina/pkg/devicemanager"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"strconv"
 	"time"
 
-	"github.com/carina-io/carina/pkg/devicemanager/partition"
-	"github.com/carina-io/carina/pkg/devicemanager/volume"
 	"github.com/carina-io/carina/utils"
 	"github.com/carina-io/carina/utils/log"
 	"google.golang.org/grpc/codes"
@@ -42,22 +42,18 @@ import (
 // LogicVolumeReconciler reconciles a LogicVolume object
 type LogicVolumeReconciler struct {
 	client.Client
-	recorder  record.EventRecorder
-	nodeName  string
-	volume    volume.LocalVolume
-	partition partition.LocalPartition
+	recorder record.EventRecorder
+	dm       *deviceManager.DeviceManager
 }
 
 // +kubebuilder:rbac:groups=carina.storage.io,resources=logicvolumes,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=carina.storage.io,resources=logicvolumes/status,verbs=get;update;patch
 
-func NewLogicVolumeReconciler(client client.Client, recorder record.EventRecorder, nodeName string, volume volume.LocalVolume, partition partition.LocalPartition) *LogicVolumeReconciler {
+func NewLogicVolumeReconciler(client client.Client, recorder record.EventRecorder, dm *deviceManager.DeviceManager) *LogicVolumeReconciler {
 	return &LogicVolumeReconciler{
-		Client:    client,
-		recorder:  recorder,
-		nodeName:  nodeName,
-		volume:    volume,
-		partition: partition,
+		Client:   client,
+		recorder: recorder,
+		dm:       dm,
 	}
 }
 
@@ -67,7 +63,7 @@ func (r *LogicVolumeReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	lv := new(carinav1.LogicVolume)
 	if err := r.Client.Get(ctx, req.NamespacedName, lv); err != nil {
 		if !apierrs.IsNotFound(err) {
-			log.Error(err, "unable to fetch LogicVolume")
+			log.Error(err, " unable to fetch LogicVolume")
 			return ctrl.Result{}, err
 		}
 		return ctrl.Result{}, nil
@@ -89,7 +85,7 @@ func (r *LogicVolumeReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	}
 
 	// finalization
-	if !utils.ContainsString(lv.Finalizers, utils.LogicVolumeFinalizer) {
+	if !utils.ContainsString(lv.Finalizers, carina.LogicVolumeFinalizer) {
 		// Our finalizer has finished, so the reconciler can do nothing.
 		return ctrl.Result{}, nil
 	}
@@ -101,7 +97,7 @@ func (r *LogicVolumeReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 func (r *LogicVolumeReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&carinav1.LogicVolume{}).
-		WithEventFilter(&logicVolumeFilter{r.nodeName}).
+		WithEventFilter(&logicVolumeFilter{r.dm.NodeName}).
 		WithOptions(controller.Options{
 			MaxConcurrentReconciles: 5,
 		}).
@@ -113,18 +109,18 @@ func (r *LogicVolumeReconciler) removeLVIfExists(ctx context.Context, lv *carina
 	// Finalizer's process ( RemoveLV then removeString ) is not atomic,
 	// so checking existence of LV to ensure its idempotence
 	var err error
-	switch lv.Annotations[utils.VolumeManagerType] {
-	case utils.LvmVolumeType:
+	switch lv.Annotations[carina.VolumeManagerType] {
+	case carina.LvmVolumeType:
 		err = utils.UntilMaxRetry(func() error {
-			return r.volume.DeleteVolume(lv.Name, lv.Spec.DeviceGroup)
+			return r.dm.VolumeManager.DeleteVolume(lv.Name, lv.Spec.DeviceGroup)
 		}, 10, 12*time.Second)
 
-	case utils.RawVolumeType:
+	case carina.RawVolumeType:
 		err = utils.UntilMaxRetry(func() error {
-			return r.partition.DeletePartition(utils.PartitionName(lv.Name), lv.Spec.DeviceGroup)
+			return r.dm.Partition.DeletePartition(utils.PartitionName(lv.Name), lv.Spec.DeviceGroup)
 		}, 10, 12*time.Second)
 	default:
-		log.Errorf("Delete LogicVolume: Create with no support volume type undefined %s", lv.Annotations[utils.VolumeManagerType])
+		log.Errorf("Delete LogicVolume: Create with no support volume type undefined %s", lv.Annotations[carina.VolumeManagerType])
 		return nil
 	}
 
@@ -138,7 +134,7 @@ func (r *LogicVolumeReconciler) removeLVIfExists(ctx context.Context, lv *carina
 	}
 
 	lv2 := lv.DeepCopy()
-	lv2.Finalizers = utils.SliceRemoveString(lv2.Finalizers, utils.LogicVolumeFinalizer)
+	lv2.Finalizers = utils.SliceRemoveString(lv2.Finalizers, carina.LogicVolumeFinalizer)
 	patch := client.MergeFrom(lv)
 	if err = r.Patch(ctx, lv2, patch); err != nil {
 		log.Error(err, " failed to remove finalizer name ", lv.Name)
@@ -157,54 +153,54 @@ func (r *LogicVolumeReconciler) createLV(ctx context.Context, lv *carinav1.Logic
 	}
 	reqBytes := lv.Spec.Size.Value()
 
-	switch lv.Annotations[utils.VolumeManagerType] {
-	case utils.LvmVolumeType:
+	switch lv.Annotations[carina.VolumeManagerType] {
+	case carina.LvmVolumeType:
 		err := utils.UntilMaxRetry(func() error {
-			return r.volume.CreateVolume(lv.Name, lv.Spec.DeviceGroup, uint64(reqBytes), 1)
+			return r.dm.VolumeManager.CreateVolume(lv.Name, lv.Spec.DeviceGroup, uint64(reqBytes), 1)
 		}, 5, 12*time.Second)
 
 		if err != nil {
 			lv.Status.Code = codes.Internal
 			lv.Status.Message = err.Error()
 			lv.Status.Status = "Failed"
-			r.recorder.Event(lv, corev1.EventTypeWarning, "CreateVolumeFailed", fmt.Sprintf("create volume failed node: %s, time: %s, error: %s", r.nodeName, time.Now().Format("2006-01-02T15:04:05.000Z"), err.Error()))
+			r.recorder.Event(lv, corev1.EventTypeWarning, "CreateVolumeFailed", fmt.Sprintf("create volume failed node: %s, time: %s, error: %s", r.dm.NodeName, time.Now().Format("2006-01-02T15:04:05.000Z"), err.Error()))
 		} else {
-			lv.Status.VolumeID = utils.VolumePrefix + lv.Name
+			lv.Status.VolumeID = carina.VolumePrefix + lv.Name
 			lv.Status.CurrentSize = resource.NewQuantity(reqBytes, resource.BinarySI)
 			lv.Status.Code = codes.OK
 			lv.Status.Message = ""
 			lv.Status.Status = "Success"
 
-			lvInfo, _ := r.volume.VolumeInfo(lv.Status.VolumeID, lv.Spec.DeviceGroup)
+			lvInfo, _ := r.dm.VolumeManager.VolumeInfo(lv.Status.VolumeID, lv.Spec.DeviceGroup)
 			if lvInfo != nil {
 				lv.Status.DeviceMajor = lvInfo.LVKernelMajor
 				lv.Status.DeviceMinor = lvInfo.LVKernelMinor
 			}
-			r.recorder.Event(lv, corev1.EventTypeNormal, "CreateVolumeSuccess", fmt.Sprintf("create volume success node: %s, time: %s", r.nodeName, time.Now().Format("2006-01-02T15:04:05.000Z")))
+			r.recorder.Event(lv, corev1.EventTypeNormal, "CreateVolumeSuccess", fmt.Sprintf("create volume success node: %s, time: %s", r.dm.NodeName, time.Now().Format("2006-01-02T15:04:05.000Z")))
 		}
 
-	case utils.RawVolumeType:
-		if _, ok := lv.Annotations[utils.ExclusivityDisk]; ok {
+	case carina.RawVolumeType:
+		if _, ok := lv.Annotations[carina.ExclusivityDisk]; ok {
 			log.Info("Create lv using an exclusive disk")
 		}
 		err := utils.UntilMaxRetry(func() error {
 			log.Info("name: ", utils.PartitionName(lv.Name), " group: ", lv.Spec.DeviceGroup, " size: ", uint64(reqBytes))
-			return r.partition.CreatePartition(utils.PartitionName(lv.Name), lv.Spec.DeviceGroup, uint64(reqBytes))
+			return r.dm.Partition.CreatePartition(utils.PartitionName(lv.Name), lv.Spec.DeviceGroup, uint64(reqBytes))
 		}, 5, 12*time.Second)
 
 		if err != nil {
 			lv.Status.Code = codes.Internal
 			lv.Status.Message = err.Error()
 			lv.Status.Status = "Failed"
-			r.recorder.Event(lv, corev1.EventTypeWarning, "CreateVolumeFailed", fmt.Sprintf("create volume failed node: %s, time: %s, error: %s", r.nodeName, time.Now().Format("2006-01-02T15:04:05.000Z"), err.Error()))
+			r.recorder.Event(lv, corev1.EventTypeWarning, "CreateVolumeFailed", fmt.Sprintf("create volume failed node: %s, time: %s, error: %s", r.dm.NodeName, time.Now().Format("2006-01-02T15:04:05.000Z"), err.Error()))
 		} else {
-			lv.Status.VolumeID = utils.VolumePrefix + lv.Name
+			lv.Status.VolumeID = carina.VolumePrefix + lv.Name
 			lv.Status.CurrentSize = resource.NewQuantity(reqBytes, resource.BinarySI)
 			lv.Status.Code = codes.OK
 			lv.Status.Message = ""
 			lv.Status.Status = "Success"
 
-			diskInfo, err := r.partition.ScanDisk(lv.Spec.DeviceGroup)
+			diskInfo, err := r.dm.Partition.ScanDisk(lv.Spec.DeviceGroup)
 
 			if err != nil {
 				return fmt.Errorf("lv: %s,disk scan group: %s,err:%s", lv.Name, lv.Spec.DeviceGroup, err)
@@ -215,11 +211,11 @@ func (r *LogicVolumeReconciler) createLV(ctx context.Context, lv *carinav1.Logic
 			minor, _ := strconv.ParseUint(diskInfo.UdevInfo.Properties["MINOR"], 10, 32)
 			lv.Status.DeviceMajor = uint32(major)
 			lv.Status.DeviceMinor = uint32(minor)
-			r.recorder.Event(lv, corev1.EventTypeNormal, "CreateVolumeSuccess", fmt.Sprintf("create volume success node: %s, time: %s", r.nodeName, time.Now().Format("2006-01-02T15:04:05.000Z")))
+			r.recorder.Event(lv, corev1.EventTypeNormal, "CreateVolumeSuccess", fmt.Sprintf("create volume success node: %s, time: %s", r.dm.NodeName, time.Now().Format("2006-01-02T15:04:05.000Z")))
 		}
 
 	default:
-		log.Errorf("Create LogicVolume: Create with no support volume type undefined %s", lv.Annotations[utils.VolumeManagerType])
+		log.Errorf("Create LogicVolume: Create with no support volume type undefined %s", lv.Annotations[carina.VolumeManagerType])
 		return nil
 	}
 
@@ -250,49 +246,49 @@ func (r *LogicVolumeReconciler) expandLV(ctx context.Context, lv *carinav1.Logic
 	origBytes := (*lv.Status.CurrentSize).Value()
 	reqBytes := lv.Spec.Size.Value()
 
-	switch lv.Annotations[utils.VolumeManagerType] {
-	case utils.LvmVolumeType:
+	switch lv.Annotations[carina.VolumeManagerType] {
+	case carina.LvmVolumeType:
 		err := utils.UntilMaxRetry(func() error {
-			return r.volume.ResizeVolume(lv.Name, lv.Spec.DeviceGroup, uint64(reqBytes), 1)
+			return r.dm.VolumeManager.ResizeVolume(lv.Name, lv.Spec.DeviceGroup, uint64(reqBytes), 1)
 		}, 10, 12*time.Second)
 		if err != nil {
 			lv.Status.Code = codes.Internal
 			lv.Status.Message = err.Error()
 			lv.Status.Status = "Failed"
-			r.recorder.Event(lv, corev1.EventTypeWarning, "ExpandVolumeFailed", fmt.Sprintf("expand volume failed node: %s, time: %s, error: %s", r.nodeName, time.Now().Format("2006-01-02T15:04:05.000Z"), err.Error()))
+			r.recorder.Event(lv, corev1.EventTypeWarning, "ExpandVolumeFailed", fmt.Sprintf("expand volume failed node: %s, time: %s, error: %s", r.dm.NodeName, time.Now().Format("2006-01-02T15:04:05.000Z"), err.Error()))
 		} else {
 			lv.Status.CurrentSize = resource.NewQuantity(reqBytes, resource.BinarySI)
 			lv.Status.Code = codes.OK
 			lv.Status.Message = ""
 			lv.Status.Status = "Success"
-			r.recorder.Event(lv, corev1.EventTypeNormal, "ExpandVolumeSuccess", fmt.Sprintf("expand volume success node: %s, time: %s", r.nodeName, time.Now().Format("2006-01-02T15:04:05.000Z")))
+			r.recorder.Event(lv, corev1.EventTypeNormal, "ExpandVolumeSuccess", fmt.Sprintf("expand volume success node: %s, time: %s", r.dm.NodeName, time.Now().Format("2006-01-02T15:04:05.000Z")))
 		}
 
-	case utils.RawVolumeType:
-		if _, ok := lv.Annotations[utils.ExclusivityDisk]; !ok {
+	case carina.RawVolumeType:
+		if _, ok := lv.Annotations[carina.ExclusivityDisk]; !ok {
 			return fmt.Errorf("Extend lv: %s doesn't get  annotations: carina.storage.io/exclusively-raw-disk", lv.Name)
 		}
-		if lv.Annotations[utils.ExclusivityDisk] == "false" {
+		if lv.Annotations[carina.ExclusivityDisk] == "false" {
 			return fmt.Errorf("Extend lv: %s doesn't using an exclusive disk", lv.Name)
 		}
 		err := utils.UntilMaxRetry(func() error {
-			return r.partition.UpdatePartition(utils.PartitionName(lv.Name), lv.Spec.DeviceGroup, uint64(reqBytes))
+			return r.dm.Partition.UpdatePartition(utils.PartitionName(lv.Name), lv.Spec.DeviceGroup, uint64(reqBytes))
 		}, 10, 12*time.Second)
 		if err != nil {
 			lv.Status.Code = codes.Internal
 			lv.Status.Message = err.Error()
 			lv.Status.Status = "Failed"
-			r.recorder.Event(lv, corev1.EventTypeWarning, "ExpandVolumeFailed", fmt.Sprintf("expand volume failed node: %s, time: %s, error: %s", r.nodeName, time.Now().Format("2006-01-02T15:04:05.000Z"), err.Error()))
+			r.recorder.Event(lv, corev1.EventTypeWarning, "ExpandVolumeFailed", fmt.Sprintf("expand volume failed node: %s, time: %s, error: %s", r.dm.NodeName, time.Now().Format("2006-01-02T15:04:05.000Z"), err.Error()))
 		} else {
 			lv.Status.CurrentSize = resource.NewQuantity(reqBytes, resource.BinarySI)
 			lv.Status.Code = codes.OK
 			lv.Status.Message = ""
 			lv.Status.Status = "Success"
-			r.recorder.Event(lv, corev1.EventTypeNormal, "ExpandVolumeSuccess", fmt.Sprintf("expand volume success node: %s, time: %s", r.nodeName, time.Now().Format("2006-01-02T15:04:05.000Z")))
+			r.recorder.Event(lv, corev1.EventTypeNormal, "ExpandVolumeSuccess", fmt.Sprintf("expand volume success node: %s, time: %s", r.dm.NodeName, time.Now().Format("2006-01-02T15:04:05.000Z")))
 		}
 
 	default:
-		log.Errorf("Create LogicVolume: %s with no support volume type undefined %s", lv.Name, lv.Annotations[utils.VolumeManagerType])
+		log.Errorf("Create LogicVolume: %s with no support volume type undefined %s", lv.Name, lv.Annotations[carina.VolumeManagerType])
 		return nil
 	}
 
@@ -348,7 +344,7 @@ func (f logicVolumeFilter) Generic(e event.GenericEvent) bool {
 
 func (r *LogicVolumeReconciler) syncNoticeUpdateCapacity(lv *carinav1.LogicVolume) error {
 	done := make(chan struct{})
-	r.volume.NoticeUpdateCapacity(volume.LogicVolumeController, done)
+	r.dm.NoticeUpdateCapacity(deviceManager.LogicVolumeController, done)
 	select {
 	case <-done:
 	case <-time.After(5 * time.Second):
