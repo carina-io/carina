@@ -132,26 +132,22 @@ func (ls *LocalStorage) Filter(ctx context.Context, cycleState *framework.CycleS
 							total += v.Value() - val
 						}
 					} else {
-
 						if exclusivityDisk {
-							partionFlag := false
+							partitionFlag := false
 							for _, disk := range nsr.Status.Disks {
-								if strings.Contains(key, disk.Name) && len(disk.Partition) > 1 {
-									partionFlag = true
+								if strings.Contains(key, disk.Name) && len(disk.Partitions) > 1 {
+									partitionFlag = true
 									exclusivityDiskMap[key] = 1
 								}
 							}
-
-							if partionFlag {
+							if partitionFlag {
 								continue
 							}
 						}
 						capacityMap[strArr[0]+"/"+strArr[1]] = v.Value()
 						total += v.Value()
 					}
-
 				}
-
 			}
 			if volumeType == utils.LvmVolumeType {
 				if !configuration.CheckRawDeviceGroup(strArr[1]) {

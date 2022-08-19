@@ -90,11 +90,14 @@ func listLogicVolumes(client dynamic.Interface, node string) (lvs []string, err 
 	if err != nil {
 		return nil, err
 	}
-	klog.V(3).Infof("Get lvlist:%v", lvlist)
+	klog.V(3).Infof("Get lvlist: %v", lvlist)
 	if len(lvlist.Items) == 0 {
 		return lvs, nil
 	}
 	for _, lv := range lvlist.Items {
+		if lv.Annotations == nil {
+			continue
+		}
 		klog.V(3).Infof("Get lv:%v,node:%s, exclusivity: %s", lv.Spec.NodeName, node, lv.Annotations[utils.ExclusivityDisk])
 		if lv.Spec.NodeName == node && lv.Annotations[utils.ExclusivityDisk] == "true" {
 			lvs = append(lvs, lv.Spec.DeviceGroup)
