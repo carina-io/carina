@@ -36,7 +36,7 @@ spec:
           # created by privileged CSI driver container.
           securityContext:
             privileged: true
-          image: registry.cn-hangzhou.aliyuncs.com/carina/csi-node-driver-registrar:v2.1.0
+          image: registry.cn-hangzhou.aliyuncs.com/carina/csi-node-driver-registrar:v2.5.1
           args:
             - "--v=5"
             - "--csi-address=/csi/csi.sock"
