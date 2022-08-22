@@ -13,7 +13,7 @@ Carina 是一款基于 Kubernetes CSI 标准实现的存储插件，用户可以
 
 # 支持环境
 
-- Kubernetes：(CSI_VERSION=1.3.0)
+- Kubernetes：(CSI_VERSION=1.5.0)
 - Node OS：Linux
 - Filesystems：ext4，xfs
 
