@@ -16,8 +16,8 @@ build:
 	chmod a+x    bin/*
 
 image:
-	docker buildx build -t $(IMAGE_REPOSITORY)/antmoveh/carina-proxy:$(TAG) --platform=$(PLATFORM) -o type=registry . 
-	docker buildx imagetools inspect $(IMAGE_REPOSITORY)/antmoveh/carina-proxy:$(TAG)
+	docker buildx build -t $(IMAGE_REPOSITORY)/carina/carina-proxy:$(TAG) --platform=$(PLATFORM) -o type=registry .
+	docker buildx imagetools inspect $(IMAGE_REPOSITORY)/carina/carina-proxy:$(TAG)
 
 clean:
 	@rm -rf hack/certs

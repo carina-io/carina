@@ -3,7 +3,7 @@ module github.com/carina-io/carina/scheduler
 go 1.17
 
 require (
-	github.com/carina-io/carina-api v0.0.0-20220315075933-3e5ab2ab7ee0
+	github.com/carina-io/carina-api v0.10.1-0.20220819093731-f15de0832ed3
 	github.com/fsnotify/fsnotify v1.4.9
 	github.com/mitchellh/mapstructure v1.1.2
 	github.com/spf13/viper v1.7.1

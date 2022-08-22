@@ -5,7 +5,7 @@
 replicaCount: 1
 
 image:
-  repository: registry.cn-hangzhou.aliyuncs.com/antmoveh/scheduler
+  repository: registry.cn-hangzhou.aliyuncs.com/carina/scheduler
   pullPolicy: IfNotPresent
   # Overrides the image tag whose default is the chart appVersion.
   tag: "v0.9-20211012111249"

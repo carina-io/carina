@@ -19,7 +19,7 @@ spec:
       serviceAccount: carina-csi-controller
       containers:
         - name: csi-provisioner
-          image: registry.cn-hangzhou.aliyuncs.com/antmoveh/csi-provisioner:v2.1.0
+          image: registry.cn-hangzhou.aliyuncs.com/carina/csi-provisioner:v2.2.2
           args:
             - "--csi-address=$(ADDRESS)"
             - "--v=5"
@@ -36,7 +36,7 @@ spec:
             - name: socket-dir
               mountPath: /csi
         - name: csi-resizer
-          image: registry.cn-hangzhou.aliyuncs.com/antmoveh/csi-resizer:v1.1.0
+          image: registry.cn-hangzhou.aliyuncs.com/carina/csi-resizer:v1.5.0
           args:
             - "--csi-address=$(ADDRESS)"
             - "--v=5"
@@ -57,7 +57,7 @@ spec:
             capabilities:
               add: ["SYS_ADMIN"]
           # for stable functionality replace canary with latest release version
-          image: registry.cn-hangzhou.aliyuncs.com/antmoveh/carina:latest
+          image: registry.cn-hangzhou.aliyuncs.com/carina/carina:latest
           command: ["carina-controller"]
           args:
             - "--csi-address=$(ADDRESS)"
@@ -178,7 +178,7 @@ spec:
     spec:
       containers:
         - name: create
-          image: registry.cn-hangzhou.aliyuncs.com/antmoveh/kube-webhook-certgen:v1.1.1
+          image: registry.cn-hangzhou.aliyuncs.com/carina/kube-webhook-certgen:v1.1.1
           imagePullPolicy: IfNotPresent
           args:
             - create
@@ -212,7 +212,7 @@ spec:
     spec:
       containers:
         - name: patch
-          image: registry.cn-hangzhou.aliyuncs.com/antmoveh/kube-webhook-certgen:v1.1.1
+          image: registry.cn-hangzhou.aliyuncs.com/carina/kube-webhook-certgen:v1.1.1
           imagePullPolicy: IfNotPresent
           args:
             - patch
