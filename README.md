@@ -125,7 +125,7 @@ helm install carina-csi-driver carina-csi-driver/carina-csi-driver --namespace k
 | IOPS | standard | high | standard | high |
 | latency | standard | low | standard | low |
 | CSI support| yes | yes | yes | yes |
-| snapshot | no | driver specific| yes | yes|
+| snapshot | no | driver specific| yes | no|
 | clone | no | driver specific | yes | not yet, comming soon |
 | quota| no | yes | yes | yes |
 | resizing | yes | driver specific | yes | yes |
