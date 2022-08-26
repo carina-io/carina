@@ -5,7 +5,6 @@ carina-scheduler can scheduling pods based on usage and capacity of nodes' disks
 ```json
  config.json: |-
     {
-      "diskSelector": ["loop*", "vd*"], # disk selector policy, supports regix expressions.
       "diskScanInterval": "300", # disk scan intervals in seconds. Zero will disable scanning. 
       "diskGroupPolicy": "type", # disk group policy
       "schedulerStrategy": "spreadout" # scheduler policy, supports binpack and spreadout.

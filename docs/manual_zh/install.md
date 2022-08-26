@@ -2,9 +2,9 @@
 
 ##### 部署条件
 
-- Kubernetes 集群（CSI_VERSION=1.3.0）
+- Kubernetes 集群（CSI_VERSION=1.5.0）
 - 如果kubelet以容器化方式运行，需要挂载主机`/dev`目录
-- Linux Kernal 3.10.0-1160.11.1.el7.x86_64，非硬性要求，基于此环境进行的测试较多
+- Linux Kernel 3.10.0-1160.11.1.el7.x86_64，非硬性要求，基于此环境进行的测试较多
 - 集群每个节点存在1..N块裸盘，支持SSD和HDD磁盘（可使用命令`lsblk --output NAME,ROTA`查看磁盘类型，ROTA=1为HDD磁盘 ROTA=0为SSD磁盘），集群某些节点没有裸盘也无影响，会在创建pv时自动过滤掉该节点
 
 ##### 执行部署

@@ -56,3 +56,21 @@ This project adheres to [Semantic Versioning](https://www.opencarina.io).
 - replace kubernetes.customized/blkio.throttle.write_bps_device: "10485760" ==> carina.storage.io/blkio.throttle.write_bps_device: "10485760"
 - replace kubernetes.customized/blkio.throttle.write_iops_device: "100000"  ==> carina.storage.io/blkio.throttle.write_iops_device: "100000"
 - replace carina.io/rebuild-node-notready: true                             ==>  carina.storage.io/allow-pod-migration-if-node-notready: true
+
+## [0.11.0] - 2022-08-31
+
+- Support the cgroup v2
+- Adjustment of project structure
+- The HTTP server is deleted
+- Logicvolume changed from Namespace to Cluster, [upgrade](docs/manual_zh/install-v0.11.0.md)
+- Fixed the problem that message notification is not timely
+- Fix the metric server panic problem #91
+- Mirrored warehouse has personal space migrated to Carina exclusive space
+- To improve LVM volume performance, do not create a thin-pool when creating an LVM volume #96
+- Add parameter `carina.stroage. IO /allow-pod-migration-if-notready` to storageclass. Webhook will automatically add 
+this annotation for POD when SC has this parameter #95
+- Nodestorageresource structuring and issue fixing #87
+- Remove ConfigMap synchronization control #75
+- The Carina E2E test is being refined
+- Promote carina into cncf sandbox project and roadmap
+- Update outdated documents

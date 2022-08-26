@@ -1,7 +1,7 @@
 #### cache tiering
 
 
-When carina-node starts up, it automatically load kernel module `bcache0` using `modprobe bcache0`. If it's not supportted by kernel, then cache tiering will not be enabled.
+When carina-node starts up, it automatically loads kernel module `bcache` using `modprobe bcache`. If it's not supported by kernel, then cache tiering will not be enabled.
 
 Creating storageclass using `kubectl apply -f storageclass.yaml`
 

@@ -1,4 +1,5 @@
-#### 设备注册
+#### 设备注册[Deprecated] `该功能已经被nodestorageresource代替`
+
 
   当我们对本地磁盘进行管理时，将本地磁盘卷组当做设备注册到kubelet，每次新的磁盘加入或者pv被创建后会更新设备容量到kubelet，如所示
 

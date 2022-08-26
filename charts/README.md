@@ -72,7 +72,6 @@ The following table lists the configurable parameters of the latest  Disk CSI Dr
 | `controller.name`                                 | name of driver deployment                                                                                  | `csi-carina-controller` |
 | `controller.replicas`                             | the replicas of csi-carina-controller                                                                      | `2`           |
 | `controller.metricsPort`                          | metrics port of csi-carina-controller                                                                      | `29604`         |
-| `controller.httpPort`                             | httpPort port of csi-carina-controller                                                                     | `8089`           |
 | `controller.webhookPort`                          | webhookPort port of csi-carina-controller                                                                  | `8443`         |
 | `controller.tolerations`                          | controller pod tolerations                                                                                 |     |
 | `controller.podLabels`                            | controller pod podLabels                                                                                   |     |

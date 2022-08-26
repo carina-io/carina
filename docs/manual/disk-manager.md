@@ -13,7 +13,20 @@ metadata:
 data:
   config.json: |-
     {
-      "diskSelector": ["loop+", "vd+"], # disk selector using regre expression
+      "diskSelector": [
+        {
+          "name": "carina-vg-ssd",
+          "re": ["loop2+"],
+          "policy": "LVM",
+          "nodeLabel": "kubernetes.io/hostname"
+        },
+        {
+          "name": "carina-raw-hdd",
+          "re": ["vdb+", "sd+"],
+          "policy": "RAW",
+          "nodeLabel": "kubernetes.io/hostname"
+        }
+      ],
       "diskScanInterval": "300", # disk scan interval in seconds
       "diskGroupPolicy": "type", # the policy to group local disks
       "schedulerStrategy": "spreadout" # binpack or spreadout

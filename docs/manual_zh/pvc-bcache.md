@@ -4,7 +4,7 @@
 
 众所周知ssd磁盘价格昂贵且磁盘容量小于hdd磁盘，因此当我们需要ssd磁盘的读写速度，hdd磁盘的大存储量磁盘缓存成为我们一个选择，这一章节将介绍使用bcache创建设备缓存
 
-在carina-node启动时，会自动为节点加载内核模块bcache0 `modprobe bcache0`，可以使用命令`lsmod |grep bcache0`查看加载是否成功，如果有些Linux kernal并未加载该内核模块，则磁盘缓存功能无法使用
+在carina-node启动时，会自动为节点加载内核模块bcache `modprobe bcache`，可以使用命令`lsmod |grep bcache`查看加载是否成功，如果有些Linux kernel并未加载该内核模块，则磁盘缓存功能无法使用
 
 创建storageclass `kubectl apply -f storageclass.yaml`
 

@@ -31,7 +31,7 @@ Carina is a standard kubernetes CSI plugin. Users can use standard kubernetes st
 * Node OS：Linux
 * Filesystems：ext4，xfs
 
-* If Kubelet is running in containerized mode, you need to mount the host /dev directory
+* If Kubelet is running in containerized mode, you need to mount the host /dev:/dev directory
 * Each node in the cluster has 1..N Bare disks, supporting SSDS and HDDS. (You can run the LSBLK --output NAME,ROTA command to view the disk type. If ROTA=1 is HDD,ROTA =0 is SSD.)
 * The capacity of a raw disk must be greater than 10 GB
 * If the server does not support the bcache kernel module, see [FAQ](docs/manual/FAQ.md), Modify yamL deployment
@@ -125,7 +125,7 @@ helm install carina-csi-driver carina-csi-driver/carina-csi-driver --namespace k
 | IOPS | standard | high | standard | high |
 | latency | standard | low | standard | low |
 | CSI support| yes | yes | yes | yes |
-| snapshot | no | driver specific| yes | yes|
+| snapshot | no | driver specific| yes | no|
 | clone | no | driver specific | yes | not yet, comming soon |
 | quota| no | yes | yes | yes |
 | resizing | yes | driver specific | yes | yes |

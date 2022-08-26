@@ -16,10 +16,6 @@ spec:
       protocol: TCP
       port: 8080
       targetPort: {{ .Values.controller.metricsPort }}
-    - name: http
-      protocol: TCP
-      port: 8089
-      targetPort: {{ .Values.controller.httpPort }}
 
 ---
 apiVersion: v1
@@ -38,8 +34,3 @@ spec:
       port: 8080
       protocol: TCP
       targetPort: {{ .Values.node.metricsPort }}
-    - name: http
-      port: 8089
-      protocol: TCP
-      targetPort: {{ .Values.node.httpPort }}
-     
