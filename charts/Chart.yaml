@@ -6,8 +6,8 @@ version: v0.9.1
 appVersion: "0.9.1"
 maintainers:
     - name: bocloud
-      email: support@beyondcent.com
-      url: http://www.bocloud.com.cn
+      email: carina-ci-bot@beyondcent.com
+      url: http://www.opencarina.com
 dependencies:
   - name: carina-scheduler
     version: "0.1.0"

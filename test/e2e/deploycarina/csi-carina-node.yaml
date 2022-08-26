@@ -63,7 +63,6 @@ spec:
           args:
             - "--csi-address=$(ADDRESS)"
             - "--metrics-addr=:8080"
-            - "--http-addr=:8089"
           env:
             - name: POD_IP
               valueFrom:
@@ -80,8 +79,6 @@ spec:
           ports:
             - containerPort: 8080
               name: metrics
-            - containerPort: 8089
-              name: http
           resources:
             requests:
               memory: "64Mi"
@@ -177,10 +174,6 @@ spec:
       port: 8080
       protocol: TCP
       targetPort: 8080
-    - name: http
-      port: 8089
-      protocol: TCP
-      targetPort: 8089
   selector:
     app: csi-carina-node
   sessionAffinity: None

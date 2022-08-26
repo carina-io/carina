@@ -1,6 +1,6 @@
 #### 磁盘限速
 
-carina提供了磁盘限速的高级功能，该功能可以限制容器读写挂载磁盘的速度，使用方式也很简单只要在pod的annontation加入如下注解即可
+carina提供了磁盘限速的高级功能，该功能可以限制容器读写挂载磁盘的速度，使用方式也很简单只要在pod的annotation加入如下注解即可
 
 创建容器`kubectl apply -f deployment.yaml`
 
@@ -69,7 +69,7 @@ spec:
   /sys/fs/cgroup/kubepods/burstable/pod0b0e005c-39ec-4719-bbfe-78aadbc3e4ad/io.max
   ```
 
-- 备注1：支持设置一个或多个annontation，增加或移除annontation会在一分钟内同步到cgroup
+- 备注1：支持设置一个或多个annotation，增加或移除annontation会在一分钟内同步到cgroup
 - 备注2：只支持块设备磁盘限速，测试命令`dd if=/dev/zero of=out.file bs=1M count=512 oflag=dsync`
 - 备注3：carina能够根据系统环境，自动决策使用cgroup v1还是cgroup v2
 - 备注4：如果系统使用的是cgroup v2，那么支持buffer io限速(需要同时开启io和memory的controller)，否则只支持direct io限速

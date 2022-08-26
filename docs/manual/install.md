@@ -2,9 +2,9 @@
 
 ##### Prerequirement
 
-- Kubernetes cluster with CSI_VERSION >= 1.3.0
-- If running kubelet in docker container，it should mount host 's `/dev` directory.
-- Linux Kernal 3.10.0-1160.11.1.el7.x86_64
+- Kubernetes cluster with CSI_VERSION = 1.5.0
+- If running kubelet in docker container，it should mount host 's `/dev:/dev` directory.
+- Linux Kernel 3.10.0-1160.11.1.el7.x86_64
 - Each node should have multiple raw disks. Carina will ignore nodes with no empty disks. 
 
 ##### Installation

@@ -1,20 +1,18 @@
 #### Metrics
 
-- carina-node runs in hostNetwork mode and listens to `8080 8089`.
+- carina-node runs in hostNetwork mode and listens to `8080`.
 
   ```shell
           - "--metrics-addr=:8080"
-          - "--http-addr=:8089"
   ```
 
 If changing those ports, please also change the csi-carina-node service.
 
-- carina-controller listens to `8080 8443 8089`.
+- carina-controller listens to `8080 8443`.
 
   ```shell
           - "--metrics-addr=:8080"
           - "--webhook-addr=:8443"
-          - "--http-addr=:8089"
   ```
 
 - metrics from carina-nodecarina-controller
@@ -26,7 +24,7 @@ If changing those ports, please also change the csi-carina-node service.
   	# Used bytes of volume:  carina-volume-volume_used_bytes
   ```
 
-* Volume usage is caculated from LVM, it may diffs with `df -h` about dozens of MB. 
+* Volume usage is calculated from LVM, it may diffs with `df -h` about dozens of MB. 
 * Carina-controller has all data from each carina-node. So actually, just getting metrics from carina-controller is enough.
 * User can deploy serviceMonitor(deployment/kubernetes/prometheus.yaml.tmpl) in case of prometheus. 
 * For pvc metrics, user can still query from kubelet.

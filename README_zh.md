@@ -17,7 +17,7 @@ Carina 是一款基于 Kubernetes CSI 标准实现的存储插件，用户可以
 - Node OS：Linux
 - Filesystems：ext4，xfs
 
-- 如果kubelet以容器化方式运行，需要挂载主机/dev目录
+- 如果kubelet以容器化方式运行，需要挂载主机/dev:/dev目录
 - 集群每个节点存在1..N块裸盘，支持SSD和HDD磁盘（可使用命令lsblk --output NAME,ROTA查看磁盘类型，ROTA=1为HDD磁盘 ROTA=0为SSD磁盘）
 - 节点单块裸盘容量需要大于10G
 - 如果服务器不支持bcache内核模块，参考[FAQ](docs/manual_zh/FAQ.md)，修改部署yaml
@@ -114,8 +114,8 @@ helm install carina-csi-driver carina-csi-driver/carina-csi-driver --namespace k
 | IOPS       | 差/中等                    | 高                                          | 中等                                       | 高                                                           |
 | 延迟       | 差/中等                    | 低                                          | 差                                         | 低                                                         |
 | CSI支持    | 支持                       | 支持                                        | 支持                                       | 支持                                                         |
-| 快照       | 不支持                     | 视驱动程序而定                              | 支持                                       | 待支持                                                       |
-| 克隆       | 不支持                     | 视驱动程序而定                              | 支持                                       | 待支持                                                       |
+| 快照       | 不支持                     | 视驱动程序而定                              | 支持                                       | 不支持                                                       |
+| 克隆       | 不支持                     | 视驱动程序而定                              | 支持                                       | 不支持                                                       |
 | 配额       | 不支持                     | 支持                                        | 支持                                       | 支持                                                         |
 | 扩容       | 支持                       | 支持                                        | 支持                                       | 支持                                                         |
 | 数据高可用 | 依赖RAID或NAS设备          | 支持                                        | 支持                                       | 依赖RAID                                                     |

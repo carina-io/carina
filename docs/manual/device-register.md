@@ -1,4 +1,4 @@
-#### device registration
+#### device registration[Deprecated] `This functionality has been replaced by NodeStorageresource`
 
 > Device registration works for carina versions under v0.9.0.
 

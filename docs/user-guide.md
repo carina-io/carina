@@ -7,9 +7,9 @@
 
 ##### 2.1 部署要求
 
-- Kubernetes 集群（CSI_VERSION=1.3.0）
-- 如果kubelet以容器化方式运行，需要挂载主机`/dev`目录
-- Linux Kernal 3.10.0-1160.11.1.el7.x86_64 (在此版本进行的测试，低于此版本也是可以的)
+- Kubernetes 集群（CSI_VERSION=1.5.0）
+- 如果kubelet以容器化方式运行，需要挂载主机`/dev:/dev`目录
+- Linux Kernel 3.10.0-1160.11.1.el7.x86_64 (在此版本进行的测试，低于此版本也是可以的)
 - 集群每个节点存在1..N块裸盘，支持SSD和HDD磁盘（可使用命令`lsblk --output NAME,ROTA`查看磁盘类型，ROTA=1为HDD磁盘 ROTA=0为SSD磁盘）
 
 ##### 2.2 执行部署
@@ -348,21 +348,19 @@ mountOptions:
 
 - 指标监控
 
-  - carina-node 为host网络模式部署并监听 `8080 8089`端口，其中8080为metrics、8089为http，可通过如下配置进行修改
+  - carina-node 为host网络模式部署并监听 `8080`端口，其中8080为metrics，可通过如下配置进行修改
 
     ```shell
             - "--metrics-addr=:8080"
-            - "--http-addr=:8089"
     ```
 
     备注：若是修改监听端口，务必同步修改`service：csi-carina-node`
 
-  - carina-controller 监听`8080 8443 8089`，其中8080为metrics、8443为webhook、8089为http，可通过如下配置进行修改
+  - carina-controller 监听`8080 8443`，其中8080为metrics、8443为webhook，可通过如下配置进行修改
 
     ```shell
             - "--metrics-addr=:8080"
             - "--webhook-addr=:8443"
-            - "--http-addr=:8089"
     ```
 
   - carina-node和carina-controller，自定义指标
@@ -377,17 +375,7 @@ mountOptions:
     - 备注1：volume使用量lvm统计与`df -h`统计不同，误差在几十兆
     - 备注2：carina-controller实际是收集的所有carina-node的数据，实际只要通过carina-controller获取监控指标便可
     - 备注3：如果要使用prometheus收集监控指标，可部署servicemonitor(deployment/kubernetes/prometheus.yaml.tmpl)
-
-  - carina-node和carina-controller均暴露了http接口，共提供两个方法
-
-    ```shell
-    # 获取所有vg信息：http://carina-controller:8089/devicegroup
-    # 获取所有volume信息：http://carina-controller:8089/volume
-    ```
-
-    - 备注1：carina-node获取的是当前节点的所有vg及volume信息
-    - 备注2：carina-controller接口是收集所有carina-node的vg及volume的汇总信息
-    - 备注3：carina-controller服务的svc名称为carina-controller
+    
 
 #### 4. 答疑
 

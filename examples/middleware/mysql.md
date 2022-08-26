@@ -1,9 +1,9 @@
 ## 准备环境
-- Kubernetes：(CSI_VERSION=1.3.0)
+- Kubernetes：(CSI_VERSION=1.5.0)
 - Node OS：Linux
 - Filesystems：ext4，xfs
 
-- 如果kubelet以容器化方式运行，需要挂载主机/dev目录
+- 如果kubelet以容器化方式运行，需要挂载主机/dev:/dev目录
 - 集群每个节点存在1..N块裸盘，支持SSD和HDD磁盘（可使用命令lsblk --output NAME,ROTA查看磁盘类型，ROTA=1为HDD磁盘 ROTA=0为SSD磁盘）
 - 节点单块裸盘容量需要大于10G
 - 确保Webhook启用了 MutatingAdmissionWebhook 
