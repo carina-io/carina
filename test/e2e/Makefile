@@ -4,11 +4,15 @@ kversion ?=v1.20.2
 # e2e settings
 # Allow limiting the scope of the e2e tests. By default run everything
 FOCUS ?= .*
+E2E_SKIP ?= Bcache
 # number of parallel test
 E2E_NODES ?= 3
+E2E_CHECK_LEAKS ?=
+
 e2e: 
 	@echo "e2e"
-	E2E_NODES='$(E2E_NODES)' FOCUS='$(FOCUS)' E2E_CHECK_LEAKS='$(E2E_CHECK_LEAKS)' ./e2e.sh
+	E2E_NODES='$(E2E_NODES)' FOCUS='$(FOCUS)' E2E_SKIP='$(E2E_SKIP)' E2E_CHECK_LEAKS='$(E2E_CHECK_LEAKS)' ./e2e.sh
+
 test:
 	go clean -testcache
 	go test -v .
