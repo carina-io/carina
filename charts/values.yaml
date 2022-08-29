@@ -46,8 +46,7 @@ rbac:
 controller:
   name: csi-carina-controller
   replicas: 1
-  metricsPort: 29604
-  httpPort: 18089
+  metricsPort: 8080
   webhookPort: 8443
   livenessProbe:
     healthPort: 29602
@@ -87,11 +86,11 @@ controller:
         memory: 20Mi
     carina:
       limits:
-        cpu: 300m
-        memory: 500Mi
+        cpu: 500m
+        memory: 128Mi
       requests:
-        cpu: 10m
-        memory: 20Mi
+        cpu: 300m
+        memory: 64Mi
 
 node:
   name: csi-carina-node # daemonset name
@@ -134,8 +133,7 @@ node:
       requests:
         cpu: 10m
         memory: 20Mi
-  metricsPort: 28080
-  httpPort:  28089
+  metricsPort: 8080
   logDir: /var/log/carina/
   configDir: /etc/carina/
 

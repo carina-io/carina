@@ -21,7 +21,7 @@ deploy:
           installCRDs: false 
           carina-scheduler.enabled: true
           carina-scheduler.image.repository: registry.cn-qingdao.aliyuncs.com/zhangkai8048/scheduler
-          carina-scheduler.image.tag: v0.11.0
+          carina-scheduler.image.tag: v0.9.1-128-g51566fb-dirty
           carina-scheduler.image.pullPolicy: IfNotPresent
         imageStrategy:
           helm: 

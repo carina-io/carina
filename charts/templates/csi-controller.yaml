@@ -65,8 +65,9 @@ spec:
             - "-csi-address=$(ADDRESS)"
             - "-v={{ .Values.controller.logLevel }}"
             - "-leader-election"
+            - "--retry-interval-start=500ms"
             - '-handle-volume-inuse-error=false'
-            - "-timeout=60s"
+            - "--timeout=150s"
           env:
             - name: ADDRESS
               value: unix:///csi/csi-provisioner.sock
@@ -110,12 +111,9 @@ spec:
             - "--cert-dir=/certs"
             - "--metrics-addr=:{{ .Values.controller.metricsPort }}"
             - "--webhook-addr=:{{ .Values.controller.webhookPort }}"
-            - "--http-addr=:{{ .Values.controller.httpPort }}"  
           ports:
             - containerPort: {{ .Values.controller.metricsPort }}
               name: metrics
-            - containerPort: {{ .Values.controller.httpPort }}
-              name: http
             - containerPort: {{ .Values.controller.webhookPort }}
               name: webhook  
           env:

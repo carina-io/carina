@@ -33,7 +33,7 @@ run: certs
 	@hack/csi-node-register.sh
 	
 node:  
-	NODE_NAME=docker-desktop   go run ../cmd/carina-node/main.go --http-addr 0.0.0.0:8091 --metrics-addr :8082
+	NODE_NAME=docker-desktop   go run ../cmd/carina-node/main.go --metrics-addr :8082
 
 controller:
-	 go run ../cmd/carina-controller/main.go --http-addr :8090 --metrics-addr :8080
+	 go run ../cmd/carina-controller/main.go  --metrics-addr :8080
