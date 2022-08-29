@@ -1,0 +1,225 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.9.0
+  creationTimestamp: null
+  name: nodestorageresources.carina.storage.io
+spec:
+  group: carina.storage.io
+  names:
+    kind: NodeStorageResource
+    listKind: NodeStorageResourceList
+    plural: nodestorageresources
+    shortNames:
+      - nsr
+    singular: nodestorageresource
+  scope: Cluster
+  versions:
+    - additionalPrinterColumns:
+        - jsonPath: .spec.nodeName
+          name: node
+          type: string
+        - jsonPath: .status.syncTime
+          name: time
+          type: date
+      name: v1beta1
+      schema:
+        openAPIV3Schema:
+          description: NodeStorageResource is the Schema for the nodestorageresources
+            API
+          properties:
+            apiVersion:
+              description: 'APIVersion defines the versioned schema of this representation
+              of an object. Servers should convert recognized schemas to the latest
+              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+              type: string
+            kind:
+              description: 'Kind is a string value representing the REST resource this
+              object represents. Servers may infer this from the endpoint the client
+              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+              type: string
+            metadata:
+              type: object
+            spec:
+              description: NodeStorageResourceSpec defines the desired state of NodeStorageResource
+              properties:
+                nodeName:
+                  description: Foo is an example field of NodeStorageResource. Edit
+                    nodestorageresource_types.go to remove/update
+                  type: string
+              type: object
+            status:
+              description: NodeStorageResourceStatus defines the observed state of NodeStorageResource
+              properties:
+                allocatable:
+                  additionalProperties:
+                    anyOf:
+                      - type: integer
+                      - type: string
+                    pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                    x-kubernetes-int-or-string: true
+                  description: Allocatable represents the resources of a node that are
+                    available for scheduling. Defaults to Capacity.
+                  type: object
+                capacity:
+                  additionalProperties:
+                    anyOf:
+                      - type: integer
+                      - type: string
+                    pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                    x-kubernetes-int-or-string: true
+                  description: 'Capacity represents the total resources of a node. More
+                  info: https://kubernetes.io/docs/concepts/storage/persistent-volumes#capacity'
+                  type: object
+                disks:
+                  items:
+                    description: Disk defines disk details
+                    properties:
+                      attachment:
+                        description: 'Attachment is the type of storage card this disk
+                        is attached to. For example: RAID, ATA or PCIE.'
+                        type: integer
+                      name:
+                        description: Name is the kernel name of the disk.
+                        type: string
+                      partitions:
+                        additionalProperties:
+                          description: Partition wraps the disk partition information.
+                          properties:
+                            id:
+                              description: ID is the partition id.
+                              format: byte
+                              type: string
+                            last:
+                              description: Last is the last byte that is part of this
+                                partition.
+                              format: int64
+                              type: integer
+                            name:
+                              description: Name is the name of this partition.
+                              type: string
+                            number:
+                              description: Number is the number of this partition.
+                              type: integer
+                            start:
+                              description: Start is the offset in bytes of the start
+                                of this partition.
+                              format: int64
+                              type: integer
+                            type:
+                              description: Type is the partition type.
+                              format: byte
+                              type: string
+                          type: object
+                        description: Partitions is the set of partitions on this disk.
+                        type: object
+                      path:
+                        description: Path is the device path of the disk.
+                        type: string
+                      properties:
+                        additionalProperties:
+                          type: boolean
+                        description: Properties are a set of properties of this disk.
+                        type: object
+                      read-only:
+                        description: ReadOnly - cannot be written to.
+                        type: boolean
+                      sectorSize:
+                        description: SectorSize is the sector size of the device, if
+                          its unknown or not applicable it will return 0.
+                        type: integer
+                      size:
+                        description: Size is the size of the disk in bytes.
+                        format: int64
+                        type: integer
+                      table:
+                        description: TableType is the type of the table
+                        type: integer
+                      type:
+                        description: Type is the DiskType indicating the type of this
+                          disk. This value can be used to determine if the disk is of
+                          a particular media type like HDD, SSD or NVMe.
+                        type: integer
+                      udevInfo:
+                        description: UdevInfo is the disk's udev information.
+                        properties:
+                          name:
+                            description: Name of the disk
+                            type: string
+                          properties:
+                            additionalProperties:
+                              type: string
+                            description: Properties is udev information as a map of
+                              key, value pairs.
+                            type: object
+                          symLinks:
+                            description: Symlinks for the disk.
+                            items:
+                              type: string
+                            type: array
+                          sysPath:
+                            description: SysPath is the system path of this device.
+                            type: string
+                        type: object
+                    required:
+                      - size
+                    type: object
+                  type: array
+                raids:
+                  items:
+                    description: Raid defines raid details
+                    type: object
+                  type: array
+                syncTime:
+                  format: date-time
+                  type: string
+                vgGroups:
+                  items:
+                    description: VgGroup defines the observed state of NodeStorageResourceStatus
+                    properties:
+                      lvCount:
+                        format: int64
+                        type: integer
+                      pvCount:
+                        format: int64
+                        type: integer
+                      pvs:
+                        items:
+                          description: PVInfo defines pv details
+                          properties:
+                            pvAttr:
+                              type: string
+                            pvFmt:
+                              type: string
+                            pvFree:
+                              format: int64
+                              type: integer
+                            pvName:
+                              type: string
+                            pvSize:
+                              format: int64
+                              type: integer
+                            vgName:
+                              type: string
+                          type: object
+                        type: array
+                      vgAttr:
+                        type: string
+                      vgFree:
+                        format: int64
+                        type: integer
+                      vgName:
+                        type: string
+                      vgSize:
+                        format: int64
+                        type: integer
+                    type: object
+                  type: array
+              type: object
+          type: object
+      served: true
+      storage: true
+      subresources:
+        status: {}

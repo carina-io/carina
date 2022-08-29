@@ -1,10 +1,10 @@
 carina-scheduler:
   enabled: true
   image:
-    repository: registry.cn-hangzhou.aliyuncs.com/carina/scheduler
+    repository: registry.cn-hangzhou.aliyuncs.com/carina/carina-scheduler
     pullPolicy: IfNotPresent
     # Overrides the image tag whose default is the chart appVersion.
-    tag: "v0.9-20211012111249"
+    tag: "v0.11.0"
 # Default values for carina-csi-driver.
 # This is a YAML-formatted file.
 # Declare variables to be passed into your templates.
@@ -12,19 +12,19 @@ image:
   baseRepo: registry.cn-hangzhou.aliyuncs.com/carina
   carina:
     repository: /carina
-    tag: v0.9.1-20211217165406
+    tag: v0.11.0
     pullPolicy: IfNotPresent
   csiProvisioner:
     repository: /csi-provisioner
-    tag: v2.1.0
+    tag: v2.2.2
     pullPolicy: IfNotPresent
   csiResizer:
     repository: /csi-resizer
-    tag: v1.1.0
+    tag: v1.5.0
     pullPolicy: IfNotPresent
   nodeDriverRegistrar:
     repository: /csi-node-driver-registrar
-    tag: v2.1.0
+    tag: v2.5.1
     pullPolicy: IfNotPresent
   nodeInitImage:  
     repository: /busybox
