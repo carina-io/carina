@@ -14,7 +14,7 @@
    limitations under the License.
 */
 
-package utils
+package carina
 
 const (
 	// CSIPluginName PluginName is the name of the CSI plugin.

@@ -14,7 +14,10 @@ function install() {
   kubectl apply -f csi-node-rbac.yaml
   kubectl apply -f csi-carina-node.yaml
   kubectl apply -f carina-scheduler.yaml
+  kubectl apply -f storageclass-lvm.yaml
+  kubectl apply -f storageclass-raw.yaml
   sleep 3s
+  kubectl apply -f prometheus-service-monitor.yaml
   echo "-------------------------------"
   echo "$ kubectl get pods -n kube-system |grep carina"
   kubectl get pods -n kube-system |grep carina
@@ -45,6 +48,11 @@ function uninstall() {
     kubectl delete -f crd-logicvolume.yaml
   fi
   kubectl delete -f crd-nodestoreresource.yaml
+  kubectl delete -f storageclass-lvm.yaml
+  kubectl delete -f storageclass-raw.yaml
+  kubectl delete -f prometheus-service-monitor.yaml
+
+}
 
 }
 

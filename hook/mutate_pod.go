@@ -19,14 +19,15 @@ import (
 	"context"
 	"encoding/json"
 	"github.com/carina-io/carina"
+	"github.com/carina-io/carina/getter"
 	"net/http"
+	"sigs.k8s.io/controller-runtime/pkg/manager"
 
 	"github.com/carina-io/carina/utils/log"
 	corev1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
 	apierrs "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 )
@@ -37,13 +38,13 @@ import (
 
 // podMutator mutates pods using PVC for Carina.
 type podMutator struct {
-	client  client.Client
+	getter  *getter.RetryGetter
 	decoder *admission.Decoder
 }
 
 // PodMutator creates a mutating webhook for Pods.
-func PodMutator(c client.Client, dec *admission.Decoder) http.Handler {
-	return &webhook.Admission{Handler: podMutator{c, dec}}
+func PodMutator(mgr manager.Manager, dec *admission.Decoder) http.Handler {
+	return &webhook.Admission{Handler: podMutator{getter.NewRetryGetter(mgr), dec}}
 }
 
 // Handle implements admission.Handler interface.
@@ -69,13 +70,7 @@ func (m podMutator) Handle(ctx context.Context, req admission.Request) admission
 		pod.Namespace = req.Namespace
 	}
 
-	targets, err := m.targetStorageClasses(ctx)
-	if err != nil {
-		log.Error(err.Error(), " targetStorageClasses failed")
-		return admission.Errored(http.StatusInternalServerError, err)
-	}
-
-	schedule, cSC, err := m.carinaSchedulePod(ctx, pod, targets)
+	schedule, cSC, err := m.carinaSchedulePod(ctx, pod)
 
 	if err != nil {
 		return admission.Errored(http.StatusInternalServerError, err)
@@ -103,22 +98,7 @@ func (m podMutator) Handle(ctx context.Context, req admission.Request) admission
 	return admission.PatchResponseFromRaw(req.Object.Raw, marshaledPod)
 }
 
-func (m podMutator) targetStorageClasses(ctx context.Context) (map[string]storagev1.StorageClass, error) {
-	var scl storagev1.StorageClassList
-	if err := m.client.List(ctx, &scl); err != nil {
-		return nil, err
-	}
-
-	targets := make(map[string]storagev1.StorageClass)
-	for _, sc := range scl.Items {
-		if sc.Provisioner == carina.CSIPluginName {
-			targets[sc.Name] = sc
-		}
-	}
-	return targets, nil
-}
-
-func (m podMutator) carinaSchedulePod(ctx context.Context, pod *corev1.Pod, targets map[string]storagev1.StorageClass) (bool, []storagev1.StorageClass, error) {
+func (m podMutator) carinaSchedulePod(ctx context.Context, pod *corev1.Pod) (bool, []storagev1.StorageClass, error) {
 	cSC := []storagev1.StorageClass{}
 	for _, vol := range pod.Spec.Volumes {
 		if vol.PersistentVolumeClaim == nil {
@@ -134,7 +114,7 @@ func (m podMutator) carinaSchedulePod(ctx context.Context, pod *corev1.Pod, targ
 		}
 
 		var pvc corev1.PersistentVolumeClaim
-		if err := m.client.Get(ctx, name, &pvc); err != nil {
+		if err := m.getter.Get(ctx, name, &pvc); err != nil {
 			if !apierrs.IsNotFound(err) {
 				log.Error(err, "failed to get pvc pod", pod.Name, " namespace ", pod.Namespace, " pvc ", pvcName)
 				return false, cSC, err
@@ -149,10 +129,16 @@ func (m podMutator) carinaSchedulePod(ctx context.Context, pod *corev1.Pod, targ
 			// https://kubernetes.io/docs/concepts/storage/persistent-volumes/#class-1
 			continue
 		}
-		v, ok := targets[*pvc.Spec.StorageClassName]
-		if ok {
-			cSC = append(cSC, v)
+		var sc storagev1.StorageClass
+		err := m.getter.Get(ctx, types.NamespacedName{Name: *pvc.Spec.StorageClassName}, &sc)
+		if err != nil {
+			log.Error(err, "failed to get sc ", *pvc.Spec.StorageClassName)
+			continue
 		}
+		if sc.Provisioner != carina.CSIPluginName {
+			continue
+		}
+		cSC = append(cSC, sc)
 	}
 	if len(cSC) > 0 {
 		return true, cSC, nil
