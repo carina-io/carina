@@ -2,6 +2,7 @@ package localstorage
 
 import (
 	"context"
+	carina "github.com/carina-io/carina/scheduler"
 	"path/filepath"
 
 	v1 "github.com/carina-io/carina-api/api/v1"
@@ -16,12 +17,6 @@ import (
 	"k8s.io/client-go/util/homedir"
 	"k8s.io/klog/v2"
 )
-
-var gvr = schema.GroupVersionResource{
-	Group:    v1beta1.GroupVersion.Group,
-	Version:  v1beta1.GroupVersion.Version,
-	Resource: "nodestorageresources",
-}
 
 func newDynamicClientFromConfig() dynamic.Interface {
 
@@ -49,8 +44,13 @@ func newDynamicClientFromConfig() dynamic.Interface {
 	return dynamicClient
 }
 
-func getNodeStorageResource(client dynamic.Interface, node string) (*v1beta1.NodeStorageResource, error) {
-	unstructObj, err := client.Resource(gvr).Namespace("").Get(context.TODO(), node, metav1.GetOptions{})
+func getNodeStorageResource(client dynamic.Interface, nodeName string) (*v1beta1.NodeStorageResource, error) {
+	var gvr = schema.GroupVersionResource{
+		Group:    v1beta1.GroupVersion.Group,
+		Version:  v1beta1.GroupVersion.Version,
+		Resource: "nodestorageresources",
+	}
+	unstructObj, err := client.Resource(gvr).Namespace("").Get(context.TODO(), nodeName, metav1.GetOptions{})
 	if err != nil {
 		return nil, err
 	}
@@ -62,20 +62,7 @@ func getNodeStorageResource(client dynamic.Interface, node string) (*v1beta1.Nod
 	return nsr, nil
 }
 
-func listNodeStorageResources(client dynamic.Interface) (*v1beta1.NodeStorageResourceList, error) {
-	unstrructObj, err := client.Resource(gvr).Namespace("").List(context.TODO(), metav1.ListOptions{})
-	if err != nil {
-		return nil, err
-	}
-	nsr := &v1beta1.NodeStorageResourceList{}
-	err = runtime.DefaultUnstructuredConverter.FromUnstructured(unstrructObj.UnstructuredContent(), nsr)
-	if err != nil {
-		return nil, err
-	}
-	return nsr, nil
-}
-
-func listLogicVolumes(client dynamic.Interface, node string) (lvs []string, err error) {
+func getLvExclusivityDisks(client dynamic.Interface, nodeName string) (lvs []string, err error) {
 	var gvr = schema.GroupVersionResource{
 		Group:    v1.GroupVersion.Group,
 		Version:  v1.GroupVersion.Version,
@@ -98,8 +85,8 @@ func listLogicVolumes(client dynamic.Interface, node string) (lvs []string, err 
 		if lv.Annotations == nil {
 			continue
 		}
-		klog.V(3).Infof("Get lv:%v,node:%s, exclusivity: %s", lv.Spec.NodeName, node, lv.Annotations[utils.ExclusivityDisk])
-		if lv.Spec.NodeName == node && lv.Annotations[utils.ExclusivityDisk] == "true" {
+		klog.V(3).Infof("Get lv: %v, exclusivity: %s", lv.Spec.NodeName, lv.Annotations[carina.ExclusivityDisk])
+		if lv.Spec.NodeName == nodeName && lv.Annotations[carina.ExclusivityDisk] == "true" {
 			lvs = append(lvs, lv.Spec.DeviceGroup)
 		}
 	}

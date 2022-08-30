@@ -19,6 +19,7 @@ package localstorage
 import (
 	"context"
 	"errors"
+	carina "github.com/carina-io/carina/scheduler"
 	"sort"
 	"strconv"
 	"strings"
@@ -37,7 +38,7 @@ import (
 
 // Name 插件名称
 const Name = "local-storage"
-const undefined = "undefined"
+const MaxScore int64 = 10
 
 type LocalStorage struct {
 	handle        framework.Handle
@@ -47,7 +48,11 @@ type LocalStorage struct {
 	dynamicClient dynamic.Interface
 }
 
-var exclusivityDisk bool = false
+type pvcRequest struct {
+	exclusive bool
+	request   int64
+}
+
 var _ framework.FilterPlugin = &LocalStorage{}
 var _ framework.ScorePlugin = &LocalStorage{}
 
@@ -72,248 +77,122 @@ func (ls *LocalStorage) Name() string {
 
 // Filter 过滤掉不符合当前 Pod 运行条件的Node（相当于旧版本的 predicate）
 func (ls *LocalStorage) Filter(ctx context.Context, cycleState *framework.CycleState, pod *v1.Pod, node *framework.NodeInfo) *framework.Status {
-
-	klog.V(3).Infof("filter pod: %v, node: %v", pod.Name, node.Node().Name)
-
-	pvcMap, nodeName, cacheDeviceRequest, err := ls.getLocalStoragePvc(pod)
-	klog.V(3).Infof("pvcMap:%v, nodeName:%v, cacheDeviceRequest: %v", pvcMap, nodeName, cacheDeviceRequest)
+	klog.V(3).Infof("filter pod: %s, node: %s", pod.Name, node.Node().Name)
+	pvcRequestMap, nodeName, useRaw, err := ls.getPvcRequestMap(pod)
 	if err != nil {
-		klog.V(3).ErrorS(err, "get pvc sc failed pod: %v, node: %v", pod.Name, node.Node().Name)
-		return framework.NewStatus(framework.Error, "get pv/sc resource error")
+		klog.V(3).ErrorS(err, "failed to get pvc/sc, pod: %s, node: %vs", pod.Name, node.Node().Name)
+		return framework.NewStatus(framework.Error, err.Error())
 	}
+
 	if nodeName != "" && nodeName != node.Node().Name {
-		klog.V(3).Infof("mismatch pod: %v, node: %v", pod.Name, node.Node().Name)
+		klog.V(3).Infof("mismatch pod: %s, node: %s", pod.Name, node.Node().Name)
 		return framework.NewStatus(framework.UnschedulableAndUnresolvable, "pv node mismatch")
 	}
-	if len(pvcMap) == 0 {
+
+	if len(pvcRequestMap) == 0 {
 		return framework.NewStatus(framework.Success, "")
 	}
 
-	nsr, err := getNodeStorageResource(ls.dynamicClient, node.Node().Name)
+	allocatableMap, err := ls.getAllocatableMap(useRaw, pod.Name, node.Node().Name)
 	if err != nil {
-		klog.V(3).Infof("Failed to obtain node storage information pod: %v, node: %v, err: %v", pod.Name, node.Node().Name, err.Error())
-		return framework.NewStatus(framework.UnschedulableAndUnresolvable, "Failed to obtain node storage information")
+		return framework.NewStatus(framework.UnschedulableAndUnresolvable, err.Error())
 	}
 
-	lvs, err := listLogicVolumes(ls.dynamicClient, node.Node().Name)
-	if err != nil {
-		klog.V(3).Infof("Failed to obtain logicVolumes  information pod: %v, node: %v, err: %v", pod.Name, node.Node().Name, err.Error())
-		return framework.NewStatus(framework.UnschedulableAndUnresolvable, "Failed to obtain logicVolumes  information")
-	}
-	volumeType := utils.LvmVolumeType
-	for key, _ := range pvcMap {
-		strArr := strings.Split(key, "/")
-		if configuration.CheckRawDeviceGroup(strArr[1]) {
-			volumeType = utils.RawVolumeType
-		}
-	}
-
-	exclusivityDiskMap := map[string]int64{}
-	//when monopolizing the disk, check whether there is an empty disk
-
-	capacityMap := map[string]int64{}
-	total := int64(0)
-	//The maximum partition capacity of the available disk of the raw disk matching node raw disk group meets,
-	// that is, the node meets;LVM matches the capacity managed by node LVM
-	for key, v := range nsr.Status.Allocatable {
-		if strings.HasPrefix(key, utils.DeviceCapacityKeyPrefix) {
-			strArr := strings.Split(key, "/")
-			if volumeType == utils.RawVolumeType {
-				if configuration.CheckRawDeviceGroup(strArr[1]) {
-					klog.V(3).Infof("capacityMap:%v ; disk: key %v; value:%v; exclusivityDisk:%v", capacityMap, key, v.Value(), exclusivityDisk)
-					//skip exclusivityDisk
-					klog.V(3).Infof("skip:%s ; disk: key %s; value:%v", lvs, strArr[1]+"/"+strArr[2], v.Value())
-					if utils.ContainsString(lvs, strArr[1]+"/"+strArr[2]) && !exclusivityDisk {
-						continue
-					}
-					if val, ok := capacityMap[strArr[1]]; ok {
-						if v.Value() > val {
-							capacityMap[strArr[0]+"/"+strArr[1]] = v.Value()
-							total += v.Value() - val
-						}
-					} else {
-						if exclusivityDisk {
-							partitionFlag := false
-							for _, disk := range nsr.Status.Disks {
-								if strings.Contains(key, disk.Name) && len(disk.Partitions) > 1 {
-									partitionFlag = true
-									exclusivityDiskMap[key] = 1
-								}
-							}
-							if partitionFlag {
-								continue
-							}
-						}
-						capacityMap[strArr[0]+"/"+strArr[1]] = v.Value()
-						total += v.Value()
-					}
-				}
-			}
-			if volumeType == utils.LvmVolumeType {
-				if !configuration.CheckRawDeviceGroup(strArr[1]) {
-					capacityMap[key] = v.Value()
-					total += v.Value()
-				}
-			}
-		}
-	}
-	klog.V(3).Infof("capacityMap: %v", capacityMap)
-	klog.V(3).Infof("type:%s,total: %v", volumeType, total)
-
-	if len(capacityMap) < 1 {
-		klog.V(3).Infof("does not have a disk group that satisfies: %v, node: %v,exclusivity:%v", pod.Name, node.Node().Name, exclusivityDisk)
-		return framework.NewStatus(framework.UnschedulableAndUnresolvable, "does not have a disk group that satisfies")
-	}
 	// 检查节点容量是否充足
-	for key, pvs := range pvcMap {
-
-		sort.Slice(pvs, func(i, j int) bool {
-			return pvs[i].Spec.Resources.Requests.Storage().Value() > pvs[j].Spec.Resources.Requests.Storage().Value()
+	for scDeviceGroup, pvcRequests := range pvcRequestMap {
+		sort.Slice(pvcRequests, func(i, j int) bool {
+			return pvcRequests[i].request > pvcRequests[j].request
 		})
-
-		// 对于sc中未设置Device组处理比较复杂,需要判断在多个Device组的情况下，pv是否能够分配
-		// 如carina-vg-hdd 20G carina-vg-ssd 40G, pv1.request
-		// t30 pv2.request.15 pv3.request 6G
-		// 我们这里不能采取最优分配算法，应该采用贪婪算法，因为我们CSI控制器对PV的创建是逐个进行的，它没有全局视图
-		// 即便如此，由于创建PV是由csi-provisioner发起的，请求顺序不确有可能导致pv不合理分配，所以建议sc设置Device组
-		// 正因为如此，按照最小满足开始过滤.
-		if key == undefined {
-			capacityList := []int64{}
-			for _, c := range capacityMap {
-				capacityList = append(capacityList, c)
+		if configuration.CheckRawDeviceGroup(scDeviceGroup) {
+			var allocatableList []int64
+			for lvGroup, allocatable := range allocatableMap {
+				if !strings.Contains(lvGroup, scDeviceGroup) {
+					continue
+				}
+				allocatableList = append(allocatableList, allocatable)
 			}
-			for _, pv := range pvs {
-				requestBytes := pv.Spec.Resources.Requests.Storage().Value()
-				requestGb := (requestBytes-1)>>30 + 1
-				capacityList = minimumValueMinus(capacityList, requestGb)
-				if len(capacityList) == 0 {
-					klog.V(3).Infof("mismatch pod: %v, node: %v", pod.Name, node.Node().Name)
+			for _, pvcR := range pvcRequests {
+				index := minimumValueMinus(allocatableList, pvcR)
+				if index < 0 {
+					klog.V(3).Infof("mismatch pod: %s, node: %s, scDeviceGroup: %s", pod.Name, node.Node().Name, scDeviceGroup)
 					return framework.NewStatus(framework.UnschedulableAndUnresolvable, "node storage resource insufficient")
 				}
 			}
 		} else {
-			requestTotalBytes := int64(0)
-			for _, pv := range pvs {
-				requestTotalBytes += pv.Spec.Resources.Requests.Storage().Value()
+			var requestTotalBytes int64
+			for _, pvcR := range pvcRequests {
+				requestTotalBytes += pvcR.request
 			}
 			requestTotalGb := (requestTotalBytes-1)>>30 + 1
-			// add cache device request
-			if value, ok := cacheDeviceRequest[key]; ok {
-				requestTotalGb += (value-1)>>30 + 1
-			}
-			if requestTotalGb > capacityMap[key] {
-				klog.V(3).Infof("mismatch pod: %v, node: %v, request: %d, key:%s,capacity: %d", pod.Name, node.Node().Name, requestTotalGb, key, capacityMap[key])
+			if requestTotalGb >= allocatableMap[scDeviceGroup] {
+				klog.V(3).Infof("mismatch pod: %s, node: %s, request: %d, scDeviceGroup:%s, allocatable: %d", pod.Name, node.Node().Name, requestTotalGb, scDeviceGroup, allocatableMap[scDeviceGroup])
 				return framework.NewStatus(framework.UnschedulableAndUnresolvable, "node storage resource insufficient")
 			}
-
 		}
 	}
 
-	// check cache device request
-	for key, value := range cacheDeviceRequest {
-		requestTotalGb := (value-1)>>30 + 1
-		if requestTotalGb > capacityMap[key] {
-			klog.V(3).Infof("mismatch pod: %v, node: %v, request: %d, capacity: %d", pod.Name, node.Node().Name, requestTotalGb, capacityMap[key])
-			return framework.NewStatus(framework.UnschedulableAndUnresolvable, "node cache storage resource insufficient")
-		}
-	}
-
-	klog.V(3).Infof("filter success pod: %v, node: %v", pod.Name, node.Node().Name)
+	klog.V(3).Infof("filter success pod: %s, node: %s", pod.Name, node.Node().Name)
 	return framework.NewStatus(framework.Success, "")
 }
 
 // Score 对节点进行打分（相当于旧版本的 priorities）
 func (ls *LocalStorage) Score(ctx context.Context, state *framework.CycleState, pod *v1.Pod, nodeName string) (int64, *framework.Status) {
-	klog.V(3).Infof("score pod: %v, node: %v", pod.Name, nodeName)
-	pvcMap, node, _, _ := ls.getLocalStoragePvc(pod)
-	if node == nodeName {
-		return 10, framework.NewStatus(framework.Success)
+	klog.V(3).Infof("score pod: %s, node: %s", pod.Name, nodeName)
+	pvcRequestMap, node, useRaw, err := ls.getPvcRequestMap(pod)
+	if err != nil {
+		klog.V(3).ErrorS(err, "failed to get pvc/sc, pod: %s, node: %vs", pod.Name, nodeName)
+		return 0, framework.NewStatus(framework.UnschedulableAndUnresolvable, err.Error())
 	}
 
-	if len(pvcMap) == 0 {
+	if node == nodeName {
+		return MaxScore, framework.NewStatus(framework.Success)
+	}
+
+	if len(pvcRequestMap) == 0 {
 		return 5, framework.NewStatus(framework.Success, "")
 	}
-	volumeType := utils.LvmVolumeType
-	for key, _ := range pvcMap {
-		strArr := strings.Split(key, "/")
-		if configuration.CheckRawDeviceGroup(strArr[1]) {
-			volumeType = utils.RawVolumeType
-		}
-	}
 
-	nsr, err := getNodeStorageResource(ls.dynamicClient, nodeName)
+	allocatableMap, err := ls.getAllocatableMap(useRaw, pod.Name, nodeName)
 	if err != nil {
-		klog.V(3).Infof("Failed to obtain node storage information pod: %v, node: %v, err: %v", pod.Name, nodeName, err.Error())
-		return 0, framework.NewStatus(framework.UnschedulableAndUnresolvable, "Failed to obtain node storage information")
+		return 0, framework.NewStatus(framework.UnschedulableAndUnresolvable, err.Error())
 	}
 
-	capacityMap := map[string]int64{}
-	total := int64(0)
-	//裸盘匹配节点裸盘组的最小容量满足，即节点满足
-	//lvm 匹配节点lvm管理的容量
-	for key, v := range nsr.Status.Allocatable {
-		if strings.HasPrefix(key, utils.DeviceCapacityKeyPrefix) {
-			strArr := strings.Split(key, "/")
-			if volumeType == utils.RawVolumeType {
-				if configuration.CheckRawDeviceGroup(strArr[1]) {
-					if val, ok := capacityMap[strArr[0]+"/"+strArr[1]]; ok {
-						if v.Value() > val {
-							capacityMap[strArr[0]+"/"+strArr[1]] = v.Value()
-							total += v.Value()
-						}
-					} else {
-						capacityMap[strArr[0]+"/"+strArr[1]] = v.Value()
-						total += v.Value()
-					}
-				}
-
-			}
-			if volumeType == utils.LvmVolumeType {
-				if !configuration.CheckRawDeviceGroup(strArr[1]) {
-					capacityMap[key] = v.Value()
-					total += v.Value()
-				}
-			}
-		}
-	}
-	var score int64
 	// 计算节点分数
 	// 影响磁盘分数的有磁盘容量,磁盘上现有pv数量,磁盘IO
 	// 在此我们以磁盘容量作为标准，同时配合配置文件中磁盘选择策略
-	for key, pvs := range pvcMap {
-		sort.Slice(pvs, func(i, j int) bool {
-			return pvs[i].Spec.Resources.Requests.Storage().Value() > pvs[j].Spec.Resources.Requests.Storage().Value()
-		})
-		if key == undefined {
-			capacityList := []int64{}
-			for _, c := range capacityMap {
-				capacityList = append(capacityList, c)
-			}
-			for _, pv := range pvs {
-				requestBytes := pv.Spec.Resources.Requests.Storage().Value()
-				requestGb := (requestBytes-1)>>30 + 1
-				capacityList = minimumValueMinus(capacityList, requestGb)
-				if len(capacityList) > 0 {
-					score += 1
+	var scoref float64 = 0
+	count := 0
+	for scDeviceGroup, pvcRequests := range pvcRequestMap {
+		var requestTotalBytes int64
+		for _, pvcR := range pvcRequests {
+			requestTotalBytes += pvcR.request
+		}
+		requestTotalGb := (requestTotalBytes-1)>>30 + 1
+
+		var allocatableTotal int64
+		if configuration.CheckRawDeviceGroup(scDeviceGroup) {
+			for lvGroup, allocatable := range allocatableMap {
+				if !strings.Contains(lvGroup, scDeviceGroup) {
+					continue
 				}
+				allocatableTotal = allocatableTotal + allocatable
 			}
 		} else {
-			requestTotalBytes := int64(0)
-			for _, pv := range pvs {
-				requestTotalBytes += pv.Spec.Resources.Requests.Storage().Value()
-			}
-			requestTotalGb := (requestTotalBytes-1)>>30 + 1
-			ratio := capacityMap[key] / requestTotalGb
+			allocatableTotal = allocatableMap[scDeviceGroup]
+		}
 
-			if configuration.SchedulerStrategy() == configuration.Schedulerspreadout {
-				score = reasonableScore(ratio)
-			}
-			if configuration.SchedulerStrategy() == configuration.SchedulerBinpack {
-				score = 6 - reasonableScore(ratio)
-			}
+		count++
+		if configuration.SchedulerStrategy() == configuration.Schedulerspreadout {
+			scoref += 1.0 - float64(requestTotalGb)/float64(allocatableTotal)
+		}
+		if configuration.SchedulerStrategy() == configuration.SchedulerBinpack {
+			scoref += float64(requestTotalGb) / float64(allocatableTotal)
 		}
 	}
-	klog.V(3).Infof("score pod: %v, node: %v score %v", pod.Name, nodeName, score)
+
+	score := int64(scoref / float64(count) * float64(MaxScore))
+
+	klog.V(3).Infof("score pod: %s, node: %s, score: %d", pod.Name, nodeName, score)
 	return score, framework.NewStatus(framework.Success)
 }
 
@@ -322,10 +201,10 @@ func (ls *LocalStorage) ScoreExtensions() framework.ScoreExtensions {
 	return nil
 }
 
-func (ls *LocalStorage) getLocalStoragePvc(pod *v1.Pod) (map[string][]*v1.PersistentVolumeClaim, string, map[string]int64, error) {
+func (ls *LocalStorage) getPvcRequestMap(pod *v1.Pod) (map[string][]*pvcRequest, string, bool, error) {
 	nodeName := ""
-	localPvc := map[string][]*v1.PersistentVolumeClaim{}
-	cacheDeviceRequest := map[string]int64{}
+	pvcRequestMap := map[string][]*pvcRequest{}
+	var useRaw, exclusive bool
 	for _, vol := range pod.Spec.Volumes {
 		if vol.PersistentVolumeClaim == nil {
 			continue
@@ -334,7 +213,7 @@ func (ls *LocalStorage) getLocalStoragePvc(pod *v1.Pod) (map[string][]*v1.Persis
 
 		pvc, err := ls.pvcLister.PersistentVolumeClaims(pod.Namespace).Get(pvcName)
 		if err != nil {
-			return localPvc, nodeName, cacheDeviceRequest, err
+			return pvcRequestMap, nodeName, useRaw, err
 		}
 
 		if pvc.Spec.StorageClassName == nil {
@@ -343,9 +222,9 @@ func (ls *LocalStorage) getLocalStoragePvc(pod *v1.Pod) (map[string][]*v1.Persis
 
 		sc, err := ls.scLister.Get(*pvc.Spec.StorageClassName)
 		if err != nil {
-			return localPvc, nodeName, cacheDeviceRequest, err
+			return pvcRequestMap, nodeName, useRaw, err
 		}
-		if sc.Provisioner != utils.CSIPluginName {
+		if sc.Provisioner != carina.CSIPluginName {
 			continue
 		}
 
@@ -353,81 +232,122 @@ func (ls *LocalStorage) getLocalStoragePvc(pod *v1.Pod) (map[string][]*v1.Persis
 		if pvc.Status.Phase == v1.ClaimBound {
 			pv, err := ls.pvLister.Get(pvc.Spec.VolumeName)
 			if err != nil {
-				return localPvc, nodeName, cacheDeviceRequest, err
+				return pvcRequestMap, nodeName, useRaw, err
 			}
 			if nodeName == "" {
-				nodeName = pv.Spec.CSI.VolumeAttributes[utils.VolumeDeviceNode]
-			} else if nodeName != pv.Spec.CSI.VolumeAttributes[utils.VolumeDeviceNode] {
-				return localPvc, nodeName, cacheDeviceRequest, errors.New("pvc node clash")
+				nodeName = pv.Spec.CSI.VolumeAttributes[carina.VolumeDeviceNode]
+			} else if nodeName != pv.Spec.CSI.VolumeAttributes[carina.VolumeDeviceNode] {
+				return pvcRequestMap, nodeName, useRaw, errors.New("pvc node clash")
 			}
 			continue
 		}
 
-		deviceGroup := sc.Parameters[utils.DeviceDiskKey]
+		deviceGroup := sc.Parameters[carina.DeviceDiskKey]
+
+		if configuration.CheckRawDeviceGroup(deviceGroup) {
+			useRaw = true
+		}
+
 		// bcache device
 		if deviceGroup == "" {
-			deviceGroup = sc.Parameters[utils.VolumeBackendDiskType]
+			deviceGroup = sc.Parameters[carina.VolumeBackendDiskType]
 		}
 
-		cacheGroup := sc.Parameters[utils.VolumeCacheDiskType]
+		cacheGroup := sc.Parameters[carina.VolumeCacheDiskType]
 		if cacheGroup != "" {
-			cacheGroup = utils.DeviceCapacityKeyPrefix + configuration.GetDeviceGroup(deviceGroup)
-			cacheDiskRatio := sc.Parameters[utils.VolumeCacheDiskRatio]
+			cacheGroup = configuration.GetDeviceGroup(deviceGroup)
+			cacheDiskRatio := sc.Parameters[carina.VolumeCacheDiskRatio]
 			ratio, err := strconv.ParseInt(cacheDiskRatio, 10, 64)
 			if err != nil {
-				return localPvc, nodeName, cacheDeviceRequest, errors.New("carina.storage.io/cache-disk-ratio, Should be in 1-100")
+				return pvcRequestMap, nodeName, useRaw, errors.New("carina.storage.io/cache-disk-ratio should be in 1-100")
 			}
 			if ratio < 1 || ratio >= 100 {
-				return localPvc, nodeName, cacheDeviceRequest, errors.New("carina.storage.io/cache-disk-ratio, Should be in 1-100")
+				return pvcRequestMap, nodeName, useRaw, errors.New("carina.storage.io/cache-disk-ratio should be in 1-100")
 			}
 			cacheRequestBytes := pvc.Spec.Resources.Requests.Storage().Value() * ratio / 100
-			cacheDeviceRequest[cacheGroup] += cacheRequestBytes
+			pvcRequestMap[cacheGroup] = append(pvcRequestMap[cacheGroup], &pvcRequest{false, cacheRequestBytes})
 		}
 
 		if deviceGroup == "" {
-			// sc中未设置device group
-			deviceGroup = undefined
+			return pvcRequestMap, nodeName, useRaw, errors.New("not set deviceGroup in storageClass " + sc.Name)
 		} else {
-			deviceGroup = utils.DeviceCapacityKeyPrefix + configuration.GetDeviceGroup(deviceGroup)
+			deviceGroup = configuration.GetDeviceGroup(deviceGroup)
 		}
-		localPvc[deviceGroup] = append(localPvc[deviceGroup], pvc)
-		if sc.Parameters[utils.ExclusivityDisk] == "true" {
-			exclusivityDisk = true
+		if sc.Parameters[carina.ExclusivityDisk] == "true" {
+			exclusive = true
 		}
-
+		pvcRequestMap[deviceGroup] = append(pvcRequestMap[cacheGroup], &pvcRequest{exclusive, pvc.Spec.Resources.Requests.Storage().Value()})
 	}
-	return localPvc, nodeName, cacheDeviceRequest, nil
+	klog.V(3).Infof("pvcRequestMap: %v, node: %s, useRaw: %v", pvcRequestMap, nodeName, useRaw)
+	return pvcRequestMap, nodeName, useRaw, nil
+}
+
+func (ls *LocalStorage) getAllocatableMap(useRaw bool, podName, nodeName string) (map[string]int64, error) {
+	var lvExclusivityDisks []string
+	var err error
+	allocatableMap := map[string]int64{}
+	if useRaw {
+		lvExclusivityDisks, err = getLvExclusivityDisks(ls.dynamicClient, nodeName)
+		if err != nil {
+			klog.V(3).Infof("Failed to obtain node lvs, pod: %s node: %s, err: %s", podName, nodeName, err.Error())
+			return allocatableMap, errors.New("failed to obtain node lvs, " + err.Error())
+		}
+	}
+
+	nsr, err := getNodeStorageResource(ls.dynamicClient, nodeName)
+	if err != nil {
+		klog.V(3).Infof("Failed to obtain node storages, pod: %s node: %s, err: %s", podName, nodeName, err.Error())
+		return allocatableMap, errors.New("Failed to obtain node storages, " + err.Error())
+	}
+
+	for groupDetail, allocatable := range nsr.Status.Allocatable {
+		if !strings.HasPrefix(groupDetail, carina.DeviceCapacityKeyPrefix) {
+			continue
+		}
+		lvGroup := strings.TrimPrefix(groupDetail, carina.DeviceCapacityKeyPrefix)
+
+		isRawDevice := configuration.CheckRawDeviceGroup(strings.Split(lvGroup, "/")[0])
+		if isRawDevice {
+			//skip exclusivityDisk
+			if utils.ContainsString(lvExclusivityDisks, lvGroup) {
+				continue
+			}
+			allocatableMap[lvGroup] = allocatable.Value()
+		} else {
+			allocatableMap[lvGroup] = allocatable.Value()
+		}
+	}
+	klog.V(3).Infof("allocatableMap: %v", allocatableMap)
+
+	if len(allocatableMap) == 0 {
+		klog.V(3).Infof("can't get device allocatableMap, pod: %s, node: %s", podName, nodeName)
+		return allocatableMap, errors.New("can't get device allocatableMap")
+	}
+	return allocatableMap, nil
 }
 
 // 在所有容量列表中，找到最低满足的值，并减去请求容量
 // 循环便能判断该节点是否可满足所有pvc请求容量
-func minimumValueMinus(array []int64, value int64) []int64 {
+func minimumValueMinus(array []int64, pvcR *pvcRequest) int {
 	sort.Slice(array, func(i, j int) bool {
 		return array[i] < array[j]
 	})
+	requestGb := (pvcR.request-1)>>30 + 1
 	index := -1
 	for i, a := range array {
-		if a >= value {
+		if a >= requestGb {
 			index = i
 			break
 		}
 	}
 	if index < 0 {
-		return []int64{}
+		return index
 	}
-	array[index] = array[index] - value
-	return array
-}
+	if pvcR.exclusive {
+		array[index] = 0
+	} else {
+		array[index] = array[index] - requestGb
+	}
 
-// 分值范围为0-10，在此降低pv分值比例限制为1-5分
-// 考虑到扩容以及提高资源利用率方面，进行中性的评分
-// 对于申请用量与现存容量差距巨大，则配置文件中选节点策略可以忽略
-func reasonableScore(ratio int64) int64 {
-	if ratio > 10 {
-		return 5
-	}
-	if ratio < 2 {
-		return 1
-	}
-	return ratio / 2
+	return index
 }

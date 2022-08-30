@@ -2,15 +2,15 @@
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
-  name: csi-carina-lvm
+  name: csi-carina-lvm-xfs
   namespace: kube-system
 provisioner: carina.storage.io
 parameters:
   # file system
   csi.storage.k8s.io/fstype: xfs
   # disk group
-  carina.storage.io/disk-group-name: "carina-lvm-ssd"
-reclaimPolicy: Delete
+  carina.storage.io/disk-group-name: "carina-lvm"
+reclaimPolicy: Retain
 allowVolumeExpansion: true
 # WaitForFirstConsumer表示被容器绑定调度后再创建pv
 volumeBindingMode: WaitForFirstConsumer

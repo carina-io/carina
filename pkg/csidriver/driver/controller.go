@@ -51,19 +51,16 @@ type controllerService struct {
 }
 
 func (s controllerService) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest) (*csi.CreateVolumeResponse, error) {
-
 	capabilities := req.GetVolumeCapabilities()
 	source := req.GetVolumeContentSource()
+	volumeContext := req.GetParameters()
 	deviceGroup := req.GetParameters()[carina.DeviceDiskKey]
-	var exclusivityDisk bool = false
-	if req.GetParameters()[carina.ExclusivityDisk] == "true" {
-		exclusivityDisk = true
-	}
-	name := req.GetName()
-	if name == "" {
+
+	pvName := req.GetName()
+	if pvName == "" {
 		return nil, status.Error(codes.InvalidArgument, "invalid name")
 	}
-	name = strings.ToLower(name)
+	pvName = strings.ToLower(pvName)
 
 	// 处理磁盘类型参数，支持carina.storage.io/disk-group-name:ssd书写方式
 	deviceGroup = util.GetDeviceGroup(deviceGroup)
@@ -85,11 +82,11 @@ func (s controllerService) CreateVolume(ctx context.Context, req *csi.CreateVolu
 		return nil, status.Error(codes.InvalidArgument, "no volume capabilities are provided")
 	}
 
-	if acquired := s.mutex.TryAcquire(name); !acquired {
-		log.Warnf("an operation with the given Volume ID %s already exists", name)
-		return nil, status.Errorf(codes.Aborted, "an operation with the given Volume ID %s already exists", name)
+	if acquired := s.mutex.TryAcquire(pvName); !acquired {
+		log.Warnf("an operation with the given volume %s already exists", pvName)
+		return nil, status.Errorf(codes.Aborted, "an operation with the given volume %s already exists", pvName)
 	}
-	defer s.mutex.Release(name)
+	defer s.mutex.Release(pvName)
 
 	// check required volume capabilities
 	for _, capability := range capabilities {
@@ -119,108 +116,71 @@ func (s controllerService) CreateVolume(ctx context.Context, req *csi.CreateVolu
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 
-	// process topology
-	var node string
-	var nodeName string
-	var group string
-	var volumeType string
-	segments := map[string]string{}
-	requirements := req.GetAccessibilityRequirements()
-
-	// 为什么requirements是所有的节点列表，不应该只有已选定的节点吗
-	// 只能通过pvc Annotations来判断pvc是否已经被选定节点
 	pvcName := req.Parameters["csi.storage.k8s.io/pvc/name"]
 	namespace := req.Parameters["csi.storage.k8s.io/pvc/namespace"]
-	node, err = s.nodeService.HaveSelectedNode(ctx, namespace, pvcName)
+	nodeName, err := s.nodeService.HaveSelectedNode(ctx, namespace, pvcName)
 	if err != nil {
-		return nil, status.Errorf(codes.Internal, "can not find pvc %s %s", namespace, name)
+		return nil, status.Errorf(codes.Internal, "can not find pvc %s %s", namespace, pvcName)
 	}
 
+	// default LvmVolumeType
+	volumeType := carina.LvmVolumeType
 	if util.CheckRawDeviceGroup(deviceGroup) {
 		volumeType = carina.RawVolumeType
-		if node != "" {
-			deviceGroup, err = s.nodeService.SelectDeviceGroupDisk(ctx, requestGb, node, volumeType, exclusivityDisk, deviceGroup)
-			if err != nil {
-				return nil, status.Errorf(codes.Internal, "failed to get raw  device group %v", err)
-			}
-		}
-	} else {
-		volumeType = carina.LvmVolumeType
+	}
+
+	var exclusivityDisk bool
+	if volumeType == carina.RawVolumeType && req.GetParameters()[carina.ExclusivityDisk] == "true" {
+		exclusivityDisk = true
 	}
 
 	// if bcache type, need create two lvm volume
 	cacheDiskRatio := req.GetParameters()[carina.VolumeCacheDiskRatio]
 	if cacheDiskRatio != "" && cacheDiskRatio != "0" {
-		return s.CreateBcacheVolume(ctx, req, node, requestGb)
+		return s.CreateBcacheVolume(ctx, req, nodeName, requestGb)
 	}
 
-	// sc parameter未设置device group
-	if node != "" && deviceGroup == "" {
-		group, err = s.nodeService.SelectDeviceGroup(ctx, requestGb, node, volumeType, exclusivityDisk)
+	// sc parameter未设置device group, raw disk's deviceGroup need handle
+	if nodeName != "" {
+		deviceGroup, err = s.nodeService.SelectDeviceGroup(ctx, requestGb, exclusivityDisk, nodeName, volumeType, deviceGroup)
 		if err != nil {
 			return nil, status.Errorf(codes.Internal, "failed to get device group %v", err)
 		}
-		if group == "" {
+		if deviceGroup == "" {
 			return nil, status.Errorf(codes.Internal, "can not find any device group")
 		}
-		deviceGroup = group
+	}
+
+	// 不是调度器完成pv调度，则采用controller调度
+	if nodeName == "" {
+		// In CSI spec, controllers are required that they response OK even if accessibility_requirements field is nil.
+		// So we must create volume, and must not return error response in this case.
+		// - https://github.com/container-storage-interface/spec/blob/release-1.1/spec.md#createvolume
+		// - https://github.com/kubernetes-csi/csi-test/blob/6738ab2206eac88874f0a3ede59b40f680f59f43/pkg/sanity/controller.go#L404-L428
+		log.Info("start to decide node")
+		nodeName, deviceGroup, err = s.nodeService.SelectNode(ctx, requestGb, volumeType, deviceGroup, req.GetAccessibilityRequirements(), exclusivityDisk)
+		log.Info("nodeName:", nodeName, " deviceGroup:", deviceGroup)
+		if err != nil {
+			return nil, status.Errorf(codes.Internal, "failed to select node,  err: %v", err)
+		}
+		if nodeName == "" {
+			return nil, status.Error(codes.Internal, "can not find any node")
+		}
+		if deviceGroup == "" {
+			return nil, status.Error(codes.Internal, "can not find any device group")
+		}
 	}
 
 	//check  Parameters done
-	log.Infof("CreateVolume: Starting to Create %s volume %s with: pvcName(%s), pvcNameSpace(%s), node(%s),nodeSelected(%s), storageSelected(%s)", volumeType, req.GetName(), pvcName, namespace, node, nodeName, deviceGroup)
-	// pv csi VolumeAttributes
+	log.Infof("CreateVolume: Starting to Create %s volume %s with: pvcName(%s), pvcNameSpace(%s),nodeSelected(%s), storageSelected(%s)", volumeType, req.GetName(), pvcName, namespace, nodeName, deviceGroup)
+
+	// create logicVolume
 	annotation := map[string]string{}
 	annotation[carina.VolumeManagerType] = volumeType
 	if volumeType == carina.RawVolumeType {
 		annotation[carina.ExclusivityDisk] = fmt.Sprint(exclusivityDisk)
 	}
-
-	volumeContext := req.GetParameters()
-	// 不是调度器完成pv调度，则采用controller调度
-	if node == "" {
-		switch volumeType {
-		case carina.LvmVolumeType:
-			// In CSI spec, controllers are required that they response OK even if accessibility_requirements field is nil.
-			// So we must create volume, and must not return error response in this case.
-			// - https://github.com/container-storage-interface/spec/blob/release-1.1/spec.md#createvolume
-			// - https://github.com/kubernetes-csi/csi-test/blob/6738ab2206eac88874f0a3ede59b40f680f59f43/pkg/sanity/controller.go#L404-L428
-			log.Info("decide node because accessibility_requirements not found")
-			node, deviceGroup, segments, err = s.nodeService.SelectVolumeNode(ctx, requestGb, deviceGroup, requirements)
-			log.Info("node:", node, " deviceGroup:", deviceGroup)
-			if err != nil {
-				return nil, status.Errorf(codes.Internal, "failed to get max capacity node %v", err)
-			}
-			if node == "" {
-				return nil, status.Error(codes.Internal, "can not find any node")
-			}
-			if deviceGroup == "" {
-				return nil, status.Error(codes.Internal, "can not find any device group")
-			}
-
-		case carina.RawVolumeType:
-			log.Info("decide node because accessibility_requirements not found")
-
-			node, deviceGroup, segments, err = s.nodeService.SelectDeviceNode(ctx, requestGb, deviceGroup, requirements, exclusivityDisk)
-			log.Info("node:", node, " deviceGroup:", deviceGroup)
-			if err != nil {
-				return nil, status.Errorf(codes.Internal, "failed to get max capacity node %v", err)
-			}
-			if node == "" {
-				return nil, status.Error(codes.Internal, "can not find any node")
-			}
-			if deviceGroup == "" {
-				return nil, status.Error(codes.Internal, "can not find any device group")
-			}
-
-		default:
-			log.Errorf("CreateVolume: Create with no support volume type %s", volumeType)
-			return nil, status.Error(codes.InvalidArgument, "Create with no support type "+volumeType)
-		}
-	}
-
-	log.Infof("CreateVolume: Successful create pvcName %s node %s deviceGroup %s name %s size %d", pvcName, node, deviceGroup, name, requestGb)
-	// create logicVolume
-	volumeID, deviceMajor, deviceMinor, err := s.lvService.CreateVolume(ctx, namespace, pvcName, node, deviceGroup, name, requestGb, metav1.OwnerReference{}, annotation)
+	volumeID, deviceMajor, deviceMinor, err := s.lvService.CreateVolume(ctx, namespace, pvcName, nodeName, deviceGroup, pvName, requestGb, metav1.OwnerReference{}, annotation)
 	if err != nil {
 		_, ok := status.FromError(err)
 		if !ok {
@@ -228,14 +188,15 @@ func (s controllerService) CreateVolume(ctx context.Context, req *csi.CreateVolu
 		}
 		return nil, err
 	}
+	log.Infof("CreateVolume: Successful create pvcName %s node %s deviceGroup %s pvName %s size %d", pvcName, nodeName, deviceGroup, pvName, requestGb)
+
 	//Append necessary parameters
 	volumeContext[carina.DeviceDiskKey] = deviceGroup
-	volumeContext[carina.VolumeDevicePath] = fmt.Sprintf("/dev/%s/volume-%s", deviceGroup, name)
-	volumeContext[carina.VolumeDeviceNode] = node
+	volumeContext[carina.VolumeDevicePath] = fmt.Sprintf("/dev/%s/volume-%s", deviceGroup, pvName)
+	volumeContext[carina.VolumeDeviceNode] = nodeName
 	volumeContext[carina.VolumeDeviceMajor] = fmt.Sprintf("%d", deviceMajor)
 	volumeContext[carina.VolumeDeviceMinor] = fmt.Sprintf("%d", deviceMinor)
-	// pv nodeAffinity
-	segments[carina.TopologyNodeKey] = node
+
 	return &csi.CreateVolumeResponse{
 		Volume: &csi.Volume{
 			CapacityBytes: requestGb << 30,
@@ -244,7 +205,7 @@ func (s controllerService) CreateVolume(ctx context.Context, req *csi.CreateVolu
 			ContentSource: source,
 			AccessibleTopology: []*csi.Topology{
 				{
-					Segments: segments,
+					Segments: map[string]string{carina.TopologyNodeKey: nodeName},
 				},
 			},
 		},
@@ -285,7 +246,7 @@ func (s controllerService) ValidateVolumeCapabilities(ctx context.Context, req *
 		return nil, status.Error(codes.InvalidArgument, "volume capabilities are empty")
 	}
 
-	_, err := s.lvService.GetLogicVolume(ctx, req.GetVolumeId())
+	_, err := s.lvService.GetLogicVolumeByVolumeId(ctx, req.GetVolumeId())
 	if err != nil {
 		if err == k8s.ErrVolumeNotFound {
 			return nil, status.Errorf(codes.NotFound, "LogicalVolume for volume id %s is not found", req.GetVolumeId())
@@ -311,16 +272,27 @@ func (s controllerService) GetCapacity(ctx context.Context, req *csi.GetCapacity
 		" parameters ", req.GetParameters(),
 		" accessible_topology ", topology)
 	if capabilities != nil {
-		log.Info("capability argument is not nil, but Carina ignores it")
+		log.Info("capability argument is not nil, but carina ignores it")
 	}
 
-	// Adopt the new version of the transformation
 	deviceGroup := util.GetDeviceGroup(req.GetParameters()[carina.DeviceDiskKey])
 
-	capacity, err := s.nodeService.GetTotalCapacity(ctx, deviceGroup, topology)
+	// default LvmVolumeType
+	volumeType := carina.LvmVolumeType
+	if util.CheckRawDeviceGroup(deviceGroup) {
+		volumeType = carina.RawVolumeType
+	}
+
+	var exclusivityDisk bool
+	if volumeType == carina.RawVolumeType && req.GetParameters()[carina.ExclusivityDisk] == "true" {
+		exclusivityDisk = true
+	}
+
+	capacity, err := s.nodeService.GetTotalCapacity(ctx, deviceGroup, topology, exclusivityDisk)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
+
 	return &csi.GetCapacityResponse{
 		AvailableCapacity: capacity,
 	}, nil
@@ -364,7 +336,7 @@ func (s controllerService) ControllerExpandVolume(ctx context.Context, req *csi.
 	}
 	defer s.mutex.Release(volumeID)
 
-	lv, err := s.lvService.GetLogicVolume(ctx, volumeID)
+	lv, err := s.lvService.GetLogicVolumeByVolumeId(ctx, volumeID)
 	if err != nil {
 		if err == k8s.ErrVolumeNotFound {
 			return nil, status.Errorf(codes.NotFound, "LogicalVolume for volume id %s is not found", volumeID)
@@ -373,7 +345,7 @@ func (s controllerService) ControllerExpandVolume(ctx context.Context, req *csi.
 	}
 
 	if lv.Annotations[carina.VolumeManagerType] == "raw" && lv.Annotations[carina.ExclusivityDisk] == "false" {
-		return nil, status.Error(codes.Internal, "can not exclusivityDisk pods")
+		return nil, status.Error(codes.Internal, "can not expand no exclusivity disk")
 	}
 
 	requestGb, err := convertRequestCapacity(req.GetCapacityRange().GetRequiredBytes(), req.GetCapacityRange().GetLimitBytes())
@@ -471,41 +443,40 @@ func convertRequestCapacity(requestBytes, limitBytes int64) (int64, error) {
 	return (requestBytes-1)>>30 + 1, nil
 }
 
-func (s controllerService) CreateBcacheVolume(ctx context.Context, req *csi.CreateVolumeRequest, node string, requestGb int64) (*csi.CreateVolumeResponse, error) {
-	source := req.GetVolumeContentSource()
-	name := req.GetName()
-	if name == "" {
-		return nil, status.Error(codes.InvalidArgument, "invalid name")
+func (s controllerService) CreateBcacheVolume(ctx context.Context, req *csi.CreateVolumeRequest, nodeName string, requestGb int64) (*csi.CreateVolumeResponse, error) {
+	pvName := req.GetName()
+	if pvName == "" {
+		return nil, status.Error(codes.InvalidArgument, "invalid pv name")
 	}
-	name = strings.ToLower(name)
+	pvName = strings.ToLower(pvName)
 	requirements := req.GetAccessibilityRequirements()
 
-	backendDiskType := req.GetParameters()[carina.VolumeBackendDiskType]
-	cacheDiskType := req.GetParameters()[carina.VolumeCacheDiskType]
+	backendDeviceGroup := req.GetParameters()[carina.VolumeBackendDiskType]
+	cacheDeviceGroup := req.GetParameters()[carina.VolumeCacheDiskType]
 	cacheDiskRatio := req.GetParameters()[carina.VolumeCacheDiskRatio]
-	cachepolicy := req.GetParameters()[carina.VolumeCachePolicy]
+	cachePolicy := req.GetParameters()[carina.VolumeCachePolicy]
 
-	if backendDiskType == "" {
-		return nil, status.Errorf(codes.FailedPrecondition, "%s %s, can not be empty", carina.VolumeBackendDiskType, backendDiskType)
+	if backendDeviceGroup == "" {
+		return nil, status.Errorf(codes.FailedPrecondition, "%s %s, can not be empty", carina.VolumeBackendDiskType, backendDeviceGroup)
 	}
 
-	if cacheDiskType == "" {
-		return nil, status.Errorf(codes.FailedPrecondition, "%s %s, can not be empty", carina.VolumeCacheDiskType, cacheDiskType)
+	if cacheDeviceGroup == "" {
+		return nil, status.Errorf(codes.FailedPrecondition, "%s %s, can not be empty", carina.VolumeCacheDiskType, cacheDeviceGroup)
 	}
 
-	backendDiskType = strings.ToLower(backendDiskType)
-	cacheDiskType = strings.ToLower(cacheDiskType)
+	backendDeviceGroup = strings.ToLower(backendDeviceGroup)
+	cacheDeviceGroup = strings.ToLower(cacheDeviceGroup)
 
-	if !utils.ContainsString([]string{"writethrough", "writeback", "writearound"}, cachepolicy) {
-		cachepolicy = "writethrough"
+	if !utils.ContainsString([]string{"writethrough", "writeback", "writearound"}, cachePolicy) {
+		cachePolicy = "writethrough"
 	}
 
 	ratio, err := strconv.ParseInt(cacheDiskRatio, 10, 64)
 	if err != nil {
-		return nil, status.Errorf(codes.FailedPrecondition, "carina.storage.io/cache-disk-ratio %s, Should be in 1-100", cacheDiskRatio)
+		return nil, status.Errorf(codes.FailedPrecondition, "%s %s, Should be in 1-100", carina.VolumeCacheDiskRatio, cacheDiskRatio)
 	}
 	if ratio < 1 || ratio >= 100 {
-		return nil, status.Errorf(codes.FailedPrecondition, "carina.storage.io/cache-disk-ratio %s, Should be in 1-100", cacheDiskRatio)
+		return nil, status.Errorf(codes.FailedPrecondition, "%s %s, Should be in 1-100", carina.VolumeCacheDiskRatio, cacheDiskRatio)
 	}
 
 	cacheRequestGb := requestGb * ratio / 100
@@ -515,30 +486,27 @@ func (s controllerService) CreateBcacheVolume(ctx context.Context, req *csi.Crea
 		return nil, status.Errorf(codes.FailedPrecondition, "pvc request capacity and cache ratio are inappropriate, cacheRequestGb is %d", cacheRequestGb)
 	}
 
-	backendVolumeName := name
-	cacheVolumeName := "cache-" + name[6:]
+	backendVolumeName := pvName
+	cacheVolumeName := "cache-" + pvName[6:]
 	pvcName := req.Parameters["csi.storage.k8s.io/pvc/name"]
 	namespace := req.Parameters["csi.storage.k8s.io/pvc/namespace"]
-	segments := map[string]string{}
 
-	if node == "" {
-		log.Info("decide node because accessibility_requirements not found")
-		nodeName, segmentsTmp, err := s.nodeService.SelectMultiVolumeNode(ctx, backendDiskType, cacheDiskType, backendRequestGb, cacheRequestGb, requirements)
+	if nodeName == "" {
+		log.Info("start to decide node")
+		nodeName, err := s.nodeService.SelectMultiVolumeNode(ctx, backendDeviceGroup, cacheDeviceGroup, backendRequestGb, cacheRequestGb, requirements)
 		if err != nil {
-			return nil, status.Errorf(codes.Internal, "failed to get max capacity node %v", err)
+			return nil, status.Errorf(codes.Internal, "failed to select node, err: %v", err)
 		}
 		if nodeName == "" {
 			return nil, status.Error(codes.Internal, "can not find any node")
 		}
-		node = nodeName
-		segments = segmentsTmp
 	}
 
 	annotation := map[string]string{
 		carina.VolumeCacheDiskRatio: cacheDiskRatio,
 	}
 
-	backendDiskVolumeID, backendDiskDeviceMajor, backendDiskDeviceMinor, err := s.lvService.CreateVolume(ctx, namespace, pvcName, node, backendDiskType, backendVolumeName, backendRequestGb, metav1.OwnerReference{}, annotation)
+	backendDiskVolumeID, backendDiskDeviceMajor, backendDiskDeviceMinor, err := s.lvService.CreateVolume(ctx, namespace, pvcName, nodeName, backendDeviceGroup, backendVolumeName, backendRequestGb, metav1.OwnerReference{}, annotation)
 	if err != nil {
 		s, ok := status.FromError(err)
 		if s.Code() != codes.AlreadyExists {
@@ -549,7 +517,7 @@ func (s controllerService) CreateBcacheVolume(ctx context.Context, req *csi.Crea
 		}
 	}
 
-	lv, err := s.lvService.GetLogicVolume(ctx, backendDiskVolumeID)
+	lv, err := s.lvService.GetLogicVolumeByVolumeId(ctx, backendDiskVolumeID)
 	if err != nil {
 		if err == k8s.ErrVolumeNotFound {
 			return nil, status.Errorf(codes.NotFound, "LogicalVolume for volume id %s is not found", backendDiskVolumeID)
@@ -568,7 +536,7 @@ func (s controllerService) CreateBcacheVolume(ctx context.Context, req *csi.Crea
 		BlockOwnerDeletion: &blockOwnerDeletion,
 	}
 
-	cacheDiskVolumeID, cacheDiskDeviceMajor, cacheDiskDeviceMinor, err := s.lvService.CreateVolume(ctx, namespace, pvcName, node, cacheDiskType, cacheVolumeName, cacheRequestGb, owner, annotation)
+	cacheDiskVolumeID, cacheDiskDeviceMajor, cacheDiskDeviceMinor, err := s.lvService.CreateVolume(ctx, namespace, pvcName, nodeName, cacheDeviceGroup, cacheVolumeName, cacheRequestGb, owner, annotation)
 	if err != nil {
 		_, ok := status.FromError(err)
 		if !ok {
@@ -579,31 +547,27 @@ func (s controllerService) CreateBcacheVolume(ctx context.Context, req *csi.Crea
 
 	// pv csi VolumeAttributes
 	volumeContext := req.GetParameters()
-	volumeContext[carina.DeviceDiskKey] = backendDiskType
-	volumeContext[carina.VolumeDevicePath] = fmt.Sprintf("/dev/%s/volume-%s", backendDiskType, backendVolumeName)
-	volumeContext[carina.VolumeDeviceNode] = node
+	volumeContext[carina.DeviceDiskKey] = backendDeviceGroup
+	volumeContext[carina.VolumeDevicePath] = fmt.Sprintf("/dev/%s/volume-%s", backendDeviceGroup, backendVolumeName)
+	volumeContext[carina.VolumeDeviceNode] = nodeName
 	volumeContext[carina.VolumeDeviceMajor] = fmt.Sprintf("%d", backendDiskDeviceMajor)
 	volumeContext[carina.VolumeDeviceMinor] = fmt.Sprintf("%d", backendDiskDeviceMinor)
-	volumeContext[carina.VolumeCacheDiskType] = cacheDiskType
-	volumeContext[carina.VolumeCacheDevicePath] = fmt.Sprintf("/dev/%s/volume-%s", cacheDiskType, cacheVolumeName)
+	volumeContext[carina.VolumeCacheDiskType] = cacheDeviceGroup
+	volumeContext[carina.VolumeCacheDevicePath] = fmt.Sprintf("/dev/%s/volume-%s", cacheDeviceGroup, cacheVolumeName)
 	volumeContext[carina.VolumeCacheDeviceMajor] = fmt.Sprintf("%d", cacheDiskDeviceMajor)
 	volumeContext[carina.VolumeCacheDeviceMinor] = fmt.Sprintf("%d", cacheDiskDeviceMinor)
-	volumeContext[carina.VolumeCachePolicy] = cachepolicy
+	volumeContext[carina.VolumeCachePolicy] = cachePolicy
 	volumeContext[carina.VolumeCacheDiskRatio] = cacheDiskRatio
 	volumeContext[carina.VolumeCacheId] = cacheDiskVolumeID
-
-	// pv nodeAffinity
-	segments[carina.TopologyNodeKey] = node
 
 	return &csi.CreateVolumeResponse{
 		Volume: &csi.Volume{
 			CapacityBytes: requestGb << 30,
 			VolumeId:      backendDiskVolumeID,
 			VolumeContext: volumeContext,
-			ContentSource: source,
 			AccessibleTopology: []*csi.Topology{
 				{
-					Segments: segments,
+					Segments: map[string]string{carina.TopologyNodeKey: nodeName},
 				},
 			},
 		},

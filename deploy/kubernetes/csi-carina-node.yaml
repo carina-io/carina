@@ -39,8 +39,8 @@ spec:
           image: registry.cn-hangzhou.aliyuncs.com/carina/csi-node-driver-registrar:v2.5.1
           args:
             - "--v=5"
-            - "--csi-address=/csi/csi.sock"
-            - "--kubelet-registration-path=/var/lib/kubelet/plugins/csi.carina.com/csi.sock"
+            - "--csi-address=/csi/csi-carina.sock"
+            - "--kubelet-registration-path=/var/lib/kubelet/plugins/csi.carina.com/csi-carina.sock"
           env:
             - name: KUBE_NODE_NAME
               valueFrom:
@@ -61,7 +61,7 @@ spec:
           image: registry.cn-hangzhou.aliyuncs.com/carina/carina:latest
           command: ["carina-node"]
           args:
-            - "--csi-address=$(ADDRESS)"
+            - "--csi-address=/csi/csi-carina.sock"
             - "--metrics-addr=:8080"
           env:
             - name: POD_IP
@@ -72,13 +72,21 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: spec.nodeName
-            - name: ADDRESS
-              value: /csi/csi.sock
 #            - name: DEBUG
 #              value: "true"
           ports:
+            - containerPort: 9808
+              name: healthz
             - containerPort: 8080
               name: metrics
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: healthz
+            failureThreshold: 3
+            initialDelaySeconds: 10
+            timeoutSeconds: 3
+            periodSeconds: 65
           resources:
             requests:
               memory: "64Mi"
@@ -113,6 +121,14 @@ spec:
               mountPath: /etc/carina/
             - name: log-dir
               mountPath: /var/log/carina/
+        - name: liveness-probe
+          image: k8s.gcr.io/sig-storage/livenessprobe:v2.7.0
+          imagePullPolicy:
+          args:
+            - --csi-address=/csi/csi-carina.sock
+          volumeMounts:
+            - name: socket-dir
+              mountPath: /csi
       volumes:
         - name: socket-dir
           hostPath:

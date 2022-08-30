@@ -140,7 +140,7 @@ func subMain() error {
 	}
 
 	// add nsr reconciler to manager
-	if err := mgr.Add(runners.NewNodeStorageResourceReconciler(mgr.GetClient(), dm)); err != nil {
+	if err := mgr.Add(runners.NewNodeStorageResourceReconciler(mgr, dm)); err != nil {
 		return err
 	}
 
