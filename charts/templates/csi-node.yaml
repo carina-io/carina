@@ -116,10 +116,7 @@ spec:
           args:
             - "--csi-address=$(ADDRESS)"
             - "--metrics-addr=:{{ .Values.node.metricsPort }}"
-            - "--http-addr=:{{ .Values.node.httpPort }}"  
           ports:
-            - containerPort: {{ .Values.node.httpPort }}
-              name: http
             - containerPort: {{ .Values.node.metricsPort }}
               name: metrics  
           env:

@@ -1,10 +1,10 @@
 carina-scheduler:
   enabled: true
   image:
-    repository: registry.cn-hangzhou.aliyuncs.com/carina/scheduler
+    repository: registry.cn-hangzhou.aliyuncs.com/carina/carina-scheduler
     pullPolicy: IfNotPresent
     # Overrides the image tag whose default is the chart appVersion.
-    tag: "v0.9-20211012111249"
+    tag: "v0.11.0"
 # Default values for carina-csi-driver.
 # This is a YAML-formatted file.
 # Declare variables to be passed into your templates.
@@ -12,19 +12,19 @@ image:
   baseRepo: registry.cn-hangzhou.aliyuncs.com/carina
   carina:
     repository: /carina
-    tag: v0.9.1-20211217165406
+    tag: v0.11.0
     pullPolicy: IfNotPresent
   csiProvisioner:
     repository: /csi-provisioner
-    tag: v2.1.0
+    tag: v2.2.2
     pullPolicy: IfNotPresent
   csiResizer:
     repository: /csi-resizer
-    tag: v1.1.0
+    tag: v1.5.0
     pullPolicy: IfNotPresent
   nodeDriverRegistrar:
     repository: /csi-node-driver-registrar
-    tag: v2.1.0
+    tag: v2.5.1
     pullPolicy: IfNotPresent
   nodeInitImage:  
     repository: /busybox
@@ -46,8 +46,7 @@ rbac:
 controller:
   name: csi-carina-controller
   replicas: 1
-  metricsPort: 29604
-  httpPort: 18089
+  metricsPort: 8080
   webhookPort: 8443
   livenessProbe:
     healthPort: 29602
@@ -87,11 +86,11 @@ controller:
         memory: 20Mi
     carina:
       limits:
-        cpu: 300m
-        memory: 500Mi
+        cpu: 500m
+        memory: 128Mi
       requests:
-        cpu: 10m
-        memory: 20Mi
+        cpu: 300m
+        memory: 64Mi
 
 node:
   name: csi-carina-node # daemonset name
@@ -134,8 +133,7 @@ node:
       requests:
         cpu: 10m
         memory: 20Mi
-  metricsPort: 28080
-  httpPort:  28089
+  metricsPort: 8080
   logDir: /var/log/carina/
   configDir: /etc/carina/
 
