@@ -90,7 +90,7 @@ helm repo add carina-csi-driver https://carina-io.github.io
 
 helm search repo -l carina-csi-driver
 
-helm install carina-csi-driver carina-csi-driver/carina-csi-driver --namespace kube-system --version v0.10.0
+helm install carina-csi-driver carina-csi-driver/carina-csi-driver --namespace kube-system --version v0.11.0
 ```
 
 * [deployment guide](docs/manual/install.md)
