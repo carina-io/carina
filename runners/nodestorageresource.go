@@ -21,6 +21,8 @@ import (
 	"fmt"
 	"github.com/anuvu/disko"
 	"github.com/carina-io/carina"
+	"github.com/carina-io/carina/getter"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/equality"
 	"regexp"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
@@ -46,19 +48,21 @@ type nodeStorageResourceReconciler struct {
 	client.Client
 	updateChannel chan *deviceManager.VolumeEvent
 	dm            *deviceManager.DeviceManager
+	getter        *getter.RetryGetter
 }
 
 //+kubebuilder:rbac:groups=carina.storage.io,resources=nodestorageresources,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=carina.storage.io,resources=nodestorageresources/status,verbs=get;update;patch
 
 func NewNodeStorageResourceReconciler(
-	client client.Client,
+	mgr manager.Manager,
 	dm *deviceManager.DeviceManager,
 ) manager.Runnable {
 	return &nodeStorageResourceReconciler{
-		Client:        client,
+		Client:        mgr.GetClient(),
 		updateChannel: make(chan *deviceManager.VolumeEvent, 500), // Buffer up to 500 statuses
 		dm:            dm,
+		getter:        getter.NewRetryGetter(mgr),
 	}
 }
 
@@ -67,7 +71,7 @@ func (r *nodeStorageResourceReconciler) reconcile(ve *deviceManager.VolumeEvent)
 
 	nodeStorageResource := new(carinav1beta1.NodeStorageResource)
 	ctx := context.Background()
-	getErr := r.Get(ctx, client.ObjectKey{Name: r.dm.NodeName}, nodeStorageResource)
+	getErr := r.getter.Get(ctx, client.ObjectKey{Name: r.dm.NodeName}, nodeStorageResource)
 	if getErr != nil {
 		if apierrs.IsNotFound(getErr) {
 			if err := r.createNodeStorageResource(ctx); err != nil {
@@ -126,6 +130,11 @@ func (r *nodeStorageResourceReconciler) triggerReconcile() {
 }
 
 func (r *nodeStorageResourceReconciler) createNodeStorageResource(ctx context.Context) error {
+	node := new(v1.Node)
+	if err := r.Get(ctx, client.ObjectKey{Name: r.dm.NodeName}, node); err != nil {
+		return err
+	}
+
 	NodeStorageResource := &carinav1beta1.NodeStorageResource{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       carinav1beta1.GroupVersion.Version,
@@ -133,6 +142,14 @@ func (r *nodeStorageResourceReconciler) createNodeStorageResource(ctx context.Co
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name: r.dm.NodeName,
+			OwnerReferences: []metav1.OwnerReference{
+				{
+					APIVersion: v1.SchemeGroupVersion.WithKind("Node").Version,
+					Kind:       v1.SchemeGroupVersion.WithKind("Node").Kind,
+					Name:       r.dm.NodeName,
+					UID:        node.UID,
+				},
+			},
 		},
 		Spec: carinav1beta1.NodeStorageResourceSpec{
 			NodeName: r.dm.NodeName,
@@ -284,6 +301,6 @@ func (r *nodeStorageResourceReconciler) generateRaidStatus(status *carinav1beta1
 }
 
 // NeedLeaderElection implements controller-runtime's manager.LeaderElectionRunnable.
-func (dc *nodeStorageResourceReconciler) NeedLeaderElection() bool {
+func (r *nodeStorageResourceReconciler) NeedLeaderElection() bool {
 	return false
 }

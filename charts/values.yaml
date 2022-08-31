@@ -34,6 +34,10 @@ image:
     repository: /busybox
     tag: "1.28"
     pullPolicy: IfNotPresent
+  livenessProbe:
+    repository: /livenessprobe
+    tag: "v2.7.0"
+    pullPolicy: IfNotPresent
 
 serviceAccount:
   create: true # When true, service accounts will be created for you. Set to false if you want to use your own.
@@ -104,7 +108,7 @@ node:
   initContainer:
     modprobe: 
       # - dm_snapshot 
-      # - dm_mirror 
+      - dm_mirror
       # - dm_thin_pool
   enablePerfOptimization: true
   tolerations:

@@ -22,6 +22,7 @@ import (
 	"github.com/anuvu/disko"
 	"github.com/anuvu/disko/linux"
 	"github.com/anuvu/disko/partid"
+	"github.com/carina-io/carina"
 	"github.com/carina-io/carina/pkg/devicemanager/types"
 	"github.com/carina-io/carina/utils/exec"
 	"github.com/carina-io/carina/utils/log"
@@ -162,7 +163,7 @@ func (ld *LocalPartitionImplement) CreatePartition(name, groups string, size uin
 	fs := disk.FreeSpacesWithMin(size)
 	if len(fs) < 1 {
 		log.Error("path ", fmt.Sprintf("/dev/%s", diskPath), "has not free size "+err.Error())
-		return err
+		return errors.New(carina.ResourceExhausted)
 	}
 	var partitionNum uint
 
@@ -174,7 +175,8 @@ func (ld *LocalPartitionImplement) CreatePartition(name, groups string, size uin
 	}
 
 	if partitionNum == 0 {
-		return fmt.Errorf("failed to find an open partition number %d", partitionNum)
+		log.Error("failed to find an open partition number ", partitionNum)
+		return errors.New(carina.ResourceExhausted)
 	}
 
 	last := fs[0].Last
@@ -222,9 +224,9 @@ func (ld *LocalPartitionImplement) UpdatePartition(name, groups string, size uin
 	fs := disk.FreeSpacesWithMin(size - partition.Size())
 	if len(fs) < 1 {
 		log.Error("path ", fmt.Sprintf("/dev/%s", diskPath), "has not free size ")
-		return errors.New("disk has not free size" + fmt.Sprintf("/dev/%s", diskPath))
+		return errors.New(carina.ResourceExhausted)
 	}
-	if len(disk.Partitions) < 1 {
+	if len(disk.Partitions) > 1 {
 		log.Error("path", fmt.Sprintf("/dev/%s", diskPath), "disk has mutipod used")
 		return errors.New("disk has mutipod used" + fmt.Sprintf("/dev/%s", diskPath))
 	}
@@ -245,7 +247,7 @@ func (ld *LocalPartitionImplement) UpdatePartition(name, groups string, size uin
 			log.Error("/usr/bin/findmnt", "-S", fmt.Sprintf("/dev/%sp%d", diskPath, p.Number), "--noheadings", "--output=target", "failed"+err.Error())
 			return err
 		}
-		targetpath := strings.TrimSpace(string(strings.TrimSuffix(targetPathOut, "\n")))
+		targetpath := strings.TrimSpace(strings.TrimSuffix(targetPathOut, "\n"))
 
 		if targetpath != "" {
 			_, err := ld.Executor.ExecuteCommandWithOutput("umount", targetpath)

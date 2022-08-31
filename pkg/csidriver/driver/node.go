@@ -115,7 +115,7 @@ func (s *nodeService) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 
 	var lv *types.LvInfo
 	var err error
-	lvr, err := s.k8sLVService.GetLogicVolume(ctx, volumeID)
+	lvr, err := s.k8sLVService.GetLogicVolumeByVolumeId(ctx, volumeID)
 	if err != nil {
 		return nil, err
 	}
@@ -451,7 +451,7 @@ func (s *nodeService) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	lvr, err := s.k8sLVService.GetLogicVolume(ctx, volID)
+	lvr, err := s.k8sLVService.GetLogicVolumeByVolumeId(ctx, volID)
 	if err != nil {
 		return nil, err
 	}
@@ -700,7 +700,7 @@ func (s *nodeService) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandV
 	}
 
 	var device string
-	lvr, err := s.k8sLVService.GetLogicVolume(ctx, vid)
+	lvr, err := s.k8sLVService.GetLogicVolumeByVolumeId(ctx, vid)
 	if err != nil {
 		return nil, err
 	}

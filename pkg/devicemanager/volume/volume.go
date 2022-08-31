@@ -64,7 +64,7 @@ func (v *LocalVolumeImplement) CreateVolume(lvName, vgName string, size, ratio u
 
 	if vgInfo.VGFree-size < carina.DefaultReservedSpace {
 		log.Warnf("%s don't have enough space, reserved 10 g", vgName)
-		return errors.New("don't have enough space")
+		return errors.New(carina.ResourceExhausted)
 	}
 
 	name := carina.VolumePrefix + lvName
@@ -152,7 +152,7 @@ func (v *LocalVolumeImplement) ResizeVolume(lvName, vgName string, size, ratio u
 
 	if vgInfo.VGFree-(size-lvInfo.LVSize) < carina.DefaultReservedSpace {
 		log.Warnf("%s don't have enough space, reserved 10 g", vgName)
-		return errors.New("don't have enough space")
+		return errors.New(carina.ResourceExhausted)
 	}
 
 	// backward compatible
@@ -333,7 +333,7 @@ func (v *LocalVolumeImplement) RemoveDiskInVg(disk, vgName string) error {
 			// 移除该Pv,剩余空间不足，则不允许移除
 			if vgInfo.VGFree < pvInfo.PVSize {
 				log.Warnf("cannot remove the disk %s because there will not enough space", disk)
-				return errors.New("not enough space")
+				return errors.New(carina.ResourceExhausted)
 			}
 
 			err = v.Lv.VGReduce(vgName, disk)

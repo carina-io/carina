@@ -2,16 +2,15 @@
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
-  name: csi-carina-raw
+  name: csi-carina-lvm-ext4
   namespace: kube-system
 provisioner: carina.storage.io
 parameters:
   # file system
-  csi.storage.k8s.io/fstype: xfs
+  csi.storage.k8s.io/fstype: ext4
   # disk group
-  carina.storage.io/disk-group-name: "carina-raw-ssd"
-  carina.storage.io/exclusively-raw-disk: "false" 
-reclaimPolicy: Delete
+  carina.storage.io/disk-group-name: "carina-raw"
+reclaimPolicy: Retain
 allowVolumeExpansion: true
 # WaitForFirstConsumer表示被容器绑定调度后再创建pv
 volumeBindingMode: WaitForFirstConsumer

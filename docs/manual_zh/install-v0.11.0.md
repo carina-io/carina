@@ -2,8 +2,7 @@
 
 #### 背景
 
-- logicvolume是一个crd资源，该资源用于carina controller和node服务之间的数据交换，在v0.11之前的版本中由于注解标签错误，一直为Namespace级别资源，
-在v0.11版本之中我们修复了该问题，将该crd资源变更为Cluster级别资源，当然也引起了一些麻烦，如果你已经在使用carina<0.11版本，需要遵循如下的步骤进行carina版本升级。
+- logicvolume是一个crd资源，该资源用于carina controller和node服务之间的数据交换，在v0.11之前的版本中由于注解标签错误，一直为Namespace级别资源，在v0.11版本之中我们修复了该问题，将该crd资源变更为Cluster级别资源，当然也引起了一些麻烦，如果你已经在使用carina<0.11版本，需要遵循如下的步骤进行carina版本升级。
 
 #### 卸载carina
 
@@ -38,4 +37,3 @@ $ ./deploy.sh
 # 安装指定版本的镜像
 $ helm install carina-csi-driver carina-csi-driver/carina-csi-driver --namespace kube-system --version v0.11.0
 ```
-
