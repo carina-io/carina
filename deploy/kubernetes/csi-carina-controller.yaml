@@ -118,7 +118,7 @@ spec:
             - name: certs
               mountPath: /certs
         - name: liveness-probe
-          image: k8s.gcr.io/sig-storage/livenessprobe:v2.7.0
+          image: registry.cn-hangzhou.aliyuncs.com/carina/livenessprobe:v2.7.0
           imagePullPolicy: "IfNotPresent"
           args:
             - --csi-address=/csi/csi-carina.sock
