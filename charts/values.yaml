@@ -14,6 +14,10 @@ image:
     repository: /carina
     tag: v0.11.0
     pullPolicy: IfNotPresent
+  livenessProbe:
+    repository: /livenessprobe
+    tag: v2.7.0
+    pullPolicy: IfNotPresent 
   csiProvisioner:
     repository: /csi-provisioner
     tag: v2.2.2
@@ -134,6 +138,8 @@ node:
         cpu: 10m
         memory: 20Mi
   metricsPort: 8080
+  livenessProbe:
+    healthPort: 29602
   logDir: /var/log/carina/
   configDir: /etc/carina/
 
