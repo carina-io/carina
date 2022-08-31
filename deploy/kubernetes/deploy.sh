@@ -51,9 +51,6 @@ function uninstall() {
   kubectl delete -f storageclass-lvm.yaml
   kubectl delete -f storageclass-raw.yaml
   kubectl delete -f prometheus-service-monitor.yaml
-
-}
-
 }
 
 operator=${1:-'install'}

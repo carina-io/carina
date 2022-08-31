@@ -1,9 +1,0 @@
----
-apiVersion: snapshot.storage.k8s.io/v1beta1
-kind: VolumeSnapshot
-metadata:
-  name: carina-pvc-snapshot
-spec:
-  volumeSnapshotClassName: csi-carinaplugin-snapclass
-  source:
-    persistentVolumeClaimName: csi-carina-pvc

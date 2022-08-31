@@ -6,15 +6,14 @@ version: v0.11.0
 appVersion: "0.11.0"
 maintainers:
     - name: bocloud
-      email: carina-ci-bot@beyondcent.com
+      email: carina-bot@beyondcent.com
       url: http://www.opencarina.com
 dependencies:
   - name: carina-scheduler
-    version: "0.1.0"
+    version: "0.11.0"
     condition: carina-scheduler.enabled
 
 home: https://github.com/carina-io/carina.git
 icon: https://user-images.githubusercontent.com/88021699/130191822-50112078-fad9-4516-b76b-8b7566d1bfc3.jpg
 sources:
   - https://github.com/carina-io/carina.git
-

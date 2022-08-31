@@ -57,7 +57,7 @@ spec:
             capabilities:
               add: ["SYS_ADMIN"]
             allowPrivilegeEscalation: true
-          # for stable functionality replace canary with latest release version
+          # for stable functionality replace canary with the latest release version
           image: registry.cn-hangzhou.aliyuncs.com/carina/carina:latest
           command: ["carina-node"]
           args:
@@ -122,7 +122,7 @@ spec:
             - name: log-dir
               mountPath: /var/log/carina/
         - name: liveness-probe
-          image: k8s.gcr.io/sig-storage/livenessprobe:v2.7.0
+          image: registry.cn-hangzhou.aliyuncs.com/carina/livenessprobe:v2.7.0
           imagePullPolicy:
           args:
             - --csi-address=/csi/csi-carina.sock

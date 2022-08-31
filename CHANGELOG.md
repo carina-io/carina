@@ -59,7 +59,7 @@ This project adheres to [Semantic Versioning](https://www.opencarina.io).
 
 ## [0.11.0] - 2022-08-31
 
-- Support the cgroup v2
+- Support the cgroup v1 and v2
 - Adjustment of project structure
 - The HTTP server is deleted
 - Logicvolume changed from Namespace to Cluster, [upgrade](docs/manual_zh/install-v0.11.0.md)
@@ -67,10 +67,11 @@ This project adheres to [Semantic Versioning](https://www.opencarina.io).
 - Fix the metric server panic problem #91
 - Mirrored warehouse has personal space migrated to Carina exclusive space
 - To improve LVM volume performance, do not create a thin-pool when creating an LVM volume #96
-- Add parameter `carina.stroage. IO /allow-pod-migration-if-notready` to storageclass. Webhook will automatically add 
+- Add parameter `carina.storage.io/allow-pod-migration-if-notready` to storageclass. Webhook will automatically add 
 this annotation for POD when SC has this parameter #95
 - Nodestorageresource structuring and issue fixing #87
 - Remove ConfigMap synchronization control #75
 - The Carina E2E test is being refined
 - Promote carina into cncf sandbox project and roadmap
 - Update outdated documents
+- Optimize the container scheduling algorithm to make it more concise and understandable
