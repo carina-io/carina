@@ -5,13 +5,13 @@
 ```shell
 $ git clone https://github.com/carina-io/carina.git
 ```
-- golang 1.16
+- golang 1.17
 
 * compiling carina-controller / carina-node
 
 ```shell
 # to build testing images
-$ make latest
+$ make docker-build
 # to release a version
 $ make release VERSION=v0.9
 ```
@@ -23,7 +23,7 @@ Carina-scheduler is an independent project，which is just placed under carina f
 ```shell
 $ cd scheduler
 # to build testing images
-$ make latest
+$ make docker-build
 # to release a version
 $ make release VERSION=v0.9 
 ```
@@ -33,6 +33,6 @@ $ make release VERSION=v0.9
 - For local volume projects, it's not ideal to run e2e tests via KIND clusters. It's recommended to test carina on physical or virtual nodes. 
 
 ```shell
-$ cd e2e
+$ cd test/e2e
 $ make e2e
 ```

@@ -8,8 +8,8 @@ parameters:
   # file system
   csi.storage.k8s.io/fstype: xfs
   # disk group
-  carina.storage.io/backend-disk-group-name: carina-raw-ssd/vdd
-  carina.storage.io/cache-disk-group-name: carina-vg-ssd
+  carina.storage.io/backend-disk-group-name: carina-lvm
+  carina.storage.io/cache-disk-group-name: carina-lvm
   # 1-100 Cache Capacity Ratio
   carina.storage.io/cache-disk-ratio: "50"
   # writethrough/writeback/writearound
