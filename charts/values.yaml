@@ -104,12 +104,12 @@ node:
   name: csi-carina-node # daemonset name
   logLevel: 2
   kubelet: /var/lib/kubelet
-  bcache: false
+  bcache: true
   initContainer:
     modprobe: 
-      # - dm_snapshot 
+      - dm_snapshot 
       - dm_mirror
-      # - dm_thin_pool
+      - dm_thin_pool
   enablePerfOptimization: true
   tolerations:
     # - key: "node-role.kubernetes.io/master"

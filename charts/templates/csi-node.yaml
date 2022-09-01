@@ -42,7 +42,21 @@ spec:
           securityContext:
             privileged: true
           image: {{ $initiMage  }}
-          command: ["sh", "-c","modprobe bcache"] 
+          command: 
+          - sh
+          - -c
+          - >- 
+              uname  -r  ;         
+              main=$(uname  -r | awk -F . '{print $1 }') ;
+              minor=$(uname -r | awk -F . '{print $2}');
+              echo "major version is:$main, secondary version is:$minor";
+              
+              if ([ "$main"  -eq "3" ] && [ "$minor" -ge "10" ]) || ([ "$main"  -ge "3" ]);
+              then               
+                  modprobe  bcache || true
+              else
+                  echo "skip modprobe bcache" ;                
+              fi       
           volumeMounts:
             - mountPath: /lib/modules
               name: modules
@@ -52,7 +66,21 @@ spec:
           securityContext:
             privileged: true
           image: {{ $initiMage  }}
-          command: ["sh", "-c","modprobe {{. |}}"] 
+          command: 
+          - sh
+          - -c
+          - >- 
+              uname  -r  ;         
+              main=$(uname  -r | awk -F . '{print $1 }') ;
+              minor=$(uname -r | awk -F . '{print $2}');
+              echo "major version is:$main, secondary version is:$minor";
+              
+              if ([ "$main"  -eq "3" ] && [ "$minor" -ge "10" ]) || ([ "$main"  -ge "3" ]);
+              then               
+                  modprobe {{. |}}  || true
+              else
+                  echo "skip modprobe {{. |}}" ;                
+              fi       
           volumeMounts:
             - mountPath: /lib/modules
               name: modules
