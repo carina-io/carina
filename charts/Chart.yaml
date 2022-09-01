@@ -10,7 +10,7 @@ maintainers:
       url: http://www.opencarina.com
 dependencies:
   - name: carina-scheduler
-    version: "0.11.0"
+    version: "0.1.0"
     condition: carina-scheduler.enabled
 
 home: https://github.com/carina-io/carina.git
