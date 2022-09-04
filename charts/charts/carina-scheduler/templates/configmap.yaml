@@ -7,7 +7,7 @@ metadata:
 {{ include "carina-scheduler.labels" . | indent 4 }}
 data:
   scheduler-config.yaml: |-
-    apiVersion: kubescheduler.config.k8s.io/v1beta1
+    apiVersion: kubescheduler.config.k8s.io/v1
     kind: KubeSchedulerConfiguration
     leaderElection:
       leaderElect: true
