@@ -34,10 +34,6 @@ image:
     repository: /busybox
     tag: "1.28"
     pullPolicy: IfNotPresent
-  livenessProbe:
-    repository: /livenessprobe
-    tag: "v2.7.0"
-    pullPolicy: IfNotPresent
 
 serviceAccount:
   create: true # When true, service accounts will be created for you. Set to false if you want to use your own.
@@ -45,7 +41,7 @@ serviceAccount:
   node: carina-csi-node 
 
 driver:
-  name: csi.carina.com
+  name: carina.storage.io
 
 rbac:
   create: true
