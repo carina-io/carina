@@ -58,7 +58,7 @@ spec:
               add: ["SYS_ADMIN"]
             allowPrivilegeEscalation: true
           # for stable functionality replace canary with the latest release version
-          image: registry.cn-hangzhou.aliyuncs.com/carina/carina:latest
+          image: registry.cn-hangzhou.aliyuncs.com/carina/carina:e2e
           command: ["carina-node"]
           args:
             - "--csi-address=/csi/csi-carina.sock"
