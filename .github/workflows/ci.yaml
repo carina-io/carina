@@ -232,6 +232,9 @@ jobs:
         run: |
           echo "loading docker images..."
           pigz -dc docker.tar.gz | docker load
+          sudo docker save -o carina-e2e.tar registry.cn-hangzhou.aliyuncs.com/carina/carina:e2e
+          sudo k3s ctr -n k8s.io i import carina-e2e.tar
+          sudo k3s ctr -n k8s.io i ls
 
       - name: Deploy carina
         run: |
@@ -248,7 +251,7 @@ jobs:
           kubectl get pods -n kube-system |grep carina
           echo "kubectl get nodestorageresource -oyaml"
           kubectl get nodestorageresource -oyaml
-          
+
       - name: Run e2e tests
         env:
           KIND_CLUSTER_NAME: kind
