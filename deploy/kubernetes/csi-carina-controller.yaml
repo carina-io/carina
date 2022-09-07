@@ -245,7 +245,7 @@ spec:
             - --namespace=$(POD_NAMESPACE)
             - --patch-validating=false
             - --secret-name=mutatingwebhook
-            - --patch-failure-policy=Fail
+            - --patch-failure-policy=Ignore
           env:
             - name: POD_NAMESPACE
               valueFrom:
