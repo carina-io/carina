@@ -91,7 +91,7 @@ spec:
             limits:
               memory: "128Mi"
               cpu: "750m"
-          imagePullPolicy: "Never"
+          imagePullPolicy: "IfNotPresent"
           volumeMounts:
             - name: socket-dir
               mountPath: /csi
