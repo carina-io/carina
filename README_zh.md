@@ -22,6 +22,12 @@ Carina 是一款基于 Kubernetes CSI 标准实现的存储插件，用户可以
 - 节点单块裸盘容量需要大于10G
 - 如果服务器不支持bcache内核模块，参考[FAQ](docs/manual_zh/FAQ.md)，修改部署yaml
 
+### carina版本支持范围
+| kubernetes | v0.9   | v0.9.1 | v0.10  | v0.11.0  | v1.0   |
+| ---------- | ------ | ------ | ------ | -------- | ------ |
+| >=1.18     | 支持   | 支持   | 支持   | 支持     | 未发布 |
+| >=1.25     | 不支持 | 不支持 | 不支持 | 实验性质 | 未发布 |
+
 # 总体架构
 
 ![carina-arch](docs/img/architecture.png)
