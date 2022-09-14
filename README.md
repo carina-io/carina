@@ -36,6 +36,12 @@ Carina is a standard kubernetes CSI plugin. Users can use standard kubernetes st
 * The capacity of a raw disk must be greater than 10 GB
 * If the server does not support the bcache kernel module, see [FAQ](docs/manual/FAQ.md), Modify yamL deployment
 
+### carina版本支持范围
+| kubernetes | v0.9       | v0.9.1     | v0.10      | v0.11.0      | v1.0        |
+| ---------- | ---------- | ---------- | ---------- | ------------ | ----------- |
+| >=1.18     | support    | support    | support    | support      | not release |
+| >=1.25     | nonsupport | nonsupport | nonsupport | experimental | not release |
+
 # Carina architecture
 
 Carina is built for cloudnative stateful applications with raw disk performance and ops-free maintainess. Carina can scan local disks and classify them by disk types， for example, one node can have 10 HDDs and 2 SSDs. Carina then will group them into different disk pools and user can request different disk type by using different storage class. For data HA, carina now leverages STORCLI to build RAID groups.
