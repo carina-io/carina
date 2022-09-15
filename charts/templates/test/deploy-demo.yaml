@@ -1,0 +1,58 @@
+{{- if .Values.storage.create -}}
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: carina
+---
+{{- range $value := .Values.storage.StorageClass }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $value.disktype }}-deploy-demo-test
+  namespace: carina
+  labels:
+    app: web-server
+  annotations:
+    carina.storage.io/allow-pod-migration-if-node-notready: "true"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: web-server
+  template:
+    metadata:
+      labels:
+        app: web-server
+      annotations:
+        carina.storage.io/allow-pod-migration-if-node-notready: "true"
+    spec:
+      containers:
+        - name: web-server
+          image: nginx:latest
+          imagePullPolicy: "IfNotPresent"
+          volumeMounts:
+            - name: mypvc
+              mountPath: /var/lib/www/html
+      volumes:
+        - name: mypvc
+          persistentVolumeClaim:
+            claimName: {{ $value.disktype }}-testpvc
+            readOnly: false
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ $value.disktype }}-testpvc
+  namespace: carina
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+  storageClassName: {{ $value.disktype }}
+  volumeMode: Filesystem
+{{- end -}}            
+{{- end -}}
