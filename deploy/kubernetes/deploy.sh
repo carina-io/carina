@@ -53,11 +53,26 @@ function uninstall() {
   kubectl delete -f prometheus-service-monitor.yaml
 }
 
+# Does not apply to 0.10.0->0.11.0 updates
+function upgrade() {
+  echo "upgrade..."
+  kubectl delete secret mutatingwebhook -n kube-system
+  kubectl delete -f csi-carina-controller.yaml
+  kubectl delete -f csi-carina-node.yaml
+  kubectl delete -f carina-scheduler.yaml
+  kubectl apply -f csi-carina-controller.yaml
+  kubectl apply -f csi-carina-node.yaml
+  kubectl apply -f carina-scheduler.yaml
+}
+
 operator=${1:-'install'}
 
 if [ "uninstall" == $operator ]
 then
   uninstall
+elif [ "upgrade" == $operator ]
+then
+  upgrade
 else
   install
 fi
