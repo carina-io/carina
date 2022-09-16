@@ -172,13 +172,12 @@ config:
 storage:
   create: true
   # file system
-  lvm: 
-    fstype: xfs
+  StorageClass: 
+  - fstype: xfs
     disktype: carina-vg-ssd  # as same as diskSelector[0].name
     reclaimPolicy: Delete
     volumeBindingMode: WaitForFirstConsumer
-  raw: 
-    fstype: xfs
+  - fstype: xfs
     disktype: carina-raw-ssd #as same as diskSelector[1].name
     reclaimPolicy: Delete  
     volumeBindingMode: WaitForFirstConsumer    

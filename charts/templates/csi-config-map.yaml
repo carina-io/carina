@@ -7,4 +7,4 @@ metadata:
 {{ include "carina-node.labels" . | indent 2 }}
 data:
   config.json: |-
-{{ toJson .Values.config | indent 4}}
+{{ toPrettyJson .Values.config | indent 4}}

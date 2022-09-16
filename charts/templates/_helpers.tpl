@@ -58,3 +58,24 @@ imagePullSecrets:
 {{- printf "%s:%s"   .Values.image.nodeInitImage.repository   .Values.image.nodeInitImage.tag  -}}
 {{- end }}
 {{- end -}}
+
+
+
+{{/* Allow KubeVersion to be overridden. */}}
+{{- define "carina.kubeVersion" -}}
+  {{- default .Capabilities.KubeVersion.Version .Values.kubeVersionOverride -}}
+{{- end -}}
+
+{{/* Get NodeStorageResource API Version */}}
+{{- define "carina.nodestorageresources.apiVersion" -}}
+  {{- if and (.Capabilities.APIVersions.Has "apiextensions.k8s.io/v1") (semverCompare ">= 1.19-0" (include "carina.kubeVersion" .)) -}}
+      {{- print "apiextensions.k8s.io/v1" -}}
+  {{- else if .Capabilities.APIVersions.Has "apiextensions.k8s.io/v1beta1" -}}
+    {{- print "apiextensions.k8s.io/v1beta1" -}}
+  {{- else -}}
+    {{- print "apiextensions.k8s.io/v1beta1" -}}
+  {{- end -}}
+{{- end -}}
+
+
+
