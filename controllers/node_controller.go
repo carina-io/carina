@@ -192,9 +192,9 @@ func (r *NodeReconciler) getNeedRebuildVolume(ctx context.Context) (map[string]c
 			continue
 		}
 
-		log.Infof("checkouk lv: %s", lv.Name)
+		log.Infof("checkout lv: %s", lv.Name)
 		if isSkip, err := r.skipLv(ctx, lv); isSkip || err != nil {
-			log.Errorf("skip lv Whether the pod.annotation meets the condition  in not ready node:%s  err:%s", lv.Spec.NodeName, err.Error())
+			log.Errorf("skip lv whether the pod.annotation meets the condition in not ready node:%s  err:%s", lv.Spec.NodeName, err.Error())
 			continue
 		}
 
