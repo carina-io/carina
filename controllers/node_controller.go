@@ -20,9 +20,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/carina-io/carina"
 	"strings"
 	"time"
+
+	"github.com/carina-io/carina"
 
 	carinav1 "github.com/carina-io/carina/api/v1"
 	"github.com/carina-io/carina/utils"
@@ -191,6 +192,12 @@ func (r *NodeReconciler) getNeedRebuildVolume(ctx context.Context) (map[string]c
 			continue
 		}
 
+		log.Infof("checkout lv: %s", lv.Name)
+		if isSkip, err := r.skipLv(ctx, lv); isSkip || err != nil {
+			log.Errorf("skip lv whether the pod.annotation meets the condition in not ready node:%s  err:%s", lv.Spec.NodeName, err.Error())
+			continue
+		}
+
 		log.Infof("start clear pod: %s", lv.Spec.NodeName)
 		err := r.clearPod(ctx, lv.Spec.NodeName)
 		if err != nil {
@@ -340,4 +347,29 @@ func (r *NodeReconciler) killPod(ctx context.Context, pod *corev1.Pod) error {
 	}
 	log.Infof("delete pod namespace: %s name: %s", pod.Namespace, pod.Name)
 	return nil
+}
+
+//skip rebuild lv when pod.annotation "carina.storage.io/allow-pod-migration-if-node-notready: false" or none
+func (r *NodeReconciler) skipLv(ctx context.Context, lv carinav1.LogicVolume) (bool, error) {
+	podList := &corev1.PodList{}
+	err := r.Client.List(ctx, podList, client.MatchingFields{"combinedIndex": fmt.Sprintf("%s-%s", carina.CarinaSchedule, lv.Spec.NodeName)})
+	if err != nil {
+		return false, err
+	}
+	for _, p := range podList.Items {
+		for _, vol := range p.Spec.Volumes {
+			if vol.PersistentVolumeClaim == nil {
+				continue
+			}
+			if vol.PersistentVolumeClaim.ClaimName != lv.Spec.Pvc {
+				continue
+			}
+			// check annotation carina.storage.io/allow-pod-migration-if-node-notready: true
+			if _, ok := p.Annotations[carina.AllowPodMigrationIfNodeNotready]; !ok || p.Annotations[carina.AllowPodMigrationIfNodeNotready] == "false" {
+				return true, nil
+			}
+
+		}
+	}
+	return false, nil
 }
