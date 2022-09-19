@@ -83,3 +83,4 @@ this annotation for POD when SC has this parameter #95
 - Helm chat deployment adds psp resources
 - It is clear that the current version of carina supports 1.18-1.24
 - Planning discussion carina supports the Kubernetes 1.25 solution
+- Added e2e unit test scripts
