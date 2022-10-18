@@ -36,11 +36,11 @@ Carina is a standard kubernetes CSI plugin. Users can use standard kubernetes st
 * The capacity of a raw disk must be greater than 10 GB
 * If the server does not support the bcache kernel module, see [FAQ](docs/manual/FAQ.md), Modify yamL deployment
 
-### carina版本支持范围
+### Kubernetes compatiblity
 | kubernetes | v0.9       | v0.9.1     | v0.10      | v0.11.0      | v1.0        |
 | ---------- | ---------- | ---------- | ---------- | ------------ | ----------- |
-| >=1.18     | support    | support    | support    | support      | not release |
-| >=1.25     | nonsupport | nonsupport | nonsupport | experimental | not release |
+| >=1.18     | support    | support    | support    | support      | not released |
+| >=1.25     | nonsupport | nonsupport | nonsupport | experimental | not released |
 
 # Carina architecture
 
@@ -158,7 +158,7 @@ Welcome to register the company name in [ADOPTERS.md](ADOPTERS.md)
 
 # Community
 
-- 微信用户扫码进入社区交流群
+- For wechat users
 
 ![carina-wx](docs/img/carina-wx.png)
 
