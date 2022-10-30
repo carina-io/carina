@@ -128,7 +128,7 @@ func (t *troubleShoot) cleanupOrphanVolume() {
 	log.Infof("%s volume check finished.", logPrefix)
 }
 
-//清理裸盘分区和logicVolume的对应关系
+// 清理裸盘分区和logicVolume的对应关系
 func (t *troubleShoot) cleanupOrphanPartition() {
 	// step.1 获取所有本地 磁盘分区，一个lv其实就是对应一个分区
 	log.Infof("%s get all local partition", "CleanupOrphanPartition")
@@ -163,6 +163,9 @@ func (t *troubleShoot) cleanupOrphanPartition() {
 	log.Infof("MapLvList:%v", mapLvList)
 	var deletePartion bool
 	for _, d := range disklist {
+		if d.Type == "part" {
+			continue
+		}
 		disk, err := linux.System().ScanDisk(d.Name)
 		if err != nil {
 			log.Errorf("%s get disk info error %s", logPrefix, err.Error())

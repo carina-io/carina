@@ -455,15 +455,15 @@ func parseDiskString(diskString string) []*types.LocalDisk {
 
 func filter(disklist []*types.LocalDisk) (diskList []*types.LocalDisk) {
 	for _, d := range disklist {
-		if d.Type == "part" || d.ParentName != "" {
+		if d.ParentName != "" {
 			continue
 		}
 		if strings.Contains(d.Name, types.KEYWORD) {
 			continue
 		}
 
-		if d.Readonly || d.Size < 10<<30 || d.Filesystem != "" || d.MountPoint != "" {
-			//log.Infof("mismatched disk: %s filesystem:%s mountpoint:%s readonly:%t, size:%d", d.Name, d.Filesystem, d.MountPoint, d.Readonly, d.Size)
+		if d.Readonly || d.Size < 10<<30 || d.Filesystem != "" {
+			log.Debug("Mismatched disk:" + d.Name + ", filesystem:" + d.Filesystem + ", readonly:" + fmt.Sprintf("%t", d.Readonly) + ", size:" + fmt.Sprintf("%d", d.Size))
 			continue
 		}
 		diskList = append(diskList, d)

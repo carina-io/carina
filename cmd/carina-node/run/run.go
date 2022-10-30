@@ -25,6 +25,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"os"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/metrics"
 	"time"
 
 	carinav1beta1 "github.com/carina-io/carina/api/v1beta1"
@@ -34,6 +35,7 @@ import (
 	"github.com/carina-io/carina/pkg/csidriver/driver"
 	"github.com/carina-io/carina/pkg/csidriver/driver/k8s"
 	deviceManager "github.com/carina-io/carina/pkg/devicemanager"
+	carinaMetrics "github.com/carina-io/carina/pkg/metrics"
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"google.golang.org/grpc"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -84,7 +86,7 @@ func subMain() error {
 		nodeName,
 		dm.Partition,
 	)
-	if err := podIOController.SetupWithManager(mgr); err != nil {
+	if err = podIOController.SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller ", "controller", "podController")
 		return err
 	}
@@ -94,7 +96,7 @@ func subMain() error {
 		mgr.GetEventRecorderFor("logicvolume-node"),
 		dm,
 	)
-	if err := lvController.SetupWithManager(mgr); err != nil {
+	if err = lvController.SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "LogicalVolume")
 		return err
 	}
@@ -103,49 +105,51 @@ func subMain() error {
 
 	// Add health checker to manager
 	checker := runners.NewChecker(checkFunc(dm, mgr.GetAPIReader()), 1*time.Minute)
-	if err := mgr.Add(checker); err != nil {
+	if err = mgr.Add(checker); err != nil {
 		return err
 	}
 
 	// Add metrics exporter to manager.
 	// Note that grpc.ClientConn can be shared with multiple stubs/services.
 	// https://github.com/grpc/grpc-go/tree/master/examples/features/multiplex
-	if err := mgr.Add(runners.NewMetricsExporter(mgr.GetClient(), dm)); err != nil {
-		return err
-	}
-
-	// Add gRPC server to manager.
-	s, err := k8s.NewLogicVolumeService(mgr)
+	lvService, err := k8s.NewLogicVolumeService(mgr)
 	if err != nil {
 		return err
 	}
-	if err := os.MkdirAll(driver.DeviceDirectory, 0755); err != nil {
+	carinaCollector, err := carinaMetrics.NewCarinaCollector(dm, lvService)
+	if err != nil {
+		return err
+	}
+	metrics.Registry.Register(carinaCollector)
+
+	// Add gRPC server to manager.
+	if err = os.MkdirAll(driver.DeviceDirectory, 0755); err != nil {
 		return err
 	}
 	grpcServer := grpc.NewServer()
 	csi.RegisterIdentityServer(grpcServer, driver.NewIdentityService(checker.Ready))
-	csi.RegisterNodeServer(grpcServer, driver.NewNodeService(dm, s))
-	if err := mgr.Add(runners.NewGRPCRunner(grpcServer, config.csiSocket, false)); err != nil {
+	csi.RegisterNodeServer(grpcServer, driver.NewNodeService(dm, lvService))
+	if err = mgr.Add(runners.NewGRPCRunner(grpcServer, config.csiSocket, false)); err != nil {
 		return err
 	}
 
 	// add cleanupOrphan to manager
-	if err := mgr.Add(runners.NewTroubleShoot(dm)); err != nil {
+	if err = mgr.Add(runners.NewTroubleShoot(dm)); err != nil {
 		return err
 	}
 
 	// add device check to manager, add or delete device
-	if err := mgr.Add(runners.NewDeviceCheck(dm)); err != nil {
+	if err = mgr.Add(runners.NewDeviceCheck(dm)); err != nil {
 		return err
 	}
 
 	// add nsr reconciler to manager
-	if err := mgr.Add(runners.NewNodeStorageResourceReconciler(mgr, dm)); err != nil {
+	if err = mgr.Add(runners.NewNodeStorageResourceReconciler(mgr, dm)); err != nil {
 		return err
 	}
 
 	setupLog.Info("starting manager")
-	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
+	if err = mgr.Start(ctrl.SetupSignalHandler()); err != nil {
 		setupLog.Error(err, "problem running manager")
 		return err
 	}
@@ -159,13 +163,6 @@ func checkFunc(dm *deviceManager.DeviceManager, c client.Reader) func() error {
 	return func() error {
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
-
-		if _, err := dm.VolumeManager.GetCurrentVgStruct(); err != nil {
-			return err
-		}
-		if _, err := dm.Partition.ListDevicesDetailWithoutFilter(""); err != nil {
-			return err
-		}
 
 		var drv storagev1.CSIDriver
 		return c.Get(ctx, types.NamespacedName{Name: carina.CSIPluginName}, &drv)

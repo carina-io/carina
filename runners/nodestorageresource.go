@@ -238,6 +238,10 @@ func (r *nodeStorageResourceReconciler) generateDiskStatus(status *carinav1beta1
 				continue
 			}
 
+			if d.Type == "part" {
+				continue
+			}
+
 			name := ds.Name
 			if !utils.ContainsString(blockClass[name], d.Name) {
 				if hasMatchedDisk[d.Name] == 1 {

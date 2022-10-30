@@ -25,6 +25,7 @@ const (
 	DefaultCSISocket = "/tmp/csi/csi-provisioner.sock"
 	// DefaultReservedSpace Default disk space hold
 	DefaultReservedSpace = 10 << 30
+	DefaultEdgeSpace     = 1 << 30
 
 	// LogicVolumeFinalizer LogicalVolumeFinalizer is the name of LogicalVolume finalizer
 	LogicVolumeFinalizer = "carina.storage.io/logicvolume"

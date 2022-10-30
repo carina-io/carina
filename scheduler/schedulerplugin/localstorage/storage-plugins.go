@@ -124,7 +124,7 @@ func (ls *LocalStorage) Filter(ctx context.Context, cycleState *framework.CycleS
 				requestTotalBytes += pvcR.request
 			}
 			requestTotalGb := (requestTotalBytes-1)>>30 + 1
-			if requestTotalGb >= allocatableMap[scDeviceGroup] {
+			if requestTotalGb > allocatableMap[scDeviceGroup] {
 				klog.V(3).Infof("mismatch pod: %s, node: %s, request: %d, scDeviceGroup:%s, allocatable: %d", pod.Name, node.Node().Name, requestTotalGb, scDeviceGroup, allocatableMap[scDeviceGroup])
 				return framework.NewStatus(framework.UnschedulableAndUnresolvable, "node storage resource insufficient")
 			}
