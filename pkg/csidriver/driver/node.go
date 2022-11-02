@@ -19,25 +19,24 @@ package driver
 import (
 	"context"
 	"errors"
+	"github.com/anuvu/disko"
+	"github.com/anuvu/disko/linux"
 	"github.com/carina-io/carina"
+	"github.com/carina-io/carina/pkg/configuration"
+	"github.com/carina-io/carina/pkg/csidriver/driver/k8s"
+	"github.com/carina-io/carina/pkg/csidriver/filesystem"
 	deviceManager "github.com/carina-io/carina/pkg/devicemanager"
+	"github.com/carina-io/carina/pkg/devicemanager/types"
+	"github.com/carina-io/carina/utils"
+	"github.com/carina-io/carina/utils/log"
+	"github.com/carina-io/carina/utils/mutx"
+	"github.com/container-storage-interface/spec/lib/go/csi"
 	"io"
 	"os"
 	"path"
 	"path/filepath"
 	"strconv"
 	"strings"
-	"sync"
-
-	"github.com/anuvu/disko"
-	"github.com/anuvu/disko/linux"
-	"github.com/carina-io/carina/pkg/configuration"
-	"github.com/carina-io/carina/pkg/csidriver/driver/k8s"
-	"github.com/carina-io/carina/pkg/csidriver/filesystem"
-	"github.com/carina-io/carina/pkg/devicemanager/types"
-	"github.com/carina-io/carina/utils"
-	"github.com/carina-io/carina/utils/log"
-	"github.com/container-storage-interface/spec/lib/go/csi"
 
 	"golang.org/x/sys/unix"
 	"google.golang.org/grpc/codes"
@@ -48,11 +47,7 @@ import (
 
 const (
 	// DeviceDirectory is a directory where Node service creates device files.
-	DeviceDirectory = "/dev/carina"
-	// mkfsCmd          = "/sbin/mkfs"
-	// mountCmd         = "/bin/mount"
-	// mountpointCmd    = "/bin/mountpoint"
-	// umountCmd        = "/bin/umount"
+	DeviceDirectory  = "/dev/carina"
 	findmntCmd       = "/usr/bin/findmnt"
 	devicePermission = 0600 | unix.S_IFBLK
 )
@@ -62,6 +57,7 @@ func NewNodeService(dm *deviceManager.DeviceManager, service *k8s.LogicVolumeSer
 	return &nodeService{
 		dm:           dm,
 		k8sLVService: service,
+		mutex:        mutx.NewGlobalLocks(),
 		mounter: mountutil.SafeFormatAndMount{
 			Interface: mountutil.New(""),
 			Exec:      utilexec.New(),
@@ -73,7 +69,7 @@ type nodeService struct {
 	csi.UnimplementedNodeServer
 	dm           *deviceManager.DeviceManager
 	k8sLVService *k8s.LogicVolumeService
-	mu           sync.Mutex
+	mutex        *mutx.GlobalLocks
 	mounter      mountutil.SafeFormatAndMount
 }
 
@@ -105,8 +101,11 @@ func (s *nodeService) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		return nil, status.Errorf(codes.InvalidArgument, "no supported volume capability: %v", req.GetVolumeCapability())
 	}
 
-	s.mu.Lock()
-	defer s.mu.Unlock()
+	if acquired := s.mutex.TryAcquire(volumeID); !acquired {
+		log.Warnf("An publish operation with the given volume %s already exists", volumeID)
+		return nil, status.Errorf(codes.Aborted, "an publish operation with the given volume %s already exists", volumeID)
+	}
+	defer s.mutex.Release(volumeID)
 
 	cacheVolumeId := volumeContext[carina.VolumeCacheId]
 	if cacheVolumeId != "" {
@@ -301,6 +300,10 @@ func (s *nodeService) nodePublishLvmFilesystemVolume(req *csi.NodePublishVolumeR
 		return nil, status.Errorf(codes.Internal, "target device is already formatted with different filesystem: volume=%s, current=%s, new:%s", req.GetVolumeId(), fsType, mountOption.FsType)
 	}
 
+	if mountOption.FsType == "xfs" {
+		mountOptions = append(mountOptions, "nouuid")
+	}
+
 	mounted, err := filesystem.IsMounted(device, req.GetTargetPath())
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "mount check failed: target=%s, error=%v", req.GetTargetPath(), err)
@@ -448,8 +451,11 @@ func (s *nodeService) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 		return nil, status.Error(codes.InvalidArgument, "no target_path is provided")
 	}
 
-	s.mu.Lock()
-	defer s.mu.Unlock()
+	if acquired := s.mutex.TryAcquire(volID); !acquired {
+		log.Warnf("An unpublish operation with the given volume %s already exists", volID)
+		return nil, status.Errorf(codes.Aborted, "an unpublish operation with the given volume %s already exists", volID)
+	}
+	defer s.mutex.Release(volID)
 
 	lvr, err := s.k8sLVService.GetLogicVolumeByVolumeId(ctx, volID)
 	if err != nil {
@@ -782,8 +788,12 @@ func (s *nodeService) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandV
 		return nil, status.Errorf(codes.Internal, "filesystem %s is not mounted at %s", vid, vpath)
 	}
 
-	s.mu.Lock()
-	defer s.mu.Unlock()
+	if acquired := s.mutex.TryAcquire(vid); !acquired {
+		log.Warnf("An expand operation with the given volume %s already exists", vid)
+		return nil, status.Errorf(codes.Aborted, "an expand operation with the given volume %s already exists", vid)
+	}
+	defer s.mutex.Release(vid)
+
 	r := filesystem.NewResizeFs(&s.mounter)
 	if _, err := r.Resize(device, vpath); err != nil {
 		return nil, status.Errorf(codes.Internal, "failed to resize filesystem %s (mounted at: %s): %v", vid, vpath, err)

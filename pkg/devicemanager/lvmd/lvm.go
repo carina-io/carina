@@ -42,11 +42,21 @@ func (lv2 *Lvm2Implement) PVCreate(dev string) error {
 }
 
 func (lv2 *Lvm2Implement) PVRemove(dev string) error {
-	return lv2.Executor.ExecuteCommand("pvremove", dev)
+	if err := lv2.Executor.ExecuteCommand("pvremove", dev); err != nil {
+		return err
+	}
+	/*if err := lv2.PVWipefs(dev); err != nil {
+		return err
+	}*/
+	return nil
 }
 
 func (lv2 *Lvm2Implement) PVResize(dev string) error {
 	return lv2.Executor.ExecuteCommand("pvresize", dev)
+}
+
+func (lv2 *Lvm2Implement) PVWipefs(dev string) error {
+	return lv2.Executor.ExecuteCommand("wipefs -a", dev)
 }
 
 // PVS 示例输出
@@ -215,8 +225,7 @@ func (lv2 *Lvm2Implement) VGReduce(vg, pv string) error {
 		return err
 	}
 
-	err = lv2.PVRemove(pv)
-	if err != nil {
+	if err = lv2.PVRemove(pv); err != nil {
 		return err
 	}
 

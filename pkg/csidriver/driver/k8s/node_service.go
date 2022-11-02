@@ -132,7 +132,7 @@ func (n NodeService) SelectDeviceGroup(ctx context.Context, requestGb int64, exc
 	}
 
 	for groupDetail, allocatable := range nsr.Status.Allocatable {
-		if allocatable.Value() <= requestGb {
+		if allocatable.Value() < requestGb {
 			continue
 		}
 
@@ -235,7 +235,7 @@ func (n NodeService) SelectNode(ctx context.Context, requestGb int64, volumeType
 		}
 
 		for groupDetail, allocatable := range nsr.Status.Allocatable {
-			if allocatable.Value() <= requestGb {
+			if allocatable.Value() < requestGb {
 				continue
 			}
 

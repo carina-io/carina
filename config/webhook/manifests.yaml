@@ -15,7 +15,7 @@ webhooks:
       name: webhook-service
       namespace: system
       path: /pod/mutate
-  failurePolicy: Fail
+  failurePolicy: Ignore
   matchPolicy: Equivalent
   name: pod-hook.carina.storage.io
   rules:
