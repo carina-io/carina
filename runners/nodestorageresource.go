@@ -295,7 +295,7 @@ func (r *nodeStorageResourceReconciler) generateDiskStatus(status *carinav1beta1
 			avail = fs[0].Size()
 			log.Info("Disk:", disk.Path, " size:", disk.Size, " avail:", avail, " free:", fs)
 			status.Capacity[fmt.Sprintf("%s%s/%s", carina.DeviceCapacityKeyPrefix, group, disk.Name)] = *resource.NewQuantity(int64(disk.Size>>30), resource.BinarySI)
-			status.Allocatable[fmt.Sprintf("%s%s/%s", carina.DeviceCapacityKeyPrefix, group, disk.Name)] = *resource.NewQuantity(int64(avail>>30+1), resource.BinarySI)
+			status.Allocatable[fmt.Sprintf("%s%s/%s", carina.DeviceCapacityKeyPrefix, group, disk.Name)] = *resource.NewQuantity(int64(avail>>30), resource.BinarySI)
 		}
 	}
 }
