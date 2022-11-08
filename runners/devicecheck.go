@@ -188,9 +188,11 @@ func (dc *deviceCheck) addAndRemoveDevice() {
 				log.Infof("try to remove pv %s from vg %s", pv.PVName, v.VGName)
 				if err := dc.dm.VolumeManager.RemoveDiskInVg(pv.PVName, v.VGName); err != nil {
 					log.Errorf("remove pv %s error %v", pv.PVName, err)
+					continue
 				}
 				if err := dc.dm.VolumeManager.GetLv().PartProbe(); err != nil {
 					log.Errorf("failed partprobe  error: %v", err)
+					continue
 				}
 				log.Infof("succeeded in removing pv %s from vg %s", pv.PVName, v.VGName)
 			}

@@ -19,7 +19,11 @@ package localstorage
 import (
 	"context"
 	"errors"
+	carinav1 "github.com/carina-io/carina-api/api/v1"
+	carinav1beta1 "github.com/carina-io/carina-api/api/v1beta1"
 	carina "github.com/carina-io/carina/scheduler"
+	"k8s.io/client-go/dynamic/dynamicinformer"
+	"k8s.io/client-go/tools/cache"
 	"sort"
 	"strconv"
 	"strings"
@@ -45,6 +49,8 @@ type LocalStorage struct {
 	scLister      lstoragev1.StorageClassLister
 	pvcLister     lcorev1.PersistentVolumeClaimLister
 	pvLister      lcorev1.PersistentVolumeLister
+	lvLister      cache.GenericLister
+	nsrLister     cache.GenericLister
 	dynamicClient dynamic.Interface
 }
 
@@ -62,11 +68,19 @@ func New(_ runtime.Object, handle framework.Handle) (framework.Plugin, error) {
 	pvcLister := handle.SharedInformerFactory().Core().V1().PersistentVolumeClaims().Lister()
 	pvLister := handle.SharedInformerFactory().Core().V1().PersistentVolumes().Lister()
 	dynamicClient := newDynamicClientFromConfig()
+	dynamicSharedInformerFactory := dynamicinformer.NewFilteredDynamicSharedInformerFactory(dynamicClient, 0, v1.NamespaceAll, nil)
+	lvLister := dynamicSharedInformerFactory.ForResource(carinav1.GroupVersion.WithResource("logicvolumes")).Lister()
+	nsrLister := dynamicSharedInformerFactory.ForResource(carinav1beta1.GroupVersion.WithResource("nodestorageresources")).Lister()
+	ctx := context.TODO()
+	dynamicSharedInformerFactory.Start(ctx.Done())
+	dynamicSharedInformerFactory.WaitForCacheSync(ctx.Done())
 	return &LocalStorage{
 		handle:        handle,
 		pvcLister:     pvcLister,
 		scLister:      scLister,
 		pvLister:      pvLister,
+		lvLister:      lvLister,
+		nsrLister:     nsrLister,
 		dynamicClient: dynamicClient,
 	}, nil
 }
@@ -287,14 +301,14 @@ func (ls *LocalStorage) getAllocatableMap(useRaw bool, podName, nodeName string)
 	var err error
 	allocatableMap := map[string]int64{}
 	if useRaw {
-		lvExclusivityDisks, err = getLvExclusivityDisks(ls.dynamicClient, nodeName)
+		lvExclusivityDisks, err = getLvExclusivityDisks(ls.dynamicClient, ls.lvLister, nodeName)
 		if err != nil {
 			klog.V(3).Infof("Failed to obtain node lvs, pod: %s node: %s, err: %s", podName, nodeName, err.Error())
 			return allocatableMap, errors.New("failed to obtain node lvs, " + err.Error())
 		}
 	}
 
-	nsr, err := getNodeStorageResource(ls.dynamicClient, nodeName)
+	nsr, err := getNodeStorageResource(ls.dynamicClient, ls.nsrLister, nodeName)
 	if err != nil {
 		klog.V(3).Infof("Failed to obtain node storages, pod: %s node: %s, err: %s", podName, nodeName, err.Error())
 		return allocatableMap, errors.New("Failed to obtain node storages, " + err.Error())

@@ -16,7 +16,11 @@
 
 package utils
 
-import "os"
+import (
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
+	"os"
+)
 
 func ContainsString(slice []string, s string) bool {
 	for _, item := range slice {
@@ -36,4 +40,13 @@ func Exists(path string) bool {
 		return false
 	}
 	return true
+}
+
+// ToUnstructured converts a typed object to an unstructured object.
+func ToUnstructured(obj interface{}) (*unstructured.Unstructured, error) {
+	uncastObj, err := runtime.DefaultUnstructuredConverter.ToUnstructured(obj)
+	if err != nil {
+		return nil, err
+	}
+	return &unstructured.Unstructured{Object: uncastObj}, nil
 }
