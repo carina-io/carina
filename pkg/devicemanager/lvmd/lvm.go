@@ -364,7 +364,3 @@ func (lv2 *Lvm2Implement) StartLvm2() error {
 func (lv2 *Lvm2Implement) RemoveUnknownDevice(vg string) error {
 	return lv2.Executor.ExecuteCommand("vgreduce", "--removemissing", vg)
 }
-
-func (lv2 *Lvm2Implement) PartProbe() error {
-	return lv2.Executor.ExecuteCommand("bash", "-c", "partprobe")
-}
