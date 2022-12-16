@@ -50,7 +50,7 @@ func NewDeviceCheck(dm *deviceManager.DeviceManager) manager.Runnable {
 }
 
 func (dc *deviceCheck) Start(ctx context.Context) error {
-	log.Info("start device scan...")
+	log.Info("Starting device scan...")
 	dc.dm.VolumeManager.RefreshLvmCache()
 	// 服务启动先检查一次
 	dc.addAndRemoveDevice()
@@ -150,10 +150,6 @@ func (dc *deviceCheck) addAndRemoveDevice() {
 			if err = dc.dm.VolumeManager.AddNewDiskToVg(pv, vg); err != nil {
 				log.Errorf("add new disk failed vg: %s, disk: %s, error: %v", vg, pv, err)
 			}
-			//同步磁盘分区表
-			if err = dc.dm.VolumeManager.GetLv().PartProbe(); err != nil {
-				log.Errorf("failed partprobe  error: %v", err)
-			}
 		}
 	}
 
@@ -188,10 +184,6 @@ func (dc *deviceCheck) addAndRemoveDevice() {
 				log.Infof("try to remove pv %s from vg %s", pv.PVName, v.VGName)
 				if err := dc.dm.VolumeManager.RemoveDiskInVg(pv.PVName, v.VGName); err != nil {
 					log.Errorf("remove pv %s error %v", pv.PVName, err)
-					continue
-				}
-				if err := dc.dm.VolumeManager.GetLv().PartProbe(); err != nil {
-					log.Errorf("failed partprobe  error: %v", err)
 					continue
 				}
 				log.Infof("succeeded in removing pv %s from vg %s", pv.PVName, v.VGName)

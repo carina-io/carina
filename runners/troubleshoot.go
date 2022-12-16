@@ -54,6 +54,7 @@ func NewTroubleShoot(dm *deviceManager.DeviceManager) manager.Runnable {
 }
 
 func (t *troubleShoot) Start(ctx context.Context) error {
+	log.Info("Starting troubleshoot...")
 	ticker := time.NewTicker(600 * time.Second)
 	defer ticker.Stop()
 	for {
