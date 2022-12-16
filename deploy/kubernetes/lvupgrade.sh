@@ -29,7 +29,7 @@ sleep 5
 kubectl apply -f crd-logicvolume.yaml
 kubectl get logicvolumes.carina.storage.io
 
-sed -i "s#.*"default".*#""#g" /tmp/cluster-lv.json
+#sed -i "s#.*"default".*#""#g" /tmp/cluster-lv.json
 sed -i "s#.*resourceVersion.*##g" /tmp/cluster-lv.json
 sed -i "s#.*generation.*##g" /tmp/cluster-lv.json
 kubectl apply -f /tmp/cluster-lv.json
