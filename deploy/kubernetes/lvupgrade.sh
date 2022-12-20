@@ -27,7 +27,7 @@ kubectl get logicvolumes.carina.storage.io | awk 'NR==1{next}{print $1}' | xargs
 kubectl delete crd logicvolumes.carina.storage.io
 sleep 5
 kubectl apply -f crd-logicvolume.yaml
-kubectl get logicvolumes.carina.storage.io
+kubectl get crd logicvolumes.carina.storage.io
 
 #sed -i "s#.*"default".*#""#g" /tmp/cluster-lv.json
 sed -i "s#.*resourceVersion.*##g" /tmp/cluster-lv.json
