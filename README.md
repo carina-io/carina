@@ -165,3 +165,7 @@ Welcome to register the company name in [ADOPTERS.md](ADOPTERS.md)
 # License
 
 Carina is under the Apache 2.0 license. See the [LICENSE](https://github.com/FabEdge/fabedge/blob/main/LICENSE) file for details.
+
+# Code of Conduct
+
+Please refer to our [Carina Community Code of Conduct](https://github.com/carina-io/community/blob/main/code-of-conduct.md)
