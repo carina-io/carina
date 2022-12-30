@@ -19,6 +19,11 @@ package partition
 import (
 	"errors"
 	"fmt"
+	"os"
+	"strconv"
+	"strings"
+	"syscall"
+
 	"github.com/anuvu/disko"
 	"github.com/anuvu/disko/linux"
 	"github.com/anuvu/disko/partid"
@@ -27,10 +32,6 @@ import (
 	"github.com/carina-io/carina/utils/exec"
 	"github.com/carina-io/carina/utils/log"
 	"github.com/carina-io/carina/utils/mutx"
-	"os"
-	"strconv"
-	"strings"
-	"syscall"
 )
 
 var (
@@ -242,9 +243,10 @@ func (ld *LocalPartitionImplement) UpdatePartition(name, groups string, size uin
 		last := p.Start + uint64(size) - 1
 		partitionNum = p.Number
 		log.Info("Update partition on disk dst: ", fmt.Sprintf("/dev/%s", diskPath), " number:", p.Number, " name:", p.Name, " start:", p.Start, " size: ", p.Last, " last:", p.Last, disk.Table)
-		targetPathOut, err := ld.Executor.ExecuteCommandWithOutput("/usr/bin/findmnt", "-S", fmt.Sprintf("/dev/%sp%d", diskPath, p.Number), "--noheadings", "--output=target")
+		kname := linux.GetPartitionKname(disk.Path, p.Number)
+		targetPathOut, err := ld.Executor.ExecuteCommandWithOutput("/usr/bin/findmnt", "-S", kname, "--noheadings", "--output=target")
 		if err != nil {
-			log.Error("/usr/bin/findmnt", " -S", fmt.Sprintf(" /dev/%sp%d", diskPath, p.Number), " --noheadings", " --output=target", " failed "+err.Error())
+			log.Error("/usr/bin/findmnt", " -S", kname, " --noheadings", " --output=target", " failed "+err.Error())
 			return err
 		}
 		targetpath := strings.TrimSpace(strings.TrimSuffix(targetPathOut, "\n"))
@@ -261,9 +263,9 @@ func (ld *LocalPartitionImplement) UpdatePartition(name, groups string, size uin
 			log.Error("exec parted ", disk.Path, " resizepart ", fmt.Sprintf("%d", p.Number), fmt.Sprintf("%vg", last>>30), "failed"+err.Error())
 			return err
 		}
-		_, err = ld.Executor.ExecuteCommandWithOutput("mount", fmt.Sprintf("/dev/%sp%d", diskPath, p.Number), targetpath)
+		_, err = ld.Executor.ExecuteCommandWithOutput("mount", kname, targetpath)
 		if err != nil {
-			log.Error("mount", fmt.Sprintf("/dev/%sp%d", diskPath, p.Number), targetpath, "failed"+err.Error())
+			log.Error("mount", kname, targetpath, "failed"+err.Error())
 			return err
 		}
 
