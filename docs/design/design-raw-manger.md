@@ -115,7 +115,7 @@ config.json: |-
 
 使用分区命令创建如下：
 ```
-# parted /dev/loop2 mklable gpt #设置分区格式
+# parted /dev/loop2 mklabel gpt #设置分区格式
 # parted /dev/loop2 mkpart myloop1 0 10G
 # parted /dev/loop2 mkpart myloop2 10G 20G 
 # parted /dev/loop2 mkpart myloop3 20G -0G

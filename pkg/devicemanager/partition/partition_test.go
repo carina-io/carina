@@ -45,14 +45,21 @@ func TestScanDisks(t *testing.T) {
 }
 
 func TestScanDisk(t *testing.T) {
-	fname := "/dev/loop4"
+	fname := "/dev/loop2"
 	disk, err := mysys.ScanDisk(fname)
 	assert.NoError(t, err)
 	t.Log(disk.UdevInfo)
-	t.Log(disk.Name)
+	t.Log(disk)
 
 	//t.Log(disk.FreeSpacesWithMin(5000))
-	t.Log(disk.FreeSpaces()[0].Size(), disk.FreeSpaces()[0].Size()>>30)
+	//t.Log(disk.FreeSpaces()[0].Size(), disk.FreeSpaces()[0].Size()>>30)
+	for _, part := range disk.Partitions {
+		name := linux.GetPartitionKname(disk.Path, part.Number)
+		t.Log(name)
+		partinfo, err := linux.GetUdevInfo(name)
+		assert.NoError(t, err)
+		t.Log(partinfo)
+	}
 
 }
 
