@@ -2,7 +2,7 @@
 
 carina-scheduler can scheduling pods based on usage and capacity of nodes' disks.
 
-```json
+```yaml
  config.json: |-
     {
       "diskScanInterval": "300", # disk scan intervals in seconds. Zero will disable scanning. 
