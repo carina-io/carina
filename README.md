@@ -4,6 +4,8 @@
 
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://github.com/carina-io/carina/blob/main/LICENSE)
 
+[![OpenSSF Best Practices](https://bestpractices.coreinfrastructure.org/projects/6908/badge)](https://bestpractices.coreinfrastructure.org/projects/6908)
+
 > English | [中文](README_zh.md)
 
 ## Background
