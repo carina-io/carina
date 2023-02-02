@@ -115,7 +115,7 @@ helm install carina-csi-driver carina-csi-driver/carina-csi-driver --namespace k
 
 # Blogs
 
-* [blogs](http://www.opencarina.io/blog)
+* [blogs](http://carina-io.github.io)
 
 # Roadmap
 
