@@ -150,7 +150,7 @@ func (v *LocalVolumeImplement) ResizeVolume(lvName, vgName string, size, ratio u
 		return nil
 	}
 
-	if vgInfo.VGFree-size < carina.DefaultReservedSpace-carina.DefaultEdgeSpace { //avoid edge conditions
+	if vgInfo.VGFree-(size-lvInfo.LVSize) < carina.DefaultReservedSpace-carina.DefaultEdgeSpace { //avoid edge conditions
 		log.Warnf("%s don't have enough space, reserved 10g", vgName)
 		return errors.New(carina.ResourceExhausted)
 	}

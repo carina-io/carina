@@ -311,7 +311,7 @@ func (r *LogicVolumeReconciler) expandLV(ctx context.Context, lv *carinav1.Logic
 	}
 
 	log.Info("Expanded LV name ", lv.Name, " uid ", lv.UID, " status.volumeID ", lv.Status.VolumeID,
-		" original status.currentSize ", origBytes, " status.currentSize ", reqBytes, " status.message ", lv.Status.Message)
+		" original status.currentSize ", origBytes, " request spec.Size ", reqBytes, " status.message ", lv.Status.Message)
 	return nil
 }
 

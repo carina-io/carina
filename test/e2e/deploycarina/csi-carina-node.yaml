@@ -72,8 +72,8 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: spec.nodeName
-#            - name: DEBUG
-#              value: "true"
+          #            - name: DEBUG
+          #              value: "true"
           ports:
             - containerPort: 9808
               name: healthz
@@ -111,19 +111,23 @@ spec:
               mountPath: /sys/fs/cgroup
             - name: host-block
               mountPath: /sys/block
-#            - name: host-bcache
-#              mountPath: /sys/fs/bcache
+            #            - name: host-bcache
+            #              mountPath: /sys/fs/bcache
             - name: host-dev
               mountPath: /dev
             - name: host-mount
               mountPath: /run/mount
+            - name: host-proc
+              mountPath: /host/proc
+            - name: host-udev
+              mountPath: /run/udev/data
             - name: config
               mountPath: /etc/carina/
             - name: log-dir
               mountPath: /var/log/carina/
         - name: liveness-probe
           image: registry.cn-hangzhou.aliyuncs.com/carina/livenessprobe:v2.7.0
-          imagePullPolicy:
+          imagePullPolicy: "IfNotPresent"
           args:
             - --csi-address=/csi/csi-carina.sock
           volumeMounts:
@@ -160,9 +164,9 @@ spec:
         - name: host-block
           hostPath:
             path: /sys/block
-#        - name: host-bcache
-#          hostPath:
-#            path: /sys/fs/bcache
+        #        - name: host-bcache
+        #          hostPath:
+        #            path: /sys/fs/bcache
         - name: modules
           hostPath:
             path: /lib/modules
@@ -172,6 +176,12 @@ spec:
         - name: host-mount
           hostPath:
             path: /run/mount
+        - name: host-proc
+          hostPath:
+            path: /proc
+        - name: host-udev
+          hostPath:
+            path: /run/udev/data
         - name: config
           configMap:
             name: carina-csi-config
