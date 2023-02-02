@@ -130,6 +130,17 @@ func TestGetPartitions(t *testing.T) {
 
 }
 
+func TestMount(t *testing.T) {
+
+	targetPathOut, err := localparttion.Executor.ExecuteCommandWithOutput("/usr/bin/findmnt", "-S ", "/dev/sda", "--noheadings", "--output=target")
+	//t.Log("/usr/bin/findmnt", " -S ", "/dev/sda", " --noheadings", " --output=target", " targetPathOut: "+targetPathOut)
+	t.Log(err.Error())
+	targetpath := strings.TrimSpace(strings.TrimSuffix(strings.ReplaceAll(targetPathOut, "\"", ""), "\n"))
+	flag := strings.Contains(targetpath, "/dev")
+	t.Log(flag)
+	t.Log("len:", len(targetpath))
+}
+
 func TestCreatePartition(t *testing.T) {
 	//name: 54cd2f39cf95 group: carina-raw-loop size: 13958643712
 	size := 4747316223
