@@ -4,9 +4,13 @@ function install() {
   echo "install..."
   kubectl label namespace kube-system carina.storage.io/webhook=ignore
 
+  if [ `kubectl get configmap carina-csi-config -n kube-system 2>/dev/null | wc -l` == "0" ]; then
+    kubectl apply -f csi-config-map.yaml
+  fi
+
   kubectl apply -f crd-logicvolume.yaml
   kubectl apply -f crd-nodestoreresource.yaml
-  kubectl apply -f csi-config-map.yaml
+
   kubectl apply -f csi-controller-psp.yaml
   kubectl apply -f csi-controller-rbac.yaml
   kubectl apply -f csi-carina-controller.yaml
@@ -27,7 +31,7 @@ function install() {
 function uninstall() {
   echo "uninstall..."
   kubectl delete secret mutatingwebhook -n kube-system
-  kubectl delete -f csi-config-map.yaml
+#  kubectl delete -f csi-config-map.yaml
   kubectl delete -f csi-controller-psp.yaml
   kubectl delete -f csi-controller-rbac.yaml
   kubectl delete -f csi-carina-controller.yaml
