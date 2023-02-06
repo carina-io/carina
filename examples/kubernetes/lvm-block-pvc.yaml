@@ -11,4 +11,4 @@ spec:
   resources:
     requests:
       storage: 13Gi
-  storageClassName: csi-carina-lvm
+  storageClassName: csi-carina-raw
