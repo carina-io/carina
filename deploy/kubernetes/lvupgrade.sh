@@ -64,7 +64,7 @@ data:
         {
           "name": "carina-vg-ssd",
           "re": $disk,
-          "policy": "RAW",
+          "policy": "LVM",
           "nodeLabel": "kubernetes.io/hostname"
         }
       ],
