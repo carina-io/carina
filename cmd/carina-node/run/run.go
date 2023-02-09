@@ -78,7 +78,7 @@ func subMain() error {
 	}
 
 	// 初始化磁盘管理服务
-	dm := deviceManager.NewDeviceManager(nodeName, mgr.GetCache())
+	dm := deviceManager.NewDeviceManager(nodeName, mgr.GetCache(), mgr.GetClient())
 
 	// pod io controller
 	podIOController := controllers.NewPodIOReconciler(
