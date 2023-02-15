@@ -249,24 +249,24 @@ func (ld *LocalPartitionImplement) UpdatePartition(name, groups string, size uin
 		log.Info("/usr/bin/findmnt", " -S ", kname, " --noheadings", " --output=target", " targetPathOut: "+targetPathOut)
 
 		targetpath := strings.TrimSpace(strings.TrimSuffix(strings.ReplaceAll(targetPathOut, "\"", ""), "\n"))
-		isMount := strings.Contains("targetpath", "/dev")
+		isMount := strings.Contains(targetpath, "/dev")
 
 		if isMount {
 			_, err := ld.Executor.ExecuteCommandWithOutput("umount", targetpath)
 			if err != nil {
-				log.Error("umount", targetpath, "failed"+err.Error())
+				log.Error("umount ", targetpath, " failed: "+err.Error())
 				return err
 			}
 		}
 		_, err = ld.Executor.ExecuteCommandWithOutput("parted", "-s", disk.Path, "resizepart", fmt.Sprintf("%d", p.Number), fmt.Sprintf("%vg", last>>30))
 		if err != nil {
-			log.Error("exec parted ", disk.Path, " resizepart ", fmt.Sprintf("%d", p.Number), fmt.Sprintf("%vg", last>>30), "failed"+err.Error())
+			log.Error("exec parted ", disk.Path, " resizepart ", fmt.Sprintf("%d", p.Number), fmt.Sprintf("%vg", last>>30), " failed:"+err.Error())
 			return err
 		}
 		if isMount {
 			_, err = ld.Executor.ExecuteCommandWithOutput("mount", kname, targetpath)
 			if err != nil {
-				log.Error("mount", kname, targetpath, "failed"+err.Error())
+				log.Error("mount ", kname, targetpath, " failed:"+err.Error())
 				return err
 			}
 		}
