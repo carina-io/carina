@@ -132,11 +132,14 @@ func TestGetPartitions(t *testing.T) {
 
 func TestMount(t *testing.T) {
 
-	targetPathOut, err := localparttion.Executor.ExecuteCommandWithOutput("/usr/bin/findmnt", "-S ", "/dev/sda", "--noheadings", "--output=target")
-	//t.Log("/usr/bin/findmnt", " -S ", "/dev/sda", " --noheadings", " --output=target", " targetPathOut: "+targetPathOut)
-	t.Log(err.Error())
+	targetPathOut, err := localparttion.Executor.ExecuteCommandWithOutput("/usr/bin/findmnt", "-S", "/dev/loop0", "--noheadings", "--output=target")
+	t.Log("targetPathOut", targetPathOut)
+	if err != nil {
+		t.Log(err.Error())
+	}
+
 	targetpath := strings.TrimSpace(strings.TrimSuffix(strings.ReplaceAll(targetPathOut, "\"", ""), "\n"))
-	flag := strings.Contains(targetpath, "/dev")
+	flag := strings.Contains(targetpath, "mount")
 	t.Log(flag)
 	t.Log("len:", len(targetpath))
 }
