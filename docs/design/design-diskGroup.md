@@ -1,6 +1,6 @@
 ## Background
 
-Currently, as of v0.9.0, Carina seperates node's local disks into different
+Currently, as of v0.9.0, Carina separates node's local disks into different
 groups based on its type.  User can request different storage disks using
 differents storageclasses. This works fine in general, but in some cases,
 user may prefer more flexiable usage. For example,
@@ -94,7 +94,7 @@ parameters, which are all required, not optional.
   * If multile disks with same size is selected, then randomly choose one.
 
   If a disk is selected from above procedure, then carina create a partition as
-  the PV's realy data backend. Else, the PV binding will failed.
+  the PV's really data backend. Else, the PV binding will failed.
 
   User can specify an annotation in the PVC to claim a physical disk with
   exclusive usage. If this annotation is been set and its value is true,
