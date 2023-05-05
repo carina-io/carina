@@ -61,7 +61,7 @@ func (r *LogicVolumeReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 
 	// your logic here
 	lv := new(carinav1.LogicVolume)
-	if err := r.Client.Get(ctx, req.NamespacedName, lv); err != nil {
+	if err := r.Get(ctx, req.NamespacedName, lv); err != nil {
 		if !apierrs.IsNotFound(err) {
 			log.Error(err, " unable to fetch LogicVolume")
 			return ctrl.Result{}, err
@@ -311,7 +311,7 @@ func (r *LogicVolumeReconciler) expandLV(ctx context.Context, lv *carinav1.Logic
 	}
 
 	log.Info("Expanded LV name ", lv.Name, " uid ", lv.UID, " status.volumeID ", lv.Status.VolumeID,
-		" original status.currentSize ", origBytes, " status.currentSize ", reqBytes, " status.message ", lv.Status.Message)
+		" original status.currentSize ", origBytes, " request spec.Size ", reqBytes, " status.message ", lv.Status.Message)
 	return nil
 }
 

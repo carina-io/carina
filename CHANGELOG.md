@@ -75,3 +75,12 @@ this annotation for POD when SC has this parameter #95
 - Promote carina into cncf sandbox project and roadmap
 - Update outdated documents
 - Optimize the container scheduling algorithm to make it more concise and understandable
+
+## [0.11.1] - 2022-09-19
+
+- Repair The pv is lost due to node restart
+- Added the upgrade upgrade script
+- Helm chat deployment adds psp resources
+- It is clear that the current version of carina supports 1.18-1.24
+- Planning discussion carina supports the Kubernetes 1.25 solution
+- Added e2e unit test scripts

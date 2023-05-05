@@ -57,7 +57,7 @@ spec:
             capabilities:
               add: ["SYS_ADMIN"]
           # for stable functionality replace canary with latest release version
-          image: registry.cn-hangzhou.aliyuncs.com/carina/carina:latest
+          image: registry.cn-hangzhou.aliyuncs.com/carina/carina:e2e
           command: ["carina-controller"]
           args:
             - "--csi-address=$(ADDRESS)"
@@ -91,7 +91,7 @@ spec:
             limits:
               memory: "128Mi"
               cpu: "750m"
-          imagePullPolicy: "Always"
+          imagePullPolicy: "IfNotPresent"
           volumeMounts:
             - name: socket-dir
               mountPath: /csi

@@ -139,19 +139,14 @@ mountOptions:
 
   - ②每隔五分钟扫描本地磁盘，如果有新发现的裸盘则会自动加入VG卷组，扫描时间可配置最少五分钟
 
-  - ③节点服务启动后会将磁盘容量信息存储到`node.status.capacity` 可使用如下命令查看
+  - ③节点服务启动后会将磁盘容量信息存储到`Custom Resource nsr` 可使用如下命令查看
 
     ```shell
-    $ kubectl get node 10.20.9.154 -o template --template={{.status.capacity}}
-    map[carina.storage.io/carina-vg-hdd:160 carina.storage.io/carina-vg-ssd:0 cpu:2 ephemeral-storage:208655340Ki hugepages-1Gi:0 hugepages-2Mi:0 memory:3880376Ki pods:110]
-    
-    $ kubectl get node 10.20.9.154 -o template --template={{.status.allocatable}} 
-    map[carina.storage.io/carina-vg-hdd:150 carina.storage.io/carina-vg-ssd:0 cpu:2 ephemeral-storage:192296761026 hugepages-1Gi:0 hugepages-2Mi:0 memory:3777976Ki pods:110]
+    $ kubectl get nsr
+    NAME          NODE           TIME
+    k8s-mater     192.168.1.2     5m
+    k8s-node      192.168.1.3     5s
     ```
-
-    - HDD磁盘：`carina.storage.io/carina-vg-hdd:160` ，SSD磁盘：`carina.storage.io/carina-vg-ssd:0` 单位为Gi
-    - capacity为总容量，allocatable为可使用容量，调度器等组件使用的是allocatable显示的容量，`capacity-allocatable=10G`为系统预留
-    - 当有新的pv创建成功后会变更`node.status.allocatable`，这变更会有点延迟
 
   - ④项目启动时配置文件
 
@@ -161,54 +156,34 @@ mountOptions:
     carina-csi-config   1      116m
     ```
 
-    - config.json
+    - kube-system/carina-csi-config
 
     ```yaml
-      config.json: |-
-        {
-          "diskSelector": ["loop*", "vd*"], # 磁盘匹配策略，支持正则表达式
-          "diskScanInterval": "300", # 300s 磁盘扫描间隔，0表示关闭本地磁盘扫描
-          "diskGroupPolicy": "type", # 磁盘分组策略，只支持按照磁盘类型分组，更改成其他值无效
-          "schedulerStrategy": "spreadout" # binpack，spreadout支持这两个参数
-        }
-        
-     # v0.9.1 配置已变更，详细文档参考[docs/design/design-diskGroup-zh.md]
-     {
-      "diskSelector": [
-        {
-          "name": "carina-vg-ssd",
-          "re": ["loop2+"],
-          "policy": "LVM",
-          "nodeLabel": "kubernetes.io/hostname"
-        },
-        {
-          "name": "carina-vg-hdd",
-          "re": ["loop3+"],
-          "policy": "LVM",
-          "nodeLabel": "kubernetes.io/hostname"
-        },
-        {
-          "name": "exist-vg-group",
-          "re": ["loop4+"],
-          "policy": "LVM",
-          "nodeLabel": "kubernetes.io/hostname"
-        },
-        {
-          "name": "new-vg-group",
-          "re": ["loop5+"],
-          "policy": "LVM",
-          "nodeLabel": "kubernetes.io/hostname"
-        },
-        {
-          "name": "raw",
-          "re": ["vdb+", "sd+"],
-          "policy": "RAW",
-          "nodeLabel": "kubernetes.io/hostname"
-        }
-      ],
-      "diskScanInterval": "300",
-      "schedulerStrategy": "spreadout"
-    }
+    config.json: |-
+      {
+       "diskSelector": [
+         {
+           "name": "exist-vg-group",
+           "re": ["loop4+"],
+           "policy": "LVM",
+           "nodeLabel": "kubernetes.io/hostname"
+         },
+         {
+           "name": "new-vg-group",
+           "re": ["loop5+"],
+           "policy": "LVM",
+           "nodeLabel": "kubernetes.io/hostname"
+         },
+         {
+           "name": "raw",
+           "re": ["vdb+", "sd+"],
+           "policy": "RAW",
+           "nodeLabel": "kubernetes.io/hostname"
+         }
+       ],
+       "diskScanInterval": "300",
+       "schedulerStrategy": "spreadout"
+     }
     ```
 
     - 备注1：`diskSelector`若是A磁盘已经加入了VG卷组，修改为不在匹配A盘，如果该盘尚未使用则会在VG卷组中移除该磁盘
@@ -217,32 +192,7 @@ mountOptions:
     - 备注4：`schedulerStrategy`在`storageclass volumeBindingMode:WaitForFirstConsumer`模式pvc受pod调度影响，它影响的只是调度策略评分，这个评分可以通过自定义调度器日志查看`kubectl logs -f carina-scheduler-6cc9cddb4b-jdt68 -n kube-system`
     - 备注5：当多个节点磁盘容量大于请求容量10倍，则这些节点的调度评分是相同的
 
-  - ⑤服务器组件启动成功，会收集各个节点的存储使用情况更新到`configmap:carina-node-storag`
-
-    ```shell
-    $ kubectl get configmap carina-node-storage -n kube-system -o yaml
-    data:
-      node: '[{
-    	"allocatable.carina.storage.io/carina-vg-hdd": "150",
-    	"allocatable.carina.storage.io/carina-vg-ssd": "0",
-    	"capacity.carina.storage.io/carina-vg-hdd": "160",
-    	"capacity.carina.storage.io/carina-vg-ssd": "0",
-    	"nodeName": "10.20.9.154"
-    }, {
-    	"allocatable.carina.storage.io/carina-vg-hdd": "146",
-    	"allocatable.carina.storage.io/carina-vg-ssd": "0",
-    	"capacity.carina.storage.io/carina-vg-hdd": "170",
-    	"capacity.carina.storage.io/carina-vg-ssd": "0",
-    	"nodeName": "10.20.9.153"
-    }]'
-    
-    ```
-
-    - 备注1：这个configmap是用于其他服务获取各个节点磁盘分组及容量使用，目前是收集的`node.status.capacity`及`node.status.allocatable`
-    - 备注2：当一个pv创建后这个configmap将在30-60s后更新，主要是为了兼容pv大量创建避免configmap重复更新，以及node节点status状态更新不及时导致configmap无效更新
-    - 备注3：该configmap由驱动程序自动维护更新，对于用户来说只需读取不要修改
-
-  - ⑥关于topo（`topologyKey: topology.carina.storage.io/node`）使用方法参考`examples/kubernetes/topostatefulset.yaml`
+  - ⑥关于TODO（`topologyKey: topology.carina.storage.io/node`）使用方法参考`examples/kubernetes/topostatefulset.yaml`
 
 - 执行测试
 
@@ -363,18 +313,28 @@ mountOptions:
             - "--webhook-addr=:8443"
     ```
 
-  - carina-node和carina-controller，自定义指标
+  - carina 指标
 
-    ```shell
-    	# vg剩余容量:  carina-devicegroup-vg_free_bytes
-    	# vg总容量:  carina-devicegroup-vg_total_bytes
-    	# volume容量:  carina-volume-volume_total_bytes
-    	# volume使用量:  carina-volume-volume_used_bytes
-    ```
+  | 指标                                           | 描述                   |
+  | ---------------------------------------------- | ---------------------- |
+  | carina_scrape_collector_duration_seconds       | 收集器持续时间         |
+  | carina_scrape_collector_success                | 收集器成功次数         |
+  | carina_volume_group_stats_capacity_bytes_total | vg卷组容量             |
+  | carina_volume_group_stats_capacity_bytes_used  | vg卷组使用量           |
+  | carina_volume_group_stats_lv_total             | 节点lv数量             |
+  | carina_volume_group_stats_pv_total             | 节点pv数量             |
+  | carina_volume_stats_reads_completed_total      | 成功读取的总数         |
+  | carina_volume_stats_reads_merged_total         | 合并的读的总数         |
+  | carina_volume_stats_read_bytes_total           | 成功读取的字节总数     |
+  | carina_volume_stats_read_time_seconds_total    | 所有读花费的总秒数     |
+  | carina_volume_stats_writes_completed_total     | 成功完成写的总数       |
+  | carina_volume_stats_writes_merged_total        | 合并写的数量           |
+  | carina_volume_stats_write_bytes_total          | 成功写入的总字节数     |
+  | carina_volume_stats_write_time_seconds_total   | 所有写操作花费的总秒数 |
+  | carina_volume_stats_io_now                     | 当前正在处理的I/O秒数  |
+  | carina_volume_stats_io_time_seconds_total      | I/O花费的总秒数        |
 
-    - 备注1：volume使用量lvm统计与`df -h`统计不同，误差在几十兆
-    - 备注2：carina-controller实际是收集的所有carina-node的数据，实际只要通过carina-controller获取监控指标便可
-    - 备注3：如果要使用prometheus收集监控指标，可部署servicemonitor(deployment/kubernetes/prometheus.yaml.tmpl)
+- carina 提供了丰富的存储卷指标，kubelet本身也暴露的 PVC 容量等指标，在 Grafana Kubernetes 内置视图，可以看到此模板。注意具体 PVC 存储容量指标只有当该 PVC 被使用并且挂载到该节点时才会显示
     
 
 #### 4. 答疑
@@ -388,27 +348,22 @@ mountOptions:
   - carina-node：负责管理本地磁盘节点，并监听CRD（logicvolume），管理本地lvm卷
   - 通过查看各个服务日志，可以获取详细的服务运行信息
 
-- ②已知问题，在集群性能极差或者磁盘性能极差情况下，会出现pv无法创建情况
-
-  - 操作lvm卷请求会持续一分钟，每隔十秒重试一次，如果多次重试操作无法成功则会操作失败
-  - 可以通过命令`kubectl get lv` 观察到错误响应
-
-- ③pv创建成功后，还能进行Pod迁移吗
+- ②pv创建成功后，还能进行Pod迁移吗
 
   - pv一旦创建成功，Pod只能运行在该节点，无论重启还是删除重建
-  - 不支持pv迁移
+  - 如果要在节点损坏后，迁移pv请使用节点故障转移功能 
 
-- ④如何让Pod和PVC在指定节点运行
+- ③如何让Pod和PVC在指定节点运行
 
   - 在pod `spec.nodeName`指定节点名称将跳过调度器
   - 对于`WaitForFirstConsumer`策略的StorageClass，在PVC Annotations增加 `volume.kubernetes.io/selected-node: nodeName`可指定pv调度节点
   - 除非明确知道该方式的应用场景，否则不建议直接修改Pvc
 
-- ⑤k8s节点删除，应如何处理调度到节点上的pv
+- ④k8s节点删除，应如何处理调度到节点上的pv
 
   - 如果确定volume卷不在使用，直接删除pvc在重建便可
 
-- ⑥如何创建磁盘以方便测试
+- ⑤如何创建磁盘以方便测试
 
   - 可使用如下方法创建`loop device`
 

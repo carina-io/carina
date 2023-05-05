@@ -50,7 +50,7 @@ func NewDeviceCheck(dm *deviceManager.DeviceManager) manager.Runnable {
 }
 
 func (dc *deviceCheck) Start(ctx context.Context) error {
-	log.Info("start device scan...")
+	log.Info("Starting device scan...")
 	dc.dm.VolumeManager.RefreshLvmCache()
 	// 服务启动先检查一次
 	dc.addAndRemoveDevice()
@@ -147,12 +147,8 @@ func (dc *deviceCheck) addAndRemoveDevice() {
 			if v, ok := actuallyVgMap[vg]; ok && utils.ContainsString(v, pv) {
 				continue
 			}
-			if err := dc.dm.VolumeManager.AddNewDiskToVg(pv, vg); err != nil {
+			if err = dc.dm.VolumeManager.AddNewDiskToVg(pv, vg); err != nil {
 				log.Errorf("add new disk failed vg: %s, disk: %s, error: %v", vg, pv, err)
-			}
-			//同步磁盘分区表
-			if err := dc.dm.VolumeManager.GetLv().PartProbe(); err != nil {
-				log.Errorf("failed partprobe  error: %v", err)
 			}
 		}
 	}
@@ -185,13 +181,12 @@ func (dc *deviceCheck) addAndRemoveDevice() {
 			}
 			//同一个vg里，如果正则不匹配就将磁盘移出vg
 			if !diskSelector.MatchString(pv.PVName) {
-				log.Infof("remove pv %s in vg %s", pv.PVName, v.VGName)
+				log.Infof("try to remove pv %s from vg %s", pv.PVName, v.VGName)
 				if err := dc.dm.VolumeManager.RemoveDiskInVg(pv.PVName, v.VGName); err != nil {
 					log.Errorf("remove pv %s error %v", pv.PVName, err)
+					continue
 				}
-				if err := dc.dm.VolumeManager.GetLv().PartProbe(); err != nil {
-					log.Errorf("failed partprobe  error: %v", err)
-				}
+				log.Infof("succeeded in removing pv %s from vg %s", pv.PVName, v.VGName)
 			}
 
 		}
@@ -213,7 +208,7 @@ func (dc *deviceCheck) discoverDisk(diskClass map[string]configuration.DiskSelec
 	blockClass := map[string][]string{}
 	var name string
 	// 列出所有本地磁盘
-	localDisk, err := dc.dm.Partition.ListDevicesDetailWithoutFilter("")
+	localDisk, err := dc.dm.Partition.ListDevicesDetail("")
 	if err != nil {
 		log.Error("get local disk failed: " + err.Error())
 		return blockClass, err
@@ -248,10 +243,6 @@ func (dc *deviceCheck) discoverDisk(diskClass map[string]configuration.DiskSelec
 			}
 
 			if strings.Contains(d.Name, "cache") {
-				continue
-			}
-
-			if d.Filesystem == types.Lvm2FsType {
 				continue
 			}
 

@@ -25,8 +25,12 @@ import (
 	deviceManager "github.com/carina-io/carina/pkg/devicemanager"
 	"github.com/carina-io/carina/utils"
 	"github.com/carina-io/carina/utils/log"
+	v1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -54,6 +58,7 @@ func NewTroubleShoot(dm *deviceManager.DeviceManager) manager.Runnable {
 }
 
 func (t *troubleShoot) Start(ctx context.Context) error {
+	log.Info("Starting troubleshoot...")
 	ticker := time.NewTicker(600 * time.Second)
 	defer ticker.Stop()
 	for {
@@ -67,7 +72,6 @@ func (t *troubleShoot) Start(ctx context.Context) error {
 			return nil
 		}
 	}
-
 }
 
 func (t *troubleShoot) cleanupOrphanVolume() {
@@ -99,7 +103,7 @@ func (t *troubleShoot) cleanupOrphanVolume() {
 
 	// step.4 对比本地volume与logicVolume是否一致， 集群中没有的便删除本地的
 	log.Infof("%s cleanup orphan volume", logPrefix)
-	mapLvList := map[string]bool{}
+	mapLvList := make(map[string]bool)
 	for _, v := range lvList.Items {
 		//skip raw logicVolume
 		if v.Annotations[carina.VolumeManagerType] == carina.RawVolumeType {
@@ -111,6 +115,56 @@ func (t *troubleShoot) cleanupOrphanVolume() {
 	var deleteVolume bool
 	for _, v := range volumeList {
 		if _, ok := mapLvList[v.LVName]; !ok && strings.HasPrefix(v.LVName, carina.VolumePrefix) { // filter thin volume
+			// version upgrade causes lv.status to be empty. set the remedy here
+			pv := new(v1.PersistentVolume)
+			err = t.dm.Cache.Get(context.Background(), types.NamespacedName{Name: v.LVName[7:]}, pv)
+			if err != nil {
+				log.Warnf("get persistent volume %s %s", v.LVName[7:], err.Error())
+			}
+			if pv != nil && len(pv.Name) != 0 {
+				major, _ := strconv.ParseUint(pv.Spec.CSI.VolumeAttributes[carina.VolumeDeviceMajor], 10, 32)
+				minor, _ := strconv.ParseUint(pv.Spec.CSI.VolumeAttributes[carina.VolumeDeviceMinor], 10, 32)
+				deviceGroup := pv.Spec.CSI.VolumeAttributes[carina.DeviceDiskKey]
+				if len(deviceGroup) == 0 {
+					deviceGroup = pv.Spec.CSI.VolumeAttributes[carina.DeviceCapacityKeyPrefix+"disk-type"]
+				}
+				newLv := &carinav1.LogicVolume{
+					TypeMeta: metav1.TypeMeta{
+						Kind:       "LogicVolume",
+						APIVersion: "carina.storage.io/v1",
+					},
+					ObjectMeta: metav1.ObjectMeta{
+						Name: pv.Name,
+						Annotations: map[string]string{
+							carina.VolumeManagerType: carina.LvmVolumeType,
+						},
+						Finalizers: []string{carina.LogicVolumeFinalizer},
+					},
+					Spec: carinav1.LogicVolumeSpec{
+						NodeName:    pv.Spec.CSI.VolumeAttributes[carina.VolumeDeviceNode],
+						DeviceGroup: deviceGroup,
+						Size:        *pv.Spec.Capacity.Storage(),
+						NameSpace:   pv.Spec.CSI.VolumeAttributes["csi.storage.k8s.io/pvc/namespace"],
+						Pvc:         pv.Spec.CSI.VolumeAttributes["csi.storage.k8s.io/pvc/name"],
+					},
+					Status: carinav1.LogicVolumeStatus{
+						VolumeID:    pv.Spec.CSI.VolumeHandle,
+						Code:        0,
+						Message:     "",
+						CurrentSize: pv.Spec.Capacity.Storage(),
+						Status:      "Success",
+						DeviceMajor: uint32(major),
+						DeviceMinor: uint32(minor),
+					},
+				}
+				log.Infof("repair lv %s", newLv.Name)
+				err = t.dm.Client.Create(context.Background(), newLv)
+				if err != nil {
+					log.Errorf("create logic volume failed %s %s", newLv.Name, err.Error())
+				}
+				continue
+			}
+
 			log.Infof("%s remove volume %s %s", logPrefix, v.VGName, v.LVName)
 			err := t.dm.VolumeManager.DeleteVolume(v.LVName, v.VGName)
 			if err != nil {
@@ -128,7 +182,7 @@ func (t *troubleShoot) cleanupOrphanVolume() {
 	log.Infof("%s volume check finished.", logPrefix)
 }
 
-//清理裸盘分区和logicVolume的对应关系
+// 清理裸盘分区和logicVolume的对应关系
 func (t *troubleShoot) cleanupOrphanPartition() {
 	// step.1 获取所有本地 磁盘分区，一个lv其实就是对应一个分区
 	log.Infof("%s get all local partition", "CleanupOrphanPartition")
@@ -163,6 +217,9 @@ func (t *troubleShoot) cleanupOrphanPartition() {
 	log.Infof("MapLvList:%v", mapLvList)
 	var deletePartion bool
 	for _, d := range disklist {
+		if d.Type == "part" {
+			continue
+		}
 		disk, err := linux.System().ScanDisk(d.Name)
 		if err != nil {
 			log.Errorf("%s get disk info error %s", logPrefix, err.Error())

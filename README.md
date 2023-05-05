@@ -4,6 +4,8 @@
 
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://github.com/carina-io/carina/blob/main/LICENSE)
 
+[![OpenSSF Best Practices](https://bestpractices.coreinfrastructure.org/projects/6908/badge)](https://bestpractices.coreinfrastructure.org/projects/6908)
+
 > English | [中文](README_zh.md)
 
 ## Background
@@ -35,6 +37,12 @@ Carina is a standard kubernetes CSI plugin. Users can use standard kubernetes st
 * Each node in the cluster has 1..N Bare disks, supporting SSDS and HDDS. (You can run the LSBLK --output NAME,ROTA command to view the disk type. If ROTA=1 is HDD,ROTA =0 is SSD.)
 * The capacity of a raw disk must be greater than 10 GB
 * If the server does not support the bcache kernel module, see [FAQ](docs/manual/FAQ.md), Modify yamL deployment
+
+### Kubernetes compatiblity
+| kubernetes | v0.9       | v0.9.1     | v0.10      | v0.11.0      | v1.0        |
+| ---------- | ---------- | ---------- | ---------- | ------------ | ----------- |
+| >=1.18     | support    | support    | support    | support      | not released |
+| >=1.25     | nonsupport | nonsupport | nonsupport | experimental | not released |
 
 # Carina architecture
 
@@ -152,10 +160,14 @@ Welcome to register the company name in [ADOPTERS.md](ADOPTERS.md)
 
 # Community
 
-- 微信用户扫码进入社区交流群
+- For wechat users
 
 ![carina-wx](docs/img/carina-wx.png)
 
 # License
 
 Carina is under the Apache 2.0 license. See the [LICENSE](https://github.com/FabEdge/fabedge/blob/main/LICENSE) file for details.
+
+# Code of Conduct
+
+Please refer to our [Carina Community Code of Conduct](https://github.com/carina-io/community/blob/main/code-of-conduct.md)

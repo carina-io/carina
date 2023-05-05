@@ -13,6 +13,7 @@ require (
 	github.com/onsi/gomega v1.19.0
 	github.com/opencontainers/runc v1.1.3
 	github.com/prometheus/client_golang v1.12.1
+	github.com/prometheus/procfs v0.7.3
 	github.com/spf13/cobra v1.4.0
 	github.com/spf13/viper v1.10.1
 	github.com/stretchr/testify v1.7.0

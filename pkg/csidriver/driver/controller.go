@@ -504,6 +504,7 @@ func (s controllerService) CreateBcacheVolume(ctx context.Context, req *csi.Crea
 
 	annotation := map[string]string{
 		carina.VolumeCacheDiskRatio: cacheDiskRatio,
+		carina.VolumeManagerType:    carina.LvmVolumeType,
 	}
 
 	backendDiskVolumeID, backendDiskDeviceMajor, backendDiskDeviceMinor, err := s.lvService.CreateVolume(ctx, namespace, pvcName, nodeName, backendDeviceGroup, backendVolumeName, backendRequestGb, metav1.OwnerReference{}, annotation)

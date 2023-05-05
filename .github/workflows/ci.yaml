@@ -1,0 +1,265 @@
+name: CI
+
+on:
+  pull_request:
+    branches:
+      - "*"
+
+  push:
+    branches:
+      - feature/work-flow
+
+jobs:
+
+  changes:
+    runs-on: ubuntu-18.04
+    outputs:
+      go: ${{ steps.filter.outputs.go }}
+      charts: ${{ steps.filter.outputs.charts }}
+
+    steps:
+
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - uses: dorny/paths-filter@v2
+        id: filter
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          filters: |
+            go:
+              - '**/*.go'
+              - 'go.mod'
+              - 'go.sum'
+              - 'TAG'
+              - 'test/e2e/**/*'
+            charts:
+              - 'charts/Chart.yaml'
+              - 'charts/**/*'
+
+  security:
+    runs-on: ubuntu-18.04
+    steps:
+
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Run Gosec Security Scanner
+        uses: securego/gosec@master
+        with:
+          # G601 for zz_generated.deepcopy.go
+          # G306 TODO: Expect WriteFile permissions to be 0600 or less
+          # G307 TODO: Deferring unsafe method "Close"
+          args: -exclude=G601,G301,G104,G204,G304,G306,G307 -tests=false -exclude-dir=scheduler -exclude-dir=kube-webhook-certgen -exclude-dir=test -exclude-dir=images/  -exclude-dir=docs/ ./...
+
+  build:
+    name: Build
+    runs-on: ubuntu-18.04
+    needs: changes
+
+    steps:
+
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Set up Go 1.17
+        id: go
+        uses: actions/setup-go@v2
+        with:
+          go-version: 1.17
+
+      - name: Set up Docker Buildx
+        id: buildx
+        uses: crazy-max/ghaction-docker-buildx@v1
+        with:
+          buildx-version: latest
+          qemu-version: latest
+
+      - name: Available platforms
+        run: echo ${{ steps.buildx.outputs.platforms }}
+
+      - name: Prepare Host
+        run: |
+          sudo apt-get -qq update || true
+          sudo apt-get install -y pigz
+          curl -LO https://storage.googleapis.com/kubernetes-release/release/v1.22.0/bin/linux/amd64/kubectl
+          chmod +x ./kubectl
+          sudo mv ./kubectl /usr/local/bin/kubectl
+
+      - name: Build images
+        run: |
+          echo "building images..."
+          go mod vendor
+          echo "docker build -t registry.cn-hangzhou.aliyuncs.com/carina/carina:e2e . "
+          docker build -t registry.cn-hangzhou.aliyuncs.com/carina/carina:e2e .
+          echo "creating images cache..."
+          docker save \
+            registry.cn-hangzhou.aliyuncs.com/carina/carina:e2e \
+            | pigz > docker.tar.gz
+
+      - name: cache
+        uses: actions/upload-artifact@v2
+        with:
+          name: docker.tar.gz
+          path: docker.tar.gz
+
+  #  helm:
+  #    name: Helm chart
+  #    runs-on: ubuntu-18.04
+  #    needs:
+  #      - changes
+  #      - build
+  #    # if: |
+  #    #   (needs.changes.outputs.charts == 'true')
+  #    strategy:
+  #      matrix:
+  #        k8s: [v1.22.0]
+  #    steps:
+  #
+  #      - name: Checkout
+  #        uses: actions/checkout@v2
+  #
+  #      - name: Set up Go 1.17
+  #        id: go
+  #        uses: actions/setup-go@v2
+  #        with:
+  #          go-version: 1.17
+  #
+  #      - name: cache
+  #        uses: actions/download-artifact@v2
+  #        with:
+  #          name: docker.tar.gz
+  #
+  #      - name: fix permissions
+  #        run: |
+  #          sudo mkdir -p $HOME/.kube
+  #          sudo chmod -R 777 $HOME/.kube
+  #
+  #      - name: Create Kubernetes cluster
+  #        id: kind
+  #        uses: engineerd/setup-kind@v0.5.0
+  #        with:
+  #          version: v0.11.1
+  #          config: test/e2e/kind.yaml
+  #          image: kindest/node:${{ matrix.k8s }}
+  #      - uses: geekyeggo/delete-artifact@v1
+  #        with:
+  #          name: docker.tar.gz
+  #          failOnError: false
+  #
+  #      - name: Load images from cache
+  #        run: |
+  #          echo "loading docker images..."
+  #          pigz -dc docker.tar.gz | docker load
+  #      - name: Prepare cluster for testing
+  #        id: local-path
+  #        run: |
+  #          kubectl version
+  #          echo "installing helm 3..."
+  #          curl -sSL https://raw.githubusercontent.com/helm/helm/master/scripts/get-helm-3 | bash
+  #
+  #      - name: Test
+  #        env:
+  #          KIND_CLUSTER_NAME: kind
+  #          SKIP_CLUSTER_CREATION: true
+  #          SKIP_IMAGE_CREATION: true
+  #        run: |
+  #          kind get kubeconfig > $HOME/.kube/kind-config-kind
+  #          kubectl get nodes
+  #          for n in `docker ps --filter name=worker --format "{{.Names}}"`; \
+  #          do \
+  #            for i in `seq 1 5`; \
+  #            do \
+  #              docker exec $$n truncate --size=200G /tmp/disk$$i.device && \
+  #              sleep 2 &&\
+  #              docker exec $$n losetup -f /tmp/disk$$i.device --show; \
+  #            done \
+  #          done
+  #          lsblk
+  #
+  #          helm install e2e ./charts --set image.carina.repository=registry.cn-hangzhou.aliyuncs.com/carina/carina --set image.carina.tag=e2e
+  #          sleep 30s
+  #          echo "e2e"
+  #          go install github.com/onsi/ginkgo/ginkgo@v1.16.4
+  #          whereis ginkgo
+  #          cd test/e2e/ && make e2e
+
+
+  kubernetes:
+    name: Kubernetes
+    runs-on: ubuntu-18.04
+    needs:
+      - changes
+      - build
+    # if: |
+    #   (needs.changes.outputs.go == 'true')
+
+    strategy:
+      matrix:
+        #     k8s: [v1.19.11, v1.20.7, v1.21.2, v1.22.0]
+        k8s: [v1.22.10]
+
+    steps:
+
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Set up Go 1.17
+        id: go
+        uses: actions/setup-go@v2
+        with:
+          go-version: 1.17
+
+      - name: cache
+        uses: actions/download-artifact@v2
+        with:
+          name: docker.tar.gz
+
+      - name: Create Kubernetes ${{ matrix.k8s }} cluster
+        run: |
+          curl -sfL https://get.k3s.io | K3S_KUBECONFIG_MODE=777 INSTALL_K3S_VERSION=v1.22.10+k3s1 sh -
+          cat /etc/rancher/k3s/k3s.yaml
+          mkdir -p ~/.kube
+          cp /etc/rancher/k3s/k3s.yaml ~/.kube/config
+
+      - uses: geekyeggo/delete-artifact@v1
+        with:
+          name: docker.tar.gz
+          failOnError: false
+
+
+      - name: Load images from cache
+        run: |
+          echo "loading docker images..."
+          pigz -dc docker.tar.gz | docker load
+          sudo docker save -o carina-e2e.tar registry.cn-hangzhou.aliyuncs.com/carina/carina:e2e
+          sudo k3s ctr -n k8s.io i import carina-e2e.tar
+          sudo k3s ctr -n k8s.io i ls
+
+      - name: Deploy carina
+        run: |
+          echo "Deploying carina..."
+          for i in $(seq 1 10); do
+            truncate --size=200G $HOME/disk$i.device && \
+            sudo losetup -f $HOME/disk$i.device
+          done
+          lsblk
+          cd test/e2e/ && make install
+          echo "waiting carina up"
+          sleep 120s
+          echo "kubectl get pods -n kube-system |grep carina"
+          kubectl get pods -n kube-system |grep carina
+          echo "kubectl get nodestorageresource -oyaml"
+          kubectl get nodestorageresource -oyaml
+
+      - name: Run e2e tests
+        env:
+          KIND_CLUSTER_NAME: kind
+          SKIP_CLUSTER_CREATION: true
+          SKIP_IMAGE_CREATION: true
+        run: |
+          kubectl get nodes 
+          echo "e2e" 
+          go install github.com/onsi/ginkgo/ginkgo@v1.16.4
+          whereis ginkgo
+          cd test/e2e/ && make e2e

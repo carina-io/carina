@@ -45,14 +45,21 @@ func TestScanDisks(t *testing.T) {
 }
 
 func TestScanDisk(t *testing.T) {
-	fname := "/dev/loop4"
+	fname := "/dev/loop2"
 	disk, err := mysys.ScanDisk(fname)
 	assert.NoError(t, err)
 	t.Log(disk.UdevInfo)
-	t.Log(disk.Name)
+	t.Log(disk)
 
 	//t.Log(disk.FreeSpacesWithMin(5000))
-	t.Log(disk.FreeSpaces()[0].Size(), disk.FreeSpaces()[0].Size()>>30)
+	//t.Log(disk.FreeSpaces()[0].Size(), disk.FreeSpaces()[0].Size()>>30)
+	for _, part := range disk.Partitions {
+		name := linux.GetPartitionKname(disk.Path, part.Number)
+		t.Log(name)
+		partinfo, err := linux.GetUdevInfo(name)
+		assert.NoError(t, err)
+		t.Log(partinfo)
+	}
 
 }
 
@@ -121,6 +128,20 @@ func TestGetPartitions(t *testing.T) {
 	assert.NoError(t, err)
 	t.Log(partinfo)
 
+}
+
+func TestMount(t *testing.T) {
+
+	targetPathOut, err := localparttion.Executor.ExecuteCommandWithOutput("/usr/bin/findmnt", "-S", "/dev/loop0", "--noheadings", "--output=target")
+	t.Log("targetPathOut", targetPathOut)
+	if err != nil {
+		t.Log(err.Error())
+	}
+
+	targetpath := strings.TrimSpace(strings.TrimSuffix(strings.ReplaceAll(targetPathOut, "\"", ""), "\n"))
+	flag := strings.Contains(targetpath, "mount")
+	t.Log(flag)
+	t.Log("len:", len(targetpath))
 }
 
 func TestCreatePartition(t *testing.T) {

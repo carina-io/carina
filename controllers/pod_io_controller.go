@@ -69,7 +69,7 @@ func NewPodIOReconciler(
 // Reconcile finalize Node
 func (r *PodIOReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	pod := &corev1.Pod{}
-	if err := r.Client.Get(ctx, req.NamespacedName, pod); err != nil {
+	if err := r.Get(ctx, req.NamespacedName, pod); err != nil {
 		log.Error(err, " unable to fetch pod")
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
@@ -79,7 +79,7 @@ func (r *PodIOReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 		return ctrl.Result{}, nil
 	}
 
-	log.Debugf("Try to update pod's cgroup blkio, pod namespace: %s, pod name: %s", pod.Namespace, pod.Name)
+	log.Debug("Try to update pod's cgroup blkio, pod namespace: " + pod.Namespace + ", pod name:" + pod.Name)
 
 	if err := r.handleSinglePodCGroupConfig(ctx, pod); err != nil {
 		return ctrl.Result{}, err
@@ -135,7 +135,7 @@ func (r *PodIOReconciler) handleSinglePodCGroupConfig(ctx context.Context, pod *
 	newPodIOLimit := r.getPodIOLimit(pod)
 	oldPodIOLimit, ok := r.ioCache.Load(pod.UID)
 	if ok && newPodIOLimit.Equal(oldPodIOLimit.(*iolimit.IOLimit)) {
-		log.Debug("Pod's io throttles hasn't changed, ignore it, namespace: %s, name: %s", pod.Namespace, pod.Name)
+		log.Debug("Pod's io throttles hasn't changed, ignore it, namespace: " + pod.Namespace + ", name: " + pod.Name)
 		return nil
 	}
 

@@ -62,8 +62,8 @@ func (v *LocalVolumeImplement) CreateVolume(lvName, vgName string, size, ratio u
 		return errors.New("cannot find device group info")
 	}
 
-	if vgInfo.VGFree-size < carina.DefaultReservedSpace {
-		log.Warnf("%s don't have enough space, reserved 10 g", vgName)
+	if vgInfo.VGFree-size < carina.DefaultReservedSpace-carina.DefaultEdgeSpace { ////avoid edge conditions
+		log.Warnf("%s don't have enough space, reserved 10g", vgName)
 		return errors.New(carina.ResourceExhausted)
 	}
 
@@ -150,8 +150,8 @@ func (v *LocalVolumeImplement) ResizeVolume(lvName, vgName string, size, ratio u
 		return nil
 	}
 
-	if vgInfo.VGFree-(size-lvInfo.LVSize) < carina.DefaultReservedSpace {
-		log.Warnf("%s don't have enough space, reserved 10 g", vgName)
+	if vgInfo.VGFree-(size-lvInfo.LVSize) < carina.DefaultReservedSpace-carina.DefaultEdgeSpace { //avoid edge conditions
+		log.Warnf("%s don't have enough space, reserved 10g", vgName)
 		return errors.New(carina.ResourceExhausted)
 	}
 
@@ -258,7 +258,7 @@ func (v *LocalVolumeImplement) AddNewDiskToVg(disk, vgName string) error {
 		return err
 	}
 	if vgInfo == nil {
-		err := v.Lv.VGCreate(vgName, []string{vgName}, []string{disk})
+		err = v.Lv.VGCreate(vgName, []string{vgName}, []string{disk})
 		if err != nil {
 			log.Errorf("vg create failed %s", err.Error())
 			return err
@@ -319,26 +319,23 @@ func (v *LocalVolumeImplement) RemoveDiskInVg(disk, vgName string) error {
 				log.Warnf("cannot remove the disk %s because there are still have logic volumes", disk)
 				return errors.New("still have logical volumes")
 			}
-			err = v.Lv.VGRemove(vgName)
-			if err != nil {
-				log.Errorf("vg remove failed %s", vgName)
+			if err = v.Lv.VGRemove(vgName); err != nil {
+				log.Errorf("vg remove %s failed %s", vgName, err.Error())
 				return err
 			}
-			err = v.Lv.PVRemove(disk)
-			if err != nil {
-				log.Errorf("pv remove failed %s", disk)
+			if err = v.Lv.PVRemove(disk); err != nil {
+				log.Errorf("pv remove %s failed %s", disk, err.Error())
 				return err
 			}
 		} else {
-			// 移除该Pv,剩余空间不足，则不允许移除
-			if vgInfo.VGFree < pvInfo.PVSize {
+			// 移除该Pv，剩余空间不足，则不允许移除
+			if vgInfo.VGFree-carina.DefaultReservedSpace+carina.DefaultEdgeSpace < pvInfo.PVSize {
 				log.Warnf("cannot remove the disk %s because there will not enough space", disk)
 				return errors.New(carina.ResourceExhausted)
 			}
 
-			err = v.Lv.VGReduce(vgName, disk)
-			if err != nil {
-				log.Errorf("vgreduce failed %s %s", vgName, disk)
+			if err = v.Lv.VGReduce(vgName, disk); err != nil {
+				log.Errorf("vgreduce %s from vg %s failed %s", disk, vgName, err.Error())
 				return err
 			}
 		}
@@ -413,9 +410,12 @@ func (v *LocalVolumeImplement) CreateBcache(dev, cacheDev string, block, bucket 
 func (v *LocalVolumeImplement) DeleteBcache(dev, cacheDev string) error {
 
 	deviceInfo, err := v.BcacheDeviceInfo(dev)
-	if err != nil {
+	if err != nil && !strings.Contains(err.Error(), "exit status 2") {
 		log.Errorf("get device info error %s %s", dev, err.Error())
 		return err
+	}
+	if deviceInfo == nil {
+		return nil
 	}
 	err = v.Bcache.RemoveBcache(deviceInfo)
 

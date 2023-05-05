@@ -58,7 +58,7 @@ type logicVolumeGetter struct {
 	api   client.Reader
 }
 
-// Get returns LogicalVolume by volume ID.
+// GetByVolumeId returns LogicalVolume by volume ID.
 // This ensures read-after-create consistency.
 func (v *logicVolumeGetter) GetByVolumeId(ctx context.Context, volumeID string) (*carinav1.LogicVolume, error) {
 	lvList := new(carinav1.LogicVolumeList)
@@ -106,7 +106,8 @@ func (v *logicVolumeGetter) GetByNodeName(ctx context.Context, nodeName string) 
 
 	if len(lvList.Items) >= 1 {
 		for _, lv := range lvList.Items {
-			lvs = append(lvs, &lv)
+			foundLv := lv
+			lvs = append(lvs, &foundLv)
 		}
 		return lvs, nil
 	}
@@ -118,8 +119,9 @@ func (v *logicVolumeGetter) GetByNodeName(ctx context.Context, nodeName string) 
 	}
 
 	for _, lv := range lvList.Items {
-		if lv.Spec.NodeName == nodeName {
-			lvs = append(lvs, &lv)
+		foundLv := lv
+		if foundLv.Spec.NodeName == nodeName {
+			lvs = append(lvs, &foundLv)
 		}
 	}
 
@@ -323,12 +325,12 @@ func (s *LogicVolumeService) ExpandVolume(ctx context.Context, volumeID string, 
 	}
 }
 
-// GetLogicVolume GetVolume returns LogicVolume by volume ID.
+// GetLogicVolumeByVolumeId returns logicVolume by volume ID.
 func (s *LogicVolumeService) GetLogicVolumeByVolumeId(ctx context.Context, volumeID string) (*carinav1.LogicVolume, error) {
 	return s.lvGetter.GetByVolumeId(ctx, volumeID)
 }
 
-// GetLogicVolume GetVolume returns LogicVolume by node name.
+// GetLogicVolumesByNodeName returns logicVolumes by node name.
 func (s *LogicVolumeService) GetLogicVolumesByNodeName(ctx context.Context, nodeName string) ([]*carinav1.LogicVolume, error) {
 	return s.lvGetter.GetByNodeName(ctx, nodeName)
 }
