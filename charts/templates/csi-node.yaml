@@ -35,59 +35,59 @@ spec:
 {{ toYaml . | indent 8 }}
 {{- end }}
       {{- include "carina.pullSecrets" . | indent 6 }}
-{{- if .Values.node.initContainer }}        
+{{- if .Values.node.initContainer }}
       initContainers:
 {{- if .Values.node.bcache}}
         - name: bcache
           securityContext:
             privileged: true
           image: {{ $initiMage  }}
-          command: 
+          command:
           - sh
           - -c
-          - >- 
-              uname  -r  ;         
+          - >-
+              uname  -r  ;
               main=$(uname  -r | awk -F . '{print $1 }') ;
               minor=$(uname -r | awk -F . '{print $2}');
               echo "major version is:$main, secondary version is:$minor";
-              
+
               if ([ "$main"  -eq "3" ] && [ "$minor" -ge "10" ]) || ([ "$main"  -ge "3" ]);
-              then               
+              then
                   modprobe  bcache || true
               else
-                  echo "skip modprobe bcache" ;                
-              fi       
+                  echo "skip modprobe bcache" ;
+              fi
           volumeMounts:
             - mountPath: /lib/modules
               name: modules
-{{- end}}      
+{{- end}}
 {{- range .Values.node.initContainer.modprobe}}
         - name: {{ kebabcase   . | }}
           securityContext:
             privileged: true
           image: {{ $initiMage  }}
-          command: 
+          command:
           - sh
           - -c
-          - >- 
-              uname  -r  ;         
+          - >-
+              uname  -r  ;
               main=$(uname  -r | awk -F . '{print $1 }') ;
               minor=$(uname -r | awk -F . '{print $2}');
               echo "major version is:$main, secondary version is:$minor";
-              
+
               if ([ "$main"  -eq "3" ] && [ "$minor" -ge "10" ]) || ([ "$main"  -ge "3" ]);
-              then               
+              then
                   modprobe {{. |}}  || true
               else
-                  echo "skip modprobe {{. |}}" ;                
-              fi       
+                  echo "skip modprobe {{. |}}" ;
+              fi
           volumeMounts:
             - mountPath: /lib/modules
               name: modules
 {{- end}}
-{{- end}}               
+{{- end}}
       containers:
-{{- if .Values.image.livenessProbe }}      
+{{- if .Values.image.livenessProbe }}
         - name: liveness-probe
           volumeMounts:
             - mountPath: /csi
@@ -103,7 +103,7 @@ spec:
             - --health-port={{ .Values.node.livenessProbe.healthPort }}
             - --v={{ .Values.node.logLevel }}
           resources: {{- toYaml .Values.node.resources.livenessProbe | nindent 12 }}
-{{- end }}          
+{{- end }}
         - name: node-driver-registrar
 {{- if hasPrefix "/" .Values.image.nodeDriverRegistrar.repository }}
           image: "{{ .Values.image.baseRepo }}{{ .Values.image.nodeDriverRegistrar.repository }}:{{ .Values.image.nodeDriverRegistrar.tag }}"
@@ -122,7 +122,7 @@ spec:
             - name: KUBE_NODE_NAME
               valueFrom:
                 fieldRef:
-                  fieldPath: spec.nodeName  
+                  fieldPath: spec.nodeName
           volumeMounts:
             - name: socket-dir
               mountPath: /csi
@@ -140,13 +140,13 @@ spec:
             capabilities:
               add: ["SYS_ADMIN"]
             allowPrivilegeEscalation: true
-          command: ["carina-node"]  
+          command: ["carina-node"]
           args:
             - "--csi-address=$(ADDRESS)"
             - "--metrics-addr=:{{ .Values.node.metricsPort }}"
           ports:
             - containerPort: {{ .Values.node.metricsPort }}
-              name: metrics  
+              name: metrics
           env:
             - name: POD_IP
               valueFrom:
@@ -175,14 +175,16 @@ spec:
               mountPath: /sys/fs/cgroup
             - name: host-block
               mountPath: /sys/block
-            {{- range .Values.node.initContainer.modprobe}}  
+            {{- range .Values.node.initContainer.modprobe}}
             {{- if eq  .  "bcache" }}
             - name: host-bcache
               mountPath: /sys/fs/bcache
-            {{- end }} 
-            {{- end }}  
+            {{- end }}
+            {{- end }}
             - name: host-dev
               mountPath: /dev
+            - name: host-proc
+              mountPath: /host/proc
             - name: host-mount
               mountPath: /run/mount
             - name: config
@@ -206,7 +208,7 @@ spec:
         - name: log-dir
           hostPath:
             path: {{ .Values.node.logDir }}
-            type: DirectoryOrCreate    
+            type: DirectoryOrCreate
         - name: plugin-dir
           hostPath:
             path: {{ .Values.node.kubelet }}/plugins
@@ -221,23 +223,25 @@ spec:
         - name: host-block
           hostPath:
             path: /sys/block
-        {{- range .Values.node.initContainer.modprobe}}  
+        {{- range .Values.node.initContainer.modprobe}}
             {{- if eq  .  "bcache" }}
         - name: host-bcache
           hostPath:
             path: /sys/fs/bcache
-            {{- end }} 
-        {{- end }}       
+            {{- end }}
+        {{- end }}
         - name: modules
           hostPath:
             path: /lib/modules
         - name: host-dev
           hostPath:
             path: /dev
+        - name: host-proc
+          hostPath:
+            path: /proc
         - name: host-mount
           hostPath:
             path: /run/mount
         - name: config
           configMap:
             name: {{ .Release.Name }}-csi-config
-
