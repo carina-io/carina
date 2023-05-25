@@ -27,3 +27,5 @@ vendor/
 .vscode/
 
 debug/hack/certs
+
+charts/Chart.lock
