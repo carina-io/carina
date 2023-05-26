@@ -81,7 +81,6 @@ require (
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/prometheus/client_model v0.2.0 // indirect
 	github.com/prometheus/common v0.32.1 // indirect
-	github.com/prometheus/procfs v0.7.3 // indirect
 	github.com/rekby/gpt v0.0.0-20200219180433-a930afbc6edc // indirect
 	github.com/rekby/mbr v0.0.0-20190325193910-2b19b9cdeebc // indirect
 	github.com/satori/go.uuid v1.2.0 // indirect
