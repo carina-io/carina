@@ -1,0 +1,24 @@
+carina-scheduler:
+  enabled: true
+  image:
+    repository: ghcr.io/kilnfi/carina
+    tag: "scheduler-__TAG__"
+image:
+  carina:
+    repository: ghcr.io/kilnfi/carina
+    tag: "controller-__TAG__6"
+  livenessProbe:
+    repository: registry.k8s.io/sig-storage/livenessprobe
+    tag: "v2.7.0"
+  csiProvisioner:
+    repository: registry.k8s.io/sig-storage/csi-provisioner
+    tag: "v2.2.2"
+  csiResizer:
+    repository: registry.k8s.io/sig-storage/csi-resizer
+    tag: "v1.5.0"
+  nodeDriverRegistrar:
+    repository: registry.k8s.io/sig-storage/csi-node-driver-registrar
+    tag: "v2.5.1"
+  nodeInitImage:
+    repository: busybox
+    tag: "1.28"
