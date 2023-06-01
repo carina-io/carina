@@ -110,6 +110,7 @@ func (v *LocalVolumeImplement) DeleteVolume(lvName, vgName string) error {
 	// backward compatible
 	thinInfo, _ := v.Lv.LVDisplay(lvInfo.PoolLV, vgName)
 	if thinInfo == nil {
+		log.Error("cannot find thin info")
 		return nil
 	}
 	return v.Lv.DeleteThinPool(lvInfo.PoolLV, vgName)
