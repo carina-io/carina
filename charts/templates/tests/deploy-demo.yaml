@@ -1,30 +1,27 @@
-{{- if .Values.storage.create -}}
----
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: carina
----
 {{- range $value := .Values.storage.StorageClass }}
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: {{ $value.disktype }}-deploy-demo-test
-  namespace: carina
+  namespace: {{ $.Release.Namespace }}
   labels:
     app: web-server
+    storageclass: {{ $value.disktype }}
   annotations:
     carina.storage.io/allow-pod-migration-if-node-notready: "true"
+    helm.sh/hook: test
 spec:
   replicas: 1
   selector:
     matchLabels:
       app: web-server
+      storageclass: {{ $value.disktype }}
   template:
     metadata:
       labels:
         app: web-server
+        storageclass: {{ $value.disktype }}
       annotations:
         carina.storage.io/allow-pod-migration-if-node-notready: "true"
     spec:
@@ -45,7 +42,9 @@ apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   name: {{ $value.disktype }}-testpvc
-  namespace: carina
+  namespace: {{ $.Release.Namespace }}
+  annotations:
+    helm.sh/hook: test
 spec:
   accessModes:
     - ReadWriteOnce
@@ -54,5 +53,4 @@ spec:
       storage: 1Gi
   storageClassName: {{ $value.disktype }}
   volumeMode: Filesystem
-{{- end -}}            
 {{- end -}}
