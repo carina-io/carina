@@ -1,4 +1,4 @@
- {{- if semverCompare "<= 1.25-0" (include "carina.kubeVersion" .) -}}
+ {{- if semverCompare "< 1.25-0" (include "carina.kubeVersion" .) -}}
 ---
 apiVersion: policy/v1beta1
 kind: PodSecurityPolicy
@@ -65,4 +65,4 @@ roleRef:
   kind: Role
   name: {{ .Values.controller.name }}-psp
   apiGroup: rbac.authorization.k8s.io
-{{- end }}  
+{{- end }}
