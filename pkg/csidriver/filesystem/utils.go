@@ -18,12 +18,14 @@ package filesystem
 
 import (
 	"fmt"
-	"github.com/carina-io/carina/utils/log"
 	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strings"
+
+	"github.com/carina-io/carina/utils/log"
 
 	"golang.org/x/sys/unix"
 )
@@ -74,7 +76,14 @@ func IsMounted(device, target string) (bool, error) {
 		if len(fields) < 2 {
 			continue
 		}
-
+		//Intercept characters to determine that they belong to the same pod
+		podstr, err := getOneStringByRegex(fields[1], `/pods/([\w-]+)/`)
+		if err != nil {
+			return false, fmt.Errorf("could not read pods mountpath %s : %v", fields[1], err)
+		}
+		if !strings.Contains(target, podstr) {
+			continue
+		}
 		d, err := filepath.EvalSymlinks(fields[1])
 		if err != nil {
 			return false, err
@@ -85,6 +94,18 @@ func IsMounted(device, target string) (bool, error) {
 	}
 
 	return false, nil
+}
+
+func getOneStringByRegex(str, rule string) (string, error) {
+	reg, err := regexp.Compile(rule)
+	if reg == nil || err != nil {
+		return "", fmt.Errorf("regexp compile:" + err.Error())
+	}
+	result := reg.FindStringSubmatch(str)
+	if len(result) < 1 {
+		return "", fmt.Errorf("could not find sub str: %v", str)
+	}
+	return result[1], nil
 }
 
 // DetectFilesystem returns filesystem type if device has a filesystem.
