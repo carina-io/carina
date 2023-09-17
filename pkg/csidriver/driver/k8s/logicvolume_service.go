@@ -24,6 +24,7 @@ import (
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -249,11 +250,22 @@ func (s *LogicVolumeService) DeleteVolume(ctx context.Context, volumeID string) 
 		return err
 	}
 
+	if !lv.GetDeletionTimestamp().IsZero() {
+		return errors.New("lv is being deleted")
+	}
+
 	err = s.Delete(ctx, lv)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			return nil
 		}
+		return err
+	}
+
+	// if the node doesn't exist, return directly
+	existingNode := new(corev1.Node)
+	err = s.getter.Get(ctx, client.ObjectKey{Name: lv.Spec.NodeName}, existingNode)
+	if err != nil {
 		return err
 	}
 
@@ -282,6 +294,13 @@ func (s *LogicVolumeService) ExpandVolume(ctx context.Context, volumeID string, 
 	log.Info("k8s.ExpandVolume called volumeID ", volumeID, " requestGb ", requestGb)
 
 	lv, err := s.GetLogicVolumeByVolumeId(ctx, volumeID)
+	if err != nil {
+		return err
+	}
+
+	// if the node doesn't exist, return directly
+	existingNode := new(corev1.Node)
+	err = s.getter.Get(ctx, client.ObjectKey{Name: lv.Spec.NodeName}, existingNode)
 	if err != nil {
 		return err
 	}
