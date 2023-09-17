@@ -18,14 +18,15 @@ package runners
 
 import (
 	"context"
-	deviceManager "github.com/carina-io/carina/pkg/devicemanager"
-	"k8s.io/apimachinery/pkg/api/equality"
 	"regexp"
-	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"strings"
 	"time"
 
+	"k8s.io/apimachinery/pkg/api/equality"
+	"sigs.k8s.io/controller-runtime/pkg/manager"
+
 	"github.com/carina-io/carina/pkg/configuration"
+	deviceManager "github.com/carina-io/carina/pkg/devicemanager"
 	"github.com/carina-io/carina/pkg/devicemanager/types"
 	"github.com/carina-io/carina/utils"
 	"github.com/carina-io/carina/utils/log"
@@ -218,10 +219,6 @@ func (dc *deviceCheck) discoverDisk(diskClass map[string]configuration.DiskSelec
 		return blockClass, nil
 	}
 
-	parentDisk := map[string]int8{}
-	for _, d := range localDisk {
-		parentDisk[d.ParentName] = 1
-	}
 	// If the disk has been added to a VG group, add it to this vg group
 	hasMatchedDisk := map[string]int8{}
 
@@ -238,7 +235,7 @@ func (dc *deviceCheck) discoverDisk(diskClass map[string]configuration.DiskSelec
 		// 过滤出空块设备
 		for _, d := range localDisk {
 			// 如果是其他磁盘Parent直接跳过
-			if _, ok := parentDisk[d.Name]; ok {
+			if d.HavePartitions {
 				continue
 			}
 

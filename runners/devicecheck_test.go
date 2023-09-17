@@ -1,30 +1,30 @@
 /*
-   Copyright @ 2021 bocloud <fushaosong@beyondcent.com>.
+Copyright @ 2021 bocloud <fushaosong@beyondcent.com>.
 
-   Licensed under the Apache License, Version 2.0 (the "License");
-   you may not use this file except in compliance with the License.
-   You may obtain a copy of the License at
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
 
-       http://www.apache.org/licenses/LICENSE-2.0
+	http://www.apache.org/licenses/LICENSE-2.0
 
-   Unless required by applicable law or agreed to in writing, software
-   distributed under the License is distributed on an "AS IS" BASIS,
-   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-   See the License for the specific language governing permissions and
-   limitations under the License.
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
 */
 package runners
 
 import (
 	"bytes"
 	"fmt"
-	deviceManager "github.com/carina-io/carina/pkg/devicemanager"
 	"os"
 	"os/exec"
 	"strings"
 	"testing"
 
 	"github.com/carina-io/carina/pkg/configuration"
+	deviceManager "github.com/carina-io/carina/pkg/devicemanager"
 )
 
 const deviceDir = "/tmp/disk/"
@@ -70,7 +70,6 @@ func makeLoopbackDevice(name string) (string, error) {
 }
 
 func cleanLoopback(loops []string, files []string) error {
-
 	for _, loop := range loops {
 		err := exec.Command("losetup", "-d", loop).Run()
 		if err != nil {
@@ -91,7 +90,7 @@ func TestDeviceManager(t *testing.T) {
 	initDevice()
 	defer cleanLoopback(loops, names)
 
-	dm := deviceManager.NewDeviceManager("localhost", nil)
+	dm := deviceManager.NewDeviceManager("localhost", nil, nil)
 	dc := &deviceCheck{dm: dm}
 	defer func() {
 		// 清理volumex

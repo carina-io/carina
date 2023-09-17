@@ -58,4 +58,6 @@ type LocalDisk struct {
 	ParentName string `json:"parentName"`
 	// Device number
 	DeviceNumber string `json:"deviceNumber"`
+	// Have partitions
+	HavePartitions bool `json:"havePartitions"`
 }

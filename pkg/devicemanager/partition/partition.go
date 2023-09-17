@@ -137,6 +137,7 @@ func parseUdevInfo(output string) map[string]string {
 	}
 	return result
 }
+
 func (ld *LocalPartitionImplement) CreatePartition(name, groups string, size uint64) error {
 	partition, _ := ld.GetPartition(name, groups)
 	if partition.Name == name {
@@ -416,6 +417,7 @@ func parseDiskString(diskString string) []*types.LocalDisk {
 
 	diskString = strings.ReplaceAll(diskString, "\"", "")
 	//diskString = strings.ReplaceAll(diskString, " ", "")
+	parentDisk := map[string]int8{}
 
 	blksList := strings.Split(diskString, "\n")
 	for _, blks := range blksList {
@@ -447,6 +449,7 @@ func parseDiskString(diskString string) []*types.LocalDisk {
 				tmp.Filesystem = k[1]
 			case "PKNAME":
 				tmp.ParentName = k[1]
+				parentDisk[tmp.ParentName] = 1
 			case "MAJ:MIN":
 				tmp.DeviceNumber = k[1]
 			default:
@@ -456,8 +459,13 @@ func parseDiskString(diskString string) []*types.LocalDisk {
 
 		resp = append(resp, &tmp)
 	}
-	return resp
 
+	for _, res := range resp {
+		if _, ok := parentDisk[res.Name]; ok {
+			res.HavePartitions = true
+		}
+	}
+	return resp
 }
 
 func filter(disklist []*types.LocalDisk) (diskList []*types.LocalDisk) {
