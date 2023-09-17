@@ -20,14 +20,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/carina-io/carina"
-	"github.com/carina-io/carina/getter"
 	"sync"
 	"time"
-
-	carinav1 "github.com/carina-io/carina/api/v1"
-	"github.com/carina-io/carina/utils/log"
-	"sigs.k8s.io/controller-runtime/pkg/manager"
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -35,6 +29,12 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/manager"
+
+	"github.com/carina-io/carina"
+	carinav1 "github.com/carina-io/carina/api/v1"
+	"github.com/carina-io/carina/getter"
+	"github.com/carina-io/carina/utils/log"
 )
 
 // ErrVolumeNotFound represents the specified volume is not found.
@@ -74,7 +74,7 @@ func (v *logicVolumeGetter) GetByVolumeId(ctx context.Context, volumeID string) 
 	}
 
 	// not found. try direct reader.
-	err = v.api.List(ctx, lvList)
+	err = v.api.List(ctx, lvList, &client.ListOptions{Raw: &metav1.ListOptions{ResourceVersion: "0"}})
 	if err != nil {
 		return nil, err
 	}
@@ -96,7 +96,7 @@ func (v *logicVolumeGetter) GetByVolumeId(ctx context.Context, volumeID string) 
 	return foundLv, nil
 }
 
-func (v *logicVolumeGetter) GetByNodeName(ctx context.Context, nodeName string) ([]*carinav1.LogicVolume, error) {
+func (v *logicVolumeGetter) GetByNodeName(ctx context.Context, nodeName string, tryReader bool) ([]*carinav1.LogicVolume, error) {
 	lvList := new(carinav1.LogicVolumeList)
 	var lvs []*carinav1.LogicVolume
 	err := v.cache.List(ctx, lvList, client.MatchingFields{indexFiledNodeName: nodeName})
@@ -112,8 +112,12 @@ func (v *logicVolumeGetter) GetByNodeName(ctx context.Context, nodeName string) 
 		return lvs, nil
 	}
 
+	if !tryReader {
+		return lvs, nil
+	}
+
 	// not found. try direct reader.
-	err = v.api.List(ctx, lvList)
+	err = v.api.List(ctx, lvList, &client.ListOptions{Raw: &metav1.ListOptions{ResourceVersion: "0"}})
 	if err != nil {
 		return nil, err
 	}
@@ -331,8 +335,8 @@ func (s *LogicVolumeService) GetLogicVolumeByVolumeId(ctx context.Context, volum
 }
 
 // GetLogicVolumesByNodeName returns logicVolumes by node name.
-func (s *LogicVolumeService) GetLogicVolumesByNodeName(ctx context.Context, nodeName string) ([]*carinav1.LogicVolume, error) {
-	return s.lvGetter.GetByNodeName(ctx, nodeName)
+func (s *LogicVolumeService) GetLogicVolumesByNodeName(ctx context.Context, nodeName string, tryReader bool) ([]*carinav1.LogicVolume, error) {
+	return s.lvGetter.GetByNodeName(ctx, nodeName, tryReader)
 }
 
 // UpdateLogicVolumeCurrentSize UpdateCurrentSize updates .Status.CurrentSize of LogicVolume.

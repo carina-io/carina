@@ -20,13 +20,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/carina-io/carina"
-	carinav1beta1 "github.com/carina-io/carina/api/v1beta1"
-	"github.com/carina-io/carina/getter"
-	"github.com/carina-io/carina/pkg/configuration"
-	"github.com/carina-io/carina/pkg/csidriver/driver/util"
-	"github.com/carina-io/carina/utils"
-	"github.com/carina-io/carina/utils/log"
+	"sort"
+	"strings"
+
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -34,8 +30,14 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
-	"sort"
-	"strings"
+
+	"github.com/carina-io/carina"
+	carinav1beta1 "github.com/carina-io/carina/api/v1beta1"
+	"github.com/carina-io/carina/getter"
+	"github.com/carina-io/carina/pkg/configuration"
+	"github.com/carina-io/carina/pkg/csidriver/driver/util"
+	"github.com/carina-io/carina/utils"
+	"github.com/carina-io/carina/utils/log"
 )
 
 // This annotation is present on K8s 1.11 release.
@@ -71,7 +73,7 @@ func NewNodeService(mgr manager.Manager, lvService *LogicVolumeService) *NodeSer
 
 func (n NodeService) getLvExclusivityDisks(ctx context.Context, nodeName string) ([]string, error) {
 	lvExclusivityDisks := []string{}
-	lvs, err := n.lvService.GetLogicVolumesByNodeName(ctx, nodeName)
+	lvs, err := n.lvService.GetLogicVolumesByNodeName(ctx, nodeName, true)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "can not get logic volumes for nodeName %s", nodeName)
 	}

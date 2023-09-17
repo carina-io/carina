@@ -19,9 +19,11 @@ package metrics
 import (
 	"context"
 	"errors"
-	"github.com/carina-io/carina/pkg/csidriver/driver/k8s"
+
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/procfs/blockdevice"
+
+	"github.com/carina-io/carina/pkg/csidriver/driver/k8s"
 )
 
 const (
@@ -138,7 +140,7 @@ func (v *volumeStatsCollector) Update(ch chan<- prometheus.Metric) error {
 	if err != nil {
 		return errors.New("couldn't get diskstats:" + err.Error())
 	}
-	logicVolumes, err := v.lvService.GetLogicVolumesByNodeName(context.Background(), nodeName)
+	logicVolumes, err := v.lvService.GetLogicVolumesByNodeName(context.Background(), nodeName, false)
 	if err != nil {
 		return err
 	}
