@@ -20,7 +20,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"sync"
 	"time"
 
 	"google.golang.org/grpc/codes"
@@ -45,7 +44,6 @@ type LogicVolumeService struct {
 	client.Client
 	getter   *getter.RetryGetter
 	lvGetter *logicVolumeGetter
-	mu       sync.Mutex
 }
 
 const (
@@ -161,8 +159,6 @@ func NewLogicVolumeService(mgr manager.Manager) (*LogicVolumeService, error) {
 // CreateVolume creates volume
 func (s *LogicVolumeService) CreateVolume(ctx context.Context, namespace, pvc, node, deviceGroup, pvName string, requestGb int64, owner metav1.OwnerReference, annotation map[string]string) (string, uint32, uint32, error) {
 	log.Info("k8s.CreateVolume called name ", pvName, " node ", node, " deviceGroup ", deviceGroup, " size_gb ", requestGb)
-	s.mu.Lock()
-	defer s.mu.Unlock()
 
 	lv := &carinav1.LogicVolume{
 		TypeMeta: metav1.TypeMeta{
@@ -284,8 +280,6 @@ func (s *LogicVolumeService) DeleteVolume(ctx context.Context, volumeID string) 
 // ExpandVolume expands volume
 func (s *LogicVolumeService) ExpandVolume(ctx context.Context, volumeID string, requestGb int64) error {
 	log.Info("k8s.ExpandVolume called volumeID ", volumeID, " requestGb ", requestGb)
-	s.mu.Lock()
-	defer s.mu.Unlock()
 
 	lv, err := s.GetLogicVolumeByVolumeId(ctx, volumeID)
 	if err != nil {
