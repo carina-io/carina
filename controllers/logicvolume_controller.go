@@ -19,14 +19,9 @@ package controllers
 import (
 	"context"
 	"fmt"
-	"github.com/carina-io/carina"
-	deviceManager "github.com/carina-io/carina/pkg/devicemanager"
-	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"strconv"
 	"time"
 
-	"github.com/carina-io/carina/utils"
-	"github.com/carina-io/carina/utils/log"
 	"google.golang.org/grpc/codes"
 	corev1 "k8s.io/api/core/v1"
 	apierrs "k8s.io/apimachinery/pkg/api/errors"
@@ -34,9 +29,14 @@ import (
 	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 
+	"github.com/carina-io/carina"
 	carinav1 "github.com/carina-io/carina/api/v1"
+	deviceManager "github.com/carina-io/carina/pkg/devicemanager"
+	"github.com/carina-io/carina/utils"
+	"github.com/carina-io/carina/utils/log"
 )
 
 // LogicVolumeReconciler reconciles a LogicVolume object
@@ -106,6 +106,8 @@ func (r *LogicVolumeReconciler) SetupWithManager(mgr ctrl.Manager) error {
 
 // operation lvm
 func (r *LogicVolumeReconciler) removeLVIfExists(ctx context.Context, lv *carinav1.LogicVolume) error {
+	log.Info("Start to remove LV name ", lv.Name)
+
 	// Finalizer's process ( RemoveLV then removeString ) is not atomic,
 	// so checking existence of LV to ensure its idempotence
 	var err error
@@ -145,9 +147,10 @@ func (r *LogicVolumeReconciler) removeLVIfExists(ctx context.Context, lv *carina
 }
 
 func (r *LogicVolumeReconciler) createLV(ctx context.Context, lv *carinav1.LogicVolume) error {
+	log.Info("Start to create LV name ", lv.Name)
+
 	// When lv.Status.Code is not codes.OK (== 0), CreateLV has already failed.
 	// LogicalVolume CRD will be deleted soon by the controller.
-
 	if lv.Status.Code != codes.OK {
 		return nil
 	}
@@ -238,6 +241,8 @@ func (r *LogicVolumeReconciler) createLV(ctx context.Context, lv *carinav1.Logic
 }
 
 func (r *LogicVolumeReconciler) expandLV(ctx context.Context, lv *carinav1.LogicVolume) error {
+	log.Info("Start to expand LV name ", lv.Name)
+
 	// The reconciliation loop of LogicVolume may call expandLV before resizing is triggered.
 	// So, lv.Status.CurrentSize could be nil here.
 	if lv.Status.CurrentSize == nil {

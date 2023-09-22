@@ -20,21 +20,21 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/carina-io/carina"
-	"github.com/carina-io/carina/getter"
-	"sync"
 	"time"
-
-	carinav1 "github.com/carina-io/carina/api/v1"
-	"github.com/carina-io/carina/utils/log"
-	"sigs.k8s.io/controller-runtime/pkg/manager"
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/manager"
+
+	"github.com/carina-io/carina"
+	carinav1 "github.com/carina-io/carina/api/v1"
+	"github.com/carina-io/carina/getter"
+	"github.com/carina-io/carina/utils/log"
 )
 
 // ErrVolumeNotFound represents the specified volume is not found.
@@ -45,7 +45,6 @@ type LogicVolumeService struct {
 	client.Client
 	getter   *getter.RetryGetter
 	lvGetter *logicVolumeGetter
-	mu       sync.Mutex
 }
 
 const (
@@ -74,7 +73,7 @@ func (v *logicVolumeGetter) GetByVolumeId(ctx context.Context, volumeID string) 
 	}
 
 	// not found. try direct reader.
-	err = v.api.List(ctx, lvList)
+	err = v.api.List(ctx, lvList, &client.ListOptions{Raw: &metav1.ListOptions{ResourceVersion: "0"}})
 	if err != nil {
 		return nil, err
 	}
@@ -96,7 +95,7 @@ func (v *logicVolumeGetter) GetByVolumeId(ctx context.Context, volumeID string) 
 	return foundLv, nil
 }
 
-func (v *logicVolumeGetter) GetByNodeName(ctx context.Context, nodeName string) ([]*carinav1.LogicVolume, error) {
+func (v *logicVolumeGetter) GetByNodeName(ctx context.Context, nodeName string, tryReader bool) ([]*carinav1.LogicVolume, error) {
 	lvList := new(carinav1.LogicVolumeList)
 	var lvs []*carinav1.LogicVolume
 	err := v.cache.List(ctx, lvList, client.MatchingFields{indexFiledNodeName: nodeName})
@@ -112,8 +111,12 @@ func (v *logicVolumeGetter) GetByNodeName(ctx context.Context, nodeName string) 
 		return lvs, nil
 	}
 
+	if !tryReader {
+		return lvs, nil
+	}
+
 	// not found. try direct reader.
-	err = v.api.List(ctx, lvList)
+	err = v.api.List(ctx, lvList, &client.ListOptions{Raw: &metav1.ListOptions{ResourceVersion: "0"}})
 	if err != nil {
 		return nil, err
 	}
@@ -157,8 +160,6 @@ func NewLogicVolumeService(mgr manager.Manager) (*LogicVolumeService, error) {
 // CreateVolume creates volume
 func (s *LogicVolumeService) CreateVolume(ctx context.Context, namespace, pvc, node, deviceGroup, pvName string, requestGb int64, owner metav1.OwnerReference, annotation map[string]string) (string, uint32, uint32, error) {
 	log.Info("k8s.CreateVolume called name ", pvName, " node ", node, " deviceGroup ", deviceGroup, " size_gb ", requestGb)
-	s.mu.Lock()
-	defer s.mu.Unlock()
 
 	lv := &carinav1.LogicVolume{
 		TypeMeta: metav1.TypeMeta{
@@ -249,11 +250,22 @@ func (s *LogicVolumeService) DeleteVolume(ctx context.Context, volumeID string) 
 		return err
 	}
 
+	if !lv.GetDeletionTimestamp().IsZero() {
+		return errors.New("lv is being deleted")
+	}
+
 	err = s.Delete(ctx, lv)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			return nil
 		}
+		return err
+	}
+
+	// if the node doesn't exist, return directly
+	existingNode := new(corev1.Node)
+	err = s.getter.Get(ctx, client.ObjectKey{Name: lv.Spec.NodeName}, existingNode)
+	if err != nil {
 		return err
 	}
 
@@ -280,10 +292,15 @@ func (s *LogicVolumeService) DeleteVolume(ctx context.Context, volumeID string) 
 // ExpandVolume expands volume
 func (s *LogicVolumeService) ExpandVolume(ctx context.Context, volumeID string, requestGb int64) error {
 	log.Info("k8s.ExpandVolume called volumeID ", volumeID, " requestGb ", requestGb)
-	s.mu.Lock()
-	defer s.mu.Unlock()
 
 	lv, err := s.GetLogicVolumeByVolumeId(ctx, volumeID)
+	if err != nil {
+		return err
+	}
+
+	// if the node doesn't exist, return directly
+	existingNode := new(corev1.Node)
+	err = s.getter.Get(ctx, client.ObjectKey{Name: lv.Spec.NodeName}, existingNode)
 	if err != nil {
 		return err
 	}
@@ -331,8 +348,8 @@ func (s *LogicVolumeService) GetLogicVolumeByVolumeId(ctx context.Context, volum
 }
 
 // GetLogicVolumesByNodeName returns logicVolumes by node name.
-func (s *LogicVolumeService) GetLogicVolumesByNodeName(ctx context.Context, nodeName string) ([]*carinav1.LogicVolume, error) {
-	return s.lvGetter.GetByNodeName(ctx, nodeName)
+func (s *LogicVolumeService) GetLogicVolumesByNodeName(ctx context.Context, nodeName string, tryReader bool) ([]*carinav1.LogicVolume, error) {
+	return s.lvGetter.GetByNodeName(ctx, nodeName, tryReader)
 }
 
 // UpdateLogicVolumeCurrentSize UpdateCurrentSize updates .Status.CurrentSize of LogicVolume.
