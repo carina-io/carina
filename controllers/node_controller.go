@@ -358,10 +358,11 @@ func (r *NodeReconciler) skipLv(ctx context.Context, lv carinav1.LogicVolume) (b
 	podList := &corev1.PodList{}
 	err := r.Client.List(ctx, podList, client.MatchingFields{"combinedIndex": fmt.Sprintf("%s-%s", carina.CarinaSchedule, lv.Spec.NodeName)})
 	if err != nil {
-		return false, err
+		return true, err
 	}
 	for _, p := range podList.Items {
 		for _, vol := range p.Spec.Volumes {
+			log.Debugf("skipLv process %s %s %s", p.ObjectMeta.Namespace, p.ObjectMeta.Name, vol.PersistentVolumeClaim.ClaimName)
 			if vol.PersistentVolumeClaim == nil {
 				continue
 			}
@@ -371,9 +372,11 @@ func (r *NodeReconciler) skipLv(ctx context.Context, lv carinav1.LogicVolume) (b
 			// check annotation carina.storage.io/allow-pod-migration-if-node-notready: true
 			if _, ok := p.Annotations[carina.AllowPodMigrationIfNodeNotready]; !ok || p.Annotations[carina.AllowPodMigrationIfNodeNotready] == "false" {
 				return true, nil
+			} else {
+				return false, nil
 			}
 
 		}
 	}
-	return false, nil
+	return true, fmt.Errorf("skipLv did not found pod, skip")
 }
