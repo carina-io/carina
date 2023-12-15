@@ -11,10 +11,8 @@ function install() {
   kubectl apply -f crd-logicvolume.yaml
   kubectl apply -f crd-nodestoreresource.yaml
 
-  kubectl apply -f csi-controller-psp.yaml
   kubectl apply -f csi-controller-rbac.yaml
   kubectl apply -f csi-carina-controller.yaml
-  kubectl apply -f csi-node-psp.yaml
   kubectl apply -f csi-node-rbac.yaml
   kubectl apply -f csi-carina-node.yaml
   kubectl apply -f carina-scheduler.yaml
@@ -32,10 +30,8 @@ function uninstall() {
   echo "uninstall..."
   kubectl delete secret mutatingwebhook -n kube-system
 #  kubectl delete -f csi-config-map.yaml
-  kubectl delete -f csi-controller-psp.yaml
   kubectl delete -f csi-controller-rbac.yaml
   kubectl delete -f csi-carina-controller.yaml
-  kubectl delete -f csi-node-psp.yaml
   kubectl delete -f csi-node-rbac.yaml
   kubectl delete -f csi-carina-node.yaml
   kubectl delete -f carina-scheduler.yaml
