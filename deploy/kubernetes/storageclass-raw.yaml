@@ -2,7 +2,7 @@
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
-  name: csi-carina-lvm-ext4
+  name: csi-carina-raw
   namespace: kube-system
 provisioner: carina.storage.io
 parameters:

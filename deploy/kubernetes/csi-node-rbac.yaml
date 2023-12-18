@@ -30,7 +30,7 @@ rules:
     resources: ["logicvolumes", "logicvolumes/status", "nodestorageresources", "nodestorageresources/status"]
     verbs: ["get", "list", "watch", "update", "patch", "delete", "create"]
   - apiGroups: ["storage.k8s.io"]
-    resources: ["csidrivers"]
+    resources: ["csinodes", "csidrivers", "csistoragecapacities"]
     verbs: ["get", "list", "watch"]
 
 ---
