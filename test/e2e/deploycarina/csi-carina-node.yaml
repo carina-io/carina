@@ -36,7 +36,7 @@ spec:
           # created by privileged CSI driver container.
           securityContext:
             privileged: true
-          image: registry.cn-hangzhou.aliyuncs.com/carina/csi-node-driver-registrar:v2.5.1
+          image: registry.cn-hangzhou.aliyuncs.com/carina/csi-node-driver-registrar:v2.7.0
           args:
             - "--v=5"
             - "--csi-address=/csi/csi-carina.sock"
@@ -126,7 +126,7 @@ spec:
             - name: log-dir
               mountPath: /var/log/carina/
         - name: liveness-probe
-          image: registry.cn-hangzhou.aliyuncs.com/carina/livenessprobe:v2.7.0
+          image: registry.cn-hangzhou.aliyuncs.com/carina/livenessprobe:v2.9.0
           imagePullPolicy: "IfNotPresent"
           args:
             - --csi-address=/csi/csi-carina.sock
