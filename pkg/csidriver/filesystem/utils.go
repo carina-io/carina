@@ -96,6 +96,9 @@ func IsMounted(device, target string) (bool, error) {
 }
 
 func getOneStringByRegex(str, rule string) (string, error) {
+	if !strings.Contains(str, "/pods/") {
+		return "non-csi", nil
+	}
 	reg, err := regexp.Compile(rule)
 	if reg == nil || err != nil {
 		return "", fmt.Errorf("regexp compile:" + err.Error())
