@@ -10,6 +10,9 @@ rules:
     resources: ["nodes"]
     verbs: ["get", "list", "watch"]
   - apiGroups: [""]
+    resources: ["namespaces"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
     resources: ["pods"]
     verbs: ["delete", "get", "list", "watch", "update"]
   - apiGroups: [""]
@@ -37,7 +40,7 @@ rules:
     resources: ["configmaps"]
     verbs: ["get", "list", "watch"]
   - apiGroups: ["storage.k8s.io"]
-    resources: ["storageclasses", "csinodes"]
+    resources: ["storageclasses", "csinodes", "csidrivers", "csistoragecapacities"]
     verbs: ["get", "list", "watch"]
   - apiGroups: ["coordination.k8s.io"]
     resources: ["leases"]
@@ -114,7 +117,7 @@ spec:
       labels:
         component: carina-scheduler
     spec:
-      serviceAccount: carina-scheduler-sa
+      serviceAccountName: carina-scheduler-sa
       priorityClassName: system-cluster-critical
       containers:
         - name: carina-scheduler

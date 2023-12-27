@@ -114,7 +114,7 @@ spec:
       labels:
         component: carina-scheduler
     spec:
-      serviceAccount: carina-scheduler-sa
+      serviceAccountName: carina-scheduler-sa
       priorityClassName: system-cluster-critical
       containers:
         - name: carina-scheduler

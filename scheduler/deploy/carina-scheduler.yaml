@@ -111,11 +111,11 @@ spec:
       labels:
         component: carina-scheduler
     spec:
-      serviceAccount: carina-scheduler-sa
+      serviceAccountName: carina-scheduler-sa
       priorityClassName: system-cluster-critical
       containers:
         - name: carina-scheduler
-          image: docker.hub.com/carina/scheduler:latest
+          image: registry.cn-hangzhou.aliyuncs.com/carina/scheduler:latest
           imagePullPolicy: "Always"
           command: ["carina-scheduler"]
           args:

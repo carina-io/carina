@@ -21,8 +21,8 @@ import (
 	"github.com/carina-io/carina/utils"
 	libcontainercgroups "github.com/opencontainers/runc/libcontainer/cgroups"
 	cgroupsystemd "github.com/opencontainers/runc/libcontainer/cgroups/systemd"
-	"io/ioutil"
 	v1 "k8s.io/api/core/v1"
+	"os"
 	"path"
 	"strconv"
 	"strings"
@@ -52,7 +52,7 @@ func SetIOLimit(blkIO *PodBlkIO) error {
 		}
 		for deviceNo, deviceIOLimit := range blkIO.DeviceIOSet {
 			ioStr := getCG2IOLimitStr(deviceNo, deviceIOLimit)
-			if err := ioutil.WriteFile(ioMaxPath, []byte(ioStr), 0600); err != nil {
+			if err := os.WriteFile(ioMaxPath, []byte(ioStr), 0600); err != nil {
 				return fmt.Errorf("failed to write ioStr(%s) to path(%s)", ioStr, ioMaxPath)
 			}
 		}
@@ -95,7 +95,7 @@ func SetIOLimit(blkIO *PodBlkIO) error {
 			default:
 				return fmt.Errorf("unsupported throttle type %s", throttle)
 			}
-			if err := ioutil.WriteFile(ioLimitPath[throttle], []byte(line), 0600); err != nil {
+			if err := os.WriteFile(ioLimitPath[throttle], []byte(line), 0600); err != nil {
 				return fmt.Errorf("failed to write ioStr(%s) to path(%s)", line, ioLimitPath[throttle])
 			}
 		}

@@ -16,10 +16,10 @@ spec:
       labels:
         app: csi-carina-provisioner
     spec:
-      serviceAccount: carina-csi-controller
+      serviceAccountName: carina-csi-controller
       containers:
         - name: csi-provisioner
-          image: registry.cn-hangzhou.aliyuncs.com/carina/csi-provisioner:v2.2.2
+          image: registry.cn-hangzhou.aliyuncs.com/carina/csi-provisioner:v3.4.1
           args:
             - "--csi-address=/csi/csi-carina.sock"
             - "--v=5"
@@ -41,7 +41,7 @@ spec:
             - name: socket-dir
               mountPath: /csi
         - name: csi-resizer
-          image: registry.cn-hangzhou.aliyuncs.com/carina/csi-resizer:v1.5.0
+          image: registry.cn-hangzhou.aliyuncs.com/carina/csi-resizer:v1.7.0
           args:
             - "--csi-address=/csi/csi-carina.sock"
             - "--v=5"
@@ -118,7 +118,7 @@ spec:
             - name: certs
               mountPath: /certs
         - name: liveness-probe
-          image: registry.cn-hangzhou.aliyuncs.com/carina/livenessprobe:v2.7.0
+          image: registry.cn-hangzhou.aliyuncs.com/carina/livenessprobe:v2.9.0
           imagePullPolicy: "IfNotPresent"
           args:
             - --csi-address=/csi/csi-carina.sock
