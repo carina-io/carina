@@ -21,12 +21,12 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"regexp"
 	"strings"
 
-	"github.com/carina-io/carina/utils/log"
-
 	"golang.org/x/sys/unix"
+	"k8s.io/utils/io"
+
+	"github.com/carina-io/carina/utils/log"
 )
 
 const (
@@ -44,9 +44,16 @@ func isSameDevice(dev1, dev2 string) (bool, error) {
 
 	var st1, st2 unix.Stat_t
 	if err := Stat(dev1, &st1); err != nil {
+		if os.IsNotExist(err) {
+			return false, nil
+		}
 		return false, fmt.Errorf("stat failed for %s: %v", dev1, err)
 	}
+
 	if err := Stat(dev2, &st2); err != nil {
+		if os.IsNotExist(err) {
+			return false, nil
+		}
 		return false, fmt.Errorf("stat failed for %s: %v", dev2, err)
 	}
 
@@ -60,12 +67,13 @@ func IsMounted(device, target string) (bool, error) {
 	if err != nil {
 		return false, err
 	}
+
 	target, err = filepath.EvalSymlinks(abs)
 	if err != nil {
 		return false, err
 	}
 
-	data, err := os.ReadFile("/proc/mounts")
+	data, err := io.ConsistentRead("/proc/mounts", 3)
 	if err != nil {
 		return false, fmt.Errorf("could not read /proc/mounts: %v", err)
 	}
@@ -75,39 +83,27 @@ func IsMounted(device, target string) (bool, error) {
 		if len(fields) < 2 {
 			continue
 		}
-		//Intercept characters to determine that they belong to the same pod
-		podstr, err := getOneStringByRegex(fields[1], `/pods/([\w-]+)/`)
+
+		// If the filesystem is nfs(cephfs、ussfs etc) and its connection is broken, EvalSymlinks will be stuck.
+		// So it should be in before calling EvalSymlinks.
+		ok, err := isSameDevice(device, fields[0])
 		if err != nil {
-			return false, fmt.Errorf("could not read pods mountpath %s : %v", fields[1], err)
+			return false, err
 		}
-		if !strings.Contains(target, podstr) {
+		if !ok {
 			continue
 		}
+
 		d, err := filepath.EvalSymlinks(fields[1])
 		if err != nil {
 			return false, err
 		}
 		if d == target {
-			return isSameDevice(device, fields[0])
+			return true, nil
 		}
 	}
 
 	return false, nil
-}
-
-func getOneStringByRegex(str, rule string) (string, error) {
-	if !strings.Contains(str, "/pods/") {
-		return "non-csi", nil
-	}
-	reg, err := regexp.Compile(rule)
-	if reg == nil || err != nil {
-		return "", fmt.Errorf("regexp compile:" + err.Error())
-	}
-	result := reg.FindStringSubmatch(str)
-	if len(result) < 1 {
-		return "", fmt.Errorf("could not find sub str: %v", str)
-	}
-	return result[1], nil
 }
 
 // DetectFilesystem returns filesystem type if device has a filesystem.
