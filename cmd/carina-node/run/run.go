@@ -19,30 +19,32 @@ package run
 import (
 	"context"
 	"errors"
-	"github.com/carina-io/carina"
-	"github.com/carina-io/carina/runners"
-	storagev1 "k8s.io/api/storage/v1"
-	"k8s.io/apimachinery/pkg/types"
 	"os"
-	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/metrics"
 	"time"
 
-	carinav1beta1 "github.com/carina-io/carina/api/v1beta1"
+	"github.com/container-storage-interface/spec/lib/go/csi"
+	"google.golang.org/grpc"
+	corev1 "k8s.io/api/core/v1"
+	storagev1 "k8s.io/api/storage/v1"
+	"k8s.io/apimachinery/pkg/fields"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
+	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
+	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
+	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/cache"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/log/zap"
+	"sigs.k8s.io/controller-runtime/pkg/metrics"
 
 	carinav1 "github.com/carina-io/carina/api/v1"
+	carinav1beta1 "github.com/carina-io/carina/api/v1beta1"
 	"github.com/carina-io/carina/controllers"
 	"github.com/carina-io/carina/pkg/csidriver/driver"
 	"github.com/carina-io/carina/pkg/csidriver/driver/k8s"
 	deviceManager "github.com/carina-io/carina/pkg/devicemanager"
 	carinaMetrics "github.com/carina-io/carina/pkg/metrics"
-	"github.com/container-storage-interface/spec/lib/go/csi"
-	"google.golang.org/grpc"
-	"k8s.io/apimachinery/pkg/runtime"
-	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
-	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
-	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/log/zap"
+	"github.com/carina-io/carina/runners"
 	// +kubebuilder:scaffold:imports
 )
 
@@ -70,7 +72,21 @@ func subMain() error {
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
 		Scheme:             scheme,
 		MetricsBindAddress: config.metricsAddr,
-		LeaderElection:     false,
+		NewCache: cache.BuilderWithOptions(cache.Options{
+			Scheme: scheme,
+			SelectorsByObject: cache.SelectorsByObject{
+				&corev1.Node{}: {
+					Field: fields.SelectorFromSet(fields.Set{"metadata.name": nodeName}),
+				},
+				&corev1.Pod{}: {
+					Field: fields.SelectorFromSet(fields.Set{"spec.nodeName": nodeName}),
+				},
+				&carinav1beta1.NodeStorageResource{}: {
+					Field: fields.SelectorFromSet(fields.Set{"metadata.name": nodeName}),
+				},
+			},
+		}),
+		LeaderElection: false,
 	})
 	if err != nil {
 		setupLog.Error(err, "unable to start manager")
@@ -78,7 +94,7 @@ func subMain() error {
 	}
 
 	// 初始化磁盘管理服务
-	dm := deviceManager.NewDeviceManager(nodeName, mgr.GetCache(), mgr.GetClient())
+	dm := deviceManager.NewDeviceManager(nodeName, mgr.GetCache())
 
 	// pod io controller
 	podIOController := controllers.NewPodIOReconciler(

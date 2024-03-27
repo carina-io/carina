@@ -18,19 +18,20 @@ package deviceManager
 
 import (
 	"context"
-	"github.com/carina-io/carina/pkg/devicemanager/bcache"
 	"time"
 
+	corev1 "k8s.io/api/core/v1"
+	"sigs.k8s.io/controller-runtime/pkg/cache"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+
 	"github.com/carina-io/carina/pkg/configuration"
+	"github.com/carina-io/carina/pkg/devicemanager/bcache"
 	"github.com/carina-io/carina/pkg/devicemanager/lvmd"
 	"github.com/carina-io/carina/pkg/devicemanager/partition"
 	"github.com/carina-io/carina/pkg/devicemanager/volume"
 	"github.com/carina-io/carina/utils/exec"
 	"github.com/carina-io/carina/utils/log"
 	"github.com/carina-io/carina/utils/mutx"
-	corev1 "k8s.io/api/core/v1"
-	"sigs.k8s.io/controller-runtime/pkg/cache"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 type Trigger string
@@ -51,7 +52,6 @@ type VolumeEvent struct {
 
 type DeviceManager struct {
 	Cache cache.Cache
-	client.Client
 	// Volume 操作
 	VolumeManager volume.LocalVolume
 	//磁盘以及分区操作
@@ -60,13 +60,12 @@ type DeviceManager struct {
 	noticeUpdates []chan *VolumeEvent
 }
 
-func NewDeviceManager(nodeName string, cache cache.Cache, client client.Client) *DeviceManager {
+func NewDeviceManager(nodeName string, cache cache.Cache) *DeviceManager {
 	executor := &exec.CommandExecutor{}
 	mutex := mutx.NewGlobalLocks()
 
 	dm := DeviceManager{
 		Cache:         cache,
-		Client:        client,
 		VolumeManager: &volume.LocalVolumeImplement{Mutex: mutex, Lv: &lvmd.Lvm2Implement{Executor: executor}, Bcache: &bcache.BcacheImplement{Executor: executor}},
 		Partition:     &partition.LocalPartitionImplement{Mutex: mutex, CacheParttionNum: make(map[string]uint), Executor: executor},
 		NodeName:      nodeName,
