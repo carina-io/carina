@@ -198,7 +198,7 @@ func (n NodeService) SelectDeviceGroup(ctx context.Context, requestGb int64, exc
 	} else if configuration.SchedulerStrategy() == configuration.Schedulerspreadout {
 		selectDeviceGroup = preselectNode[len(preselectNode)-1].group
 	} else {
-		return "", errors.New(fmt.Sprintf("Unsupported scheduling policies %s", configuration.SchedulerStrategy()))
+		return "", fmt.Errorf("Unsupported scheduling policies %s", configuration.SchedulerStrategy())
 	}
 
 	return selectDeviceGroup, nil
@@ -303,7 +303,7 @@ func (n NodeService) SelectNode(ctx context.Context, requestGb int64, volumeType
 		nodeName = preselectNode[len(preselectNode)-1].nodeName
 		selectDeviceGroup = preselectNode[len(preselectNode)-1].group
 	} else {
-		return "", "", errors.New(fmt.Sprintf("Unsupported scheduling policies %s", configuration.SchedulerStrategy()))
+		return "", "", fmt.Errorf("Unsupported scheduling policies %s", configuration.SchedulerStrategy())
 	}
 
 	return nodeName, selectDeviceGroup, nil
@@ -466,7 +466,7 @@ func (n NodeService) SelectMultiVolumeNode(ctx context.Context, backendDeviceGro
 	} else if configuration.SchedulerStrategy() == configuration.Schedulerspreadout {
 		nodeName = preselectNode[len(preselectNode)-1].nodeName
 	} else {
-		return "", errors.New(fmt.Sprintf("Unsupported scheduling policies %s", configuration.SchedulerStrategy()))
+		return "", fmt.Errorf("Unsupported scheduling policies %s", configuration.SchedulerStrategy())
 	}
 
 	return nodeName, nil
