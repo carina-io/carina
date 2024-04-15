@@ -3,6 +3,7 @@
 # Carina
 
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://github.com/carina-io/carina/blob/main/LICENSE)
+[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Fcarina-io%2Fcarina.svg?type=shield)](https://app.fossa.com/projects/git%2Bgithub.com%2Fcarina-io%2Fcarina?ref=badge_shield)
 
 [![OpenSSF Best Practices](https://bestpractices.coreinfrastructure.org/projects/6908/badge)](https://bestpractices.coreinfrastructure.org/projects/6908)
 
@@ -167,6 +168,9 @@ Welcome to register the company name in [ADOPTERS.md](ADOPTERS.md)
 # License
 
 Carina is under the Apache 2.0 license. See the [LICENSE](https://github.com/FabEdge/fabedge/blob/main/LICENSE) file for details.
+
+
+[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Fcarina-io%2Fcarina.svg?type=large)](https://app.fossa.com/projects/git%2Bgithub.com%2Fcarina-io%2Fcarina?ref=badge_large)
 
 # Code of Conduct
 
