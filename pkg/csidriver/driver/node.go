@@ -178,7 +178,7 @@ func (s *nodeService) nodePublishLvmBlockVolume(req *csi.NodePublishVolumeReques
 		if stat.Rdev == unix.Mkdev(lv.LVKernelMajor, lv.LVKernelMinor) && stat.Mode&devicePermission == devicePermission {
 			return &csi.NodePublishVolumeResponse{}, nil
 		}
-		if err := os.Remove(target); err != nil {
+		if err = os.Remove(target); err != nil {
 			return nil, status.Errorf(codes.Internal, "failed to remove %s", target)
 		}
 	case unix.ENOENT:
@@ -231,7 +231,7 @@ func (s *nodeService) nodePublishRawBlockVolume(req *csi.NodePublishVolumeReques
 			log.Info("stat.Rdev%s", stat.Rdev, unix.Mkdev(uint32(MAJOR), uint32(MINOR)), "stat.Mode", stat.Mode)
 			return &csi.NodePublishVolumeResponse{}, nil
 		}
-		if err := os.Remove(target); err != nil {
+		if err = os.Remove(target); err != nil {
 			return nil, status.Errorf(codes.Internal, "failed to remove %s", target)
 		}
 	case unix.ENOENT:
@@ -353,7 +353,6 @@ func (s *nodeService) nodePublishRawFilesystemVolume(req *csi.NodePublishVolumeR
 
 	if str, ok := partinfo.Properties["MINOR"]; ok {
 		MINOR, _ = strconv.ParseUint(str, 10, 32)
-
 	}
 	// Find lv and create a block device with it
 	//device := filepath.Join(DeviceDirectory, req.GetVolumeId())
@@ -420,14 +419,14 @@ func (s *nodeService) createDeviceIfNeeded(device string, major, minor uint32) e
 		if stat.Rdev == unix.Mkdev(major, minor) && (stat.Mode&devicePermission) == devicePermission {
 			return nil
 		}
-		err := os.Remove(device)
+		err = os.Remove(device)
 		if err != nil {
 			return status.Errorf(codes.Internal, "failed to remove device file %s: error=%v", device, err)
 		}
 		fallthrough
 	case unix.ENOENT:
 		devno := unix.Mkdev(major, minor)
-		if err := filesystem.Mknod(device, devicePermission, int(devno)); err != nil {
+		if err = filesystem.Mknod(device, devicePermission, int(devno)); err != nil {
 			return status.Errorf(codes.Internal, "mknod failed for %s. major=%d, minor=%d, error=%v",
 				device, major, minor, err)
 		}
@@ -495,7 +494,9 @@ func (s *nodeService) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 			_ = s.dm.VolumeManager.DeleteBcache(backendDevice, "")
 		}
 		// target_path does not exist, but device for mount-type PV may still exist.
-		_ = os.Remove(device)
+		if lvr.Annotations[carina.VolumeManagerType] != carina.RawVolumeType {
+			_ = os.Remove(device)
+		}
 		return &csi.NodeUnpublishVolumeResponse{}, nil
 	} else if err != nil {
 		return nil, status.Errorf(codes.Internal, "stat failed for %s: %v", target, err)
@@ -509,7 +510,7 @@ func (s *nodeService) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 				return unpublishResp, err
 			}
 		} else {
-			unpublishResp, err := s.nodeUnpublishFilesystemVolume(req, device)
+			unpublishResp, err := s.nodeUnpublishFilesystemVolume(req, device, lvr.Annotations[carina.VolumeManagerType])
 			if err != nil {
 				return unpublishResp, err
 			}
@@ -522,23 +523,25 @@ func (s *nodeService) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 	return s.nodeUnpublishBlockVolume(req, device)
 }
 
-func (s *nodeService) nodeUnpublishFilesystemVolume(req *csi.NodeUnpublishVolumeRequest, device string) (*csi.NodeUnpublishVolumeResponse, error) {
+func (s *nodeService) nodeUnpublishFilesystemVolume(req *csi.NodeUnpublishVolumeRequest, device string, deviceType string) (*csi.NodeUnpublishVolumeResponse, error) {
 	target := req.GetTargetPath()
 	mounted, err := filesystem.IsMounted(device, target)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "mount check failed: target=%s, error=%v", target, err)
 	}
 	if mounted {
-		if err := s.mounter.Unmount(target); err != nil {
+		if err = s.mounter.Unmount(target); err != nil {
 			return nil, status.Errorf(codes.Internal, "unmount failed for %s: error=%v", target, err)
 		}
 	}
-	if err := os.RemoveAll(target); err != nil {
+	if err = os.RemoveAll(target); err != nil {
 		return nil, status.Errorf(codes.Internal, "remove dir failed for %s: error=%v", target, err)
 	}
-	err = os.Remove(device)
-	if err != nil && !os.IsNotExist(err) {
-		return nil, status.Errorf(codes.Internal, "remove device failed for %s: error=%v", device, err)
+	if deviceType != carina.RawVolumeType {
+		err = os.Remove(device)
+		if err != nil && !os.IsNotExist(err) {
+			return nil, status.Errorf(codes.Internal, "remove device failed for %s: error=%v", device, err)
+		}
 	}
 	log.Info("NodeUnpublishVolume(fs) is succeeded",
 		" volume_id ", req.GetVolumeId(),
@@ -564,11 +567,11 @@ func (s *nodeService) nodeUnpublishBFileSystemCacheVolume(req *csi.NodeUnpublish
 		return nil, status.Errorf(codes.Internal, "mount check failed: target=%s, error=%v", target, err)
 	}
 	if mounted {
-		if err := s.mounter.Unmount(target); err != nil {
+		if err = s.mounter.Unmount(target); err != nil {
 			return nil, status.Errorf(codes.Internal, "unmount failed for %s: error=%v", target, err)
 		}
 	}
-	if err := os.RemoveAll(target); err != nil {
+	if err = os.RemoveAll(target); err != nil {
 		return nil, status.Errorf(codes.Internal, "remove dir failed for %s: error=%v", target, err)
 	}
 	// delete bcache device
@@ -925,7 +928,7 @@ func (s *nodeService) nodePublishBcacheBlockVolume(req *csi.NodePublishVolumeReq
 		if stat.Rdev == unix.Mkdev(cacheDeviceInfo.KernelMajor, cacheDeviceInfo.KernelMinor) && stat.Mode&devicePermission == devicePermission {
 			return &csi.NodePublishVolumeResponse{}, nil
 		}
-		if err := os.Remove(target); err != nil {
+		if err = os.Remove(target); err != nil {
 			return nil, status.Errorf(codes.Internal, "failed to remove %s", target)
 		}
 	case unix.ENOENT:

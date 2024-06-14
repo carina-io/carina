@@ -52,6 +52,7 @@ type VolumeEvent struct {
 
 type DeviceManager struct {
 	Cache cache.Cache
+	client.Client
 	// Volume 操作
 	VolumeManager volume.LocalVolume
 	//磁盘以及分区操作
@@ -60,12 +61,13 @@ type DeviceManager struct {
 	noticeUpdates []chan *VolumeEvent
 }
 
-func NewDeviceManager(nodeName string, cache cache.Cache) *DeviceManager {
+func NewDeviceManager(nodeName string, cache cache.Cache, client client.Client) *DeviceManager {
 	executor := &exec.CommandExecutor{}
 	mutex := mutx.NewGlobalLocks()
 
 	dm := DeviceManager{
 		Cache:         cache,
+		Client:        client,
 		VolumeManager: &volume.LocalVolumeImplement{Mutex: mutex, Lv: &lvmd.Lvm2Implement{Executor: executor}, Bcache: &bcache.BcacheImplement{Executor: executor}},
 		Partition:     &partition.LocalPartitionImplement{Mutex: mutex, CacheParttionNum: make(map[string]uint), Executor: executor},
 		NodeName:      nodeName,
