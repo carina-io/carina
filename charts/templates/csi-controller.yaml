@@ -61,6 +61,7 @@ spec:
 {{- else }}
           image: "{{ .Values.image.csiResizer.repository }}:{{ .Values.image.csiResizer.tag }}"
 {{- end }}
+          imagePullPolicy: {{ .Values.image.csiResizer.pullPolicy }}
           args:
             - "-csi-address=$(ADDRESS)"
             - "-v={{ .Values.controller.logLevel }}"
