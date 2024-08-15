@@ -55,7 +55,7 @@ subjects:
     namespace: {{ .Release.Namespace }}
 roleRef:
   kind: ClusterRole
-  name: cluster-admin
+  name: {{ .Release.Name }}-cert-secret-role
   apiGroup: rbac.authorization.k8s.io
 
 ---
