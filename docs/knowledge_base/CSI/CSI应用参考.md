@@ -149,9 +149,9 @@ kind: VolumeSnapshot
 metadata:
   name: cephfs-pvc-snapshot
 spec:
-  volmeSnapshotClassName: csi-cephfsplugin-snapclass
+  volumeSnapshotClassName: csi-cephfsplugin-snapclass
   source:
-    persistentVolumeClaimName: csi-cephfs-pvc # 恢复的某些快照
+    persistentVolumeClaimName: csi-cephfs-pvc # 恢复时指定的快照
 ```
 
 ---
