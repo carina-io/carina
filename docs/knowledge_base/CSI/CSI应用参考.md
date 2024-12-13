@@ -132,8 +132,8 @@ spec:
     spec:
       containers:
         - name: web-server
-          img: docker.io/library/nginx:latest
-          command: ["/bin/sleep", "infinity"] # 写入工具
+          image: docker.io/library/nginx:latest
+          command: ["/bin/sleep", "infinity"] # 使用 dd 命令
           volumeMounts:
             - name: mypvc
               moutPath: /var/lib/www/html
