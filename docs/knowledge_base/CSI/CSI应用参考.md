@@ -183,5 +183,15 @@ spec:
 ### 6.1 NFS-CSI
 
 ```text
-- 部署方式：`http://192.168.1.23:8890/Share/products/Kubernetes/CSI/nfs-csi`
+- 部署方式：`https://github.com/kubernetes-csi/csi-driver-nfs`
+```
+
+### 6.2  Ceph-CSI
+```text
+- 部署方式：`https://github.com/ceph/ceph-csi`
+```
+
+### 6.3  carina
+```text
+- 部署方式：`https://github.com/carina-io/carina`
 ```
