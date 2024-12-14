@@ -168,12 +168,12 @@ spec:
   dataSource:
     name: cephfs-pvc-snapshot
     kind: VolumeSnapshot
-    aipGroup: snapshot.storage.k8s.io
+    apiGroup: snapshot.storage.k8s.io
   accessModes:
     - ReadWriteMany
   resources:
     requests:
-      storage: 2Gi
+      storage: 2Gi # 数据恢复到 PVC
 ```
 
 ---
