@@ -111,10 +111,10 @@ kind: PersistentVolumeClaim
 metadata:
   name: rbd-pvc
 spec:
-  storageClasName: csi-rbd-sc
+  storageClassName: csi-rbd-sc
   reqests:
     storage: 1Gi
-  volumeMode: Block # 一种模式
+  volumeMode: Block # 块设备模式
 ```
 
 ---
