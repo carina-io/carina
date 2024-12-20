@@ -78,15 +78,18 @@ spec:
 
 ### 3.1 CSIDriver
 
+- 这个资源是部署CSI驱动时，手动创建进去的
+
 ```yaml
 apiVersion: storage.k8s.io/v1beta1
 kind: CSIDriver
 metadata:
   name: rook-ceph.cephfs.csi.ceph.com
 spec:
+  // 是否有attach必要，nfs这里就是false，便不会创建volumeattachments对象
   attchRequired: true
-  podinfoOnMount: false
-  volumeLifecycleModes: # 一个生命周期设置
+  podInfoOnMount: false
+  volumeLifecycleModes:
   - Persistent
 ```
 
