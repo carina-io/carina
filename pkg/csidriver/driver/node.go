@@ -494,8 +494,10 @@ func (s *nodeService) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 		if backendDevice != "" {
 			_ = s.dm.VolumeManager.DeleteBcache(backendDevice, "")
 		}
-		// target_path does not exist, but device for mount-type PV may still exist.
-		_ = os.Remove(device)
+		// target_path does not exist, but device for mount-type PV may still exist.]
+		if lvr.Annotations[carina.VolumeManagerType] != carina.RawVolumeType {
+			_ = os.Remove(device)
+		}
 		return &csi.NodeUnpublishVolumeResponse{}, nil
 	} else if err != nil {
 		return nil, status.Errorf(codes.Internal, "stat failed for %s: %v", target, err)
@@ -509,7 +511,7 @@ func (s *nodeService) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 				return unpublishResp, err
 			}
 		} else {
-			unpublishResp, err := s.nodeUnpublishFilesystemVolume(req, device)
+			unpublishResp, err := s.nodeUnpublishFilesystemVolume(req, device, lvr.Annotations[carina.VolumeManagerType])
 			if err != nil {
 				return unpublishResp, err
 			}
@@ -522,7 +524,7 @@ func (s *nodeService) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 	return s.nodeUnpublishBlockVolume(req, device)
 }
 
-func (s *nodeService) nodeUnpublishFilesystemVolume(req *csi.NodeUnpublishVolumeRequest, device string) (*csi.NodeUnpublishVolumeResponse, error) {
+func (s *nodeService) nodeUnpublishFilesystemVolume(req *csi.NodeUnpublishVolumeRequest, device string, deviceType string) (*csi.NodeUnpublishVolumeResponse, error) {
 	target := req.GetTargetPath()
 	mounted, err := filesystem.IsMounted(device, target)
 	if err != nil {
@@ -536,9 +538,11 @@ func (s *nodeService) nodeUnpublishFilesystemVolume(req *csi.NodeUnpublishVolume
 	if err := os.RemoveAll(target); err != nil {
 		return nil, status.Errorf(codes.Internal, "remove dir failed for %s: error=%v", target, err)
 	}
-	err = os.Remove(device)
-	if err != nil && !os.IsNotExist(err) {
-		return nil, status.Errorf(codes.Internal, "remove device failed for %s: error=%v", device, err)
+	if deviceType != carina.RawVolumeType {
+		err = os.Remove(device)
+		if err != nil && !os.IsNotExist(err) {
+			return nil, status.Errorf(codes.Internal, "remove device failed for %s: error=%v", device, err)
+		}
 	}
 	log.Info("NodeUnpublishVolume(fs) is succeeded",
 		" volume_id ", req.GetVolumeId(),
