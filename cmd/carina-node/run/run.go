@@ -19,9 +19,7 @@ package run
 import (
 	"context"
 	"errors"
-	"os"
-	"time"
-
+	"github.com/carina-io/carina"
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"google.golang.org/grpc"
 	corev1 "k8s.io/api/core/v1"
@@ -31,11 +29,13 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
+	"os"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	"sigs.k8s.io/controller-runtime/pkg/metrics"
+	"time"
 
 	carinav1 "github.com/carina-io/carina/api/v1"
 	carinav1beta1 "github.com/carina-io/carina/api/v1beta1"
@@ -94,7 +94,7 @@ func subMain() error {
 	}
 
 	// 初始化磁盘管理服务
-	dm := deviceManager.NewDeviceManager(nodeName, mgr.GetCache())
+	dm := deviceManager.NewDeviceManager(nodeName, mgr.GetCache(), mgr.GetClient())
 
 	// pod io controller
 	podIOController := controllers.NewPodIOReconciler(

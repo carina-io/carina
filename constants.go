@@ -32,7 +32,7 @@ const (
 	// ResizeRequestedAtKey is the key of LogicalVolume that represents the timestamp of the resize request.
 	ResizeRequestedAtKey = "carina.storage.io/resize-requested-at"
 
-	//  ExclusivityDisk  true or false  is the key indicates that only the disk is used by one pod
+	// ExclusivityDisk  true or false  is the key indicates that only the disk is used by one pod
 	ExclusivityDisk = "carina.storage.io/exclusively-raw-disk"
 
 	VolumeManagerType = "carina.io/volume-manage-type"
