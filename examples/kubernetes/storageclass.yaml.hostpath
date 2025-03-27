@@ -1,0 +1,14 @@
+---
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: carina-hostpath
+provisioner: carina.storage.io
+parameters:
+  # disk group
+  carina.storage.io/disk-group-name: carina-host
+reclaimPolicy: Delete
+allowVolumeExpansion: true
+# 创建pvc后立即创建pv,WaitForFirstConsumer表示被容器绑定调度后再创建pv
+volumeBindingMode: WaitForFirstConsumer
+mountOptions:

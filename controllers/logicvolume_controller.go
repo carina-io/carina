@@ -121,6 +121,10 @@ func (r *LogicVolumeReconciler) removeLVIfExists(ctx context.Context, lv *carina
 		err = utils.UntilMaxRetry(func() error {
 			return r.dm.Partition.DeletePartition(utils.PartitionName(lv.Name), lv.Spec.DeviceGroup)
 		}, 3, 1*time.Second)
+	case carina.HostVolumeType:
+		err = utils.UntilMaxRetry(func() error {
+			return r.dm.Host.DeleteVolume(lv.Name, lv.Spec.DeviceGroup)
+		}, 3, 1*time.Second)
 	default:
 		log.Errorf("Delete LogicVolume: Create with no support volume type undefined %s", lv.Annotations[carina.VolumeManagerType])
 		return nil
@@ -222,6 +226,30 @@ func (r *LogicVolumeReconciler) createLV(ctx context.Context, lv *carinav1.Logic
 			r.recorder.Event(lv, corev1.EventTypeNormal, "CreateVolumeSuccess", fmt.Sprintf("create volume success node: %s, time: %s", r.dm.NodeName, time.Now().Format("2006-01-02T15:04:05.000Z")))
 		}
 
+	case carina.HostVolumeType:
+		err := utils.UntilMaxRetry(func() error {
+			return r.dm.Host.CreateVolume(lv.Name, lv.Spec.DeviceGroup)
+		}, 3, 1*time.Second)
+
+		if err != nil {
+			lv.Status.Code = codes.Internal
+			if err.Error() == carina.ResourceExhausted {
+				lv.Status.Code = codes.ResourceExhausted
+			}
+			lv.Status.Message = err.Error()
+			lv.Status.Status = "Failed"
+			r.recorder.Event(lv, corev1.EventTypeWarning, "CreateHostVolumeFailed", fmt.Sprintf("create volume failed node: %s, time: %s, error: %s", r.dm.NodeName, time.Now().Format("2006-01-02T15:04:05.000Z"), err.Error()))
+		} else {
+			lv.Status.VolumeID = carina.HostPrefix + lv.Name
+			lv.Status.CurrentSize = resource.NewQuantity(reqBytes, resource.BinarySI)
+			lv.Status.Code = codes.OK
+			lv.Status.Message = ""
+			lv.Status.Status = "Success"
+			lv.Status.DeviceMajor = 0
+			lv.Status.DeviceMinor = 0
+			r.recorder.Event(lv, corev1.EventTypeNormal, "CreateHostVolumeSuccess", fmt.Sprintf("create volume success node: %s, time: %s", r.dm.NodeName, time.Now().Format("2006-01-02T15:04:05.000Z")))
+		}
+
 	default:
 		log.Errorf("Create LogicVolume: Create with no support volume type undefined %s", lv.Annotations[carina.VolumeManagerType])
 		return nil
@@ -299,6 +327,25 @@ func (r *LogicVolumeReconciler) expandLV(ctx context.Context, lv *carinav1.Logic
 			lv.Status.Message = ""
 			lv.Status.Status = "Success"
 			r.recorder.Event(lv, corev1.EventTypeNormal, "ExpandVolumeSuccess", fmt.Sprintf("expand volume success node: %s, time: %s", r.dm.NodeName, time.Now().Format("2006-01-02T15:04:05.000Z")))
+		}
+
+	case carina.HostVolumeType:
+		err := utils.UntilMaxRetry(func() error {
+			return r.dm.Host.ResizeVolume(lv.Name, lv.Spec.DeviceGroup)
+		}, 3, 1*time.Second)
+		if err != nil {
+			if err.Error() == carina.ResourceExhausted {
+				lv.Status.Code = codes.ResourceExhausted
+			}
+			lv.Status.Message = err.Error()
+			lv.Status.Status = "Failed"
+			r.recorder.Event(lv, corev1.EventTypeWarning, "ExpandHostVolumeFailed", fmt.Sprintf("expand volume failed node: %s, time: %s, error: %s", r.dm.NodeName, time.Now().Format("2006-01-02T15:04:05.000Z"), err.Error()))
+		} else {
+			lv.Status.CurrentSize = resource.NewQuantity(reqBytes, resource.BinarySI)
+			lv.Status.Code = codes.OK
+			lv.Status.Message = ""
+			lv.Status.Status = "Success"
+			r.recorder.Event(lv, corev1.EventTypeNormal, "ExpandHostVolumeSuccess", fmt.Sprintf("expand volume success node: %s, time: %s", r.dm.NodeName, time.Now().Format("2006-01-02T15:04:05.000Z")))
 		}
 
 	default:

@@ -125,6 +125,12 @@ func (s controllerService) CreateVolume(ctx context.Context, req *csi.CreateVolu
 
 	// default LvmVolumeType
 	volumeType := carina.LvmVolumeType
+	if util.CheckHostDeviceGroup(deviceGroup) {
+		volumeType = carina.HostVolumeType
+		if len(deviceGroup) > 0 && len(nodeName) == 0 {
+			return nil, status.Errorf(codes.FailedPrecondition, "can not support host not select node")
+		}
+	}
 	if util.CheckRawDeviceGroup(deviceGroup) {
 		volumeType = carina.RawVolumeType
 	}
@@ -141,7 +147,7 @@ func (s controllerService) CreateVolume(ctx context.Context, req *csi.CreateVolu
 	}
 
 	// sc parameter未设置device group, raw disk's deviceGroup need handle
-	if nodeName != "" {
+	if nodeName != "" && volumeType != carina.HostVolumeType {
 		deviceGroup, err = s.nodeService.SelectDeviceGroup(ctx, requestGb, exclusivityDisk, nodeName, volumeType, deviceGroup)
 		if err != nil {
 			return nil, status.Errorf(codes.Internal, "failed to get device group %v", err)

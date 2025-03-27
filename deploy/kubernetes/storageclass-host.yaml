@@ -2,14 +2,12 @@
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
-  name: csi-carina-raw
+  name: carina-hostpath
 provisioner: carina.storage.io
 parameters:
-  # file system
-  csi.storage.k8s.io/fstype: ext4
   # disk group
-  carina.storage.io/disk-group-name: "carina-raw"
-reclaimPolicy: Retain
+  carina.storage.io/disk-group-name: "carina-host"
+reclaimPolicy: Delete
 allowVolumeExpansion: true
 # WaitForFirstConsumer表示被容器绑定调度后再创建pv
 volumeBindingMode: WaitForFirstConsumer

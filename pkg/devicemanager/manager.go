@@ -18,6 +18,7 @@ package deviceManager
 
 import (
 	"context"
+	"github.com/carina-io/carina/pkg/devicemanager/hostpath"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
@@ -57,6 +58,7 @@ type DeviceManager struct {
 	VolumeManager volume.LocalVolume
 	//磁盘以及分区操作
 	Partition     partition.LocalPartition
+	Host          hostpath.HostPath
 	NodeName      string
 	noticeUpdates []chan *VolumeEvent
 }
@@ -70,6 +72,7 @@ func NewDeviceManager(nodeName string, cache cache.Cache, client client.Client) 
 		Client:        client,
 		VolumeManager: &volume.LocalVolumeImplement{Mutex: mutex, Lv: &lvmd.Lvm2Implement{Executor: executor}, Bcache: &bcache.BcacheImplement{Executor: executor}},
 		Partition:     &partition.LocalPartitionImplement{Mutex: mutex, CacheParttionNum: make(map[string]uint), Executor: executor},
+		Host:          &hostpath.LocalHostImplement{Mutex: mutex},
 		NodeName:      nodeName,
 		noticeUpdates: []chan *VolumeEvent{},
 	}

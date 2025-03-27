@@ -160,6 +160,11 @@ func (s *nodeService) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 			return nil, err
 		}
 
+	case carina.HostVolumeType:
+		_, err = s.nodePublishHostFilesystemVolume(req, lvr.Spec.DeviceGroup)
+		if err != nil {
+			return nil, err
+		}
 	default:
 		log.Errorf("Create LogicVolume: Create with no support volume type undefined")
 		return nil, status.Errorf(codes.InvalidArgument, "Create with no support type ")
@@ -410,6 +415,61 @@ func (s *nodeService) nodePublishRawFilesystemVolume(req *csi.NodePublishVolumeR
 	return &csi.NodePublishVolumeResponse{}, nil
 }
 
+func (s *nodeService) nodePublishHostFilesystemVolume(req *csi.NodePublishVolumeRequest, deviceGroup string) (*csi.NodePublishVolumeResponse, error) {
+	// Check request
+	log.Info("NodePublishVolume device: HostFilesystem")
+	accessMode := req.GetVolumeCapability().GetAccessMode().GetMode()
+	if accessMode != csi.VolumeCapability_AccessMode_SINGLE_NODE_WRITER {
+		modeName := csi.VolumeCapability_AccessMode_Mode_name[int32(accessMode)]
+		return nil, status.Errorf(codes.FailedPrecondition, "unsupported access mode: %s", modeName)
+	}
+
+	workDir := carina.DefaultHostPath
+	currentDiskSelector := configuration.DiskSelector()
+	for _, v := range currentDiskSelector {
+		if v.Name == deviceGroup && strings.ToLower(v.Policy) == carina.HostVolumeType {
+			if v.Re != nil && len(v.Re) > 0 {
+				if !filepath.IsAbs(v.Re[0]) {
+					return nil, status.Errorf(codes.Internal, "path must be absolute: %s", v.Re[0])
+				}
+				workDir = v.Re[0]
+				break
+			}
+		}
+	}
+	device := filepath.Join(workDir, req.GetVolumeId())
+
+	if !utils.DirExists(device) {
+		if err := os.MkdirAll(device, 0755); err != nil {
+			return nil, status.Errorf(codes.Internal, "mkdir failed: target=%s, error=%v", device, err)
+		}
+	}
+
+	err := os.MkdirAll(req.GetTargetPath(), 0755)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "mkdir failed: target=%s, error=%v", req.GetTargetPath(), err)
+	}
+
+	mounted, err := filesystem.CheckBindMountByInode(device, req.GetTargetPath())
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "mount check failed: target=%s, error=%v", req.GetTargetPath(), err)
+	}
+
+	if !mounted {
+		log.Infof("mount --bind %s %s", device, req.GetTargetPath())
+		if err = filesystem.BindMount(device, req.GetTargetPath()); err != nil {
+			return nil, status.Errorf(codes.Internal, "mount failed: volume=%s, error=%v", req.GetVolumeId(), err)
+		}
+	}
+
+	log.Info("NodePublishVolume(fs) succeeded",
+		" volume_id ", req.GetVolumeId(),
+		" target_path ", req.GetTargetPath(),
+	)
+
+	return &csi.NodePublishVolumeResponse{}, nil
+}
+
 func (s *nodeService) createDeviceIfNeeded(device string, major, minor uint32) error {
 	var stat unix.Stat_t
 	err := filesystem.Stat(device, &stat)
@@ -475,7 +535,12 @@ func (s *nodeService) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 			return nil, err
 		}
 		device = linux.GetPartitionKname(disk.Path, partition.Number)
-
+	case carina.HostVolumeType:
+		resp, err := s.nodeUnpublishHostVolume(req, lvr.Spec.DeviceGroup)
+		if err != nil {
+			return nil, err
+		}
+		return resp, nil
 	default:
 		log.Errorf("Create LogicVolume: Create with no support volume type undefined")
 		return nil, status.Errorf(codes.InvalidArgument, "Create with no support type ")
@@ -597,6 +662,50 @@ func (s *nodeService) nodeUnpublishBlockCacheVolume(req *csi.NodeUnpublishVolume
 	log.Info("NodeUnpublishVolume(block) is succeeded",
 		" volume_id ", req.GetVolumeId(),
 		" target_path ", req.GetTargetPath())
+	return &csi.NodeUnpublishVolumeResponse{}, nil
+}
+
+func (s *nodeService) nodeUnpublishHostVolume(req *csi.NodeUnpublishVolumeRequest, deviceGroup string) (*csi.NodeUnpublishVolumeResponse, error) {
+	target := req.GetTargetPath()
+	workDir := carina.DefaultHostPath
+	currentDiskSelector := configuration.DiskSelector()
+	for _, v := range currentDiskSelector {
+		if v.Name == deviceGroup && strings.ToLower(v.Policy) == carina.HostVolumeType {
+			if v.Re != nil && len(v.Re) > 0 {
+				if !filepath.IsAbs(v.Re[0]) {
+					return nil, status.Errorf(codes.Internal, "path must be absolute: %s", v.Re[0])
+				}
+				workDir = v.Re[0]
+				break
+			}
+		}
+	}
+	device := filepath.Join(workDir, req.GetVolumeId())
+
+	mounted, err := filesystem.CheckBindMountByInode(device, target)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "mount check failed: target=%s, error=%v", target, err)
+	}
+	if mounted {
+		if err = filesystem.UnbindMount(target); err != nil {
+			return nil, status.Errorf(codes.Internal, "unmount failed for %s: error=%v", target, err)
+		}
+	}
+	if utils.DirExists(target) {
+		if err = os.RemoveAll(target); err != nil {
+			return nil, status.Errorf(codes.Internal, "remove dir failed for %s: error=%v", target, err)
+		}
+	}
+	if utils.DirExists(device) {
+		err = os.RemoveAll(device)
+		if err != nil && !os.IsNotExist(err) {
+			return nil, status.Errorf(codes.Internal, "remove device failed for %s: error=%v", device, err)
+		}
+	}
+
+	log.Info("NodeUnpublishhostVolume(fs) is succeeded",
+		" volume_id ", req.GetVolumeId(),
+		" target_path ", target)
 	return &csi.NodeUnpublishVolumeResponse{}, nil
 }
 

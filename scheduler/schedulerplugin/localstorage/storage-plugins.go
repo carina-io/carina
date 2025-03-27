@@ -258,6 +258,11 @@ func (ls *LocalStorage) getPvcRequestMap(pod *v1.Pod) (map[string][]*pvcRequest,
 
 		deviceGroup := sc.Parameters[carina.DeviceDiskKey]
 
+		if configuration.CheckHostDeviceGroup(deviceGroup) {
+			// 本地目录类型不参与容量调度
+			continue
+		}
+
 		if configuration.CheckRawDeviceGroup(deviceGroup) {
 			useRaw = true
 		}

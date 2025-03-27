@@ -2,18 +2,19 @@ package util
 
 import (
 	"fmt"
+	"github.com/carina-io/carina"
 	"github.com/carina-io/carina/pkg/configuration"
 	"github.com/carina-io/carina/utils"
 	"strings"
 )
 
-// 处理磁盘类型参数，支持carina.storage.io/disk-group-name:ssd书写方式
+// GetDeviceGroup 处理磁盘类型参数，支持carina.storage.io/disk-group-name:ssd书写方式
 func GetDeviceGroup(diskType string) string {
 	deviceGroup := strings.ToLower(diskType)
 	currentDiskSelector := configuration.DiskSelector()
 	var diskClass = []string{}
 	for _, v := range currentDiskSelector {
-		if strings.ToLower(v.Policy) == "raw" {
+		if strings.ToLower(v.Policy) == carina.RawVolumeType {
 			continue
 		}
 		diskClass = append(diskClass, strings.ToLower(v.Name))
@@ -39,10 +40,20 @@ func CheckRawDeviceGroup(diskType string) bool {
 	}
 
 	for _, v := range currentDiskSelector {
-		if v.Name == deviceGroup && strings.ToLower(v.Policy) == "raw" {
+		if v.Name == deviceGroup && strings.ToLower(v.Policy) == carina.RawVolumeType {
 			return true
 		}
+	}
+	return false
+}
 
+func CheckHostDeviceGroup(diskType string) bool {
+	deviceGroup := strings.ToLower(diskType)
+	currentDiskSelector := configuration.DiskSelector()
+	for _, v := range currentDiskSelector {
+		if v.Name == deviceGroup && strings.ToLower(v.Policy) == carina.HostVolumeType {
+			return true
+		}
 	}
 	return false
 }
