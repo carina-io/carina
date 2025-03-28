@@ -1,5 +1,5 @@
 # Build the manager binary
-FROM golang:1.19.0-buster AS builder
+FROM registry.cn-hangzhou.aliyuncs.com/carina/golang:1.19.13 AS builder
 
 ENV GO111MODULE=on CGO_ENABLED=0 GOOS=linux GOPROXY=https://goproxy.cn,direct
 ENV WORKSPACE=/workspace/github.com/carina-io/carina

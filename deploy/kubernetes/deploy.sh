@@ -18,7 +18,7 @@ function install() {
   kubectl apply -f carina-scheduler.yaml
   kubectl apply -f storageclass-lvm.yaml
   kubectl apply -f storageclass-raw.yaml
-  kubectl apply -f storageclass-hostpath.yaml
+  kubectl apply -f storageclass-host.yaml
   sleep 3s
   kubectl apply -f prometheus-service-monitor.yaml
   echo "-------------------------------"
@@ -51,7 +51,7 @@ function uninstall() {
   kubectl delete -f crd-nodestoreresource.yaml
   kubectl delete -f storageclass-lvm.yaml
   kubectl delete -f storageclass-raw.yaml
-  kubectl delete -f storageclass-hostpath.yaml
+  kubectl delete -f storageclass-host.yaml
   kubectl delete -f prometheus-service-monitor.yaml
 }
 

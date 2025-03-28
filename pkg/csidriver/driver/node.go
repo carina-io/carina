@@ -440,14 +440,20 @@ func (s *nodeService) nodePublishHostFilesystemVolume(req *csi.NodePublishVolume
 	device := filepath.Join(workDir, req.GetVolumeId())
 
 	if !utils.DirExists(device) {
-		if err := os.MkdirAll(device, 0755); err != nil {
+		if err := os.MkdirAll(device, 0777); err != nil {
 			return nil, status.Errorf(codes.Internal, "mkdir failed: target=%s, error=%v", device, err)
+		}
+		if err := os.Chmod(device, 0777); err != nil {
+			return nil, status.Errorf(codes.Internal, "chmod failed: target=%s, error=%v", device, err)
 		}
 	}
 
-	err := os.MkdirAll(req.GetTargetPath(), 0755)
+	err := os.MkdirAll(req.GetTargetPath(), 0777)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "mkdir failed: target=%s, error=%v", req.GetTargetPath(), err)
+	}
+	if err = os.Chmod(req.GetTargetPath(), 0777); err != nil {
+		return nil, status.Errorf(codes.Internal, "chmod failed: target=%s, error=%v", req.GetTargetPath(), err)
 	}
 
 	mounted, err := filesystem.CheckBindMountByInode(device, req.GetTargetPath())
@@ -696,12 +702,6 @@ func (s *nodeService) nodeUnpublishHostVolume(req *csi.NodeUnpublishVolumeReques
 			return nil, status.Errorf(codes.Internal, "remove dir failed for %s: error=%v", target, err)
 		}
 	}
-	if utils.DirExists(device) {
-		err = os.RemoveAll(device)
-		if err != nil && !os.IsNotExist(err) {
-			return nil, status.Errorf(codes.Internal, "remove device failed for %s: error=%v", device, err)
-		}
-	}
 
 	log.Info("NodeUnpublishhostVolume(fs) is succeeded",
 		" volume_id ", req.GetVolumeId(),
@@ -849,41 +849,8 @@ func (s *nodeService) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandV
 			return nil, err
 		}
 		device = linux.GetPartitionKname(disk.Path, partition.Number)
-		// mounted, err := filesystem.IsMounted(device, vpath)
-		// if err != nil {
-		// 	return nil, status.Errorf(codes.Internal, "mount check failed: target=%s, error=%v", vpath, err)
-		// }
-		// if mounted {
-		// 	log.Infof("umount %s %s", device, vpath)
-		// 	if err := s.mounter.Unmount(vpath); err != nil {
-		// 		return nil, status.Errorf(codes.Internal, "mount failed: volume=%s, error=%v", req.GetVolumeId(), err)
-		// 	}
-
-		// }
-		// var mountOptions []string
-		// //mountOptions = append(mountOptions, "rw")
-		// fsType, err := filesystem.DetectFilesystem(vpath)
-		// if err != nil {
-		// 	return nil, status.Errorf(codes.Internal, "filesystem check failed: volume=%s, error=%v", req.GetVolumeId(), err)
-		// }
-
-		// if fsType == "" {
-		// 	fsType = "ext4"
-		// }
-		// r := filesystem.NewResizeFs(&s.mounter)
-		// if _, err := r.Resize(device, vpath); err != nil {
-		// 	return nil, status.Errorf(codes.Internal, "failed to resize filesystem %s (mounted at: %s): %v", vid, vpath, err)
-		// }
-		// if err := s.mounter.FormatAndMount(device, vpath, fsType, mountOptions); err != nil {
-		// 	return nil, status.Errorf(codes.Internal, "mount failed: volume=%s, error=%v", req.GetVolumeId(), err)
-		// }
-		// log.Info("NodeExpandVolume(fs) is succeeded",
-		// 	" volume_id ", vid,
-		// 	" target_path ", vpath,
-		// )
-
-		//return &csi.NodeExpandVolumeResponse{}, nil
-
+	case carina.HostVolumeType:
+		return &csi.NodeExpandVolumeResponse{}, nil
 	default:
 		log.Errorf("Create LogicVolume: Create with no support volume type undefined")
 		return nil, status.Errorf(codes.InvalidArgument, "Create with no support type ")

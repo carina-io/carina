@@ -52,7 +52,10 @@ func (v *LocalHostImplement) CreateVolume(name, deviceGroup string) error {
 	device := filepath.Join(workDir, name)
 
 	if !utils.DirExists(device) {
-		if err := os.MkdirAll(device, 0755); err != nil {
+		if err := os.MkdirAll(device, 0777); err != nil {
+			return err
+		}
+		if err := os.Chmod(device, 0777); err != nil {
 			return err
 		}
 	}

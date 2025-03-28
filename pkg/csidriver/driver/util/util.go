@@ -57,3 +57,17 @@ func CheckHostDeviceGroup(diskType string) bool {
 	}
 	return false
 }
+
+func GetHostDevicePath(diskType string) string {
+	deviceGroup := strings.ToLower(diskType)
+	currentDiskSelector := configuration.DiskSelector()
+	for _, v := range currentDiskSelector {
+		if v.Name == deviceGroup && strings.ToLower(v.Policy) == carina.HostVolumeType {
+			if len(v.Re) > 0 {
+				return v.Re[0]
+			}
+			return carina.DefaultHostPath
+		}
+	}
+	return carina.DefaultHostPath
+}

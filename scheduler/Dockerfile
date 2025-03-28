@@ -1,4 +1,4 @@
-FROM golang:1.19.0-buster AS builder
+FROM registry.cn-hangzhou.aliyuncs.com/carina/golang:1.19.13 AS builder
 
 ENV GO111MODULE=on CGO_ENABLED=0 GOOS=linux GOPROXY=https://goproxy.cn,direct
 ENV WORKSPACE=/workspace/github.com/carina-io/carina/scheduler
@@ -9,7 +9,7 @@ ADD . .
 
 RUN cd $WORKSPACE/cmd && go build -gcflags '-N -l' -o /tmp/carina-scheduler .
 
-FROM alpine:3.16
+FROM registry.cn-hangzhou.aliyuncs.com/carina/alpine:3.16
 ENV WORKSPACE=/workspace/github.com/carina-io/carina/scheduler
 
 COPY --from=builder $WORKSPACE/debug/scheduler-config.yaml /etc/kubernetes
