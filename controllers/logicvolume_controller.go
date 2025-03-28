@@ -330,23 +330,8 @@ func (r *LogicVolumeReconciler) expandLV(ctx context.Context, lv *carinav1.Logic
 		}
 
 	case carina.HostVolumeType:
-		err := utils.UntilMaxRetry(func() error {
-			return r.dm.Host.ResizeVolume(lv.Name, lv.Spec.DeviceGroup)
-		}, 3, 1*time.Second)
-		if err != nil {
-			if err.Error() == carina.ResourceExhausted {
-				lv.Status.Code = codes.ResourceExhausted
-			}
-			lv.Status.Message = err.Error()
-			lv.Status.Status = "Failed"
-			r.recorder.Event(lv, corev1.EventTypeWarning, "ExpandHostVolumeFailed", fmt.Sprintf("expand volume failed node: %s, time: %s, error: %s", r.dm.NodeName, time.Now().Format("2006-01-02T15:04:05.000Z"), err.Error()))
-		} else {
-			lv.Status.CurrentSize = resource.NewQuantity(reqBytes, resource.BinarySI)
-			lv.Status.Code = codes.OK
-			lv.Status.Message = ""
-			lv.Status.Status = "Success"
-			r.recorder.Event(lv, corev1.EventTypeNormal, "ExpandHostVolumeSuccess", fmt.Sprintf("expand volume success node: %s, time: %s", r.dm.NodeName, time.Now().Format("2006-01-02T15:04:05.000Z")))
-		}
+		// _ = r.dm.Host.ResizeVolume(lv.Name, lv.Spec.DeviceGroup)
+		return nil
 
 	default:
 		log.Errorf("Create LogicVolume: %s with no support volume type undefined %s", lv.Name, lv.Annotations[carina.VolumeManagerType])
