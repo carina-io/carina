@@ -152,3 +152,14 @@ func CheckRawDeviceGroup(diskType string) bool {
 	}
 	return false
 }
+
+func CheckHostDeviceGroup(diskType string) bool {
+	deviceGroup := strings.ToLower(diskType)
+	currentDiskSelector := diskConfig.DiskSelectors
+	for _, v := range currentDiskSelector {
+		if v.Name == deviceGroup && strings.ToLower(v.Policy) == "host" {
+			return true
+		}
+	}
+	return false
+}

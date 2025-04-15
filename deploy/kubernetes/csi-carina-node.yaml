@@ -121,6 +121,8 @@ spec:
               mountPath: /host/proc
             - name: host-udev
               mountPath: /run/udev/data
+            - name: host-opt
+              mountPath: /opt/carina-hostpath
             - name: config
               mountPath: /etc/carina/
             - name: log-dir
@@ -182,6 +184,10 @@ spec:
         - name: host-udev
           hostPath:
             path: /run/udev/data
+        - name: host-opt
+          hostPath:
+            path: /opt/carina-hostpath
+            type: DirectoryOrCreate
         - name: config
           configMap:
             name: carina-csi-config

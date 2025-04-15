@@ -1,17 +1,17 @@
 /*
-   Copyright @ 2021 bocloud <fushaosong@beyondcent.com>.
+Copyright @ 2021 bocloud <fushaosong@beyondcent.com>.
 
-   Licensed under the Apache License, Version 2.0 (the "License");
-   you may not use this file except in compliance with the License.
-   You may obtain a copy of the License at
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
 
-       http://www.apache.org/licenses/LICENSE-2.0
+	http://www.apache.org/licenses/LICENSE-2.0
 
-   Unless required by applicable law or agreed to in writing, software
-   distributed under the License is distributed on an "AS IS" BASIS,
-   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-   See the License for the specific language governing permissions and
-   limitations under the License.
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
 */
 package hook
 
@@ -20,6 +20,7 @@ import (
 	"encoding/json"
 	"github.com/carina-io/carina"
 	"github.com/carina-io/carina/getter"
+	"github.com/carina-io/carina/pkg/csidriver/driver/util"
 	"net/http"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 
@@ -68,6 +69,12 @@ func (m podMutator) Handle(ctx context.Context, req admission.Request) admission
 	if pod.Namespace == "" {
 		log.Info("infer pod namespace from req namespace ", req.Namespace)
 		pod.Namespace = req.Namespace
+	}
+
+	if pod.Annotations != nil {
+		if _, ok := pod.Annotations[carina.DeviceCapacityKeyPrefix+"custom-scheduler-plugin"]; ok {
+			return admission.Allowed("custom-scheduler-plugin")
+		}
 	}
 
 	schedule, cSC, err := m.carinaSchedulePod(ctx, pod)
@@ -138,6 +145,13 @@ func (m podMutator) carinaSchedulePod(ctx context.Context, pod *corev1.Pod) (boo
 		if sc.Provisioner != carina.CSIPluginName {
 			continue
 		}
+		if sc.Parameters != nil {
+			deviceGroup := sc.Parameters[carina.DeviceDiskKey]
+			if util.CheckHostDeviceGroup(deviceGroup) {
+				continue
+			}
+		}
+
 		cSC = append(cSC, sc)
 	}
 	if len(cSC) > 0 {

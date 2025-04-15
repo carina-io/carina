@@ -21,6 +21,12 @@ data:
           "re": ["loop3+"],
           "policy": "RAW",
           "nodeLabel": "kubernetes.io/hostname"
+        },
+        {
+          "name": "carina-host",
+          "re": ["/opt/carina-hostpath"],
+          "policy": "HOST",
+          "nodeLabel": "kubernetes.io/hostname"
         }
       ],
       "diskScanInterval": "300",

@@ -3,7 +3,6 @@ apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
   name: csi-carina-sc
-  namespace: kube-system
 provisioner: carina.storage.io
 parameters:
   # file system

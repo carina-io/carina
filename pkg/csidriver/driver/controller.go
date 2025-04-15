@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"github.com/carina-io/carina"
 	"github.com/carina-io/carina/pkg/csidriver/driver/util"
+	"k8s.io/apimachinery/pkg/api/resource"
 	"strconv"
 	"strings"
 	"time"
@@ -125,6 +126,14 @@ func (s controllerService) CreateVolume(ctx context.Context, req *csi.CreateVolu
 
 	// default LvmVolumeType
 	volumeType := carina.LvmVolumeType
+	devicePath := fmt.Sprintf("/dev/%s/volume-%s", deviceGroup, pvName)
+	if util.CheckHostDeviceGroup(deviceGroup) {
+		devicePath = fmt.Sprintf("%s/host-%s", util.GetHostDevicePath(deviceGroup), pvName)
+		volumeType = carina.HostVolumeType
+		if len(deviceGroup) > 0 && len(nodeName) == 0 {
+			return nil, status.Errorf(codes.FailedPrecondition, "can not support host not select node")
+		}
+	}
 	if util.CheckRawDeviceGroup(deviceGroup) {
 		volumeType = carina.RawVolumeType
 	}
@@ -141,7 +150,7 @@ func (s controllerService) CreateVolume(ctx context.Context, req *csi.CreateVolu
 	}
 
 	// sc parameter未设置device group, raw disk's deviceGroup need handle
-	if nodeName != "" {
+	if nodeName != "" && volumeType != carina.HostVolumeType {
 		deviceGroup, err = s.nodeService.SelectDeviceGroup(ctx, requestGb, exclusivityDisk, nodeName, volumeType, deviceGroup)
 		if err != nil {
 			return nil, status.Errorf(codes.Internal, "failed to get device group %v", err)
@@ -192,7 +201,7 @@ func (s controllerService) CreateVolume(ctx context.Context, req *csi.CreateVolu
 
 	//Append necessary parameters
 	volumeContext[carina.DeviceDiskKey] = deviceGroup
-	volumeContext[carina.VolumeDevicePath] = fmt.Sprintf("/dev/%s/volume-%s", deviceGroup, pvName)
+	volumeContext[carina.VolumeDevicePath] = devicePath
 	volumeContext[carina.VolumeDeviceNode] = nodeName
 	volumeContext[carina.VolumeDeviceMajor] = fmt.Sprintf("%d", deviceMajor)
 	volumeContext[carina.VolumeDeviceMinor] = fmt.Sprintf("%d", deviceMinor)
@@ -372,6 +381,23 @@ func (s controllerService) ControllerExpandVolume(ctx context.Context, req *csi.
 			NodeExpansionRequired: true,
 		}, nil
 	}
+
+	if util.CheckHostDeviceGroup(lv.Spec.DeviceGroup) {
+		// 本地目录的扩容直接controller返回
+		err = s.lvService.UpdateLogicVolumeSpecSize(ctx, volumeID, resource.NewQuantity(requestGb<<30, resource.BinarySI))
+		if err != nil {
+			return nil, status.Error(codes.Internal, err.Error())
+		}
+		err = s.lvService.UpdateLogicVolumeCurrentSize(ctx, volumeID, resource.NewQuantity(requestGb<<30, resource.BinarySI))
+		if err != nil {
+			return nil, status.Error(codes.Internal, err.Error())
+		}
+		return &csi.ControllerExpandVolumeResponse{
+			CapacityBytes:         currentGb << 30,
+			NodeExpansionRequired: true,
+		}, nil
+	}
+
 	capacity, err := s.nodeService.GetCapacityByNodeName(ctx, lv.Spec.NodeName, lv.Spec.DeviceGroup)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())

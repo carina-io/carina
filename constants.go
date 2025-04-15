@@ -82,8 +82,9 @@ const (
 	CarinaSchedule = "carina-scheduler"
 
 	// DeviceVolumeType type
-	LvmVolumeType = "lvm"
-	RawVolumeType = "raw"
+	LvmVolumeType  = "lvm"
+	RawVolumeType  = "raw"
+	HostVolumeType = "host"
 
 	AllowPodMigrationIfNodeNotready = "carina.storage.io/allow-pod-migration-if-node-notready"
 
@@ -95,6 +96,9 @@ const (
 
 	ThinPrefix   = "thin-"
 	VolumePrefix = "volume-"
+	HostPrefix   = "host-"
+
+	DefaultHostPath = "/opt/carina-hostpath"
 
 	ResourceExhausted = "don't have enough space"
 )
