@@ -20,7 +20,7 @@ Carina is a standard kubernetes CSI plugin. Users can use standard kubernetes st
 * Using local disks and group them as needed, user can provison different type of disks using different storage class.
 * Scaning physical disks and building a RAID as required. If disk fails, just plugin a new one and it's done.
 * Node capacity and performance aware, so scheduling pods more smartly.
-* Extremly low overhead. Carina sit besides the core data path and provide raw disk performance to applications.
+* Extremely low overhead. Carina sit besides the core data path and provide raw disk performance to applications.
 * Auto tiering. Admins can configure carina to combine the large-capacity-but-low-performant disk and small-capacity-but-high-performant disks as one storageclass, so user can benifit both from capacity and performance.
 * If nodes fails, carina will automatically detach the local volume from pods thus pods can be rescheduled.
 * Middleware runs on baremetals for decades. There are many valueable optimizations and enhancements which are definitely not outdated  even in cloudnative era. Let carina be an DBA expert of the storage domain for cloudnative databases!
@@ -126,7 +126,7 @@ helm install carina-csi-driver carina-csi-driver/carina-csi-driver --namespace k
 
 |            | NFS/NAS | SAN | Ceph | Carina |
 | ---------- | --------| ----| -----| -------|
-| typical usage | general storage   | high performance block device  |  extremly scalability  | high performance block device for cloudnative applications |
+| typical usage | general storage   | high performance block device  |  extremely scalability  | high performance block device for cloudnative applications |
 | filesystem | yes    | yes  | yes  | yes    |
 | filesystem type | NFS | driver specific  | ext4/xfs | ext4/xfs |
 | block | no | yes | yes | yes |
