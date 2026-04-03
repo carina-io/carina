@@ -63,8 +63,11 @@ func BindMount(source, target string) error {
 // UnbindMount 解除目标目录上的绑定挂载
 func UnbindMount(target string) error {
 	// 验证目标目录是否存在
-	if _, err := os.Stat(target); os.IsNotExist(err) {
-		return fmt.Errorf("目标目录不存在或不是一个目录: %s", target)
+	if _, err := os.Stat(target); err != nil {
+		if os.IsNotExist(err) {
+			return fmt.Errorf("目标目录不存在或不是一个目录: %s", target)
+		}
+		return fmt.Errorf("无法访问目标目录: %s, 错误: %v", target, err)
 	}
 
 	// 执行 umount 命令
