@@ -7,8 +7,6 @@
 
 [![OpenSSF Best Practices](https://bestpractices.coreinfrastructure.org/projects/6908/badge)](https://bestpractices.coreinfrastructure.org/projects/6908)
 
-> English | [中文](README_zh.md)
-
 ## Background
 
 Storage systems are complex! There are more and more kubernetes native storage systems nowadays and stateful applications are shifting into cloud native world, for example, modern databases and middlewares. However, both modern databases and its storage providers try to solve some common problems in their own way. For example, they both deal with data replications and consistency. This introduces a giant waste of both capacity and performance and needs more mantainness effort. And besides that, stateful applications strive to be more peformant, eliminating every possible latency, which is unavoidable for modern distributed storage systems. Enters carina.
@@ -77,20 +75,7 @@ It has three componets: carina-scheduler, carina-controller and carina-node.
 
 # Quickstart
 
-## Install by shell
-
-- In this deployment mode, the image TAG is Latest. If you want to deploy a specific version of Carina, you need to change the image address
-
-```shell
-$ cd deploy/kubernetes
-# install， The default installation is kube-system.
-$ ./deploy.sh
-
-# uninstall
-$ ./deploy.sh uninstall
-```
-
-## Install by helm3
+## Install by helm
 
 - Support installation of specified versions of Carina
 
@@ -103,11 +88,10 @@ helm install carina-csi-driver carina-csi-driver/carina-csi-driver --namespace k
 ```
 
 * [deployment guide](docs/manual/install.md)
-* [user guide](docs/user-guide.md)
 
 ## Upgrading
 
-- Uninstall the old version `./deploy.sh uninstall` and then install the new version `./deploy.sh` (uninstalling carina will not affect volume usage)
+- `helm upgrade carina-csi-driver carina-csi-driver/carina-csi-driver --namespace kube-system --version <version>` (upgrading carina will not affect volume usage)
 
 # Contribution Guide
 

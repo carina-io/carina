@@ -7,29 +7,6 @@
 - Linux Kernel 3.10.0-1160.11.1.el7.x86_64
 - Each node should have multiple raw disks. Carina will ignore nodes with no empty disks. 
 
-##### Installation
-
-- Using `kubectl get pods -n kube-system | grep carina` to check installation status.
-
-  ```shell
-  $ cd deploy/kubernetes
-  $ ./deploy.sh
-
-  $ kubectl get pods -n kube-system |grep carina
-  carina-scheduler-6cc9cddb4b-jdt68         0/1     ContainerCreating   0          3s
-  csi-carina-node-6bzfn                     0/2     ContainerCreating   0          6s
-  csi-carina-node-flqtk                     0/2     ContainerCreating   0          6s
-  csi-carina-provisioner-7df5d47dff-7246v   0/4     ContainerCreating   0          12s
-  ```
-
-- Uninstallation
-
-  ```shell
-  $ cd deploy/kubernetes
-  $ ./deploy.sh uninstall
-  ```
-* The uninstallation will leave the pod still using carina PV untouched. 
-
 #### Installation using helm
 
 ##### helm installation 

@@ -59,15 +59,8 @@
   $ lsmod | grep bcache
   bcache                233472  0
   crc64                  16384  1 bcache
-  # When there is no bache module, you need to delete the bcache segment from deploy/kuernetes/csi-carina-node.yaml 
-  # delete loading bcache module in init-container. 
-  # delete bcache diectory in csi-carina-node.yaml 
-  - name: host-bcache
-    mountPath: /sys/fs/bcache
-    
-  - name: host-bcache
-    hostPath:
-      path: /sys/fs/bcache            
+  # When there is no bcache module, disable it in the chart
+  $ helm upgrade carina-csi-driver ./charts --reuse-values --set node.bcache=false
   ```
 
 - Enjoy Carina!
