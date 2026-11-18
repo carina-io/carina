@@ -1,0 +1,59 @@
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  name: {{ .Values.scheduler.name }}
+  namespace: {{ .Release.Namespace }}
+{{ include "carina-scheduler.labels" . | indent 2 }}
+spec:
+  replicas: {{ .Values.scheduler.replicas }}
+  selector:
+    matchLabels:
+      app: csi-carina-scheduler
+  template:
+    metadata:
+{{ include "carina-scheduler.labels" . | indent 6 }}
+      {{- with .Values.scheduler.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    spec:
+      {{- include "carina.pullSecrets" . | indent 6 }}
+      serviceAccountName: {{ .Values.serviceAccount.scheduler }}
+      securityContext:
+        {{- toYaml .Values.scheduler.podSecurityContext | nindent 8 }}
+      containers:
+        - name: carina-scheduler
+          securityContext:
+            {{- toYaml .Values.scheduler.securityContext | nindent 12 }}
+          image: "{{ .Values.image.scheduler.repository }}:{{ .Values.image.scheduler.tag | default (printf "%sv%s" .Values.image.scheduler.tagPrefix .Chart.AppVersion) }}"
+          imagePullPolicy: {{ .Values.image.scheduler.pullPolicy }}
+          command: ["carina-scheduler"]
+          args:
+          - --config=/etc/kube/scheduler-config.yaml
+          - --v=3
+          volumeMounts:
+            - name: scheduler-config
+              mountPath: /etc/kube/
+            - name: config
+              mountPath: /etc/carina/
+          resources:
+            {{- toYaml .Values.scheduler.resources | nindent 12 }}
+      {{- with .Values.scheduler.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.scheduler.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.scheduler.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      volumes:
+        - name: scheduler-config
+          configMap:
+            name: carina-scheduler-config
+        - name: config
+          configMap:
+            name: {{ .Release.Name }}-csi-config

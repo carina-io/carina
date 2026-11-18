@@ -1,11 +1,3 @@
-carina-scheduler:
-  enabled: true
-  image:
-    repository: ghcr.io/kilnfi/carina
-    # Full image tag; defaults to <tagPrefix>v<appVersion>
-    tag: ""
-    pullPolicy: IfNotPresent
-    tagPrefix: scheduler-
 # Default values for carina-csi-driver.
 # This is a YAML-formatted file.
 # Declare variables to be passed into your templates.
@@ -15,6 +7,12 @@ image:
     # Full image tag; defaults to <tagPrefix>v<appVersion>
     tag: ""
     tagPrefix: controller-
+    pullPolicy: IfNotPresent
+  scheduler:
+    repository: ghcr.io/kilnfi/carina
+    # Full image tag; defaults to <tagPrefix>v<appVersion>
+    tag: ""
+    tagPrefix: scheduler-
     pullPolicy: IfNotPresent
   livenessProbe:
     repository: registry.k8s.io/sig-storage/livenessprobe
@@ -41,6 +39,7 @@ serviceAccount:
   create: true # When true, service accounts will be created for you. Set to false if you want to use your own.
   controller: carina-csi-controller
   node: carina-csi-node
+  scheduler: carina-scheduler-sa
 
 driver:
   name: carina.storage.io
@@ -97,6 +96,23 @@ controller:
       requests:
         cpu: 300m
         memory: 64Mi
+
+scheduler:
+  name: carina-scheduler
+  replicas: 1
+  podAnnotations: {}
+  podSecurityContext: {}
+  securityContext: {}
+  resources:
+    limits:
+      cpu: 100m
+      memory: 128Mi
+    requests:
+      cpu: 100m
+      memory: 128Mi
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
 
 node:
   name: csi-carina-node # daemonset name

@@ -54,6 +54,10 @@ The following table lists the configurable parameters of the latest  Disk CSI Dr
 | `image.carina.tag`                                | carina-csi-driver docker image tag                                                                         | `<tagPrefix>v<appVersion>`  |
 | `image.carina.tagPrefix`                          | prefix of the default image tag                                                                            | `controller-`  |
 | `image.carina.pullPolicy`                         | carina-csi-driver image pull policy                                                                        | `IfNotPresent`   |
+| `image.scheduler.repository`                      | carina-scheduler docker image                                                                              | `ghcr.io/kilnfi/carina`   |
+| `image.scheduler.tag`                             | carina-scheduler docker image tag                                                                          | `<tagPrefix>v<appVersion>`  |
+| `image.scheduler.tagPrefix`                       | prefix of the default scheduler image tag                                                                  | `scheduler-`  |
+| `image.scheduler.pullPolicy`                      | carina-scheduler image pull policy                                                                         | `IfNotPresent`   |
 | `image.csiProvisioner.repository`                 | csi-provisioner docker image                                                                               | `registry.k8s.io/sig-storage/csi-provisioner`  |
 | `image.csiProvisioner.tag`                        | csi-provisioner docker image tag                                                                           | `v6.4.0`  |
 | `image.csiProvisioner.pullPolicy`                 | csi-provisioner image pull policy                                                                          | `IfNotPresent`  |
@@ -67,6 +71,7 @@ The following table lists the configurable parameters of the latest  Disk CSI Dr
 | `serviceAccount.create`                           | whether create service account of csi-carina-controller, csi-carina-node                                   | `true`   |                                                |
 | `serviceAccount.controller`                       | name of service account for csi-carina-controller                                                          | `carina-csi-controller`       |
 | `serviceAccount.node`                             | name of service account for csi-carina-node                                                                | `carina-csi-node`         |
+| `serviceAccount.scheduler`                        | name of service account for carina-scheduler                                                               | `carina-scheduler-sa`         |
 | `rbac.create`                                     | whether create rbac of csi-carina-controller                                                               | `true`           |
 | `rbac.name`                                       | driver name in rbac role                                                                                   | `carina`         |
 | `controller.name`                                 | name of driver deployment                                                                                  | `csi-carina-controller` |
@@ -88,6 +93,10 @@ The following table lists the configurable parameters of the latest  Disk CSI Dr
 | `controller.resources.carina.limits.memory`        | carina memory limits                                                                                       | 500Mi                                                          |
 | `controller.resources.carina.requests.cpu`         | carina cpu requests limits                                                                                 | 10m                                                            |
 | `controller.resources.carina.requests.memory`      | carina memory requests limits                                                                              | 20Mi    |
+| `scheduler.name`                                  | name of scheduler deployment                                                                               | `carina-scheduler` |
+| `scheduler.replicas`                              | the replicas of carina-scheduler                                                                           | `1` |
+| `scheduler.resources`                             | carina-scheduler resources                                                                                 | 100m / 128Mi |
+| `scheduler.nodeSelector`, `scheduler.tolerations`, `scheduler.affinity` | scheduler pod placement                                              |     |
 | `node.name`                                       | name of driver daemonset                                                                                   |`csi-carina-node`       |
 | `node.maxUnavailable`                             | `maxUnavailable` value of driver node daemonset                                                            | `1`
 | `node.metricsPort`                                | metrics port of csi-carina-node                                                                            |`29091`         |

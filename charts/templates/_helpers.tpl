@@ -40,6 +40,19 @@ labels:
   helm.sh/chart: "{{ .Chart.Name }}-{{ .Chart.Version | replace "+" "_" }}"
 {{- end -}}
 
+{{/* labels for helm resources */}}
+{{- define "carina-scheduler.labels" -}}
+labels:
+  class: carina
+  app: csi-carina-scheduler
+  release:  "{{ .Release.Name }}"
+  app.kubernetes.io/instance: "{{ .Release.Name }}"
+  app.kubernetes.io/managed-by: "{{ .Release.Service }}"
+  app.kubernetes.io/name: "{{ template "carina.name" . }}"
+  app.kubernetes.io/version: "{{ .Chart.AppVersion }}"
+  helm.sh/chart: "{{ .Chart.Name }}-{{ .Chart.Version | replace "+" "_" }}"
+{{- end -}}
+
 {{/* pull secrets for containers */}}
 {{- define "carina.pullSecrets" -}}
 {{- if .Values.imagePullSecrets }}
@@ -72,6 +85,3 @@ imagePullSecrets:
     {{- print "apiextensions.k8s.io/v1beta1" -}}
   {{- end -}}
 {{- end -}}
-
-
-

@@ -27,7 +27,7 @@ roleRef:
   name: carina-scheduler-clusterrole
 subjects:
   - kind: ServiceAccount
-    name: carina-scheduler-sa
+    name: {{ .Values.serviceAccount.scheduler }}
     namespace: {{ .Release.Namespace }}
 
 ---
@@ -41,7 +41,7 @@ roleRef:
   name: system:kube-scheduler
 subjects:
   - kind: ServiceAccount
-    name: carina-scheduler-sa
+    name: {{ .Values.serviceAccount.scheduler }}
     namespace: {{ .Release.Namespace }}
 
 ---
@@ -55,5 +55,5 @@ roleRef:
   name: system:volume-scheduler
 subjects:
   - kind: ServiceAccount
-    name: carina-scheduler-sa
+    name: {{ .Values.serviceAccount.scheduler }}
     namespace: {{ .Release.Namespace }}

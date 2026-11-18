@@ -96,7 +96,7 @@ jobs:
           scheduler_tag="${{ steps.scheduler-meta.outputs.version }}"
           kind load docker-image "ghcr.io/kilnfi/carina:${controller_tag}" "ghcr.io/kilnfi/carina:${scheduler_tag}"
 
-          helm install --create-namespace -n carina --set carina-scheduler.image.tag="${scheduler_tag}" --set image.carina.tag="${controller_tag}" --hide-notes --wait carina-csi-driver charts/
+          helm install --create-namespace -n carina --set image.scheduler.tag="${scheduler_tag}" --set image.carina.tag="${controller_tag}" --hide-notes --wait carina-csi-driver charts/
 
           # Create a 50G loopback device inside carina-node to simulate a disk
           kubectl wait pod -n carina -l app=csi-carina-node --for=condition=ready --timeout=120s
