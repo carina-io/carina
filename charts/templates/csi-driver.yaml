@@ -4,7 +4,7 @@ metadata:
   name: {{ .Values.driver.name }}
   namespace: {{ .Release.Namespace }}
   annotations:
-    csiDriver: "{{ .Values.image.carina.tag }}"
+    csiDriver: "{{ .Values.image.carina.tag | default (printf "%sv%s" .Values.image.carina.tagPrefix .Chart.AppVersion) }}"
 {{ include "carina.labels" . | indent 2 }}
 spec:
   attachRequired: false

@@ -5,10 +5,11 @@
 replicaCount: 1
 
 image:
-  repository: registry.cn-qingdao.aliyuncs.com/zhangkai8048/carina
+  repository: ghcr.io/kilnfi/carina
   pullPolicy: IfNotPresent
-  # Overrides the image tag whose default is the chart appVersion.
-  tag: "v0.9-20211012111249"
+  # Full image tag; defaults to <tagPrefix>v<appVersion>
+  tag: ""
+  tagPrefix: scheduler-
 
 imagePullSecrets: []
 nameOverride: ""

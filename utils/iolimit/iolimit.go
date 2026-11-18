@@ -19,8 +19,6 @@ package iolimit
 import (
 	"fmt"
 	"github.com/carina-io/carina/utils"
-	libcontainercgroups "github.com/opencontainers/runc/libcontainer/cgroups"
-	cgroupsystemd "github.com/opencontainers/runc/libcontainer/cgroups/systemd"
 	v1 "k8s.io/api/core/v1"
 	"os"
 	"path"
@@ -33,71 +31,33 @@ type CgroupDrivertype string
 const (
 	CgroupfsDriver CgroupDrivertype = "cgroupfs"
 	SystemdDriver  CgroupDrivertype = "systemd"
-	RootCgroup     string           = "/sys/fs/cgroup"
 )
+
+// cgroupRoot is a var so tests can point it at a temp dir.
+var cgroupRoot = "/sys/fs/cgroup"
 
 type CgroupName []string
 
-var errTemplate = "the pod(uid %s)'s cgroup blkio path(%s) is not exist"
+// IsCgroup2UnifiedMode reports whether the cgroup root is a cgroup v2 (unified) hierarchy.
+// cgroup.controllers only exists at the root of a cgroup v2 mount.
+func IsCgroup2UnifiedMode() bool {
+	return utils.FileExists(path.Join(cgroupRoot, "cgroup.controllers"))
+}
 
 func SetIOLimit(blkIO *PodBlkIO) error {
-	blkPath := getPodBlkIOCgroupPath(blkIO)
-	if !utils.DirExists(blkPath) {
-		return fmt.Errorf(errTemplate, blkIO.PodUid, blkPath)
+	podPath := getPodCgroupPath(blkIO)
+	if !utils.DirExists(podPath) {
+		return fmt.Errorf("the pod(uid %s)'s cgroup path(%s) does not exist", blkIO.PodUid, podPath)
 	}
-	if libcontainercgroups.IsCgroup2UnifiedMode() {
-		ioMaxPath := path.Join(blkPath, Cgroupv2BlkIOThrottle)
-		if !utils.FileExists(ioMaxPath) {
-			return fmt.Errorf(errTemplate, blkIO.PodUid, ioMaxPath)
-		}
-		for deviceNo, deviceIOLimit := range blkIO.DeviceIOSet {
-			ioStr := getCG2IOLimitStr(deviceNo, deviceIOLimit)
-			if err := os.WriteFile(ioMaxPath, []byte(ioStr), 0600); err != nil {
-				return fmt.Errorf("failed to write ioStr(%s) to path(%s)", ioStr, ioMaxPath)
-			}
-		}
-		return nil
+	ioMaxPath := path.Join(podPath, ioMaxFile)
+	if !utils.FileExists(ioMaxPath) {
+		return fmt.Errorf("the pod(uid %s)'s %s does not exist: the io controller is not enabled in %s",
+			blkIO.PodUid, ioMaxPath, path.Join(path.Dir(podPath), "cgroup.subtree_control"))
 	}
-	ioLimitPath := getCG1IOLimitPaths(blkPath, blkIO.PodUid)
-	for _, blkIOPath := range ioLimitPath {
-		if !utils.FileExists(blkIOPath) {
-			return fmt.Errorf(errTemplate, blkIO.PodUid, blkIOPath)
-		}
-	}
-	for deviceNo, iolt := range blkIO.DeviceIOSet {
-		for _, throttle := range GetSupportedIOThrottles() {
-			line := deviceNo
-			switch throttle {
-			case BlkIOThrottleReadBPS:
-				if iolt.Rbps != 0 {
-					line += " " + strconv.FormatUint(iolt.Rbps, 10)
-				} else {
-					line += " 0"
-				}
-			case BlkIOThrottleReadIOPS:
-				if iolt.Riops != 0 {
-					line += " " + strconv.FormatUint(iolt.Riops, 10)
-				} else {
-					line += " 0"
-				}
-			case BlkIOThrottleWriteBPS:
-				if iolt.Wbps != 0 {
-					line += " " + strconv.FormatUint(iolt.Wbps, 10)
-				} else {
-					line += " 0"
-				}
-			case BlkIOThrottleWriteIOPS:
-				if iolt.Wiops != 0 {
-					line += " " + strconv.FormatUint(iolt.Wiops, 10)
-				} else {
-					line += " 0"
-				}
-			default:
-				return fmt.Errorf("unsupported throttle type %s", throttle)
-			}
-			if err := os.WriteFile(ioLimitPath[throttle], []byte(line), 0600); err != nil {
-				return fmt.Errorf("failed to write ioStr(%s) to path(%s)", line, ioLimitPath[throttle])
-			}
+	for deviceNo, deviceIOLimit := range blkIO.DeviceIOSet {
+		ioStr := getCG2IOLimitStr(deviceNo, deviceIOLimit)
+		if err := os.WriteFile(ioMaxPath, []byte(ioStr), 0600); err != nil {
+			return fmt.Errorf("failed to write ioStr(%s) to path(%s): %v", ioStr, ioMaxPath, err)
 		}
 	}
 	return nil
@@ -126,7 +86,7 @@ func (cgroupName CgroupName) toSystemd() string {
 		newparts = append(newparts, part)
 	}
 
-	result, err := cgroupsystemd.ExpandSlice(strings.Join(newparts, "-") + ".slice")
+	result, err := expandSlice(strings.Join(newparts, "-") + ".slice")
 	if err != nil {
 		// Should never happen...
 		panic(fmt.Errorf("error converting cgroup name [%v] to systemd format: %v", cgroupName, err))
@@ -138,20 +98,12 @@ func (cgroupName CgroupName) toCgroupfs() string {
 	return "/" + path.Join(cgroupName...)
 }
 
-func getPodBlkIOCgroupPath(blkIO *PodBlkIO) string {
+func getPodCgroupPath(blkIO *PodBlkIO) string {
 	cgroupName := generatePodCgroupName(blkIO.PodQos, blkIO.PodUid)
-	var cgroupPath string
-	switch getCgroupDriverType() {
-	case CgroupfsDriver:
-		cgroupPath = cgroupName.toCgroupfs()
-	case SystemdDriver:
-		cgroupPath = cgroupName.toSystemd()
+	if getCgroupDriverType() == SystemdDriver {
+		return path.Join(cgroupRoot, cgroupName.toSystemd())
 	}
-	if libcontainercgroups.IsCgroup2UnifiedMode() {
-		return path.Join(RootCgroup, cgroupPath)
-	} else {
-		return path.Join(RootCgroup, "blkio", cgroupPath)
-	}
+	return path.Join(cgroupRoot, cgroupName.toCgroupfs())
 }
 
 func generatePodCgroupName(qos v1.PodQOSClass, podUid string) CgroupName {
@@ -171,19 +123,10 @@ func generatePodCgroupName(qos v1.PodQOSClass, podUid string) CgroupName {
 // check cgroup driver
 
 func getCgroupDriverType() CgroupDrivertype {
-	if utils.DirExists(RootCgroup+"/kubepods.slice") || utils.DirExists(RootCgroup+"/systemd/kubepods.slice") {
+	if utils.DirExists(path.Join(cgroupRoot, "kubepods.slice")) {
 		return SystemdDriver
 	}
 	return CgroupfsDriver
-}
-
-func getCG1IOLimitPaths(blkPath, podUID string) map[string]string {
-	ioPathMap := map[string]string{}
-	ioPathMap[BlkIOThrottleReadBPS] = path.Join(blkPath, BlkIOThrottleReadBPS)
-	ioPathMap[BlkIOThrottleReadIOPS] = path.Join(blkPath, BlkIOThrottleReadIOPS)
-	ioPathMap[BlkIOThrottleWriteBPS] = path.Join(blkPath, BlkIOThrottleWriteBPS)
-	ioPathMap[BlkIOThrottleWriteIOPS] = path.Join(blkPath, BlkIOThrottleWriteIOPS)
-	return ioPathMap
 }
 
 func getCG2IOLimitStr(deviceNo string, iolt *IOLimit) string {

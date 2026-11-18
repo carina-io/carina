@@ -68,7 +68,8 @@ jobs:
       - name: Build and push scheduler image
         uses: docker/build-push-action@v6
         with:
-          context: ./scheduler
+          context: .
+          file: scheduler/Dockerfile
           load: true
           push: ${{ github.event_name == 'release' }}
           tags: ${{ steps.scheduler-meta.outputs.tags }}
@@ -80,6 +81,8 @@ jobs:
         uses: helm/kind-action@v1
         with:
           cluster_name: kind
+          version: v0.33.0
+          node_image: kindest/node:v1.37.0@sha256:a1ed56cfb0e7b93589bdf97c8cd566405a265939e3620fc4f5de89adff580ae5
       # Interactive debug
       # - name: Setup tmate session
       #   uses: mxschmitt/action-tmate@v3
@@ -100,4 +103,4 @@ jobs:
           kubectl exec -t -n carina -c csi-carina-node ds/csi-carina-node -- sh -c "truncate -s 50G /tmp/disk.device && losetup /dev/loop2 /tmp/disk.device && pvcreate /dev/loop2"
 
           # Run the helm test — creates a PVC and a pod that uses carina storage.
-          helm test -n carina --hide-notes carina-csi-driver
+          helm test -n carina carina-csi-driver

@@ -8,8 +8,8 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"path/filepath"
 
-	v1 "github.com/carina-io/carina-api/api/v1"
-	"github.com/carina-io/carina-api/api/v1beta1"
+	v1 "github.com/carina-io/carina/api/v1"
+	"github.com/carina-io/carina/api/v1beta1"
 	"github.com/carina-io/carina/scheduler/utils"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"

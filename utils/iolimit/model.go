@@ -18,13 +18,15 @@ package iolimit
 
 import "k8s.io/api/core/v1"
 
+// Annotation key suffixes. They keep the cgroup v1 file names for compatibility with existing pods.
 const (
-	BlkIOThrottleReadBPS   = "blkio.throttle.read_bps_device"
-	BlkIOThrottleReadIOPS  = "blkio.throttle.read_iops_device"
-	BlkIOThrottleWriteBPS  = "blkio.throttle.write_bps_device"
-	BlkIOThrottleWriteIOPS = "blkio.throttle.write_iops_device"
-	Cgroupv2BlkIOThrottle  = "io.max"
+	AnnotationReadBPS   = "blkio.throttle.read_bps_device"
+	AnnotationReadIOPS  = "blkio.throttle.read_iops_device"
+	AnnotationWriteBPS  = "blkio.throttle.write_bps_device"
+	AnnotationWriteIOPS = "blkio.throttle.write_iops_device"
 )
+
+const ioMaxFile = "io.max"
 
 // DeviceIOSet key is device number
 type DeviceIOSet map[string]*IOLimit
@@ -65,5 +67,5 @@ func (bd1 *IOLimit) Equal(bd2 *IOLimit) bool {
 }
 
 func GetSupportedIOThrottles() []string {
-	return []string{BlkIOThrottleReadBPS, BlkIOThrottleReadIOPS, BlkIOThrottleWriteBPS, BlkIOThrottleWriteIOPS}
+	return []string{AnnotationReadBPS, AnnotationReadIOPS, AnnotationWriteBPS, AnnotationWriteIOPS}
 }

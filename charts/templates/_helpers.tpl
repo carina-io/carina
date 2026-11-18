@@ -52,11 +52,7 @@ imagePullSecrets:
 
 
 {{- define "nodeInitImage" -}}
-{{- if hasPrefix "/" .Values.image.nodeInitImage.repository }}
-{{- printf "%s%s:%s"  .Values.image.baseRepo .Values.image.nodeInitImage.repository   .Values.image.nodeInitImage.tag  -}}
-{{- else }}
 {{- printf "%s:%s"   .Values.image.nodeInitImage.repository   .Values.image.nodeInitImage.tag  -}}
-{{- end }}
 {{- end -}}
 
 

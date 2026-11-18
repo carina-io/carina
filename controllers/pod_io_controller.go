@@ -38,7 +38,7 @@ import (
 )
 
 const (
-	// KubernetesCustomized pod annotation BlkIOThrottleReadBPS
+	// KubernetesCustomized is the prefix of the io throttle pod annotations
 	KubernetesCustomized = "carina.storage.io"
 )
 
@@ -79,7 +79,7 @@ func (r *PodIOReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 		return ctrl.Result{}, nil
 	}
 
-	log.Debug("Try to update pod's cgroup blkio, pod namespace: " + pod.Namespace + ", pod name:" + pod.Name)
+	log.Debug("Try to update pod's cgroup io.max, pod namespace: " + pod.Namespace + ", pod name:" + pod.Name)
 
 	if err := r.handleSinglePodCGroupConfig(ctx, pod); err != nil {
 		return ctrl.Result{}, err
@@ -90,6 +90,10 @@ func (r *PodIOReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 
 // SetupWithManager sets up Reconciler with Manager.
 func (r *PodIOReconciler) SetupWithManager(mgr ctrl.Manager) error {
+	if !iolimit.IsCgroup2UnifiedMode() {
+		log.Error("node is not on cgroup v2, pod io throttling annotations will be ignored")
+		return nil
+	}
 	ctx := context.Background()
 	err := mgr.GetFieldIndexer().IndexField(ctx, &corev1.Pod{}, "combinedIndex", func(object client.Object) []string {
 		return []string{object.(*corev1.Pod).Spec.NodeName}
@@ -139,7 +143,7 @@ func (r *PodIOReconciler) handleSinglePodCGroupConfig(ctx context.Context, pod *
 		return nil
 	}
 
-	log.Infof("Need to update pod's cgroup blkio, namespace: %s, name: %s", pod.Namespace, pod.Name)
+	log.Infof("Need to update pod's cgroup io.max, namespace: %s, name: %s", pod.Namespace, pod.Name)
 	if err := iolimit.SetIOLimit(r.getPodBlkIO(ctx, pod)); err != nil {
 		return err
 	}
@@ -204,13 +208,13 @@ func (r *PodIOReconciler) getPodIOLimit(pod *corev1.Pod) *iolimit.IOLimit {
 			}
 		}
 		switch throttle {
-		case iolimit.BlkIOThrottleReadBPS:
+		case iolimit.AnnotationReadBPS:
 			iolt.Rbps = throttleVal
-		case iolimit.BlkIOThrottleReadIOPS:
+		case iolimit.AnnotationReadIOPS:
 			iolt.Riops = throttleVal
-		case iolimit.BlkIOThrottleWriteBPS:
+		case iolimit.AnnotationWriteBPS:
 			iolt.Wbps = throttleVal
-		case iolimit.BlkIOThrottleWriteIOPS:
+		case iolimit.AnnotationWriteIOPS:
 			iolt.Wiops = throttleVal
 		default:
 			log.Warnf("Unsupported throttle type %s", throttle)

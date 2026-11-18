@@ -1,4 +1,4 @@
-{{- $initiMage := include "nodeInitImage" . -}}
+{{- $initImage := include "nodeInitImage" . -}}
 kind: DaemonSet
 apiVersion: apps/v1
 metadata:
@@ -41,7 +41,7 @@ spec:
         - name: bcache
           securityContext:
             privileged: true
-          image: {{ $initiMage  }}
+          image: {{ $initImage  }}
           imagePullPolicy: {{ .Values.image.nodeInitImage.pullPolicy }}
           command:
           - sh
@@ -66,7 +66,7 @@ spec:
         - name: {{ kebabcase   . | }}
           securityContext:
             privileged: true
-          image: {{ $initiMage  }}
+          image: {{ $initImage  }}
           command:
           - sh
           - -c
@@ -93,11 +93,7 @@ spec:
           volumeMounts:
             - mountPath: /csi
               name: socket-dir
-{{- if hasPrefix "/" .Values.image.livenessProbe.repository }}
-          image: "{{ .Values.image.baseRepo }}{{ .Values.image.livenessProbe.repository }}:{{ .Values.image.livenessProbe.tag }}"
-{{- else }}
           image: "{{ .Values.image.livenessProbe.repository }}:{{ .Values.image.livenessProbe.tag }}"
-{{- end }}
           args:
             - --csi-address=/csi/csi.sock
             - --probe-timeout=3s
@@ -106,11 +102,7 @@ spec:
           resources: {{- toYaml .Values.node.resources.livenessProbe | nindent 12 }}
 {{- end }}
         - name: node-driver-registrar
-{{- if hasPrefix "/" .Values.image.nodeDriverRegistrar.repository }}
-          image: "{{ .Values.image.baseRepo }}{{ .Values.image.nodeDriverRegistrar.repository }}:{{ .Values.image.nodeDriverRegistrar.tag }}"
-{{- else }}
           image: "{{ .Values.image.nodeDriverRegistrar.repository }}:{{ .Values.image.nodeDriverRegistrar.tag }}"
-{{- end }}
           imagePullPolicy: {{ .Values.image.nodeDriverRegistrar.pullPolicy }}
           args:
             - --csi-address=$(ADDRESS)
@@ -132,11 +124,7 @@ spec:
               mountPath: /registration
           resources: {{- toYaml .Values.node.resources.nodeDriverRegistrar | nindent 12 }}
         - name: csi-carina-node
-{{- if hasPrefix "/" .Values.image.carina.repository }}
-          image: "{{ .Values.image.baseRepo }}{{ .Values.image.carina.repository }}:{{ .Values.image.carina.tag }}"
-{{- else }}
-          image: "{{ .Values.image.carina.repository }}:{{ .Values.image.carina.tag }}"
-{{- end }}
+          image: "{{ .Values.image.carina.repository }}:{{ .Values.image.carina.tag | default (printf "%sv%s" .Values.image.carina.tagPrefix .Chart.AppVersion) }}"
           securityContext:
             privileged: true
             capabilities:

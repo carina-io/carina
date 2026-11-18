@@ -11,13 +11,13 @@ test:
 # Build the docker image
 docker-build:
 	go mod vendor
-	docker build -t $(IMAGE_REPOSITORY)/carina-scheduler:$(VERSION) .
+	docker build -t $(IMAGE_REPOSITORY)/carina-scheduler:$(VERSION) -f Dockerfile ..
 	rm -rf vendor
 	docker push $(IMAGE_REPOSITORY)/carina-scheduler:$(VERSION)
 
 # Push the docker image
 release:
 	go mod vendor
-	docker buildx build -t $(IMAGE_REPOSITORY)/carina-scheduler:$(VERSION) --platform=$(ARCH) . --push
+	docker buildx build -t $(IMAGE_REPOSITORY)/carina-scheduler:$(VERSION) --platform=$(ARCH) -f Dockerfile .. --push
 	rm -rf vendor
 

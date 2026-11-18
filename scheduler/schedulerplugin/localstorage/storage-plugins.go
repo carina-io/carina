@@ -19,8 +19,8 @@ package localstorage
 import (
 	"context"
 	"errors"
-	carinav1 "github.com/carina-io/carina-api/api/v1"
-	carinav1beta1 "github.com/carina-io/carina-api/api/v1beta1"
+	carinav1 "github.com/carina-io/carina/api/v1"
+	carinav1beta1 "github.com/carina-io/carina/api/v1beta1"
 	carina "github.com/carina-io/carina/scheduler"
 	"k8s.io/client-go/dynamic/dynamicinformer"
 	"k8s.io/client-go/tools/cache"

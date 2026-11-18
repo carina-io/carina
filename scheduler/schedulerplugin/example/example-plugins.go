@@ -73,7 +73,7 @@ func (ep *ExamplePlugin) Name() string {
 }
 
 // Less Schedule Pod Queue排序规则
-func (ep *ExamplePlugin) Less(podInfo1, podInfo2 framework.QueuedPodInfo) bool {
+func (ep *ExamplePlugin) Less(podInfo1, podInfo2 framework.QueuedEntityInfo) bool {
 	// 在此可以通过特殊字段进行排序，例如让同一组对Pod排在一起调度
 	return podInfo1.GetTimestamp().Before(podInfo2.GetTimestamp())
 }

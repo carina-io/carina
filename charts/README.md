@@ -50,18 +50,18 @@ The following table lists the configurable parameters of the latest  Disk CSI Dr
 | `driver.name`                                     | alternative driver name                                                                                    | `csi.carina.com` |
 | `driver.podInfoOnMount`                           | true                                                                                                       | `true` |
 | `driver.volumeLifecycleModes`                     | Persistent                                                                                                 | `Persistent` |
-| `image.baseRepo`                                  | base repository of driver images                                                                           | `registry.cn-hangzhou.aliyuncs.com/carina` |
-| `image.carina.repository`                         | carina-csi-driver docker image                                                                             | `/carina`   |
-| `image.carina.tag`                                | carina-csi-driver docker image tag                                                                         | `latest`  |
+| `image.carina.repository`                         | carina-csi-driver docker image                                                                             | `ghcr.io/kilnfi/carina`   |
+| `image.carina.tag`                                | carina-csi-driver docker image tag                                                                         | `<tagPrefix>v<appVersion>`  |
+| `image.carina.tagPrefix`                          | prefix of the default image tag                                                                            | `controller-`  |
 | `image.carina.pullPolicy`                         | carina-csi-driver image pull policy                                                                        | `IfNotPresent`   |
-| `image.csiProvisioner.repository`                 | csi-provisioner docker image                                                                               | `/csi-provisioner`  |
-| `image.csiProvisioner.tag`                        | csi-provisioner docker image tag                                                                           | `v2.1.0`  |
+| `image.csiProvisioner.repository`                 | csi-provisioner docker image                                                                               | `registry.k8s.io/sig-storage/csi-provisioner`  |
+| `image.csiProvisioner.tag`                        | csi-provisioner docker image tag                                                                           | `v6.4.0`  |
 | `image.csiProvisioner.pullPolicy`                 | csi-provisioner image pull policy                                                                          | `IfNotPresent`  |
-| `image.csiResizer.repository`                     | csi-resizer docker image                                                                                   | `/csi-resizer`    |
-| `image.csiResizer.tag`                            | csi-resizer docker image tag                                                                               | `v1.1.0`         |
+| `image.csiResizer.repository`                     | csi-resizer docker image                                                                                   | `registry.k8s.io/sig-storage/csi-resizer`    |
+| `image.csiResizer.tag`                            | csi-resizer docker image tag                                                                               | `v2.3.0`         |
 | `image.csiResizer.pullPolicy`                     | csi-resizer image pull policy                                                                              | `IfNotPresent`        |
-| `image.nodeDriverRegistrar.repository`            | csi-node-driver-registrar docker image                                                                     | `/csi-node-driver-registrar` |
-| `image.nodeDriverRegistrar.tag`                   | csi-node-driver-registrar docker image tag                                                                 | `v2.1.0`                   |
+| `image.nodeDriverRegistrar.repository`            | csi-node-driver-registrar docker image                                                                     | `registry.k8s.io/sig-storage/csi-node-driver-registrar` |
+| `image.nodeDriverRegistrar.tag`                   | csi-node-driver-registrar docker image tag                                                                 | `v2.18.0`                   |
 | `image.nodeDriverRegistrar.pullPolicy`            | csi-node-driver-registrar image pull policy                                                                | `IfNotPresent`              |
 | `imagePullSecrets`                                | Specify docker-registry secret names as an array                                                           | []         |
 | `serviceAccount.create`                           | whether create service account of csi-carina-controller, csi-carina-node                                   | `true`   |                                                |
